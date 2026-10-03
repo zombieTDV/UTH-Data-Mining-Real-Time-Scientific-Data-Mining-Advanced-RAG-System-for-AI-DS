@@ -277,9 +277,11 @@ export function ScientificRagConsole() {
               type="submit"
               disabled={ragLoading || !query.trim()}
               style={{
-                background: 'var(--text-primary)',
-                color: 'var(--bg-surface)',
-                border: 'none',
+                background: ragLoading
+                  ? 'var(--bg-surface-elevated)'
+                  : 'linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95))',
+                color: '#ffffff',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
                 borderRadius: '4px',
                 padding: '8px 18px',
                 fontWeight: 800,
@@ -291,7 +293,8 @@ export function ScientificRagConsole() {
                 alignItems: 'center',
                 gap: '8px',
                 flexShrink: 0,
-                transition: 'opacity 0.15s ease'
+                boxShadow: ragLoading ? 'none' : '0 2px 10px rgba(16, 185, 129, 0.3)',
+                transition: 'all 0.15s ease',
               }}
             >
               <span>{ragLoading ? 'SEARCHING GOLD LAKE...' : 'RUN QUERY'}</span>
@@ -299,8 +302,8 @@ export function ScientificRagConsole() {
                 width: '16px',
                 height: '16px',
                 borderRadius: '50%',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: '#ffffff',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',

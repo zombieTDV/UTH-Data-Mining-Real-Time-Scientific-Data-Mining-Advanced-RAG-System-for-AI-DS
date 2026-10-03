@@ -250,10 +250,10 @@ export const MiningPillarsView: FC = () => {
         }}
       >
         {[
-          { id: 1, code: '01', title: 'ASSOCIATION RULES', desc: 'FP-Growth / Co-occurrence' },
-          { id: 2, code: '02', title: 'TOPIC CLUSTERING', desc: 'K-Means & DBSCAN (2D)' },
-          { id: 3, code: '03', title: 'GRAPH MINING', desc: 'Co-authorship & PageRank' },
-          { id: 4, code: '04', title: 'TREND & ANOMALY', desc: 'Isolation Forest & Velocity' },
+          { id: 1, code: '01', title: 'ASSOCIATION RULES', desc: 'FP-Growth / Co-occurrence', accent: 'var(--accent-emerald)' },
+          { id: 2, code: '02', title: 'TOPIC CLUSTERING', desc: 'K-Means & DBSCAN (2D)', accent: 'var(--accent-silver)' },
+          { id: 3, code: '03', title: 'GRAPH MINING', desc: 'Co-authorship & PageRank', accent: 'var(--accent-violet)' },
+          { id: 4, code: '04', title: 'TREND & ANOMALY', desc: 'Isolation Forest & Velocity', accent: 'var(--accent-bronze)' },
         ].map((p) => {
           const isActive = activePillar === p.id;
           return (
@@ -261,42 +261,64 @@ export const MiningPillarsView: FC = () => {
               key={p.id}
               onClick={() => setActivePillar(p.id as 1 | 2 | 3 | 4)}
               style={{
-                background: isActive ? 'var(--text-primary)' : 'var(--bg-surface)',
-                color: isActive ? 'var(--bg-surface)' : 'var(--text-secondary)',
-                border: '1px solid var(--border-subtle)',
+                background: isActive
+                  ? 'var(--bg-surface-elevated)'
+                  : 'var(--bg-surface)',
+                color: 'var(--text-secondary)',
+                border: `1.5px solid ${isActive ? p.accent : 'var(--border-subtle)'}`,
                 borderRadius: 'var(--radius-md)',
                 padding: '12px 16px',
                 textAlign: 'left',
                 cursor: 'pointer',
                 fontFamily: 'var(--font-mono)',
-                boxShadow: isActive ? 'var(--card-shadow)' : 'none',
-                transition: 'all 0.15s ease',
+                boxShadow: isActive ? `0 0 16px ${p.accent}22, var(--card-shadow)` : 'none',
+                position: 'relative',
+                overflow: 'hidden',
+                transition: 'all 0.18s ease',
               }}
             >
+              {/* Subtle top indicator bar */}
+              {isActive && (
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '2px',
+                  background: p.accent,
+                }} />
+              )}
               <div
                 style={{
                   fontSize: '10px',
                   fontWeight: 800,
-                  color: isActive ? 'var(--accent-emerald)' : 'var(--text-muted)',
+                  color: isActive ? p.accent : 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
                 }}
               >
+                {isActive && (
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: p.accent }} />
+                )}
                 [ PILLAR {p.code} ]
               </div>
               <div
                 style={{
-                  fontSize: '12px',
+                  fontSize: '12.5px',
                   fontWeight: 800,
-                  marginTop: '3px',
-                  color: isActive ? 'var(--bg-surface)' : 'var(--text-primary)',
+                  marginTop: '4px',
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  letterSpacing: '0.02em',
                 }}
               >
                 {p.title}
               </div>
               <div
                 style={{
-                  fontSize: '10px',
-                  marginTop: '2px',
-                  color: isActive ? 'var(--bg-card-shell)' : 'var(--text-muted)',
+                  fontSize: '11px',
+                  marginTop: '3px',
+                  color: 'var(--text-muted)',
                 }}
               >
                 {p.desc}

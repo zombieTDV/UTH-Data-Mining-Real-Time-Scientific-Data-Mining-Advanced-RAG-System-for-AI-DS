@@ -149,15 +149,17 @@ export function GeometricPipelineDiagram() {
               type="button"
               onClick={() => setPulseSpeed('1x')}
               style={{
-                background: pulseSpeed === '1x' ? 'var(--text-primary)' : 'transparent',
-                color: pulseSpeed === '1x' ? 'var(--bg-surface)' : 'var(--text-secondary)',
-                border: 'none',
+                background: pulseSpeed === '1x' ? 'var(--bg-surface)' : 'transparent',
+                color: pulseSpeed === '1x' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                border: pulseSpeed === '1x' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+                boxShadow: pulseSpeed === '1x' ? '0 1px 3px rgba(0, 0, 0, 0.25)' : 'none',
                 borderRadius: '3px',
                 padding: '2px 7px',
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
             >
               1x SPEED
@@ -166,15 +168,16 @@ export function GeometricPipelineDiagram() {
               type="button"
               onClick={() => setPulseSpeed('2x')}
               style={{
-                background: pulseSpeed === '2x' ? 'var(--accent-emerald)' : 'transparent',
-                color: pulseSpeed === '2x' ? '#000000' : 'var(--text-secondary)',
-                border: 'none',
+                background: pulseSpeed === '2x' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
+                color: pulseSpeed === '2x' ? 'var(--accent-emerald)' : 'var(--text-secondary)',
+                border: pulseSpeed === '2x' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent',
                 borderRadius: '3px',
                 padding: '2px 7px',
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
             >
               2x BOOST
@@ -183,15 +186,16 @@ export function GeometricPipelineDiagram() {
               type="button"
               onClick={() => setPulseSpeed('pause')}
               style={{
-                background: pulseSpeed === 'pause' ? 'var(--accent-red)' : 'transparent',
-                color: pulseSpeed === 'pause' ? '#ffffff' : 'var(--text-secondary)',
-                border: 'none',
+                background: pulseSpeed === 'pause' ? 'rgba(239, 68, 68, 0.18)' : 'transparent',
+                color: pulseSpeed === 'pause' ? 'var(--accent-red)' : 'var(--text-secondary)',
+                border: pulseSpeed === 'pause' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid transparent',
                 borderRadius: '3px',
                 padding: '2px 7px',
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
             >
               PAUSE

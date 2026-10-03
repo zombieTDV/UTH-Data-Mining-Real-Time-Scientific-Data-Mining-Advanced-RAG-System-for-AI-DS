@@ -182,9 +182,10 @@ export function LiveTelemetryFeed() {
                   key={lvl}
                   onClick={() => setFilterLevel(lvl)}
                   style={{
-                    background: filterLevel === lvl ? 'var(--text-primary)' : 'transparent',
-                    border: 'none',
-                    color: filterLevel === lvl ? 'var(--bg-surface)' : 'var(--text-secondary)',
+                    background: filterLevel === lvl ? 'var(--bg-surface)' : 'transparent',
+                    border: filterLevel === lvl ? '1px solid var(--border-highlight)' : '1px solid transparent',
+                    color: filterLevel === lvl ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    boxShadow: filterLevel === lvl ? '0 1px 3px rgba(0, 0, 0, 0.25)' : 'none',
                     padding: '4px 9px',
                     borderRadius: '3px',
                     fontSize: '10px',

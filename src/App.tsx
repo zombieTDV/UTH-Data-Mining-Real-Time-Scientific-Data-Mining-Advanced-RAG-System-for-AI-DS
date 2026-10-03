@@ -220,14 +220,16 @@ function DashboardMain() {
           </button>
 
           <div style={{
-            background: 'var(--text-primary)',
-            color: 'var(--bg-surface)',
+            background: 'rgba(16, 185, 129, 0.14)',
+            color: 'var(--accent-emerald)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
             fontWeight: 800,
             fontSize: '11.5px',
             fontFamily: 'var(--font-mono)',
-            padding: '5px 9px',
+            padding: '4px 8px',
             borderRadius: '3px',
             letterSpacing: '0.08em',
+            boxShadow: '0 0 10px rgba(16, 185, 129, 0.15)'
           }}>
             UTH-AI
           </div>
@@ -645,9 +647,10 @@ function DashboardMain() {
                   type="button"
                   onClick={() => setPipelineViewMode('schematic')}
                   style={{
-                    background: pipelineViewMode === 'schematic' ? 'var(--text-primary)' : 'transparent',
-                    border: 'none',
-                    color: pipelineViewMode === 'schematic' ? 'var(--bg-surface)' : 'var(--text-secondary)',
+                    background: pipelineViewMode === 'schematic' ? 'var(--bg-surface)' : 'transparent',
+                    border: pipelineViewMode === 'schematic' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+                    color: pipelineViewMode === 'schematic' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    boxShadow: pipelineViewMode === 'schematic' ? '0 1px 4px rgba(0, 0, 0, 0.25)' : 'none',
                     padding: '6px 14px',
                     borderRadius: '4px',
                     fontSize: '11px',
@@ -661,7 +664,7 @@ function DashboardMain() {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <span>⬡</span>
+                  <span style={{ color: pipelineViewMode === 'schematic' ? 'var(--accent-emerald)' : 'inherit' }}>⬡</span>
                   <span>PARALLEL BUS SCHEMATIC (8 TRACES)</span>
                 </button>
 
@@ -669,9 +672,10 @@ function DashboardMain() {
                   type="button"
                   onClick={() => setPipelineViewMode('stepper')}
                   style={{
-                    background: pipelineViewMode === 'stepper' ? 'var(--text-primary)' : 'transparent',
-                    border: 'none',
-                    color: pipelineViewMode === 'stepper' ? 'var(--bg-surface)' : 'var(--text-secondary)',
+                    background: pipelineViewMode === 'stepper' ? 'var(--bg-surface)' : 'transparent',
+                    border: pipelineViewMode === 'stepper' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+                    color: pipelineViewMode === 'stepper' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    boxShadow: pipelineViewMode === 'stepper' ? '0 1px 4px rgba(0, 0, 0, 0.25)' : 'none',
                     padding: '6px 14px',
                     borderRadius: '4px',
                     fontSize: '11px',
@@ -685,7 +689,7 @@ function DashboardMain() {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <span>▶</span>
+                  <span style={{ color: pipelineViewMode === 'stepper' ? 'var(--accent-emerald)' : 'inherit' }}>▶</span>
                   <span>4-PHASE SEQUENTIAL STEPPER</span>
                 </button>
               </div>

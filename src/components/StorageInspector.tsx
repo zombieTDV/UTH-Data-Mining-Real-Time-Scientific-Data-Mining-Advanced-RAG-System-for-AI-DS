@@ -98,15 +98,17 @@ export function StorageInspector({ storageStats }: StorageInspectorProps) {
                   type="button"
                   onClick={() => setActiveZone(z)}
                   style={{
-                    background: activeZone === z ? 'var(--text-primary)' : 'transparent',
-                    border: 'none',
-                    color: activeZone === z ? 'var(--bg-surface)' : 'var(--text-secondary)',
-                    padding: '4px 8px',
+                    background: activeZone === z ? 'var(--bg-surface)' : 'transparent',
+                    border: activeZone === z ? '1px solid var(--border-highlight)' : '1px solid transparent',
+                    color: activeZone === z ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    boxShadow: activeZone === z ? '0 1px 3px rgba(0, 0, 0, 0.25)' : 'none',
+                    padding: '4px 9px',
                     borderRadius: '3px',
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
                   }}
                 >
                   {z}
