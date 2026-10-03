@@ -49,7 +49,10 @@ class OpenReviewAdapter(BaseSourceAdapter):
         self.venue = venue
         self._http = ConferenceHttpClient()
         self._http.set_rate_limiter("api.openreview.net", get_rate_limiter_for_domain("api.openreview.net"))
-        self._breaker = CircuitBreakerRegistry.get(f"openreview:{self.venue}")
+        self._breaker = CircuitBreakerRegistry.get(
+            f"openreview:{self.venue}",
+            failure_threshold=3,  # OpenReview rate-limits aggressively; trip after 3 failures
+        )
         self._throttle = AdaptiveThrottle()
 
     # ------------------------------------------------------------------
@@ -67,7 +70,7 @@ class OpenReviewAdapter(BaseSourceAdapter):
             raise ValueError(f"target must be '<venue>:<year>', got {target!r}")
         venue, year_str = target.split(":", 1)
         year = int(year_str)
-        if venue.upper() != self.venue:
+        if venue.upper() != self.venue.upper():
             raise ValueError(f"target venue {venue!r} != adapter venue {self.venue!r}")
 
         return self._fetch_year(year)
@@ -103,6 +106,13 @@ class OpenReviewAdapter(BaseSourceAdapter):
         while offset < max_total:
             params = dict(params_base)
             params["offset"] = offset
+            # Fail fast if circuit is open
+            if not self._breaker.allow_request():
+                logger.warning(
+                    "[openreview] circuit breaker OPEN for %s; skipping year %d",
+                    self.venue, year,
+                )
+                break
             t0 = time.monotonic()
             err = False
             try:
@@ -120,7 +130,7 @@ class OpenReviewAdapter(BaseSourceAdapter):
                     return r.json()
                 data = http_with_retries(
                     do,
-                    max_retries=settings.CRAWLER_MAX_RETRIES,
+                    max_retries=2,  # Only 2 retries; circuit breaker handles sustained failures
                     base_delay=2.0,
                     max_delay=60.0,
                     label=f"openreview:{self.venue}:{year}",
@@ -131,10 +141,7 @@ class OpenReviewAdapter(BaseSourceAdapter):
                     "[openreview] search failed for %s year=%s offset=%d: %s",
                     self.venue, year, offset, exc,
                 )
-                try:
-                    self._breaker.call(lambda: (_ for _ in ()).throw(exc))
-                except Exception:  # noqa: BLE001
-                    pass
+                self._breaker.record_failure()
                 break
             finally:
                 self._throttle.record(latency=time.monotonic() - t0, error=err)

@@ -1,4 +1,4 @@
-"""Tests for the improvements (R1, R2, R5, JSONL, parallel).
+"""Tests for the improvements (R1, R2, R5, JSONL, parallel, bug fixes).
 
 These tests run fully offline against in-memory fakes for the object store
 and HTTP client. They cover the new behaviors that were added after the
@@ -79,12 +79,9 @@ def test_http_with_retries_exhausts_then_raises():
 # ----------------------------- R2: AdaptiveThrottle integrated -----------------------------
 
 def test_openalex_throttle_is_recorded_per_page(monkeypatch):
-    """OpenAlexAdapter._fetch_year should call self._throttle.record for each page.
-
-    The test stubs the HTTP layer so no network is touched, then asserts the
-    throttle received two records (one per page).
-    """
+    """OpenAlexAdapter._fetch_year should call self._throttle.record for each page."""
     from src.ingestion.sources import openalex_adapter
+
     monkeypatch.setattr(openalex_adapter, "OPENALEX_PER_PAGE", 2)
     from src.ingestion.sources.openalex_adapter import OpenAlexAdapter
 
@@ -188,6 +185,30 @@ def test_silver_has_venue_year_returns_false_for_other_venue(tmp_path: Path):
     assert pipeline._silver_has_venue_year("KDD", 2024) is False
 
 
+# ----------------------------- Case-insensitive venue matching -----------------------------
+
+def test_openalex_fetch_metadata_case_insensitive():
+    """venue.upper() != self.venue.upper() must not raise for 'NEURIPS' vs 'NeurIPS'."""
+    from unittest.mock import MagicMock
+    from src.ingestion.sources.openalex_adapter import OpenAlexAdapter
+
+    adapter = OpenAlexAdapter("NeurIPS", 2020, 2024)
+
+    def fake_get(url, params=None, use_cache=True):
+        r = MagicMock()
+        r.status_code = 200
+        r.headers = {}
+        r.json.return_value = {"results": [], "meta": {}}
+        r.raise_for_status.return_value = None
+        return (r, False)
+
+    adapter._http.get = fake_get
+    # This must NOT raise ValueError
+    papers = adapter.fetch_metadata("NEURIPS:2024")
+    assert papers == []
+    adapter.close()
+
+
 # ----------------------------- JSONL Bronze writer -----------------------------
 
 class _FakeObjectStore:
@@ -285,6 +306,60 @@ def test_jsonl_writer_respects_byte_threshold():
     assert s2["paper_count"] == 2
 
 
+# ----------------------------- Async / parallel -----------------------------
+
+@pytest.fixture(autouse=True)
+def _isolate_checkpoints(tmp_path):
+    from src.config.settings import settings
+
+    original = settings.MANIFEST_DIR
+    settings.MANIFEST_DIR = tmp_path / "manifests"
+    yield
+    settings.MANIFEST_DIR = original
+
+
+def test_run_parallel_executes_all_venues(tmp_path: Path):
+    """Ensure run_parallel fans out to all venues and aggregates results."""
+    from src.ingestion.conference_pipeline import ConferenceIngestionPipeline
+    from src.ingestion.sources.openalex_adapter import OpenAlexAdapter
+    from src.ingestion.sources.openreview_adapter import OpenReviewAdapter
+
+    def fake_fetch(self, target):
+        venue, year = target.split(":")
+        return [
+            {
+                "paper_id": f"{venue}-{year}-{i}",
+                "title": f"Paper {venue}-{year}-{i}",
+                "abstract": f"Abstract for {venue}-{year}-{i}",
+                "authors": ["Alice", "Bob"],
+                "year": int(year),
+                "venue": venue,
+                "source": self.source_id,
+                "pdf_url": f"https://example.org/{venue}-{year}-{i}.pdf",
+                "doi": f"10.0000/{venue}-{year}-{i}",
+                "keywords": ["data mining"],
+                "citation_count": 0,
+            }
+            for i in range(2)
+        ]
+
+    OpenAlexAdapter.fetch_metadata = fake_fetch
+    OpenReviewAdapter.fetch_metadata = fake_fetch
+
+    pipeline = ConferenceIngestionPipeline(
+        venues=["KDD", "ICLR"],
+        year_from=2024,
+        year_to=2024,
+        local_only=True,
+        dry_run=True,
+    )
+    results = pipeline.run_parallel(max_workers=2)
+    assert "KDD" in results["venues"]
+    assert "ICLR" in results["venues"]
+    assert results["venues"]["KDD"]["fetched"] == 2
+    assert results["venues"]["ICLR"]["fetched"] == 2
+
+
 # ----------------------------- OpenAlex source ID resolution -----------------------------
 
 def test_canonical_source_ids_are_defined():
@@ -343,7 +418,9 @@ def test_resolve_source_id_falls_back_to_display_name_search():
     adapter = OpenAlexAdapter("NeurIPS", 2020, 2024)
 
     def fake_get(url, params=None, use_cache=True):
-        # The /sources/<id> canonical probe returns 404 -> fallback
+        r = MagicMock()
+        r.headers = {}
+        r.raise_for_status.return_value = None
         if params and params.get("filter", "").startswith("display_name.search"):
             body = {
                 "results": [
@@ -354,16 +431,10 @@ def test_resolve_source_id_falls_back_to_display_name_search():
                     }
                 ]
             }
-            r = MagicMock()
             r.status_code = 200
-            r.headers = {}
             r.json.return_value = body
-            r.raise_for_status.return_value = None
             return (r, False)
-        # Canonical /sources/<id> returns 404
-        r = MagicMock()
         r.status_code = 404
-        r.headers = {}
         r.json.return_value = {}
         return (r, False)
 
@@ -371,57 +442,3 @@ def test_resolve_source_id_falls_back_to_display_name_search():
     sid = adapter.resolve_source_id()
     assert "S4210198495" in sid
     adapter.close()
-
-
-# ----------------------------- Async / parallel -----------------------------
-
-@pytest.fixture(autouse=True)
-def _isolate_checkpoints(tmp_path):
-    from src.config.settings import settings
-
-    original = settings.MANIFEST_DIR
-    settings.MANIFEST_DIR = tmp_path / "manifests"
-    yield
-    settings.MANIFEST_DIR = original
-
-
-def test_run_parallel_executes_all_venues(tmp_path: Path):
-    """Ensure run_parallel fans out to all venues and aggregates results."""
-    from src.ingestion.conference_pipeline import ConferenceIngestionPipeline
-    from src.ingestion.sources.openalex_adapter import OpenAlexAdapter
-    from src.ingestion.sources.openreview_adapter import OpenReviewAdapter
-
-    def fake_fetch(self, target):
-        venue, year = target.split(":")
-        return [
-            {
-                "paper_id": f"{venue}-{year}-{i}",
-                "title": f"Paper {venue}-{year}-{i}",
-                "abstract": f"Abstract for {venue}-{year}-{i}",
-                "authors": ["Alice", "Bob"],
-                "year": int(year),
-                "venue": venue,
-                "source": self.source_id,
-                "pdf_url": f"https://example.org/{venue}-{year}-{i}.pdf",
-                "doi": f"10.0000/{venue}-{year}-{i}",
-                "keywords": ["data mining"],
-                "citation_count": 0,
-            }
-            for i in range(2)
-        ]
-
-    OpenAlexAdapter.fetch_metadata = fake_fetch
-    OpenReviewAdapter.fetch_metadata = fake_fetch
-
-    pipeline = ConferenceIngestionPipeline(
-        venues=["KDD", "ICLR"],
-        year_from=2024,
-        year_to=2024,
-        local_only=True,
-        dry_run=True,
-    )
-    results = pipeline.run_parallel(max_workers=2)
-    assert "KDD" in results["venues"]
-    assert "ICLR" in results["venues"]
-    assert results["venues"]["KDD"]["fetched"] == 2
-    assert results["venues"]["ICLR"]["fetched"] == 2

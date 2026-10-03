@@ -240,7 +240,8 @@ class OpenAlexAdapter(BaseSourceAdapter):
             raise ValueError(f"target must be '<venue>:<year>', got {target!r}")
         venue, year_str = target.split(":", 1)
         year = int(year_str)
-        if venue.upper() != self.venue:
+        # Case-insensitive: "NeurIPS" == "NEURIPS" == "neurips"
+        if venue.upper() != self.venue.upper():
             raise ValueError(f"target venue {venue!r} != adapter venue {self.venue!r}")
 
         source_id = self.resolve_source_id()
@@ -282,6 +283,13 @@ class OpenAlexAdapter(BaseSourceAdapter):
             params = dict(params_base)
             params["cursor"] = cursor
             url = f"{OPENALEX_BASE}/works"
+            # Fail fast if circuit is open (don't waste Retry-After time)
+            if not self._breaker.allow_request():
+                logger.warning(
+                    "[openalex] circuit breaker OPEN for %s; skipping year %d",
+                    self.venue, year,
+                )
+                break
             t0 = time.monotonic()
             err = False
             try:
@@ -310,11 +318,10 @@ class OpenAlexAdapter(BaseSourceAdapter):
                     "[openalex] page failed for %s year=%s cursor=%s: %s",
                     self.venue, year, cursor, exc,
                 )
-                # Hand off to circuit breaker so repeated failures trip it.
-                try:
-                    self._breaker.call(lambda: (_ for _ in ()).throw(exc))
-                except Exception:  # noqa: BLE001
-                    pass
+                # Record failure so circuit breaker trips after N consecutive failures.
+                # We record directly rather than via _breaker.call() because the
+                # actual request logic lives inside http_with_retries().
+                self._breaker.record_failure()
                 break
             finally:
                 self._throttle.record(latency=time.monotonic() - t0, error=err)

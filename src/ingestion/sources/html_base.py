@@ -75,7 +75,7 @@ class HtmlScrapeAdapter(BaseSourceAdapter):
             raise ValueError(f"target must be '<venue>:<year>', got {target!r}")
         venue, year_str = target.split(":", 1)
         year = int(year_str)
-        if venue.upper() != self.venue:
+        if venue.upper() != self.venue.upper():
             raise ValueError(f"target venue {venue!r} != adapter venue {self.venue!r}")
 
         index_url = self.proceeding_index_url(year)
