@@ -20,11 +20,25 @@ flowchart LR
     C --> E[Section chunking]
     E --> F[Nomic embedding local]
     F --> G[Gold: LanceDB cosine search]
+
+    H[KDD / ICML / ICLR / NeurIPS<br/>OpenAlex + OpenReview] --> B
 ```
 
 [Ingestion](src/ingestion/), [transformation](src/transformation/), [indexing](src/indexing/) và [storage](src/storage/) có implementation. [Quality](src/quality/), [mining](src/mining/) và [RAG](src/rag/) hiện là package khung; chưa có bộ audit 6 chiều, topic mining, hybrid retrieval, reranker hay LLM generation.
 
 Bronze local lưu tại `data/local/bronze/`, manifest SHA-256 tại `data/local/_manifests/`; payload RSS/OAI gốc được lưu trước khi chuẩn hóa. Bronze local từ chối ghi đè nội dung khác. R2 lưu payload gốc ở các key theo hash và SHA-256 trong object metadata. `data/raw/` không bị sửa. Silver định tuyến paper ID hiện có vào partition cũ và upsert theo `paper_id`; paper mới phân vùng theo năm. Giữ các cột enrichment và full text khi cập nhật metadata-only. Gold upsert theo `chunk_id`.
+
+**Phase 2 — Conference ingestion (KDD/ICML/ICLR/NeurIPS, 2020→)** lives at
+`src/ingestion/conference_pipeline.py` with a 21-rule foundation layer under
+`src/ingestion/common/`. Run with:
+
+```bash
+python -m src.pipelines.run_conference_ingest --venue KDD    --year-from 2020
+python -m src.pipelines.run_conference_ingest --venue ICML   --year-from 2020
+python -m src.pipelines.run_conference_ingest --venue ICLR   --year-from 2020
+python -m src.pipelines.run_conference_ingest --venue NeurIPS --year-from 2020
+python -m src.pipelines.run_conference_ingest --all         --year-from 2020   # 4 venues tuần tự
+```
 
 ## Cài đặt
 
