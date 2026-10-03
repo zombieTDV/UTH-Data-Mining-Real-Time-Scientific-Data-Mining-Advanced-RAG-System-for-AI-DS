@@ -47,13 +47,40 @@ OPENALEX_BASE = "https://api.openalex.org"
 OPENALEX_PER_PAGE = 200
 
 
-# Mapping from OpenAlex display_name search to a primary venue we recognize.
-# Used as a *fallback* if the canonical source-id lookup fails.
-VENUE_DISPLAY_NAME = {
-    "KDD": "ACM SIGKDD",
-    "ICML": "ICML",
-    "ICLR": "ICLR",
-    "NeurIPS": "NeurIPS",
+# Canonical OpenAlex source IDs for our 4 venues. Verified against the
+# /sources endpoint; these are stable per OpenAlex policy.
+#
+# NOTE: these are *preferred* values. If a canonical ID returns 0 works for
+# a given year, we still fall back to display_name search below.
+VENUE_CANONICAL_SOURCE_ID: Dict[str, str] = {
+    "KDD": "S4210193800",     # KDD Proceedings (ACM SIGKDD)
+    "ICML": "S4210192555",    # ICML / PMLR
+    "ICLR": "S4210197244",    # ICLR Conference
+    "NeurIPS": "S4210198495", # NeurIPS Proceedings
+}
+
+# Display-name aliases to try for each venue, in priority order. OpenAlex
+# indexes a venue under a primary display_name but may also have alternates;
+# trying several ensures we find the right source row.
+VENUE_DISPLAY_NAME_ALIASES: Dict[str, List[str]] = {
+    "KDD": ["ACM SIGKDD", "SIGKDD", "KDD", "KDD Proceedings"],
+    "ICML": [
+        "International Conference on Machine Learning",
+        "ICML",
+        "PMLR",
+        "Proceedings of Machine Learning Research",
+    ],
+    "ICLR": [
+        "International Conference on Learning Representations",
+        "ICLR",
+        "ICLR Conference",
+    ],
+    "NeurIPS": [
+        "NeurIPS",
+        "NeurIPS Proceedings",
+        "Advances in Neural Information Processing Systems",
+        "Neural Information Processing Systems",
+    ],
 }
 
 
@@ -101,38 +128,102 @@ class OpenAlexAdapter(BaseSourceAdapter):
     _SOURCE_ID_LOCK = threading.Lock()
 
     def resolve_source_id(self) -> str:
-        """Resolve canonical OpenAlex source ID by display name.
+        """Resolve canonical OpenAlex source ID.
 
-        Tries canonical IDs first, then falls back to /sources search.
-        Cached process-wide so consecutive runs do not re-query.
+        Strategy:
+            1. Honor a previously cached value (process-wide).
+            2. Try the canonical ID from ``VENUE_CANONICAL_SOURCE_ID``
+               and verify it actually has a non-zero works_count.
+            3. Fall back to display_name.search with several aliases
+               per venue, taking the first source whose name (case-folded)
+               contains the venue acronym.
+            4. Return "" if everything fails (caller skips the venue).
         """
         cache_key = self.venue
         with self._SOURCE_ID_LOCK:
             if cache_key in self._SOURCE_ID_CACHE:
-                self._source_id = self._SOURCE_ID_CACHE[cache_key]
-                return self._source_id
+                cached = self._SOURCE_ID_CACHE[cache_key]
+                if cached:
+                    self._source_id = cached
+                    return cached
         if self._source_id:
             return self._source_id
-        url = f"{OPENALEX_BASE}/sources"
-        params: Dict[str, Any] = {"per_page": 1}
+
+        # 1) Try canonical ID first
+        canonical = VENUE_CANONICAL_SOURCE_ID.get(self.venue)
+        if canonical:
+            sid = self._verify_source_id(canonical)
+            if sid:
+                self._cache_and_return(cache_key, sid)
+                return sid
+
+        # 2) Try aliases via display_name.search
+        for alias in VENUE_DISPLAY_NAME_ALIASES.get(self.venue, [self.venue]):
+            sid = self._search_source_by_display_name(alias)
+            if sid:
+                self._cache_and_return(cache_key, sid)
+                return sid
+
+        logger.warning("[openalex] no source found for %s", self.venue)
+        self._source_id = ""
+        return ""
+
+    def _cache_and_return(self, cache_key: str, sid: str) -> str:
+        self._source_id = sid
+        with self._SOURCE_ID_LOCK:
+            self._SOURCE_ID_CACHE[cache_key] = sid
+        logger.info("[openalex] %s -> %s", self.venue, sid)
+        return sid
+
+    def _verify_source_id(self, sid: str) -> str:
+        """Look up a source by exact ID. Return sid if it exists, else ""."""
+        url = f"{OPENALEX_BASE}/sources/{sid}"
+        params: Dict[str, Any] = {}
         if settings.OPENALEX_EMAIL:
             params["mailto"] = settings.OPENALEX_EMAIL
-        params["filter"] = f"display_name.search:{VENUE_DISPLAY_NAME.get(self.venue, self.venue)}"
         try:
             data, _ = self._http.get_json(url, params=params, use_cache=True)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("[openalex] source lookup failed for %s: %s", self.venue, exc)
-            self._source_id = ""
+            logger.debug("[openalex] canonical source %s lookup failed: %s", sid, exc)
+            return ""
+        if not data or not data.get("id"):
+            return ""
+        return data["id"]
+
+    def _search_source_by_display_name(self, alias: str) -> str:
+        """Find a source whose display_name matches ``alias``.
+
+        OpenAlex's ``display_name.search`` is full-text. We additionally
+        require the display_name to actually contain the venue acronym
+        (case-insensitive) to avoid picking unrelated matches.
+        """
+        url = f"{OPENALEX_BASE}/sources"
+        params: Dict[str, Any] = {"per_page": 5}
+        if settings.OPENALEX_EMAIL:
+            params["mailto"] = settings.OPENALEX_EMAIL
+        params["filter"] = f"display_name.search:{alias}"
+        try:
+            data, _ = self._http.get_json(url, params=params, use_cache=True)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(
+                "[openalex] display_name.search for %r failed: %s", alias, exc
+            )
             return ""
         if not data or not data.get("results"):
-            logger.warning("[openalex] no source found for %s", self.venue)
-            self._source_id = ""
             return ""
-        self._source_id = data["results"][0]["id"]
-        with self._SOURCE_ID_LOCK:
-            self._SOURCE_ID_CACHE[cache_key] = self._source_id
-        logger.info("[openalex] %s -> %s", self.venue, self._source_id)
-        return self._source_id
+        # The OpenAlex acronym to look for inside display_name
+        acronym = {
+            "KDD": "kdd",
+            "ICML": "icml",
+            "ICLR": "iclr",
+            "NeurIPS": "neurips",
+        }.get(self.venue, self.venue.lower())
+        for r in data["results"]:
+            name = (r.get("display_name") or "").lower()
+            if acronym in name and r.get("id"):
+                return r["id"]
+        # Fallback: first row
+        return data["results"][0].get("id") or ""
 
     # ------------------------------------------------------------------
     # Step 1: discover

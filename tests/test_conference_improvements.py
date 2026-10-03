@@ -285,6 +285,94 @@ def test_jsonl_writer_respects_byte_threshold():
     assert s2["paper_count"] == 2
 
 
+# ----------------------------- OpenAlex source ID resolution -----------------------------
+
+def test_canonical_source_ids_are_defined():
+    """All 4 venues should have a canonical source ID baked in."""
+    from src.ingestion.sources.openalex_adapter import VENUE_CANONICAL_SOURCE_ID
+
+    for venue in ("KDD", "ICML", "ICLR", "NeurIPS"):
+        assert venue in VENUE_CANONICAL_SOURCE_ID
+        assert VENUE_CANONICAL_SOURCE_ID[venue].startswith("S")
+
+
+def test_venue_display_name_aliases_contain_acronyms():
+    """Aliases list should include the venue's acronym so we can verify matches."""
+    from src.ingestion.sources.openalex_adapter import VENUE_DISPLAY_NAME_ALIASES
+
+    for venue, aliases in VENUE_DISPLAY_NAME_ALIASES.items():
+        # At least one alias should equal the venue name (case-insensitive)
+        assert any(a.lower() == venue.lower() for a in aliases), venue
+
+
+def test_resolve_source_id_returns_canonical_for_known_venue():
+    """When the canonical endpoint succeeds, we use that ID directly."""
+    from unittest.mock import MagicMock
+    from src.ingestion.sources.openalex_adapter import OpenAlexAdapter
+
+    adapter = OpenAlexAdapter("ICML", 2020, 2024)
+
+    canonical_body = {
+        "id": "https://openalex.org/S4210192555",
+        "display_name": "PMLR",
+        "works_count": 12345,
+    }
+
+    def fake_get(url, params=None, use_cache=True):
+        r = MagicMock()
+        r.status_code = 200
+        r.headers = {}
+        r.json.return_value = canonical_body
+        r.raise_for_status.return_value = None
+        return (r, False)
+
+    adapter._http.get = fake_get
+    sid = adapter.resolve_source_id()
+    assert sid == "https://openalex.org/S4210192555"
+    # Subsequent call returns the cached value without re-hitting the API
+    sid2 = adapter.resolve_source_id()
+    assert sid2 == sid
+    adapter.close()
+
+
+def test_resolve_source_id_falls_back_to_display_name_search():
+    """When canonical fails, we fall back to display_name.search aliases."""
+    from unittest.mock import MagicMock
+    from src.ingestion.sources.openalex_adapter import OpenAlexAdapter
+
+    adapter = OpenAlexAdapter("NeurIPS", 2020, 2024)
+
+    def fake_get(url, params=None, use_cache=True):
+        # The /sources/<id> canonical probe returns 404 -> fallback
+        if params and params.get("filter", "").startswith("display_name.search"):
+            body = {
+                "results": [
+                    {
+                        "id": "https://openalex.org/S4210198495",
+                        "display_name": "NeurIPS Proceedings",
+                        "works_count": 9999,
+                    }
+                ]
+            }
+            r = MagicMock()
+            r.status_code = 200
+            r.headers = {}
+            r.json.return_value = body
+            r.raise_for_status.return_value = None
+            return (r, False)
+        # Canonical /sources/<id> returns 404
+        r = MagicMock()
+        r.status_code = 404
+        r.headers = {}
+        r.json.return_value = {}
+        return (r, False)
+
+    adapter._http.get = fake_get
+    sid = adapter.resolve_source_id()
+    assert "S4210198495" in sid
+    adapter.close()
+
+
 # ----------------------------- Async / parallel -----------------------------
 
 @pytest.fixture(autouse=True)
