@@ -199,9 +199,10 @@ export function ToolLogosGrid() {
               key={cat}
               onClick={() => setActiveCategory(cat)}
               style={{
-                background: activeCategory === cat ? 'var(--text-primary)' : 'transparent',
-                border: 'none',
-                color: activeCategory === cat ? 'var(--bg-surface)' : 'var(--text-secondary)',
+                background: activeCategory === cat ? 'var(--bg-surface)' : 'transparent',
+                border: activeCategory === cat ? '1px solid var(--border-highlight)' : '1px solid transparent',
+                color: activeCategory === cat ? 'var(--text-primary)' : 'var(--text-secondary)',
+                boxShadow: activeCategory === cat ? '0 1px 4px rgba(0, 0, 0, 0.25)' : 'none',
                 padding: '6px 12px',
                 borderRadius: '4px',
                 fontSize: '11px',
