@@ -8,8 +8,8 @@ import { StorageInspector } from './components/StorageInspector';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { ToastProvider } from './components/ToastNotification';
 import { useToast } from './context/ToastContext';
-import { fetchHealth, fetchStorageStats, subscribeTelemetry } from './api/client';
-import type { StorageStatsResponse } from './api/types';
+import { fetchHealth, fetchStorageStats, fetchEdaSummary, subscribeTelemetry } from './api/client';
+import type { StorageStatsResponse, EdaResponse } from './api/types';
 
 // Code Splitting via Dynamic Imports (Task 5.1)
 const EdaView = lazy(() => import('./components/EdaView').then(m => ({ default: m.EdaView })));
@@ -59,6 +59,7 @@ function DashboardMain() {
   const [backendStatus, setBackendStatus] = useState<'ONLINE' | 'OFFLINE'>('OFFLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
   const [storageStats, setStorageStats] = useState<StorageStatsResponse | null>(null);
+  const [edaData, setEdaData] = useState<EdaResponse | null>(null);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
@@ -117,6 +118,10 @@ function DashboardMain() {
 
     fetchStorageStats()
       .then((s) => setStorageStats(s))
+      .catch(() => {});
+
+    fetchEdaSummary()
+      .then((e) => setEdaData(e))
       .catch(() => {});
 
     const unsubscribe = subscribeTelemetry(
@@ -255,7 +260,9 @@ function DashboardMain() {
               </span>
             </div>
             <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontWeight: 500, marginTop: '2px' }}>
-              10,000 PAPERS · 143,523 GOLD CHUNKS · 2.22M LATEX FORMULAS · QWEN2.5-7B
+              {edaData ? `${edaData.dataset_overview.total_papers.toLocaleString()} PAPERS` : '10,000 PAPERS'} ·{' '}
+              {storageStats ? `${storageStats.zones.goldChunkCount.toLocaleString()} GOLD CHUNKS` : '143,523 GOLD CHUNKS'} ·{' '}
+              {edaData ? `${(edaData.dataset_overview.total_math_formulas / 1_000_000).toFixed(2)}M LATEX FORMULAS` : '2.22M LATEX FORMULAS'} · QWEN2.5-7B
             </div>
           </div>
         </div>
@@ -603,7 +610,7 @@ function DashboardMain() {
         {activeTab === 'schematic' && (
           <div className="tab-pane-active" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Medallion Corpus Scale & Storage Bento */}
-            <MetricsBento />
+            <MetricsBento storageStats={storageStats} edaData={edaData} backendStatus={backendStatus} />
 
             {/* Pipeline View Mode Segmented Switcher */}
             <div style={{
@@ -692,10 +699,10 @@ function DashboardMain() {
             )}
 
             {/* Medallion Storage Partition Deep-Dive */}
-            <StorageInspector />
+            <StorageInspector storageStats={storageStats} />
 
             {/* Hardware & Storage Telemetry Gauges */}
-            <GeometricTelemetryGauges />
+            <GeometricTelemetryGauges storageStats={storageStats} />
           </div>
         )}
 
@@ -804,11 +811,11 @@ function DashboardMain() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-          <span>10,000 PAPERS PARQUET</span>
+          <span>{edaData ? `${edaData.dataset_overview.total_papers.toLocaleString()} PAPERS PARQUET` : '10,000 PAPERS PARQUET'}</span>
           <span>·</span>
-          <span>143,523 LANCEDB VECTORS</span>
+          <span>{storageStats ? `${storageStats.zones.goldChunkCount.toLocaleString()} LANCEDB VECTORS` : '143,523 LANCEDB VECTORS'}</span>
           <span>·</span>
-          <span>2.22M LATEX FORMULAS</span>
+          <span>{edaData ? `${(edaData.dataset_overview.total_math_formulas / 1_000_000).toFixed(2)}M LATEX FORMULAS` : '2.22M LATEX FORMULAS'}</span>
         </div>
       </footer>
 

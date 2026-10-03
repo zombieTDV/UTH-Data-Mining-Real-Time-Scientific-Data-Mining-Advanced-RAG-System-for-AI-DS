@@ -1,9 +1,17 @@
-export function GeometricTelemetryGauges() {
-  // 55.24% of 10GB
-  const percentage = 55.24;
+import type { StorageStatsResponse } from '../api/types';
+
+interface GeometricTelemetryGaugesProps {
+  storageStats?: StorageStatsResponse | null;
+}
+
+export function GeometricTelemetryGauges({ storageStats }: GeometricTelemetryGaugesProps) {
+  const percentage = storageStats ? storageStats.used_percentage : 55.24;
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const totalGb = storageStats ? storageStats.total_size_gb : 5.524;
+  const quotaGb = storageStats ? storageStats.free_tier_quota_gb : 10.0;
+  const remainingGb = storageStats ? (quotaGb - totalGb).toFixed(3) : '4.476';
 
   return (
     <div style={{
@@ -49,7 +57,7 @@ export function GeometricTelemetryGauges() {
               Free Tier Quota Utilization
             </div>
             <div style={{ marginTop: '14px', fontSize: '11.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-              REMAINING: <strong style={{ color: 'var(--accent-emerald)', fontSize: '12.5px' }}>4.476 GB</strong>
+              REMAINING: <strong style={{ color: 'var(--accent-emerald)', fontSize: '12.5px' }}>{remainingGb} GB</strong>
             </div>
           </div>
 
@@ -88,10 +96,10 @@ export function GeometricTelemetryGauges() {
               alignItems: 'center'
             }}>
               <span style={{ fontSize: '19px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                55.2%
+                {percentage.toFixed(1)}%
               </span>
               <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                5.52 / 10 GB
+                {totalGb.toFixed(2)} / {quotaGb.toFixed(0)} GB
               </span>
             </div>
           </div>

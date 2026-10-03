@@ -1,6 +1,22 @@
+import type { StorageStatsResponse, EdaResponse } from '../api/types';
 import { MathRenderer } from './MathRenderer';
 
-export function MetricsBento() {
+interface MetricsBentoProps {
+  storageStats?: StorageStatsResponse | null;
+  edaData?: EdaResponse | null;
+  backendStatus?: 'ONLINE' | 'OFFLINE';
+}
+
+export function MetricsBento({ storageStats, edaData, backendStatus = 'OFFLINE' }: MetricsBentoProps) {
+  const totalPapers = edaData?.dataset_overview?.total_papers ?? storageStats?.zones?.bronzeCount ?? 10000;
+  const enrichedHtml = edaData?.dataset_overview?.enriched_html_papers ?? 9022;
+  const goldVectors = storageStats?.zones?.goldChunkCount ?? 143523;
+  const storageGb = storageStats?.total_size_gb ?? 5.524;
+  const storageQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
+  const storagePct = storageStats?.used_percentage ?? 55.24;
+  const remainingGb = storageStats ? (storageQuotaGb - storageGb).toFixed(3) : '4.476';
+  const totalMath = edaData?.dataset_overview?.total_math_formulas ?? 2224192;
+
   return (
     <div className="responsive-bento">
       {/* Card 1: Total Papers (Span 4) */}
@@ -44,13 +60,13 @@ export function MetricsBento() {
                 fontSize: '11px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
-                color: 'var(--accent-emerald)',
-                background: 'rgba(16, 185, 129, 0.12)',
+                color: backendStatus === 'ONLINE' ? 'var(--accent-emerald)' : 'var(--accent-silver)',
+                background: backendStatus === 'ONLINE' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(148, 163, 184, 0.12)',
                 padding: '2px 6px',
                 borderRadius: '3px',
-                border: '1px solid rgba(16, 185, 129, 0.25)'
+                border: `1px solid ${backendStatus === 'ONLINE' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(148, 163, 184, 0.25)'}`
               }}>
-                100% INGESTED
+                {backendStatus === 'ONLINE' ? '100% INGESTED' : 'CACHED CORPUS'}
               </span>
             </div>
             <div style={{
@@ -61,7 +77,7 @@ export function MetricsBento() {
               lineHeight: 1,
               fontVariantNumeric: 'tabular-nums'
             }}>
-              10,000
+              {totalPapers.toLocaleString()}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px', fontWeight: 500 }}>
               AI/DS Scientific Papers Indexed
@@ -78,7 +94,7 @@ export function MetricsBento() {
             fontFamily: 'var(--font-mono)',
             color: 'var(--text-muted)'
           }}>
-            <span>ar5iv HTML5: <strong style={{ color: 'var(--text-primary)' }}>9,022</strong></span>
+            <span>ar5iv HTML5: <strong style={{ color: 'var(--text-primary)' }}>{enrichedHtml.toLocaleString()}</strong></span>
             <span>OAI Batches: <strong style={{ color: 'var(--text-primary)' }}>12</strong></span>
           </div>
         </div>
@@ -142,7 +158,7 @@ export function MetricsBento() {
               lineHeight: 1,
               fontVariantNumeric: 'tabular-nums'
             }}>
-              143,523
+              {goldVectors.toLocaleString()}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px', fontWeight: 500 }}>
               LanceDB Contextual Chunks
@@ -203,7 +219,7 @@ export function MetricsBento() {
                 borderRadius: '3px',
                 border: '1px solid rgba(245, 158, 11, 0.25)'
               }}>
-                55.24% QUOTA
+                {storagePct.toFixed(2)}% QUOTA
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
@@ -215,10 +231,10 @@ export function MetricsBento() {
                 lineHeight: 1,
                 fontVariantNumeric: 'tabular-nums'
               }}>
-                5.524
+                {storageGb.toFixed(3)}
               </span>
               <span style={{ fontSize: '15px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                / 10.00 GB
+                / {storageQuotaGb.toFixed(2)} GB
               </span>
             </div>
             {/* Theme-safe progress bar */}
@@ -230,7 +246,7 @@ export function MetricsBento() {
               overflow: 'hidden'
             }}>
               <div style={{
-                width: '55.24%',
+                width: `${Math.min(100, Math.max(0, storagePct))}%`,
                 height: '100%',
                 background: 'linear-gradient(90deg, var(--accent-bronze), var(--accent-gold))',
                 borderRadius: '3px'
@@ -248,7 +264,7 @@ export function MetricsBento() {
             fontFamily: 'var(--font-mono)',
             color: 'var(--text-muted)'
           }}>
-            <span>Free Tier Left: <strong style={{ color: 'var(--text-primary)' }}>4.476 GB</strong></span>
+            <span>Free Tier Left: <strong style={{ color: 'var(--text-primary)' }}>{remainingGb} GB</strong></span>
             <span style={{ color: 'var(--accent-emerald)', fontWeight: 700 }}>Zero Egress</span>
           </div>
         </div>
@@ -288,7 +304,7 @@ export function MetricsBento() {
               letterSpacing: '-0.02em',
               fontVariantNumeric: 'tabular-nums'
             }}>
-              2,224,198 Formulas
+              {totalMath.toLocaleString()} Formulas
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 500 }}>
               Parsed into normalized LaTeX syntax across Silver & Gold Lakehouse

@@ -1,8 +1,13 @@
 import { useState } from 'react';
+import type { StorageStatsResponse } from '../api/types';
 import { LAYERS } from '../data/lakehouseData';
 import { useToast } from '../context/ToastContext';
 
-export function StorageInspector() {
+interface StorageInspectorProps {
+  storageStats?: StorageStatsResponse | null;
+}
+
+export function StorageInspector({ storageStats }: StorageInspectorProps) {
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [activeZone, setActiveZone] = useState<string>('ALL');
   const { showToast } = useToast();
@@ -116,7 +121,9 @@ export function StorageInspector() {
               borderRadius: '4px'
             }}>
               <span style={{ color: 'var(--text-muted)' }}>TOTAL FOOTPRINT: </span>
-              <strong style={{ color: 'var(--text-primary)' }}>5.524 GB</strong>
+              <strong style={{ color: 'var(--text-primary)' }}>
+                {storageStats ? `${storageStats.total_size_gb.toFixed(3)} GB` : '5.524 GB'}
+              </strong>
             </div>
 
             <div style={{
@@ -126,7 +133,9 @@ export function StorageInspector() {
               borderRadius: '4px'
             }}>
               <span style={{ color: 'var(--text-muted)' }}>FREE TIER LIMIT: </span>
-              <strong style={{ color: 'var(--accent-emerald)' }}>10.00 GB</strong>
+              <strong style={{ color: 'var(--accent-emerald)' }}>
+                {storageStats ? `${storageStats.free_tier_quota_gb.toFixed(2)} GB` : '10.00 GB'}
+              </strong>
             </div>
           </div>
         </div>
