@@ -12,7 +12,6 @@ Usage:
 
 import sys
 import os
-import json
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 from tabulate import tabulate
@@ -185,43 +184,6 @@ def main():
     else:
         print(f"  He thong da dung {total_gb:.4f} GB (vuot han muc mien phi {total_gb - free_tier_gb:.4f} GB).")
     print("=" * 80)
-
-    # Strategy 1: Save snapshot to data/gold/mining/storage_audit.json for zero-cost dashboard caching
-    audit_cache_path = settings.ROOT_DIR / "data" / "gold" / "mining" / "storage_audit.json"
-    audit_cache_path.parent.mkdir(parents=True, exist_ok=True)
-    bronze_bytes = (
-        r2_data["zones"]["bronze/arxiv/batches/"]["bytes"]
-        + r2_data["zones"]["bronze/arxiv/raw_html/"]["bytes"]
-        + r2_data["zones"]["bronze/arxiv/raw_metadata/"]["bytes"]
-    )
-    bronze_count = (
-        r2_data["zones"]["bronze/arxiv/batches/"]["count"]
-        + r2_data["zones"]["bronze/arxiv/raw_html/"]["count"]
-        + r2_data["zones"]["bronze/arxiv/raw_metadata/"]["count"]
-    )
-
-    snapshot_payload = {
-        "bucket": bucket_name,
-        "status": "ready",
-        "total_objects": total_objects,
-        "total_size_bytes": total_bytes,
-        "total_size_gb": round(total_gb, 3),
-        "free_tier_quota_gb": free_tier_gb,
-        "used_percentage": round(free_tier_pct, 2),
-        "zones": {
-            "bronzeCount": bronze_count,
-            "bronzeSizeBytes": bronze_bytes,
-            "silverTables": ["papers.parquet"],
-            "silverSizeBytes": r2_data["zones"]["silver/"]["bytes"],
-            "goldTables": ["scientific_papers_gold.lance"],
-            "goldChunkCount": 143523,
-            "goldSizeBytes": r2_data["zones"]["gold/"]["bytes"],
-        },
-        "remoteIndicesReady": True,
-    }
-    with open(audit_cache_path, "w", encoding="utf-8") as f:
-        json.dump(snapshot_payload, f, indent=2, ensure_ascii=False)
-    print(f"\n[CACHE] Da cap nhat snapshot kiem ke vao: {audit_cache_path.relative_to(settings.ROOT_DIR)}")
 
 
 if __name__ == "__main__":
