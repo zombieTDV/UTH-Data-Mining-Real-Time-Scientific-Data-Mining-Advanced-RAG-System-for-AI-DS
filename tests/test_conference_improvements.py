@@ -7,9 +7,8 @@ initial conference pipeline landed.
 
 import json
 import threading
-import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import pytest
 
@@ -117,6 +116,14 @@ def test_openalex_throttle_is_recorded_per_page(monkeypatch):
     responses = [page1, page2]
 
     def fake_get(url, params=None, use_cache=True):
+        # Bypass source discovery HTTP call (not relevant to throttle test)
+        if "/sources" in url:
+            r = MagicMock()
+            r.status_code = 200
+            r.headers = {}
+            r.json.return_value = {"results": []}
+            r.raise_for_status.return_value = None
+            return (r, False)
         body = responses.pop(0)
         r = MagicMock()
         r.status_code = 200
@@ -126,7 +133,7 @@ def test_openalex_throttle_is_recorded_per_page(monkeypatch):
         return (r, False)
 
     adapter._http.get = fake_get
-    papers = adapter._fetch_year(year=2020, source_id="S123")
+    papers = adapter._fetch_year(year=2020)
     assert len(papers) == 4, papers
     snap = adapter._throttle.snapshot()
     assert snap["samples"] == 2
@@ -156,7 +163,9 @@ def test_silver_has_venue_year_detects_existing_data(tmp_path: Path):
     pq.write_table(table, year_dir / "papers.parquet")
 
     settings.SILVER_DIR = silver_dir
-    pipeline = ConferenceIngestionPipeline(venues=["KDD"], year_from=2024, year_to=2024, dry_run=True)
+    pipeline = ConferenceIngestionPipeline(
+        venues=["KDD"], year_from=2024, year_to=2024, dry_run=True
+    )
     assert pipeline._silver_has_venue_year("KDD", 2024) is True
     assert pipeline._silver_has_venue_year("KDD", 2020) is False  # year dir missing
 
@@ -181,7 +190,9 @@ def test_silver_has_venue_year_returns_false_for_other_venue(tmp_path: Path):
     pq.write_table(table, year_dir / "papers.parquet")
 
     settings.SILVER_DIR = silver_dir
-    pipeline = ConferenceIngestionPipeline(venues=["KDD"], year_from=2024, year_to=2024, dry_run=True)
+    pipeline = ConferenceIngestionPipeline(
+        venues=["KDD"], year_from=2024, year_to=2024, dry_run=True
+    )
     assert pipeline._silver_has_venue_year("KDD", 2024) is False
 
 
@@ -219,7 +230,12 @@ class _FakeObjectStore:
     def upload_bytes(self, data, key, content_type=None, metadata=None):
         with self._lock:
             self.uploads.append(
-                {"key": key, "size": len(data), "content_type": content_type, "metadata": metadata or {}}
+                {
+                    "key": key,
+                    "size": len(data),
+                    "content_type": content_type,
+                    "metadata": metadata or {},
+                }
             )
         return {
             "bucket": "fake",
@@ -247,7 +263,9 @@ def test_jsonl_writer_batches_by_count():
     )
     flushed = 0
     for i in range(7):
-        summary = writer.add({"paper_id": f"P{i}", "year": 2024, "title": f"T{i}"})
+        summary = writer.add(
+            {"paper_id": f"P{i}", "year": 2024, "title": f"T{i}"}
+        )
         if summary is not None:
             flushed += 1
     final = writer.flush()
@@ -269,7 +287,10 @@ def test_jsonl_writer_emits_manifest_per_batch():
 
     store = _FakeObjectStore()
     writer = JsonlBronzeWriter(
-        object_store=store, base_prefix="bronze/test", max_batch_size=2, venue="KDD"
+        object_store=store,
+        base_prefix="bronze/test",
+        max_batch_size=2,
+        venue="KDD",
     )
     # 2 papers triggers an auto-flush on the 2nd add()
     s1 = writer.add({"paper_id": "P1", "year": 2024})
@@ -360,85 +381,96 @@ def test_run_parallel_executes_all_venues(tmp_path: Path):
     assert results["venues"]["ICLR"]["fetched"] == 2
 
 
-# ----------------------------- OpenAlex source ID resolution -----------------------------
+# ----------------------------- OpenAlex search-term + source discovery -----------------------------
 
-def test_canonical_source_ids_are_defined():
-    """All 4 venues should have a canonical source ID baked in."""
-    from src.ingestion.sources.openalex_adapter import VENUE_CANONICAL_SOURCE_ID
+def test_venue_search_terms_defined():
+    """All 4 venues should have search terms for /works endpoint."""
+    from src.ingestion.sources.openalex_adapter import VENUE_SEARCH_TERMS
 
     for venue in ("KDD", "ICML", "ICLR", "NeurIPS"):
-        assert venue in VENUE_CANONICAL_SOURCE_ID
-        assert VENUE_CANONICAL_SOURCE_ID[venue].startswith("S")
+        assert venue in VENUE_SEARCH_TERMS
+        assert len(VENUE_SEARCH_TERMS[venue]) > 0
+        # First term should contain the venue acronym
+        assert venue.upper() in VENUE_SEARCH_TERMS[venue][0].upper()
 
 
-def test_venue_display_name_aliases_contain_acronyms():
-    """Aliases list should include the venue's acronym so we can verify matches."""
-    from src.ingestion.sources.openalex_adapter import VENUE_DISPLAY_NAME_ALIASES
-
-    for venue, aliases in VENUE_DISPLAY_NAME_ALIASES.items():
-        # At least one alias should equal the venue name (case-insensitive)
-        assert any(a.lower() == venue.lower() for a in aliases), venue
-
-
-def test_resolve_source_id_returns_canonical_for_known_venue():
-    """When the canonical endpoint succeeds, we use that ID directly."""
+def test_discover_source_id_finds_conference_source(monkeypatch):
+    """_search_source should find a source matching the venue acronym."""
     from unittest.mock import MagicMock
     from src.ingestion.sources.openalex_adapter import OpenAlexAdapter
 
-    adapter = OpenAlexAdapter("ICML", 2020, 2024)
-
-    canonical_body = {
-        "id": "https://openalex.org/S4210192555",
-        "display_name": "PMLR",
-        "works_count": 12345,
-    }
+    adapter = OpenAlexAdapter("KDD", 2020, 2024)
+    adapter._SOURCE_ID_CACHE.clear()
 
     def fake_get(url, params=None, use_cache=True):
         r = MagicMock()
         r.status_code = 200
         r.headers = {}
-        r.json.return_value = canonical_body
         r.raise_for_status.return_value = None
+        # Return a source with "kdd" in display_name
+        r.json.return_value = {
+            "results": [
+                {
+                    "id": "https://openalex.org/S4393918197",
+                    "display_name": "ACM SIGKDD Conference",
+                }
+            ]
+        }
         return (r, False)
 
     adapter._http.get = fake_get
-    sid = adapter.resolve_source_id()
-    assert sid == "https://openalex.org/S4210192555"
-    # Subsequent call returns the cached value without re-hitting the API
-    sid2 = adapter.resolve_source_id()
-    assert sid2 == sid
+    sid = adapter._search_source("ACM SIGKDD Conference")
+    assert sid == "https://openalex.org/S4393918197"
     adapter.close()
 
 
-def test_resolve_source_id_falls_back_to_display_name_search():
-    """When canonical fails, we fall back to display_name.search aliases."""
+def test_discover_source_id_falls_back_to_first_result(monkeypatch):
+    """If no acronym match, _search_source returns the first result."""
     from unittest.mock import MagicMock
     from src.ingestion.sources.openalex_adapter import OpenAlexAdapter
 
-    adapter = OpenAlexAdapter("NeurIPS", 2020, 2024)
+    adapter = OpenAlexAdapter("KDD", 2020, 2024)
+    adapter._SOURCE_ID_CACHE.clear()
 
     def fake_get(url, params=None, use_cache=True):
         r = MagicMock()
+        r.status_code = 200
         r.headers = {}
         r.raise_for_status.return_value = None
-        if params and params.get("filter", "").startswith("display_name.search"):
-            body = {
-                "results": [
-                    {
-                        "id": "https://openalex.org/S4210198495",
-                        "display_name": "NeurIPS Proceedings",
-                        "works_count": 9999,
-                    }
-                ]
-            }
-            r.status_code = 200
-            r.json.return_value = body
-            return (r, False)
-        r.status_code = 404
-        r.json.return_value = {}
+        # No "kdd" in display_name — fallback to first result
+        r.json.return_value = {
+            "results": [
+                {"id": "https://openalex.org/S123456", "display_name": "Some Other Conference"}
+            ]
+        }
         return (r, False)
 
     adapter._http.get = fake_get
-    sid = adapter.resolve_source_id()
-    assert "S4210198495" in sid
+    sid = adapter._search_source("Conference")
+    assert sid == "https://openalex.org/S123456"
+    adapter.close()
+
+
+def test_discover_source_id_for_year_returns_none_when_not_found(monkeypatch):
+    """When all searches fail, _discover_source_id_for_year returns None."""
+    from unittest.mock import MagicMock
+    from src.ingestion.sources.openalex_adapter import OpenAlexAdapter
+
+    adapter = OpenAlexAdapter("KDD", 2020, 2024)
+    adapter._SOURCE_ID_CACHE.clear()
+
+    def fake_get(url, params=None, use_cache=True):
+        r = MagicMock()
+        r.status_code = 200
+        r.headers = {}
+        r.raise_for_status.return_value = None
+        r.json.return_value = {"results": []}
+        return (r, False)
+
+    adapter._http.get = fake_get
+    sid = adapter._discover_source_id_for_year(2020)
+    assert sid is None
+    # Cache should be set to empty string
+    with adapter._SOURCE_ID_LOCK:
+        assert adapter._SOURCE_ID_CACHE.get("KDD:2020") == ""
     adapter.close()

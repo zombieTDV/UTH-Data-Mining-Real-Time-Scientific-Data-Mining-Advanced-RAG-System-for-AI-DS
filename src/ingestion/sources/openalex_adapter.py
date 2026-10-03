@@ -6,22 +6,26 @@ Why OpenAlex:
     - Supports cursor pagination (Rule #14), per-year filters, batch.
     - Returns DOIs, abstracts, concepts (keywords), cited_by_count.
 
-Endpoint:
-    GET https://api.openalex.org/works
-        ?filter=primary_location.source.id:<venue_id>,
-                publication_year:<year>,
-                type:article|proceedings-article
-        &per_page=200
-        &cursor=*
+IMPORTANT — Source ID strategy (2026-10-03):
+    OpenAlex does NOT have stable source IDs for conference proceedings.
+    Each conference-year gets a different source ID (e.g. "Proceedings of the
+    30th ACM SIGKDD Conference..." is S4363608767, but earlier years have
+    different IDs). The `primary_location.source.id:<id>` filter only works
+    when you know the exact ID.
 
-OpenAlex "source" IDs (canonical, see https://api.openalex.org/sources):
-    KDD       -> S4210193800  (KDD Proceedings)
-    ICML      -> S4210192555  (ICML / PMLR)
-    ICLR      -> S4210197244  (ICLR Conference)
-    NeurIPS   -> S4210198495  (NeurIPS Proceedings)
+    Strategy: use the `search` parameter on /works to find papers for a
+    given (venue, year) without needing a source ID:
+        GET https://api.openalex.org/works
+            ?search=<venue_search_term>
+            &filter=publication_year:<year>,type:conference-paper|article
+            &per_page=200
+            &cursor=*
 
-Note: OpenAlex source IDs may shift; we resolve them lazily via
-`/sources?filter=display_name:<venue>` and cache the result in checkpoint.
+    Per-year source ID discovery (for logging / verification):
+        1. Call /sources?search=<venue_name>&filter=type:conference
+           and look for a result whose display_name contains the venue
+           acronym (case-insensitive).
+        2. Cache the found source_id per (venue, year).
 """
 
 import logging
@@ -46,39 +50,25 @@ logger = logging.getLogger(__name__)
 OPENALEX_BASE = "https://api.openalex.org"
 OPENALEX_PER_PAGE = 200
 
-
-# Canonical OpenAlex source IDs for our 4 venues. Verified against the
-# /sources endpoint; these are stable per OpenAlex policy.
-#
-# NOTE: these are *preferred* values. If a canonical ID returns 0 works for
-# a given year, we still fall back to display_name search below.
-VENUE_CANONICAL_SOURCE_ID: Dict[str, str] = {
-    "KDD": "S4210193800",     # KDD Proceedings (ACM SIGKDD)
-    "ICML": "S4210192555",    # ICML / PMLR
-    "ICLR": "S4210197244",    # ICLR Conference
-    "NeurIPS": "S4210198495", # NeurIPS Proceedings
-}
-
-# Display-name aliases to try for each venue, in priority order. OpenAlex
-# indexes a venue under a primary display_name but may also have alternates;
-# trying several ensures we find the right source row.
-VENUE_DISPLAY_NAME_ALIASES: Dict[str, List[str]] = {
-    "KDD": ["ACM SIGKDD", "SIGKDD", "KDD", "KDD Proceedings"],
+# Search terms for each venue. These are passed as the `search` parameter
+# on /works to find papers from that conference. Order matters: put the
+# most specific term first; the adapter tries them in sequence.
+VENUE_SEARCH_TERMS: Dict[str, List[str]] = {
+    "KDD": [
+        "KDD Conference",
+        "ACM SIGKDD",
+        "SIGKDD",
+    ],
     "ICML": [
-        "International Conference on Machine Learning",
         "ICML",
-        "PMLR",
-        "Proceedings of Machine Learning Research",
+        "International Conference on Machine Learning",
     ],
     "ICLR": [
-        "International Conference on Learning Representations",
         "ICLR",
-        "ICLR Conference",
+        "International Conference on Learning Representations",
     ],
     "NeurIPS": [
         "NeurIPS",
-        "NeurIPS Proceedings",
-        "Advances in Neural Information Processing Systems",
         "Neural Information Processing Systems",
     ],
 }
@@ -114,115 +104,84 @@ class OpenAlexAdapter(BaseSourceAdapter):
         super().__init__(year_from=year_from, year_to=year_to)
         self.venue = venue
         self._http = ConferenceHttpClient()
-        self._http.set_rate_limiter("api.openalex.org", get_rate_limiter_for_domain("api.openalex.org"))
+        self._http.set_rate_limiter(
+            "api.openalex.org", get_rate_limiter_for_domain("api.openalex.org")
+        )
         self._breaker = CircuitBreakerRegistry.get(f"openalex:{self.venue}")
         self._throttle = AdaptiveThrottle()
-        self._source_id: Optional[str] = None
 
     # ------------------------------------------------------------------
-    # Source ID resolution
+    # Per-year source ID discovery (for logging / verification)
     # ------------------------------------------------------------------
-    # Process-wide cache for OpenAlex source IDs so we don't re-query on every
-    # adapter construction (see P5: avoid N HTTP calls for N runs).
+    # Cache source IDs so we don't re-query on every adapter construction.
+    # Key: (venue, year), Value: source_id string
     _SOURCE_ID_CACHE: Dict[str, str] = {}
     _SOURCE_ID_LOCK = threading.Lock()
 
-    def resolve_source_id(self) -> str:
-        """Resolve canonical OpenAlex source ID.
+    def _discover_source_id_for_year(self, year: int) -> Optional[str]:
+        """Find the OpenAlex source ID for this venue in a given year.
 
-        Strategy:
-            1. Honor a previously cached value (process-wide).
-            2. Try the canonical ID from ``VENUE_CANONICAL_SOURCE_ID``
-               and verify it actually has a non-zero works_count.
-            3. Fall back to display_name.search with several aliases
-               per venue, taking the first source whose name (case-folded)
-               contains the venue acronym.
-            4. Return "" if everything fails (caller skips the venue).
+        Searches /sources with venue name + type:conference and looks for
+        a display_name that contains the venue acronym.
+        Returns the source_id URL or None if not found.
         """
-        cache_key = self.venue
+        cache_key = f"{self.venue}:{year}"
         with self._SOURCE_ID_LOCK:
             if cache_key in self._SOURCE_ID_CACHE:
-                cached = self._SOURCE_ID_CACHE[cache_key]
-                if cached:
-                    self._source_id = cached
-                    return cached
-        if self._source_id:
-            return self._source_id
+                return self._SOURCE_ID_CACHE[cache_key] or None
 
-        # 1) Try canonical ID first
-        canonical = VENUE_CANONICAL_SOURCE_ID.get(self.venue)
-        if canonical:
-            sid = self._verify_source_id(canonical)
+        search_terms = VENUE_SEARCH_TERMS.get(self.venue, [self.venue])
+        for term in search_terms:
+            sid = self._search_source(term)
             if sid:
-                self._cache_and_return(cache_key, sid)
+                with self._SOURCE_ID_LOCK:
+                    self._SOURCE_ID_CACHE[cache_key] = sid
+                logger.info(
+                    "[openalex] discovered source_id for %s/%d: %s (search=%r)",
+                    self.venue, year, sid, term,
+                )
                 return sid
 
-        # 2) Try aliases via display_name.search
-        for alias in VENUE_DISPLAY_NAME_ALIASES.get(self.venue, [self.venue]):
-            sid = self._search_source_by_display_name(alias)
-            if sid:
-                self._cache_and_return(cache_key, sid)
-                return sid
-
-        logger.warning("[openalex] no source found for %s", self.venue)
-        self._source_id = ""
-        return ""
-
-    def _cache_and_return(self, cache_key: str, sid: str) -> str:
-        self._source_id = sid
+        # Not found: cache empty string to avoid repeated lookups
         with self._SOURCE_ID_LOCK:
-            self._SOURCE_ID_CACHE[cache_key] = sid
-        logger.info("[openalex] %s -> %s", self.venue, sid)
-        return sid
+            self._SOURCE_ID_CACHE[cache_key] = ""
+        logger.debug(
+            "[openalex] no source_id found for %s/%d", self.venue, year
+        )
+        return None
 
-    def _verify_source_id(self, sid: str) -> str:
-        """Look up a source by exact ID. Return sid if it exists, else ""."""
-        url = f"{OPENALEX_BASE}/sources/{sid}"
-        params: Dict[str, Any] = {}
-        if settings.OPENALEX_EMAIL:
-            params["mailto"] = settings.OPENALEX_EMAIL
-        try:
-            data, _ = self._http.get_json(url, params=params, use_cache=True)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("[openalex] canonical source %s lookup failed: %s", sid, exc)
-            return ""
-        if not data or not data.get("id"):
-            return ""
-        return data["id"]
-
-    def _search_source_by_display_name(self, alias: str) -> str:
-        """Find a source whose display_name matches ``alias``.
-
-        OpenAlex's ``display_name.search`` is full-text. We additionally
-        require the display_name to actually contain the venue acronym
-        (case-insensitive) to avoid picking unrelated matches.
-        """
+    def _search_source(self, term: str) -> str:
+        """Find a conference source matching ``term`` via /sources search."""
         url = f"{OPENALEX_BASE}/sources"
-        params: Dict[str, Any] = {"per_page": 5}
+        params: Dict[str, Any] = {
+            "search": term,
+            "filter": "type:conference",
+            "per_page": 5,
+        }
         if settings.OPENALEX_EMAIL:
             params["mailto"] = settings.OPENALEX_EMAIL
-        params["filter"] = f"display_name.search:{alias}"
         try:
             data, _ = self._http.get_json(url, params=params, use_cache=True)
         except Exception as exc:  # noqa: BLE001
-            logger.debug(
-                "[openalex] display_name.search for %r failed: %s", alias, exc
-            )
+            logger.debug("[openalex] source search %r failed: %s", term, exc)
             return ""
         if not data or not data.get("results"):
             return ""
-        # The OpenAlex acronym to look for inside display_name
+
+        # The acronym we need to see in display_name
         acronym = {
             "KDD": "kdd",
             "ICML": "icml",
             "ICLR": "iclr",
             "NeurIPS": "neurips",
         }.get(self.venue, self.venue.lower())
+
         for r in data["results"]:
             name = (r.get("display_name") or "").lower()
             if acronym in name and r.get("id"):
                 return r["id"]
-        # Fallback: first row
+
+        # Fallback: first result
         return data["results"][0].get("id") or ""
 
     # ------------------------------------------------------------------
@@ -240,39 +199,43 @@ class OpenAlexAdapter(BaseSourceAdapter):
             raise ValueError(f"target must be '<venue>:<year>', got {target!r}")
         venue, year_str = target.split(":", 1)
         year = int(year_str)
-        # Case-insensitive: "NeurIPS" == "NEURIPS" == "neurips"
         if venue.upper() != self.venue.upper():
             raise ValueError(f"target venue {venue!r} != adapter venue {self.venue!r}")
 
-        source_id = self.resolve_source_id()
-        if not source_id:
-            return []
+        return self._fetch_year(year=year)
 
-        return self._fetch_year(year=year, source_id=source_id)
+    def _fetch_year(self, year: int) -> List[Dict[str, Any]]:
+        """Fetch all papers for one (venue, year) using search + cursor pagination.
 
-    def _fetch_year(self, year: int, source_id: str) -> List[Dict[str, Any]]:
-        """Fetch all papers for one (venue, year) using cursor pagination.
+        Uses the `search` parameter on /works to find papers, filtered by
+        publication_year and type. This avoids the need for stable source IDs
+        which OpenAlex does not provide for conference proceedings.
 
         R1 (Retry with Retry-After): each page request goes through
         ``http_with_retries`` which honors the upstream Retry-After header
         and applies exponential backoff on 429/5xx.
 
         R2 (Adaptive throttle): every page records latency and success/failure
-        into the local ``AdaptiveThrottle``. When the factor drops, the loop
-        sleeps an extra ``1 - factor`` seconds before the next request.
+        into the local ``AdaptiveThrottle``.
         """
         papers: List[Dict[str, Any]] = []
         cursor = "*"
         per_page = OPENALEX_PER_PAGE
-        # OpenAlex's `primary_location.source.id` uses full URL; we strip prefix.
-        sid = source_id.split("/")[-1] if source_id.startswith("https://") else source_id
+
+        # Discover source_id for this year (for logging only; not used in query)
+        source_id = self._discover_source_id_for_year(year)
+        if source_id:
+            logger.debug(
+                "[openalex:%s:%d] using source_id=%s", self.venue, year, source_id
+            )
+
+        # Build the search terms for this venue
+        search_terms = VENUE_SEARCH_TERMS.get(self.venue, [self.venue])
+        active_term = search_terms[0]
 
         params_base: Dict[str, Any] = {
-            "filter": (
-                f"primary_location.source.id:{sid},"
-                f"publication_year:{year},"
-                f"type:article|proceedings-article"
-            ),
+            "search": active_term,
+            "filter": f"publication_year:{year},type:conference-paper|article",
             "per_page": per_page,
             "sort": "publication_date:asc",
         }
@@ -283,7 +246,7 @@ class OpenAlexAdapter(BaseSourceAdapter):
             params = dict(params_base)
             params["cursor"] = cursor
             url = f"{OPENALEX_BASE}/works"
-            # Fail fast if circuit is open (don't waste Retry-After time)
+            # Fail fast if circuit is open
             if not self._breaker.allow_request():
                 logger.warning(
                     "[openalex] circuit breaker OPEN for %s; skipping year %d",
@@ -305,6 +268,7 @@ class OpenAlexAdapter(BaseSourceAdapter):
                         )
                     r.raise_for_status()
                     return r.json()
+
                 data = http_with_retries(
                     do,
                     max_retries=settings.CRAWLER_MAX_RETRIES,
@@ -318,9 +282,6 @@ class OpenAlexAdapter(BaseSourceAdapter):
                     "[openalex] page failed for %s year=%s cursor=%s: %s",
                     self.venue, year, cursor, exc,
                 )
-                # Record failure so circuit breaker trips after N consecutive failures.
-                # We record directly rather than via _breaker.call() because the
-                # actual request logic lives inside http_with_retries().
                 self._breaker.record_failure()
                 break
             finally:
@@ -351,7 +312,6 @@ class OpenAlexAdapter(BaseSourceAdapter):
     # Normalization (Research-friendly schema)
     # ------------------------------------------------------------------
     def _normalize_work(self, work: Dict[str, Any], year: int) -> Dict[str, Any]:
-        # OpenAlex ID is a URL like "https://openalex.org/W123"; use the last segment
         openalex_id = work.get("id", "")
         if isinstance(openalex_id, str) and openalex_id.startswith("https://"):
             paper_id = openalex_id.split("/")[-1]
@@ -362,7 +322,6 @@ class OpenAlexAdapter(BaseSourceAdapter):
         if doi.startswith("https://doi.org/"):
             doi = doi[len("https://doi.org/"):]
 
-        # Authors -> list of "Name (orcid)" strings
         authors: List[str] = []
         for a in (work.get("authorships") or []):
             author = a.get("author") or {}
@@ -373,12 +332,10 @@ class OpenAlexAdapter(BaseSourceAdapter):
 
         loc = work.get("primary_location") or {}
         source = loc.get("source") or {}
-        venue = source.get("display_name") or self.venue
+        paper_venue = source.get("display_name") or self.venue
 
-        # OpenAlex stores abstracts as inverted indexes
         abstract = _reconstruct_abstract(work.get("abstract_inverted_index"))
         if not abstract:
-            # Some records have a plain "abstract" field
             abstract = (work.get("abstract") or "").strip()
 
         pdf_url = ""
@@ -398,13 +355,12 @@ class OpenAlexAdapter(BaseSourceAdapter):
             "abstract": abstract,
             "authors": authors,
             "year": int(work.get("publication_year") or year),
-            "venue": venue,
+            "venue": paper_venue,
             "source": "openalex",
             "pdf_url": pdf_url,
             "doi": doi,
             "keywords": keywords,
             "citation_count": int(work.get("cited_by_count") or 0),
-            # provenance
             "openalex_id": paper_id,
             "openalex_url": work.get("id", ""),
             "publication_date": work.get("publication_date") or "",
