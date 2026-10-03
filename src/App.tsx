@@ -113,7 +113,7 @@ function DashboardMain() {
   // Check health, load storage stats, and subscribe to SSE telemetry stream
   useEffect(() => {
     fetchHealth()
-      .then((h) => setBackendStatus(h.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE'))
+      .then((h) => setBackendStatus(h.status === 'ONLINE' || h.status === 'ok' ? 'ONLINE' : 'OFFLINE'))
       .catch(() => setBackendStatus('OFFLINE'));
 
     fetchStorageStats()
