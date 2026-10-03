@@ -231,3 +231,66 @@ export interface TelemetryEvent {
   detail?: string;
   isFallback?: boolean;
 }
+
+export interface StreamingTelemetryPayload {
+  timestamp: string;
+  status: string;
+  pipeline_phase?: string;
+  ingestion_rate_papers_per_sec?: number;
+  ingestion_rate_words_per_sec?: number;
+  total_papers_streamed?: number;
+  enriched_html_papers?: number;
+  enrichment_ratio?: number;
+  total_execution_seconds?: number;
+  total_papers?: number;
+  modules?: Record<string, unknown>;
+  system_metrics?: {
+    cpu_percent: number;
+    ram_mb: number;
+    lakehouse_write_latency_ms: number;
+  };
+}
+
+export interface DynamicQuantiles {
+  math_formulas: {
+    p25: number;
+    median: number;
+    p75: number;
+    p95: number;
+    max: number;
+  };
+  word_counts: {
+    p25: number;
+    median: number;
+    p75: number;
+    p95: number;
+    max: number;
+  };
+}
+
+export interface EdaDeltaPayload {
+  timestamp: string;
+  batch_size?: number;
+  dynamic_quantiles?: DynamicQuantiles;
+  top_active_categories?: Array<{
+    category: string;
+    count: number;
+    percentage: number;
+  }>;
+  estimated_unique_authors_hll?: number;
+  recent_category_velocity?: Record<string, string>;
+}
+
+export interface AnomalyAlertPayload {
+  timestamp: string;
+  paper_id: string;
+  title: string;
+  primary_category: string;
+  anomaly_score: number;
+  metrics: {
+    word_count: number;
+    math_count: number;
+    author_count: number;
+  };
+  reasons: string[];
+}
