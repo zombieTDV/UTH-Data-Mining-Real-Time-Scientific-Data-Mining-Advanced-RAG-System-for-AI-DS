@@ -66,6 +66,14 @@ export async function sendChatQuery(query: string, category?: string): Promise<C
   return res.json();
 }
 
+export async function triggerMiningPipeline(): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${BASE_URL}/api/mining/trigger`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Failed to trigger pipeline: ${res.statusText}`);
+  return res.json();
+}
+
 export function subscribeTelemetry(
   onData: (data: any) => void,
   onError?: (err: any) => void,
