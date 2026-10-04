@@ -1,0 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', 'SF Mono', monospace;
+
+  /* Default Dark Mode: High Contrast Tactical Obsidian */
+  --bg-canvas: #04060a;
+  --bg-surface: #0e1422;
+  --bg-surface-elevated: #162035;
+  --bg-surface-hover: #1e2b47;
+  
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --border-muted: rgba(255, 255, 255, 0.22);
+  --border-highlight: rgba(255, 255, 255, 0.40);
+
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-muted: #a6b4c9;
+
+  --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  --accent-bronze: #f59e0b;
+  --accent-silver: #60a5fa;
+  --accent-gold: #fbbf24;
+  --accent-emerald: #10b981;
+  --accent-violet: #c084fc;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+  --dot-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Light Mode: Modern Crisp Dotted Grid */
+[data-theme="light"] {
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f1f5f9;
+  --bg-surface-hover: #e2e8f0;
+
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-muted: rgba(0, 0, 0, 0.16);
+  --border-highlight: rgba(0, 0, 0, 0.35);
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
+
+  --accent-bronze: #ea580c;
+  --accent-silver: #2563eb;
+  --accent-gold: #d97706;
+  --accent-emerald: #059669;
+  --accent-violet: #7c3aed;
+
+  --dot-color: #cbd5e1;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Modern Clean Dotted Grid across the entire canvas */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(var(--dot-color) 1.25px, transparent 1.25px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-canvas);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-muted);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-highlight);
+}
+
+/* High visibility terminal log scrollbar */
+.log-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-highlight) var(--bg-canvas);
+}
+.log-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+.log-scrollbar::-webkit-scrollbar-track {
+  background: var(--bg-canvas);
+  border-left: 1px solid var(--border-subtle);
+  border-radius: 0 6px 6px 0;
+}
+.log-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-highlight);
+  border-radius: 4px;
+}
+.log-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-emerald);
+}
+
+/* Kinetic micro-interactions */
+button, a {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+button:active {
+  transform: scale(0.98);
+}
+
+@keyframes pulseFlow {
+  0% { transform: translateY(-20px); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(20px); opacity: 0; }
+}
+
+@keyframes pulseFlowHorizontal {
+  0% { transform: translateX(-20px); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(20px); opacity: 0; }
+}
+
+@keyframes stageGlowOrange {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.2); }
+  50% { box-shadow: 0 0 16px 4px rgba(234, 88, 12, 0.45); }
+}
+
+@keyframes stageGlowActive {
+  0%, 100% { border-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.2); }
+  50% { border-color: #60a5fa; box-shadow: 0 0 20px rgba(59, 130, 246, 0.45); }
+}
+
+@keyframes streamDash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

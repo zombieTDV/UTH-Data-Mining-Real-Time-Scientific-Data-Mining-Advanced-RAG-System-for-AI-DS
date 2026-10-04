@@ -1,35 +1,52 @@
-# Logs
-logs
-*.log
+# Node / TypeScript
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+dist/
+backend/dist/
+frontend/dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
 *.local
 
-# Editor directories and files
-.vscode/*
+# Secrets
+.env
+.env.*
+!.env.example
+!backend/.env.example
+
+# Local artifacts shared with other branches (exist on disk, never tracked here)
+models/
+data/
+logs/
+*.log
+.venv/
+data_mining/.venv/
+lib/
+bin/
+tools/
+!data_mining/tools/
+.kilo/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+
+# Editor / OS / Tooling
+.gemini/
+.vscode/
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-
-# Local lakehouse data & heavy weights
-/data/
-!src/data/
-models/
-.venv/
-.gemini/
-.env
-.env.*
-__pycache__/
-*.pyc
