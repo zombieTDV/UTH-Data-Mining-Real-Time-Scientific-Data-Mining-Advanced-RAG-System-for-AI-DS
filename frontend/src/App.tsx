@@ -59,20 +59,24 @@ export default function App() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', backgroundColor: 'transparent', position: 'relative' }}>
+    <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>
       {/* ============================================================== */}
-      {/* 1. ONLY LEFTMOST SLEEK DARK VERTICAL RAIL (No secondary sidebar) */}
+      {/* 1. ONLY LEFTMOST SLEEK DARK VERTICAL RAIL (Fixed, Never Drifts) */}
       {/* ============================================================== */}
       <aside
         style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
           width: '58px',
+          height: '100vh',
           backgroundColor: '#16161a',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           padding: '16px 0',
-          flexShrink: 0,
-          zIndex: 50,
+          zIndex: 60,
           borderRight: '1px solid rgba(255, 255, 255, 0.08)',
         }}
       >
@@ -304,14 +308,25 @@ export default function App() {
       {/* ============================================================== */}
       {/* 2. MAIN CONTAINER: STREAMLINED HEADER + DOTTED WORKSPACE */}
       {/* ============================================================== */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+      <div
+        style={{
+          marginLeft: '58px',
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          height: '100vh',
+          overflow: 'hidden',
+        }}
+      >
         {/* Minimal Streamlined Header Bar */}
         <header
           style={{
             height: '52px',
-            backgroundColor: 'rgba(255, 255, 255, 0.88)',
+            flexShrink: 0,
+            backgroundColor: theme === 'dark' ? 'rgba(14, 20, 34, 0.92)' : 'rgba(255, 255, 255, 0.88)',
             backdropFilter: 'blur(8px)',
-            borderBottom: '1px solid #e2e8f0',
+            borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
             padding: '0 24px',
             display: 'flex',
             alignItems: 'center',
@@ -321,7 +336,7 @@ export default function App() {
         >
           {/* Left: Minimal Title & Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.04em', color: '#0f172a' }}>
+            <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.04em', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>
               UTH SCIENTIFIC LAKEHOUSE & MINING PIPELINE
             </span>
 
@@ -346,10 +361,10 @@ export default function App() {
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              backgroundColor: '#f1f5f9',
+              backgroundColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
               padding: '6px 18px',
               borderRadius: '9999px',
-              border: '1px solid #e2e8f0',
+              border: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
             }}
           >
@@ -363,7 +378,7 @@ export default function App() {
                 animation: pipelineStatus === 'RUNNING' ? 'stageGlowOrange 1.5s infinite' : 'none',
               }}
             />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: theme === 'dark' ? '#cbd5e1' : '#334155' }}>
               {pipelineStatus === 'RUNNING'
                 ? 'Pipeline Active: Ingesting papers, DuckDB parsing & LanceDB indexing...'
                 : 'Lakehouse Standby: 10,000 papers, 2.22M formulas, 143k LanceDB vectors synced.'}
@@ -374,7 +389,7 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
               <span style={{ color: '#64748b' }}>R2 LAKE:</span>
-              <span style={{ fontWeight: 800, color: '#0f172a' }}>5.688 GB</span>
+              <span style={{ fontWeight: 800, color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>5.688 GB</span>
               <span style={{ backgroundColor: '#ecfdf5', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
                 56.9%
               </span>
@@ -424,7 +439,8 @@ export default function App() {
         <main
           style={{
             flex: 1,
-            overflow: 'auto',
+            overflowY: activeTab === 'schematic' ? 'hidden' : 'auto',
+            overflowX: 'hidden',
             padding: activeTab === 'schematic' ? '20px 24px' : '28px 36px',
             backgroundColor: 'transparent',
             display: 'flex',
@@ -471,15 +487,16 @@ export default function App() {
         <footer
           style={{
             height: '32px',
-            backgroundColor: 'rgba(255, 255, 255, 0.85)',
-            borderTop: '1px solid #e2e8f0',
+            flexShrink: 0,
+            backgroundColor: theme === 'dark' ? 'rgba(14, 20, 34, 0.92)' : 'rgba(255, 255, 255, 0.85)',
+            borderTop: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
             padding: '0 24px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             fontSize: '11px',
             fontFamily: 'var(--font-mono)',
-            color: '#64748b',
+            color: theme === 'dark' ? '#94a3b8' : '#64748b',
           }}
         >
           <div>
