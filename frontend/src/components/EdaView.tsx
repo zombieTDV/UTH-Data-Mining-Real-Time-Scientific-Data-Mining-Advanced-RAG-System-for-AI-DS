@@ -3,6 +3,7 @@ import type { EdaResponse, CategoryDistItem } from '../api/types';
 import { fetchEdaSummary } from '../api/client';
 import { ChartToolbar } from './ChartToolbar';
 import { useSvgPanZoom } from '../hooks/useSvgPanZoom';
+import { ScientificMath } from './ScientificMath';
 
 export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'rag_audit';
 
@@ -3199,12 +3200,14 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             {/* Sample Mathematical Equation */}
             {selectedPaperForDrawer.sampleFormula && (
               <div style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 800, color: '#ea580c', marginBottom: '4px' }}>
-                  TRÍCH ĐOẠN CÔNG THỨC TOÁN LATEX:
+                <div style={{ fontSize: '10px', fontWeight: 800, color: isDark ? '#38bdf8' : '#0284c7', marginBottom: '4px' }}>
+                  TRÍCH ĐOẠN CÔNG THỨC TOÁN HỌC (KATEX):
                 </div>
-                <div style={{ backgroundColor: isDark ? 'rgba(234, 88, 12, 0.1)' : '#fff7ed', border: `1px solid ${isDark ? 'rgba(234, 88, 12, 0.3)' : '#fed7aa'}`, borderRadius: '6px', padding: '8px 10px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#fdba74' : '#9a3412', overflowX: 'auto' }}>
-                  <code>{selectedPaperForDrawer.sampleFormula}</code>
-                </div>
+                <ScientificMath
+                  math={selectedPaperForDrawer.sampleFormula}
+                  block
+                  theme={isDark ? 'dark' : 'light'}
+                />
               </div>
             )}
 

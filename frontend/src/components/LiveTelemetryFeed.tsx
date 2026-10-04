@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { subscribeTelemetry, subscribeIngestionStream } from '../api/client';
 
 export interface LogLine {
   id: string;
@@ -159,11 +160,45 @@ export const PIPELINE_LOGS: LogLine[] = [
 ];
 
 export function LiveTelemetryFeed() {
+  const [logs, setLogs] = useState<LogLine[]>(PIPELINE_LOGS);
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const filteredLogs = PIPELINE_LOGS.filter((l) => {
+  useEffect(() => {
+    const unsub = subscribeTelemetry((data) => {
+      if (data && (data.event || data.message || data.status)) {
+        const newLog: LogLine = {
+          id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          level: (data.level || (data.status === 'ONLINE' ? 'SUCCESS' : 'INFO')) as any,
+          tag: data.tag || 'TELEMETRY/SSE',
+          message: data.message || `System event: ${JSON.stringify(data)}`,
+        };
+        setLogs((prev) => [newLog, ...prev.slice(0, 99)]);
+      }
+    });
+
+    const unsubStream = subscribeIngestionStream((event) => {
+      if (event && event.type) {
+        const newLog: LogLine = {
+          id: `stream-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          level: event.type === 'PAPER_INGESTED' ? 'SUCCESS' : 'INFO',
+          tag: 'INGESTION/CDC',
+          message: event.title ? `[${event.paper_id}] ${event.title} (${event.category})` : `CDC Stream: ${event.type}`,
+        };
+        setLogs((prev) => [newLog, ...prev.slice(0, 99)]);
+      }
+    });
+
+    return () => {
+      unsub();
+      unsubStream();
+    };
+  }, []);
+
+  const filteredLogs = logs.filter((l) => {
     if (filterLevel !== 'ALL' && l.level !== filterLevel) return false;
     if (search.trim()) {
       const q = search.toLowerCase();

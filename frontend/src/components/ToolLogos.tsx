@@ -206,3 +206,5 @@ export function ToolLogosGrid() {
     </div>
   );
 }
+
+export const ToolLogos = ToolLogosGrid;
