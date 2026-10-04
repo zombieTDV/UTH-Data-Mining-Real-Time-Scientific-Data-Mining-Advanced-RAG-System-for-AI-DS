@@ -333,47 +333,34 @@ export default function App() {
             </span>
           </div>
 
-          {/* Center: Segmented Navigation Pills */}
+          {/* Center: Fixed Lakehouse Standby & Live Status */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
+              gap: '10px',
               backgroundColor: '#f1f5f9',
-              padding: '3px',
+              padding: '6px 18px',
               borderRadius: '9999px',
               border: '1px solid #e2e8f0',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
             }}
           >
-            {[
-              { key: 'schematic' as AppTab, label: 'Pipeline Flow' },
-              { key: 'eda' as AppTab, label: 'Real-Time EDA' },
-              { key: 'pillars' as AppTab, label: '4 Mining Pillars' },
-              { key: 'rag' as AppTab, label: 'Grounded RAG' },
-              { key: 'logs' as AppTab, label: 'Telemetry & Quota' },
-            ].map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  style={{
-                    border: 'none',
-                    backgroundColor: isActive ? '#ffffff' : 'transparent',
-                    color: isActive ? '#0f172a' : '#64748b',
-                    padding: '5px 14px',
-                    borderRadius: '9999px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: pipelineStatus === 'RUNNING' ? '#ea580c' : '#10b981',
+                boxShadow: pipelineStatus === 'RUNNING' ? '0 0 8px #ea580c' : 'none',
+                animation: pipelineStatus === 'RUNNING' ? 'stageGlowOrange 1.5s infinite' : 'none',
+              }}
+            />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+              {pipelineStatus === 'RUNNING'
+                ? 'Pipeline Active: Ingesting papers, DuckDB parsing & LanceDB indexing...'
+                : 'Lakehouse Standby: 10,000 papers, 2.22M formulas, 143k LanceDB vectors synced.'}
+            </span>
           </div>
 
           {/* Right: Storage & Run Pipeline Button */}
@@ -441,7 +428,6 @@ export default function App() {
             <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column' }}>
               <InteractiveWorkflowCanvas
                 onNavigateTab={(tab) => setActiveTab(tab)}
-                onTriggerPipeline={handleTriggerPipeline}
                 isPipelineRunning={pipelineStatus === 'RUNNING'}
               />
             </div>

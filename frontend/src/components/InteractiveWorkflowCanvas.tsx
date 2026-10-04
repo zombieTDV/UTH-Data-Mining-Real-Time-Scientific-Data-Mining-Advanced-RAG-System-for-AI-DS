@@ -227,12 +227,10 @@ Ground every assertion strictly in provided LanceDB chunks.
 
 export interface InteractiveWorkflowCanvasProps {
   onNavigateTab?: (tab: 'schematic' | 'eda' | 'pillars' | 'rag' | 'logs') => void;
-  onTriggerPipeline?: () => void;
   isPipelineRunning?: boolean;
 }
 
 export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
-  onTriggerPipeline,
   isPipelineRunning = false,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -290,9 +288,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [papersHarvested, setPapersHarvested] = useState<number>(10000);
   const [formulasExtracted, setFormulasExtracted] = useState<number>(2224198);
   const [vectorsIndexed, setVectorsIndexed] = useState<number>(143523);
-  const [activeMessage, setActiveMessage] = useState<string>(
-    'Lakehouse Standby: 10,000 papers, 2.22M formulas, 143k LanceDB vectors synced.'
-  );
 
   // Progressive simulation when "Run Pipeline" is triggered
   useEffect(() => {
@@ -304,32 +299,27 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     }
 
     setSimulationStage('harvest');
-    setActiveMessage('Phase 1: Ingesting academic papers and HTML5 bodies via arXiv OAI-PMH...');
     setPapersHarvested(1420);
 
     const t1 = setTimeout(() => {
       setSimulationStage('bronze');
-      setActiveMessage('Phase 2: Streaming raw batches into Cloudflare R2 Bronze Lakehouse...');
       setPapersHarvested(6150);
     }, 1200);
 
     const t2 = setTimeout(() => {
       setSimulationStage('duckdb');
-      setActiveMessage('Phase 3: SIMD DuckDB parsing & extracting 2.22M LaTeX formulas...');
       setPapersHarvested(10000);
       setFormulasExtracted(920000);
     }, 2500);
 
     const t3 = setTimeout(() => {
       setSimulationStage('parallel');
-      setActiveMessage('Phase 4: Parallel execution: Curated Parquet EDA & Gold LanceDB 4 Mining Pillars...');
       setFormulasExtracted(2224198);
       setVectorsIndexed(68000);
     }, 4000);
 
     const t4 = setTimeout(() => {
       setSimulationStage('completed');
-      setActiveMessage('Phase 5: Pipeline synced. LanceDB vector indices & Grounded RAG ready.');
       setVectorsIndexed(143523);
     }, 6000);
 
@@ -375,59 +365,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         overflow: 'hidden',
       }}
     >
-      {/* Minimal Floating Canvas Telemetry HUD */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '12px',
-          backgroundColor: 'rgba(255, 255, 255, 0.85)',
-          backdropFilter: 'blur(12px)',
-          borderRadius: '9999px',
-          border: '1px solid rgba(226, 232, 240, 0.9)',
-          padding: '6px 16px',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
-          marginBottom: '40px',
-          zIndex: 10,
-        }}
-      >
-        <span
-          style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: isPipelineRunning ? '#ea580c' : '#10b981',
-            boxShadow: isPipelineRunning ? '0 0 8px #ea580c' : 'none',
-            animation: isPipelineRunning ? 'stageGlowOrange 1.5s infinite' : 'none',
-          }}
-        />
-        <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
-          {activeMessage}
-        </span>
-        {onTriggerPipeline && (
-          <button
-            type="button"
-            onClick={onTriggerPipeline}
-            disabled={isPipelineRunning}
-            style={{
-              backgroundColor: isPipelineRunning ? '#fff7ed' : '#f1f5f9',
-              color: isPipelineRunning ? '#ea580c' : '#0f172a',
-              border: '1px solid #e2e8f0',
-              borderRadius: '9999px',
-              padding: '2px 10px',
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              cursor: isPipelineRunning ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            {isPipelineRunning ? 'RUNNING...' : 'TRIGGER'}
-          </button>
-        )}
-      </div>
 
       {/* ============================================================== */}
       {/* HORIZONTAL DATA MINING PIPELINE (Centered in Viewport & Zoomable) */}
