@@ -38,11 +38,16 @@ class Settings:
     OPENALEX_API_KEY: str = os.getenv("OPENALEX_API_KEY","").strip()
 
     # OpenAlex Categories Config
-    OPENALEX_SUB_FIELDS: List[str] = [
+    OPENALEX_SUBFIELDS: List[str] = [
         c.strip() 
         for c in os.getenv("OPENALEX_SUB_FIELDS","1203,1702,1703,1706,1707,1710,1711,1804,2207,2613,3309,3310").split(",") 
         if c.strip()
     ]
+    OPENALEX_DEDUP_MAX_OBJECTS_PER_YEAR = os.getenv('OPENALEX_DEDUP_MAX_OBJECTS_PER_YEAR',100_000)
+    OPENALEX_PER_PAGE = os.getenv('OPENALEX_PER_PAGE',100)
+    OPENALEX_REQUESTS_PER_SECOND = os.getenv('OPENALEX_REQUESTS_PER_SECOND',5)
+    OPENALEX_TIMEOUT_SECONDS = os.getenv('OPENALEX_TIMEOUT_SECONDS',30.0)
+    OPENALEX_MAX_RETRIES = os.getenv('OPENALEX_TIMEOUT_SECONDS',5)
 
 
     # Logging
