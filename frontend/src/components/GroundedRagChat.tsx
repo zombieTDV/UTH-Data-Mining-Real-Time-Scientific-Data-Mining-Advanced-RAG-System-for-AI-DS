@@ -38,18 +38,10 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   },
 ];
 
-const SAMPLE_QUERIES = [
-  'Sampling z_t in conditional diffusion distillation (CoDi 2310.01407)',
-  'How does gated distillation improve OCR faithfulness?',
-  'Efficiency trade-offs between LoRA and full fine-tuning',
-  'LanceDB vector indexing latency over Apache Arrow',
-];
-
 export const GroundedRagChat: FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -82,10 +74,7 @@ export const GroundedRagChat: FC = () => {
     setLoading(true);
 
     try {
-      const res: ChatResponse = await sendChatQuery(
-        query,
-        selectedCategory === 'all' ? undefined : selectedCategory
-      );
+      const res: ChatResponse = await sendChatQuery(query);
 
       const assistantMsg: ChatMessage = {
         id: `ast-${Date.now()}`,
@@ -201,30 +190,6 @@ export const GroundedRagChat: FC = () => {
           </span>
 
           <span style={{ color: '#cbd5e1' }}>|</span>
-
-          {/* Domain Category Selector */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            style={{
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              backgroundColor: '#f8fafc',
-              color: '#334155',
-              border: '1px solid #e2e8f0',
-              borderRadius: '6px',
-              padding: '2px 8px',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="all">All Domains (cs.*, stat.*)</option>
-            <option value="cs.AI">cs.AI (Artificial Intelligence)</option>
-            <option value="cs.LG">cs.LG (Machine Learning)</option>
-            <option value="cs.CV">cs.CV (Computer Vision)</option>
-            <option value="cs.CL">cs.CL (Computation & Language)</option>
-            <option value="stat.ML">stat.ML (Machine Learning Stats)</option>
-          </select>
 
           <button
             type="button"
@@ -557,54 +522,6 @@ export const GroundedRagChat: FC = () => {
             gap: '8px',
           }}
         >
-          {/* Quick Prompt Suggestion Chips */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              overflowX: 'auto',
-              paddingBottom: '2px',
-            }}
-          >
-            {SAMPLE_QUERIES.map((q, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  setInputText(q);
-                  handleSendMessage(q);
-                }}
-                style={{
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.92)',
-                  backdropFilter: 'blur(12px)',
-                  color: '#475569',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '9999px',
-                  padding: '5px 12px',
-                  whiteSpace: 'nowrap',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#2563eb';
-                  e.currentTarget.style.color = '#2563eb';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#e2e8f0';
-                  e.currentTarget.style.color = '#475569';
-                  e.currentTarget.style.transform = 'none';
-                }}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-
           {/* Floating Composer Container */}
           <form
             onSubmit={handleSubmit}
