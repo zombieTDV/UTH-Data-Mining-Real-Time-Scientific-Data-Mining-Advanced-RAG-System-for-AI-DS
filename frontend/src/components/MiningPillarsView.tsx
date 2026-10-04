@@ -14,6 +14,7 @@ import {
   fetchTrends,
 } from '../api/client';
 import { ChartToolbar } from './ChartToolbar';
+import { useSvgPanZoom } from '../hooks/useSvgPanZoom';
 
 export interface MiningPillarsViewProps {
   theme?: 'dark' | 'light';
@@ -81,14 +82,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   const [antecedentFilter, setAntecedentFilter] = useState<string>('ALL');
   const [hoveredRule, setHoveredRule] = useState<{ rule: AssociationRuleItem; x: number; y: number } | null>(null);
   const [inspectedRule, setInspectedRule] = useState<AssociationRuleItem | null>(null);
-  const [p1Zoom, setP1Zoom] = useState<number>(1);
+  const p1PanZoom = useSvgPanZoom({ nominalWidth: 720, nominalHeight: 280, minZoom: 0.75, maxZoom: 3.5 });
 
   // Pillar 2: K-Means State & Zoom/Pan
   const [clustersData, setClustersData] = useState<ClustersResponse | null>(null);
   const [selectedClusterFilter, setSelectedClusterFilter] = useState<number | 'ALL'>('ALL');
   const [hoveredPoint, setHoveredPoint] = useState<{ point: ScatterPointItem; x: number; y: number } | null>(null);
   const [inspectedPoint, setInspectedPoint] = useState<ScatterPointItem | null>(null);
-  const [p2Zoom, setP2Zoom] = useState<number>(1);
+  const p2PanZoom = useSvgPanZoom({ nominalWidth: 2.4, nominalHeight: 2.4, centerOrigin: true, minZoom: 0.75, maxZoom: 3.5 });
 
   // Pillar 3: Graph State & Degree Filter & Zoom
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
@@ -97,14 +98,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   const [graphLayout, setGraphLayout] = useState<'circular' | 'force'>('circular');
   const [hoveredGraphNode, setHoveredGraphNode] = useState<{ node: any; x: number; y: number } | null>(null);
   const [selectedGraphNode, setSelectedGraphNode] = useState<any | null>(null);
-  const [p3Zoom, setP3Zoom] = useState<number>(1);
+  const p3PanZoom = useSvgPanZoom({ nominalWidth: 580, nominalHeight: 320, minZoom: 0.6, maxZoom: 3.5 });
 
   // Pillar 4: Trend Velocity & Isolation Forest State & Zooms
   const [trendsData, setTrendsData] = useState<TrendsResponse | null>(null);
   const [hoveredAnomaly, setHoveredAnomaly] = useState<{ item: any; x: number; y: number } | null>(null);
   const [inspectedAnomaly, setInspectedAnomaly] = useState<any | null>(null);
-  const [p4VelocityZoom, setP4VelocityZoom] = useState<number>(1);
-  const [p4AnomalyZoom, setP4AnomalyZoom] = useState<number>(1);
+  const p4VelocityPanZoom = useSvgPanZoom({ nominalWidth: 520, nominalHeight: 220, minZoom: 0.5, maxZoom: 3.5 });
+  const p4AnomalyPanZoom = useSvgPanZoom({ nominalWidth: 460, nominalHeight: 210, minZoom: 0.5, maxZoom: 3.5 });
 
   // Data Loading
   const [loading, setLoading] = useState<boolean>(true);
@@ -1047,10 +1048,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       support: r.support,
                       leverage: r.leverage,
                     }))}
-                    zoomLevel={p1Zoom}
-                    onZoomIn={() => setP1Zoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
-                    onZoomOut={() => setP1Zoom((z) => Math.max(0.75, +(z - 0.25).toFixed(2)))}
-                    onResetZoom={() => setP1Zoom(1)}
+                    zoomLevel={p1PanZoom.zoom}
+                    hasPannedOrZoomed={p1PanZoom.hasPannedOrZoomed}
+                    onZoomIn={() => p1PanZoom.zoomIn(0.25)}
+                    onZoomOut={() => p1PanZoom.zoomOut(0.25)}
+                    onResetZoom={p1PanZoom.resetView}
                     showBaselines={showBaselines}
                     onToggleBaselines={() => setShowBaselines((prev) => !prev)}
                     isSidebarCollapsed={isSidebarCollapsed}
@@ -1063,7 +1065,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                 {/* SVG Bubble Chart Canvas */}
                 <div
+                  {...p1PanZoom.containerProps}
                   style={{
+                    ...p1PanZoom.containerProps.style,
                     flex: 1,
                     minHeight: 0,
                     width: '100%',
@@ -1072,19 +1076,15 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     border: `1px solid ${themeStyles.cardBorder}`,
                     padding: '8px',
                     boxSizing: 'border-box',
+                    position: 'relative',
+                    overflow: 'hidden',
                   }}
                 >
-                  {(() => {
-                    const p1W = 720 / p1Zoom;
-                    const p1H = 280 / p1Zoom;
-                    const p1X = 360 - p1W / 2;
-                    const p1Y = 140 - p1H / 2;
-                    return (
-                      <svg
-                        ref={p1SvgRef}
-                        viewBox={`${p1X} ${p1Y} ${p1W} ${p1H}`}
-                        style={{ width: '100%', height: '100%', overflow: 'visible' }}
-                      >
+                  <svg
+                    ref={p1SvgRef}
+                    viewBox={p1PanZoom.viewBox}
+                    style={{ width: '100%', height: '100%', overflow: 'visible' }}
+                  >
                         {/* Golden Frontier Shaded Box */}
                         {showBaselines && (
                           <g>
@@ -1273,7 +1273,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             strokeWidth={isSelected ? '2.5' : '1.2'}
                             opacity={isSelected ? 1 : isHovered ? 0.95 : 0.82}
                             style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-                            onClick={() => setInspectedRule(rule)}
+                            onClick={() => {
+                              if (!p1PanZoom.didDrag()) setInspectedRule(rule);
+                            }}
                             onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
                               const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
                               setHoveredRule({
@@ -1288,9 +1290,32 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       );
                     })}
                   </svg>
-                );
-              })()}
-            </div>
+                  {p1PanZoom.hasPannedOrZoomed && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '12px',
+                        left: '12px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontFamily: 'var(--font-mono)',
+                        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+                        border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : 'rgba(14, 165, 233, 0.4)'}`,
+                        color: isDark ? '#38bdf8' : '#0284c7',
+                        pointerEvents: 'none',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        zIndex: 10,
+                      }}
+                    >
+                      <span>✥</span>
+                      <span>{Math.round(p1PanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                    </div>
+                  )}
+                </div>
           </div>
 
               {/* Right: Rule Inspector Card & Ranked Bar Chart */}
@@ -1857,10 +1882,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         x: p.x,
                         y: p.y,
                       }))}
-                      zoomLevel={p2Zoom}
-                      onZoomIn={() => setP2Zoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
-                      onZoomOut={() => setP2Zoom((z) => Math.max(0.75, +(z - 0.25).toFixed(2)))}
-                      onResetZoom={() => setP2Zoom(1)}
+                      zoomLevel={p2PanZoom.zoom}
+                      hasPannedOrZoomed={p2PanZoom.hasPannedOrZoomed}
+                      onZoomIn={() => p2PanZoom.zoomIn(0.25)}
+                      onZoomOut={() => p2PanZoom.zoomOut(0.25)}
+                      onResetZoom={p2PanZoom.resetView}
                       isSidebarCollapsed={isSidebarCollapsed}
                       onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                       isTheater={isTheaterMode}
@@ -1885,7 +1911,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                 {/* SVG 2D Canvas */}
                 <div
+                  {...p2PanZoom.containerProps}
                   style={{
+                    ...p2PanZoom.containerProps.style,
                     flex: 1,
                     minHeight: 0,
                     width: '100%',
@@ -1896,51 +1924,46 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     overflow: 'hidden',
                   }}
                 >
-                  {/* SVG Canvas with dynamic zoom scale */}
-                  {(() => {
-                    const span = 2.4 / p2Zoom;
-                    const half = span / 2;
-                    return (
-                      <svg
-                        ref={p2SvgRef}
-                        viewBox={`${-half} ${-half} ${span} ${span}`}
-                        style={{ width: '100%', height: '100%' }}
-                      >
-                        {/* Crosshairs & Polar Concentric Rings */}
-                        <line
-                          x1={-half}
-                          y1="0"
-                          x2={half}
-                          y2="0"
-                          stroke={themeStyles.gridLine}
-                          strokeWidth={0.008 / p2Zoom}
-                        />
-                        <line
-                          x1="0"
-                          y1={-half}
-                          x2="0"
-                          y2={half}
-                          stroke={themeStyles.gridLine}
-                          strokeWidth={0.008 / p2Zoom}
-                        />
-                        <circle
-                          cx="0"
-                          cy="0"
-                          r="0.5"
-                          fill="none"
-                          stroke={themeStyles.gridLine}
-                          strokeWidth={0.006 / p2Zoom}
-                          strokeDasharray="0.02 0.02"
-                        />
-                        <circle
-                          cx="0"
-                          cy="0"
-                          r="1.0"
-                          fill="none"
-                          stroke={themeStyles.gridLine}
-                          strokeWidth={0.006 / p2Zoom}
-                          strokeDasharray="0.02 0.02"
-                        />
+                  <svg
+                    ref={p2SvgRef}
+                    viewBox={p2PanZoom.viewBox}
+                    style={{ width: '100%', height: '100%' }}
+                  >
+                    {/* Crosshairs & Polar Concentric Rings */}
+                    <line
+                      x1="-50"
+                      y1="0"
+                      x2="50"
+                      y2="0"
+                      stroke={themeStyles.gridLine}
+                      strokeWidth={0.008 / p2PanZoom.zoom}
+                    />
+                    <line
+                      x1="0"
+                      y1="-50"
+                      x2="0"
+                      y2="50"
+                      stroke={themeStyles.gridLine}
+                      strokeWidth={0.008 / p2PanZoom.zoom}
+                    />
+                    <circle
+                      cx="0"
+                      cy="0"
+                      r="0.5"
+                      fill="none"
+                      stroke={themeStyles.gridLine}
+                      strokeWidth={0.006 / p2PanZoom.zoom}
+                      strokeDasharray="0.02 0.02"
+                    />
+                    <circle
+                      cx="0"
+                      cy="0"
+                      r="1.0"
+                      fill="none"
+                      stroke={themeStyles.gridLine}
+                      strokeWidth={0.006 / p2PanZoom.zoom}
+                      strokeDasharray="0.02 0.02"
+                    />
 
                         {/* Cluster Density Contour when a cluster is selected */}
                         {selectedClusterFilter !== 'ALL' && clusterCentroids[selectedClusterFilter] && (
@@ -1952,22 +1975,22 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               fill={clusterColors[selectedClusterFilter % clusterColors.length]}
                               fillOpacity="0.10"
                               stroke={clusterColors[selectedClusterFilter % clusterColors.length]}
-                              strokeWidth={0.012 / p2Zoom}
+                              strokeWidth={0.012 / p2PanZoom.zoom}
                               strokeDasharray="0.04 0.02"
                             />
                             <circle
                               cx={clusterCentroids[selectedClusterFilter].x}
                               cy={clusterCentroids[selectedClusterFilter].y}
-                              r={0.035 / p2Zoom}
+                              r={0.035 / p2PanZoom.zoom}
                               fill={clusterColors[selectedClusterFilter % clusterColors.length]}
                               stroke="#ffffff"
-                              strokeWidth={0.008 / p2Zoom}
+                              strokeWidth={0.008 / p2PanZoom.zoom}
                             />
                             <text
                               x={clusterCentroids[selectedClusterFilter].x}
-                              y={clusterCentroids[selectedClusterFilter].y - 0.05 / p2Zoom}
+                              y={clusterCentroids[selectedClusterFilter].y - 0.05 / p2PanZoom.zoom}
                               textAnchor="middle"
-                              fontSize={0.06 / p2Zoom}
+                              fontSize={0.06 / p2PanZoom.zoom}
                               fontFamily="var(--font-mono)"
                               fontWeight="800"
                               fill={clusterColors[selectedClusterFilter % clusterColors.length]}
@@ -1989,10 +2012,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 <circle
                                   cx={pt.x * 2.2}
                                   cy={pt.y * 2.2}
-                                  r={0.07 / p2Zoom}
+                                  r={0.07 / p2PanZoom.zoom}
                                   fill="none"
                                   stroke="#38bdf8"
-                                  strokeWidth={0.015 / p2Zoom}
+                                  strokeWidth={0.015 / p2PanZoom.zoom}
                                 />
                               )}
                               <circle
@@ -2000,23 +2023,25 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 cy={pt.y * 2.2}
                                 r={
                                   isSelected
-                                    ? 0.05 / p2Zoom
+                                    ? 0.05 / p2PanZoom.zoom
                                     : isHovered
-                                    ? 0.04 / p2Zoom
-                                    : 0.024 / p2Zoom
+                                    ? 0.04 / p2PanZoom.zoom
+                                    : 0.024 / p2PanZoom.zoom
                                 }
                                 fill={color}
                                 stroke="#ffffff"
                                 strokeWidth={
                                   isSelected
-                                    ? 0.012 / p2Zoom
+                                    ? 0.012 / p2PanZoom.zoom
                                     : isHovered
-                                    ? 0.008 / p2Zoom
-                                    : 0.002 / p2Zoom
+                                    ? 0.008 / p2PanZoom.zoom
+                                    : 0.002 / p2PanZoom.zoom
                                 }
                                 opacity={isSelected ? 1 : isHovered ? 1 : 0.82}
                                 style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
-                                onClick={() => setInspectedPoint(pt)}
+                                onClick={() => {
+                                  if (!p2PanZoom.didDrag()) setInspectedPoint(pt);
+                                }}
                                 onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
                                   const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
                                   setHoveredPoint({
@@ -2031,10 +2056,33 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           );
                         })}
                       </svg>
-                    );
-                  })()}
-                </div>
-              </div>
+                      {p2PanZoom.hasPannedOrZoomed && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: '12px',
+                            left: '12px',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+                            border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : 'rgba(14, 165, 233, 0.4)'}`,
+                            color: isDark ? '#38bdf8' : '#0284c7',
+                            pointerEvents: 'none',
+                            backdropFilter: 'blur(4px)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            zIndex: 10,
+                          }}
+                        >
+                          <span>✥</span>
+                          <span>{Math.round(p2PanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
               {/* Right: Semantic Decoder / Point Inspector */}
               {(!isSidebarCollapsed || !isTheaterMode) && (
@@ -2519,10 +2567,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         pagerank: i.pagerank,
                         degree: i.degree,
                       }))}
-                      zoomLevel={p3Zoom}
-                      onZoomIn={() => setP3Zoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
-                      onZoomOut={() => setP3Zoom((z) => Math.max(0.6, +(z - 0.25).toFixed(2)))}
-                      onResetZoom={() => setP3Zoom(1)}
+                      zoomLevel={p3PanZoom.zoom}
+                      hasPannedOrZoomed={p3PanZoom.hasPannedOrZoomed}
+                      onZoomIn={() => p3PanZoom.zoomIn(0.25)}
+                      onZoomOut={() => p3PanZoom.zoomOut(0.25)}
+                      onResetZoom={p3PanZoom.resetView}
                       isSidebarCollapsed={isSidebarCollapsed}
                       onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                       isTheater={isTheaterMode}
@@ -2547,7 +2596,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                 {/* SVG Graph Canvas */}
                 <div
+                  {...p3PanZoom.containerProps}
                   style={{
+                    ...p3PanZoom.containerProps.style,
                     flex: 1,
                     minHeight: 0,
                     width: '100%',
@@ -2557,25 +2608,12 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     overflow: 'hidden',
                     position: 'relative',
                   }}
-                  onWheel={(e) => {
-                    if (e.deltaY < 0) {
-                      setP3Zoom((z) => Math.min(2.5, +(z + 0.15).toFixed(2)));
-                    } else {
-                      setP3Zoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)));
-                    }
-                  }}
                 >
-                  {(() => {
-                    const p3W = 580 / p3Zoom;
-                    const p3H = 320 / p3Zoom;
-                    const p3X = 290 - p3W / 2;
-                    const p3Y = 160 - p3H / 2;
-                    return (
-                      <svg
-                        ref={p3SvgRef}
-                        viewBox={`${p3X} ${p3Y} ${p3W} ${p3H}`}
-                        style={{ width: '100%', height: '100%' }}
-                      >
+                  <svg
+                    ref={p3SvgRef}
+                    viewBox={p3PanZoom.viewBox}
+                    style={{ width: '100%', height: '100%' }}
+                  >
                     {/* Edges with Ego-network and Inter-community bridge highlighting */}
                     {graphData.graph_export.links.slice(0, 160).map((link, idx) => {
                       const srcNode = graphData.graph_export.nodes.find((n) => n.id === link.source);
@@ -2678,9 +2716,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             strokeWidth={isSelected || matchesSearch ? 2 : 0.8}
                             opacity={isInEgo ? 1 : 0.14}
                             style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-                            onClick={() =>
-                              setSelectedGraphNode(isSelected ? null : node)
-                            }
+                            onClick={() => {
+                              if (!p3PanZoom.didDrag()) {
+                                setSelectedGraphNode(isSelected ? null : node);
+                              }
+                            }}
                             onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
                               const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
                               setHoveredGraphNode({
@@ -2695,9 +2735,32 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       );
                     })}
                   </svg>
-                );
-              })()}
-            </div>
+                  {p3PanZoom.hasPannedOrZoomed && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '12px',
+                        left: '12px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontFamily: 'var(--font-mono)',
+                        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+                        border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : 'rgba(14, 165, 233, 0.4)'}`,
+                        color: isDark ? '#38bdf8' : '#0284c7',
+                        pointerEvents: 'none',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        zIndex: 10,
+                      }}
+                    >
+                      <span>✥</span>
+                      <span>{Math.round(p3PanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                    </div>
+                  )}
+                </div>
           </div>
 
               {/* Right: PageRank Centrality Leaderboard & Author Inspector */}
@@ -3154,10 +3217,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         recent_quarter_papers: t.recent_quarter_papers,
                         previous_quarter_papers: t.previous_quarter_papers,
                       }))}
-                      zoomLevel={p4VelocityZoom}
-                      onZoomIn={() => setP4VelocityZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
-                      onZoomOut={() => setP4VelocityZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
-                      onResetZoom={() => setP4VelocityZoom(1)}
+                      zoomLevel={p4VelocityPanZoom.zoom}
+                      hasPannedOrZoomed={p4VelocityPanZoom.hasPannedOrZoomed}
+                      onZoomIn={() => p4VelocityPanZoom.zoomIn(0.25)}
+                      onZoomOut={() => p4VelocityPanZoom.zoomOut(0.25)}
+                      onResetZoom={p4VelocityPanZoom.resetView}
                       isSidebarCollapsed={isSidebarCollapsed}
                       onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                       isTheater={isTheaterMode}
@@ -3182,7 +3246,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                 {/* SVG Clustered Column Chart */}
                 <div
+                  {...p4VelocityPanZoom.containerProps}
                   style={{
+                    ...p4VelocityPanZoom.containerProps.style,
                     flex: 1,
                     minHeight: 0,
                     width: '100%',
@@ -3192,26 +3258,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     padding: '8px',
                     boxSizing: 'border-box',
                     overflow: 'hidden',
-                  }}
-                  onWheel={(e) => {
-                    if (e.deltaY < 0) {
-                      setP4VelocityZoom((z) => Math.min(2.5, +(z + 0.15).toFixed(2)));
-                    } else {
-                      setP4VelocityZoom((z) => Math.max(0.5, +(z - 0.15).toFixed(2)));
-                    }
+                    position: 'relative',
                   }}
                 >
-                  {(() => {
-                    const w = 520 / p4VelocityZoom;
-                    const h = 220 / p4VelocityZoom;
-                    const minX = 260 - w / 2;
-                    const minY = 110 - h / 2;
-                    return (
-                      <svg
-                        ref={p4VelocitySvgRef}
-                        viewBox={`${minX} ${minY} ${w} ${h}`}
-                        style={{ width: '100%', height: '100%' }}
-                      >
+                  <svg
+                    ref={p4VelocitySvgRef}
+                    viewBox={p4VelocityPanZoom.viewBox}
+                    style={{ width: '100%', height: '100%' }}
+                  >
                     {/* Grid Lines */}
                     {[0, 600, 1200, 1800, 2400].map((v) => {
                       const y = 180 - (v / 2400) * 105;
@@ -3318,9 +3372,32 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       );
                     })}
                   </svg>
-                );
-              })()}
-            </div>
+                  {p4VelocityPanZoom.hasPannedOrZoomed && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '12px',
+                        left: '12px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontFamily: 'var(--font-mono)',
+                        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+                        border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : 'rgba(14, 165, 233, 0.4)'}`,
+                        color: isDark ? '#38bdf8' : '#0284c7',
+                        pointerEvents: 'none',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        zIndex: 10,
+                      }}
+                    >
+                      <span>✥</span>
+                      <span>{Math.round(p4VelocityPanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                    </div>
+                  )}
+                </div>
           </div>
 
               {/* Right: Novelty Outlier Scatter & Diagnostic Drawer */}
@@ -3390,10 +3467,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           word_count: a.word_count,
                           math_count: a.math_count,
                         }))}
-                        zoomLevel={p4AnomalyZoom}
-                        onZoomIn={() => setP4AnomalyZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
-                        onZoomOut={() => setP4AnomalyZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
-                        onResetZoom={() => setP4AnomalyZoom(1)}
+                        zoomLevel={p4AnomalyPanZoom.zoom}
+                        hasPannedOrZoomed={p4AnomalyPanZoom.hasPannedOrZoomed}
+                        onZoomIn={() => p4AnomalyPanZoom.zoomIn(0.25)}
+                        onZoomOut={() => p4AnomalyPanZoom.zoomOut(0.25)}
+                        onResetZoom={p4AnomalyPanZoom.resetView}
                         showBaselines={showBaselines}
                         onToggleBaselines={() => setShowBaselines((prev) => !prev)}
                         onShowToast={showToast}
@@ -3402,7 +3480,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                     {/* Outlier SVG Scatter */}
                     <div
+                      {...p4AnomalyPanZoom.containerProps}
                       style={{
+                        ...p4AnomalyPanZoom.containerProps.style,
                         flex: 1,
                         minHeight: 0,
                         width: '100%',
@@ -3410,26 +3490,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         borderRadius: '6px',
                         border: `1px solid ${themeStyles.cardBorder}`,
                         overflow: 'hidden',
-                      }}
-                      onWheel={(e) => {
-                        if (e.deltaY < 0) {
-                          setP4AnomalyZoom((z) => Math.min(2.5, +(z + 0.15).toFixed(2)));
-                        } else {
-                          setP4AnomalyZoom((z) => Math.max(0.5, +(z - 0.15).toFixed(2)));
-                        }
+                        position: 'relative',
                       }}
                     >
-                      {(() => {
-                        const w = 460 / p4AnomalyZoom;
-                        const h = 210 / p4AnomalyZoom;
-                        const minX = 230 - w / 2;
-                        const minY = 105 - h / 2;
-                        return (
-                          <svg
-                            ref={p4AnomalySvgRef}
-                            viewBox={`${minX} ${minY} ${w} ${h}`}
-                            style={{ width: '100%', height: '100%' }}
-                          >
+                      <svg
+                        ref={p4AnomalySvgRef}
+                        viewBox={p4AnomalyPanZoom.viewBox}
+                        style={{ width: '100%', height: '100%' }}
+                      >
                             {/* P99 Threshold Boundary Region */}
                             {showBaselines && (
                               <g>
@@ -3507,7 +3575,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 stroke="#ffffff"
                                 strokeWidth={isSelected ? '1.8' : '1'}
                                 style={{ cursor: 'pointer' }}
-                                onClick={() => setInspectedAnomaly(anom)}
+                                onClick={() => {
+                                  if (!p4AnomalyPanZoom.didDrag()) {
+                                    setInspectedAnomaly(anom);
+                                  }
+                                }}
                                 onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
                                   const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
                                   setHoveredAnomaly({
@@ -3522,9 +3594,32 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           );
                         })}
                       </svg>
-                    );
-                  })()}
-                </div>
+                      {p4AnomalyPanZoom.hasPannedOrZoomed && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: '12px',
+                            left: '12px',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+                            border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : 'rgba(14, 165, 233, 0.4)'}`,
+                            color: isDark ? '#38bdf8' : '#0284c7',
+                            pointerEvents: 'none',
+                            backdropFilter: 'blur(4px)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            zIndex: 10,
+                          }}
+                        >
+                          <span>✥</span>
+                          <span>{Math.round(p4AnomalyPanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                        </div>
+                      )}
+                    </div>
               </div>
 
                   {/* Outlier Diagnostics Panel */}

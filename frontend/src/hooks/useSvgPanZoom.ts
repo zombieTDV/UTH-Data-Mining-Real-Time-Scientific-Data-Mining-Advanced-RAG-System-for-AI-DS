@@ -7,6 +7,7 @@ export interface UseSvgPanZoomOptions {
   maxZoom?: number;
   initialZoom?: number;
   initialPan?: { x: number; y: number };
+  centerOrigin?: boolean;
 }
 
 export interface UseSvgPanZoomReturn {
@@ -44,6 +45,7 @@ export function useSvgPanZoom({
   maxZoom = 4.0,
   initialZoom = 1,
   initialPan = { x: 0, y: 0 },
+  centerOrigin = false,
 }: UseSvgPanZoomOptions): UseSvgPanZoomReturn {
   const [zoom, setZoom] = useState<number>(initialZoom);
   const [pan, setPan] = useState<{ x: number; y: number }>(initialPan);
@@ -58,8 +60,12 @@ export function useSvgPanZoom({
   // Compute viewBox parameters
   const currentW = nominalWidth / zoom;
   const currentH = nominalHeight / zoom;
-  const minX = (nominalWidth - currentW) / 2 - pan.x;
-  const minY = (nominalHeight - currentH) / 2 - pan.y;
+  const minX = centerOrigin
+    ? -currentW / 2 - pan.x
+    : (nominalWidth - currentW) / 2 - pan.x;
+  const minY = centerOrigin
+    ? -currentH / 2 - pan.y
+    : (nominalHeight - currentH) / 2 - pan.y;
   const viewBox = `${minX} ${minY} ${currentW} ${currentH}`;
 
   const hasPannedOrZoomed = zoom !== 1 || Math.abs(pan.x) > 0.5 || Math.abs(pan.y) > 0.5;
@@ -107,8 +113,8 @@ export function useSvgPanZoom({
 
       const w = nominalWidth / zoom;
       const h = nominalHeight / zoom;
-      const curMinX = (nominalWidth - w) / 2 - pan.x;
-      const curMinY = (nominalHeight - h) / 2 - pan.y;
+      const curMinX = centerOrigin ? -w / 2 - pan.x : (nominalWidth - w) / 2 - pan.x;
+      const curMinY = centerOrigin ? -h / 2 - pan.y : (nominalHeight - h) / 2 - pan.y;
       const mouseSvgX = curMinX + fx * w;
       const mouseSvgY = curMinY + fy * h;
 
@@ -133,13 +139,15 @@ export function useSvgPanZoom({
       const newH = nominalHeight / newZoom;
 
       // Keep mouse pointer invariant in SVG coordinates
-      const newPanX = (nominalWidth - newW) / 2 - (mouseSvgX - fx * newW);
-      const newPanY = (nominalHeight - newH) / 2 - (mouseSvgY - fy * newH);
+      const newMinX = mouseSvgX - fx * newW;
+      const newMinY = mouseSvgY - fy * newH;
+      const newPanX = centerOrigin ? -newW / 2 - newMinX : (nominalWidth - newW) / 2 - newMinX;
+      const newPanY = centerOrigin ? -newH / 2 - newMinY : (nominalHeight - newH) / 2 - newMinY;
 
       setZoom(newZoom);
       setPan({ x: newPanX, y: newPanY });
     },
-    [zoom, pan, nominalWidth, nominalHeight, clampZoom]
+    [zoom, pan, nominalWidth, nominalHeight, centerOrigin, clampZoom]
   );
 
   // Mouse Down for Pan
