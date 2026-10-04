@@ -125,7 +125,7 @@ class RagService:
                 logger.info("[RAG] Generating response with Qwen2.5-7B GGUF...")
                 res = llm.create_chat_completion(
                     messages=messages,
-                    max_tokens=384,
+                    max_tokens=768,
                     temperature=max(0.1, min(req.temperature, 0.7)),
                     top_p=0.9,
                 )

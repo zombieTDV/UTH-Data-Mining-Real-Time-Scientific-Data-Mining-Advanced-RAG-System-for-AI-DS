@@ -3,9 +3,16 @@
 :root {
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Geist Mono', 'JetBrains Mono', 'SF Mono', monospace;
+  --font-math: 'STIX Two Math', 'Cambria Math', 'Latin Modern Math', 'TeX Gyre Termes Math', Georgia, serif;
 
   /* Default Dark Mode: High Contrast Tactical Obsidian */
   --bg-canvas: #04060a;
+  --bg-rail: #0a0e17;
+  --bg-rail-hover: rgba(255, 255, 255, 0.08);
+  --bg-rail-active: rgba(255, 255, 255, 0.16);
+  --rail-active-text: #ffffff;
+  --rail-border: rgba(255, 255, 255, 0.08);
+
   --bg-surface: #0e1422;
   --bg-surface-elevated: #162035;
   --bg-surface-hover: #1e2b47;
@@ -36,6 +43,12 @@
 /* Light Mode: Modern Crisp Dotted Grid */
 [data-theme="light"] {
   --bg-canvas: #f8fafc;
+  --bg-rail: #ffffff;
+  --bg-rail-hover: #f1f5f9;
+  --bg-rail-active: #eff6ff;
+  --rail-active-text: #2563eb;
+  --rail-border: #e2e8f0;
+
   --bg-surface: #ffffff;
   --bg-surface-elevated: #f1f5f9;
   --bg-surface-hover: #e2e8f0;
@@ -288,3 +301,82 @@ button:active {
 .collapsible-pane {
   transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), flex 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
 }
+
+/* Mathematical LaTeX and Scientific Typography */
+.math-inline {
+  font-family: var(--font-math);
+  font-style: italic;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  display: inline-block;
+  vertical-align: baseline;
+  font-size: 0.95em;
+  margin: 0 2px;
+}
+
+[data-theme="light"] .math-inline {
+  background: rgba(2, 132, 199, 0.08);
+  color: #0369a1;
+  border-color: rgba(2, 132, 199, 0.22);
+}
+
+.math-block {
+  font-family: var(--font-math);
+  font-style: italic;
+  padding: 10px 14px;
+  margin: 8px 0;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+  overflow-x: auto;
+  font-size: 1.05em;
+  text-align: center;
+}
+
+[data-theme="light"] .math-block {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0c4a6e;
+}
+
+.citation-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.14);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin: 0 3px;
+  vertical-align: middle;
+}
+
+.citation-chip:hover {
+  background: rgba(99, 102, 241, 0.28);
+  border-color: #818cf8;
+  color: #ffffff;
+}
+
+[data-theme="light"] .citation-chip {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+
+[data-theme="light"] .citation-chip:hover {
+  background: #e0e7ff;
+  color: #312e81;
+}
+
