@@ -101,83 +101,57 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         userSelect: 'none',
       }}
     >
-      {/* Dynamic Telemetry Status Header */}
+      {/* Minimal Floating Canvas Telemetry HUD */}
       <div
         style={{
-          width: '100%',
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0',
-          padding: '12px 20px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          marginBottom: '28px',
+          gap: '12px',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: '9999px',
+          border: '1px solid rgba(226, 232, 240, 0.85)',
+          padding: '6px 16px',
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
+          marginBottom: '36px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span
-            style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              backgroundColor: isPipelineRunning ? '#ea580c' : '#10b981',
-              boxShadow: isPipelineRunning ? '0 0 10px #ea580c' : 'none',
-              animation: isPipelineRunning ? 'stageGlowOrange 1.5s infinite' : 'none',
-            }}
-          />
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#64748b' }}>
-              HORIZONTAL DATA MINING PIPELINE // STREAM TELEMETRY
-            </div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
-              {activeMessage}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: isPipelineRunning ? '#ea580c' : '#10b981',
+            boxShadow: isPipelineRunning ? '0 0 8px #ea580c' : 'none',
+            animation: isPipelineRunning ? 'stageGlowOrange 1.5s infinite' : 'none',
+          }}
+        />
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+          {activeMessage}
+        </span>
+        {onTriggerPipeline && (
           <button
             type="button"
             onClick={onTriggerPipeline}
             disabled={isPipelineRunning}
             style={{
-              backgroundColor: isPipelineRunning ? '#ea580c' : '#0f172a',
-              color: '#ffffff',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: 700,
+              backgroundColor: isPipelineRunning ? '#fff7ed' : '#f1f5f9',
+              color: isPipelineRunning ? '#ea580c' : '#0f172a',
+              border: '1px solid #e2e8f0',
+              borderRadius: '9999px',
+              padding: '2px 10px',
+              fontSize: '11px',
               fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
               cursor: isPipelineRunning ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              boxShadow: isPipelineRunning
-                ? '0 0 16px rgba(234, 88, 12, 0.4)'
-                : '0 2px 6px rgba(15, 23, 42, 0.15)',
-              transition: 'all 0.2s ease',
+              gap: '4px',
             }}
           >
-            {isPipelineRunning ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                </svg>
-                <span>RUNNING ENGINE...</span>
-              </>
-            ) : (
-              <>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="5 3 19 12 5 21 5 3" />
-                </svg>
-                <span>RUN PIPELINE</span>
-              </>
-            )}
+            {isPipelineRunning ? 'RUNNING...' : 'TRIGGER'}
           </button>
-        </div>
+        )}
       </div>
 
       {/* ============================================================== */}

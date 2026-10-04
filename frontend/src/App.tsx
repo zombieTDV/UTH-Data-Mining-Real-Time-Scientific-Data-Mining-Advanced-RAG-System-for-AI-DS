@@ -430,13 +430,15 @@ export default function App() {
         <main
           style={{
             flex: 1,
-            overflowY: 'auto',
-            padding: '28px 36px',
+            overflow: 'auto',
+            padding: activeTab === 'schematic' ? '20px 24px' : '28px 36px',
             backgroundColor: 'transparent',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           {activeTab === 'schematic' && (
-            <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+            <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column' }}>
               <InteractiveWorkflowCanvas
                 onNavigateTab={(tab) => setActiveTab(tab)}
                 onTriggerPipeline={handleTriggerPipeline}
