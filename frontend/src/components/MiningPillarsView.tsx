@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type FC, type MouseEvent } from 'react';
 import type {
   AssociationRulesResponse,
   ClustersResponse,
@@ -223,7 +223,40 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     return clustersData.scatter_2d.filter((p) => p.cluster === selectedClusterFilter);
   }, [clustersData, selectedClusterFilter]);
 
-  // Cluster Centroids for Pillar 2
+  // Dynamic Bounding Box & Centering for Pillar 2 (SVD 2D Manifold)
+  const clusterBounds = useMemo(() => {
+    if (!clustersData?.scatter_2d || clustersData.scatter_2d.length === 0) {
+      return { cx: 0, cy: 0, span: 1.0 };
+    }
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    clustersData.scatter_2d.forEach((p) => {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    });
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const spanX = maxX - minX || 0.1;
+    const spanY = maxY - minY || 0.1;
+    const span = Math.max(spanX, spanY) * 1.25; // 25% padding for safe margins
+    return { cx, cy, span };
+  }, [clustersData]);
+
+  const getNormalizedPointCoord = useCallback(
+    (x: number, y: number) => {
+      return {
+        nx: ((x - clusterBounds.cx) / clusterBounds.span) * 1.85,
+        ny: ((y - clusterBounds.cy) / clusterBounds.span) * 1.85,
+      };
+    },
+    [clusterBounds]
+  );
+
+  // Cluster Centroids for Pillar 2 (Computed in Centered Normalized Coordinate Space)
   const clusterCentroids = useMemo(() => {
     if (!clustersData) return {} as Record<number, { x: number; y: number; count: number; maxR: number }>;
     const centroids: Record<number, { x: number; y: number; count: number; maxR: number }> = {};
@@ -231,8 +264,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
       if (!centroids[p.cluster]) {
         centroids[p.cluster] = { x: 0, y: 0, count: 0, maxR: 0 };
       }
-      centroids[p.cluster].x += p.x * 2.2;
-      centroids[p.cluster].y += p.y * 2.2;
+      const { nx, ny } = getNormalizedPointCoord(p.x, p.y);
+      centroids[p.cluster].x += nx;
+      centroids[p.cluster].y += ny;
       centroids[p.cluster].count += 1;
     });
     Object.keys(centroids).forEach((cidStr) => {
@@ -243,40 +277,68 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
       clustersData.scatter_2d
         .filter((p) => p.cluster === cid)
         .forEach((p) => {
-          const dx = p.x * 2.2 - centroids[cid].x;
-          const dy = p.y * 2.2 - centroids[cid].y;
+          const { nx, ny } = getNormalizedPointCoord(p.x, p.y);
+          const dx = nx - centroids[cid].x;
+          const dy = ny - centroids[cid].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist > maxDist) maxDist = dist;
         });
-      centroids[cid].maxR = Math.max(0.25, maxDist * 0.85);
+      centroids[cid].maxR = Math.max(0.2, maxDist * 0.82);
     });
     return centroids;
-  }, [clustersData]);
+  }, [clustersData, getNormalizedPointCoord]);
 
-  // Deterministic Layout Node Coordinates for Pillar 3
-  const getNodeCoordinates = (node: any, idx: number, total: number) => {
+  // Precompute Louvain Community Index Mapping for Clustered Circular Graph
+  const communityNodeOrder = useMemo(() => {
+    if (!graphData?.graph_export?.nodes) return new Map<string, { rank: number; count: number; comm: number }>();
+    const nodes = graphData.graph_export.nodes.slice(0, 80);
+    const commBuckets: Record<number, string[]> = {};
+    nodes.forEach((n) => {
+      const c = (n.community || 0) % 6;
+      if (!commBuckets[c]) commBuckets[c] = [];
+      commBuckets[c].push(n.id);
+    });
+    const orderMap = new Map<string, { rank: number; count: number; comm: number }>();
+    Object.keys(commBuckets).forEach((cStr) => {
+      const c = Number(cStr);
+      const list = commBuckets[c];
+      list.forEach((id, rIdx) => {
+        orderMap.set(id, { rank: rIdx, count: list.length, comm: c });
+      });
+    });
+    return orderMap;
+  }, [graphData]);
+
+  // Deterministic Louvain Clustered Layout for Pillar 3
+  const getNodeCoordinates = (node: any, idx: number, _total?: number) => {
+    const cInfo = communityNodeOrder.get(node.id) || { rank: idx % 10, count: 10, comm: (node.community || 0) % 6 };
+    const comm = cInfo.comm;
+
     if (graphLayout === 'force') {
-      const communityCenters: Record<number, { cx: number; cy: number }> = {
-        0: { cx: 190, cy: 110 },
-        1: { cx: 390, cy: 110 },
-        2: { cx: 180, cy: 220 },
-        3: { cx: 400, cy: 220 },
-        4: { cx: 290, cy: 80 },
-        5: { cx: 290, cy: 240 },
+      // Hexagonal Clustered Centers
+      const commAngle = (comm * 60) * (Math.PI / 180) - Math.PI / 6;
+      const center = {
+        cx: 290 + Math.cos(commAngle) * 115,
+        cy: 160 + Math.sin(commAngle) * 88,
       };
-      const center = communityCenters[node.community % 6] || { cx: 290, cy: 160 };
-      const angle = idx * 1.618033 * Math.PI * 2;
-      const dist = 18 + (idx % 5) * 12;
+      const nodeAngle = cInfo.rank * 1.618033 * Math.PI * 2;
+      const dist = 14 + (cInfo.rank % 4) * 10;
       return {
-        cx: center.cx + Math.cos(angle) * dist,
-        cy: center.cy + Math.sin(angle) * (dist * 0.8),
+        cx: center.cx + Math.cos(nodeAngle) * dist,
+        cy: center.cy + Math.sin(nodeAngle) * (dist * 0.85),
       };
     } else {
-      const angle = (idx / total) * Math.PI * 2;
-      const r = 95 + (node.community % 4) * 32;
+      // Louvain Clustered Arc Layout (6 distinct circular sectors with clean gaps)
+      const baseSectorAngle = (comm * 60) * (Math.PI / 180);
+      const sectorSpan = 44 * (Math.PI / 180); // 44 degrees span per community
+      const fraction = cInfo.count > 1 ? cInfo.rank / (cInfo.count - 1) : 0.5;
+      const angle = baseSectorAngle - sectorSpan / 2 + fraction * sectorSpan;
+      
+      const rx = 142;
+      const ry = 108;
       return {
-        cx: 290 + Math.cos(angle) * r,
-        cy: 160 + Math.sin(angle) * (r * 0.72),
+        cx: 290 + Math.cos(angle) * rx,
+        cy: 160 + Math.sin(angle) * ry,
       };
     }
   };
@@ -1106,20 +1168,20 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               strokeDasharray="4 4"
                               rx="4"
                             />
-                            {/* Layer Badge Plate to prevent text overlap */}
+                            {/* Layer Badge Plate anchored safely at top margin */}
                             <rect
-                              x="248"
-                              y="39"
-                              width="330"
-                              height="18"
+                              x="242"
+                              y="16"
+                              width="310"
+                              height="16"
                               rx="3"
-                              fill={isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)'}
+                              fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)'}
                               stroke="rgba(16, 185, 129, 0.35)"
                               strokeWidth="1"
                             />
                             <text
-                              x="254"
-                              y="52"
+                              x="248"
+                              y="28"
                               fontSize="10"
                               fontFamily="var(--font-mono)"
                               fontWeight="800"
@@ -1197,24 +1259,24 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               strokeDasharray="4 4"
                               strokeOpacity="0.85"
                             />
-                            {/* Layer Badge Plate to prevent baseline text overlap */}
+                            {/* Layer Badge Plate anchored safely to left margin (support < 1.0%) */}
                             <rect
-                              x="438"
+                              x="60"
                               y="157"
-                              width="260"
-                              height="18"
+                              width="240"
+                              height="16"
                               rx="3"
-                              fill={isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)'}
-                              stroke="rgba(239, 68, 68, 0.35)"
+                              fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
+                              stroke="rgba(239, 68, 68, 0.4)"
                               strokeWidth="1"
                             />
                             <text
-                              x="692"
-                              y="170"
-                              textAnchor="end"
+                              x="66"
+                              y="169"
+                              textAnchor="start"
                               fontSize="10"
                               fontFamily="var(--font-mono)"
-                              fontWeight="700"
+                              fontWeight="800"
                               fill="#ef4444"
                             >
                               NGƯỠNG ĐỘC LẬP NGẪU NHIÊN (LIFT = 1.0x)
@@ -1277,9 +1339,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 ? '#ea580c'
                                 : '#f59e0b'
                             }
-                            stroke={isSelected ? '#38bdf8' : '#ffffff'}
-                            strokeWidth={isSelected ? '2.5' : '1.2'}
-                            opacity={isSelected ? 1 : isHovered ? 0.95 : 0.82}
+                            fillOpacity={isSelected ? 0.95 : isHovered ? 0.9 : 0.72}
+                            stroke={isSelected ? '#38bdf8' : isDark ? '#0f172a' : '#ffffff'}
+                            strokeWidth={isSelected ? '2.5' : '1.5'}
+                            opacity={1}
                             style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
                             onClick={() => {
                               if (!p1PanZoom.didDrag()) setInspectedRule(rule);
@@ -1772,6 +1835,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   overflow: 'hidden',
                 }}
               >
+                {/* Row 1: Primary Title + Action Buttons */}
                 <div
                   style={{
                     display: 'flex',
@@ -1780,28 +1844,23 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     marginBottom: '6px',
                     flexShrink: 0,
                     gap: '8px',
-                    flexWrap: 'wrap',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                     <h3
                       style={{
                         fontSize: '12px',
                         fontWeight: 800,
                         color: themeStyles.textPrimary,
                         margin: 0,
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       [MINING-02] KHÔNG GIAN VECTOR TIỀM ẨN 2D (SEMANTIC SVD MANIFOLD)
                     </h3>
-                    <span className="telemetry-chip">
-                      [K-MEANS SVD: k=6 CLUSTERS &bull; SILHOUETTE: 0.384]
-                    </span>
                   </div>
 
-                  {/* Standardized Controls */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* LaTeX Export Button */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                     <button
                       type="button"
                       onClick={handleCopyLatexClusters}
@@ -1818,13 +1877,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         display: 'flex',
                         alignItems: 'center',
                         gap: '4px',
+                        flexShrink: 0,
                       }}
                       title="Sao chép bảng kết quả phân cụm định dạng LaTeX cho bài báo"
                     >
                       📋 Copy LaTeX
                     </button>
 
-                    {/* Sidebar Toggle Button */}
                     <button
                       type="button"
                       onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -1838,14 +1897,38 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         color: isSidebarCollapsed ? '#ffffff' : themeStyles.textPrimary,
                         border: `1px solid ${themeStyles.cardBorder}`,
                         cursor: 'pointer',
+                        flexShrink: 0,
                       }}
                       title={isSidebarCollapsed ? 'Mở rộng Inspector' : 'Thu gọn Inspector'}
                     >
                       {isSidebarCollapsed ? '► Mở Rộng Inspector' : '◄ Thu Gọn'}
                     </button>
+                  </div>
+                </div>
+
+                {/* Row 2: Metadata Sub-Deck (Cluster Pills + Toolbar) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                    backgroundColor: themeStyles.cardSubBg,
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    border: `1px solid ${themeStyles.cardBorder}`,
+                    flexShrink: 0,
+                    flexWrap: 'wrap',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span className="telemetry-chip">
+                      k=6 CLUSTERS &bull; SIL: 0.384
+                    </span>
 
                     {/* Cluster filter pills */}
-                    <div style={{ display: 'flex', gap: '3px' }}>
+                    <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
                       <button
                         type="button"
                         onClick={() => setSelectedClusterFilter('ALL')}
@@ -1886,30 +1969,30 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         </button>
                       ))}
                     </div>
-
-                    <ChartToolbar
-                      theme={theme}
-                      svgRef={p2SvgRef}
-                      filename="kmeans-svd-2d-manifold"
-                      csvData={filteredClusterPoints.map((p) => ({
-                        paper_id: p.paper_id,
-                        title: p.title,
-                        cluster: p.cluster,
-                        x: p.x,
-                        y: p.y,
-                      }))}
-                      zoomLevel={p2PanZoom.zoom}
-                      hasPannedOrZoomed={p2PanZoom.hasPannedOrZoomed}
-                      onZoomIn={() => p2PanZoom.zoomIn(0.25)}
-                      onZoomOut={() => p2PanZoom.zoomOut(0.25)}
-                      onResetZoom={p2PanZoom.resetView}
-                      isSidebarCollapsed={isSidebarCollapsed}
-                      onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      isTheater={isTheaterMode}
-                      onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
-                      onShowToast={showToast}
-                    />
                   </div>
+
+                  <ChartToolbar
+                    theme={theme}
+                    svgRef={p2SvgRef}
+                    filename="kmeans-svd-2d-manifold"
+                    csvData={filteredClusterPoints.map((p) => ({
+                      paper_id: p.paper_id,
+                      title: p.title,
+                      cluster: p.cluster,
+                      x: p.x,
+                      y: p.y,
+                    }))}
+                    zoomLevel={p2PanZoom.zoom}
+                    hasPannedOrZoomed={p2PanZoom.hasPannedOrZoomed}
+                    onZoomIn={() => p2PanZoom.zoomIn(0.25)}
+                    onZoomOut={() => p2PanZoom.zoomOut(0.25)}
+                    onResetZoom={p2PanZoom.resetView}
+                    isSidebarCollapsed={isSidebarCollapsed}
+                    onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    isTheater={isTheaterMode}
+                    onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
+                    onShowToast={showToast}
+                  />
                 </div>
 
                 {/* Tier 2 Sub-headline */}
@@ -2031,13 +2114,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           const color = clusterColors[pt.cluster % clusterColors.length];
                           const isHovered = hoveredPoint?.point.paper_id === pt.paper_id;
                           const isSelected = inspectedPoint?.paper_id === pt.paper_id;
+                          const { nx, ny } = getNormalizedPointCoord(pt.x, pt.y);
 
                           return (
                             <g key={i}>
                               {isSelected && (
                                 <circle
-                                  cx={pt.x * 2.2}
-                                  cy={pt.y * 2.2}
+                                  cx={nx}
+                                  cy={ny}
                                   r={0.07 / p2PanZoom.zoom}
                                   fill="none"
                                   stroke="#38bdf8"
@@ -2045,8 +2129,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 />
                               )}
                               <circle
-                                cx={pt.x * 2.2}
-                                cy={pt.y * 2.2}
+                                cx={nx}
+                                cy={ny}
                                 r={
                                   isSelected
                                     ? 0.05 / p2PanZoom.zoom
@@ -2055,15 +2139,15 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                     : 0.024 / p2PanZoom.zoom
                                 }
                                 fill={color}
-                                stroke="#ffffff"
+                                stroke={isSelected ? '#38bdf8' : isDark ? '#0f172a' : '#ffffff'}
                                 strokeWidth={
                                   isSelected
                                     ? 0.012 / p2PanZoom.zoom
                                     : isHovered
                                     ? 0.008 / p2PanZoom.zoom
-                                    : 0.002 / p2PanZoom.zoom
+                                    : 0.003 / p2PanZoom.zoom
                                 }
-                                opacity={isSelected ? 1 : isHovered ? 1 : 0.82}
+                                opacity={isSelected ? 1 : isHovered ? 1 : 0.85}
                                 style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
                                 onClick={() => {
                                   if (!p2PanZoom.didDrag()) setInspectedPoint(pt);
@@ -2682,18 +2766,47 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         ? '#334155'
                         : '#cbd5e1';
 
+                      const isSameComm = srcNode.community === tgtNode.community;
+                      const controlX = (x1 + x2) / 2 * 0.75 + 290 * 0.25;
+                      const controlY = (y1 + y2) / 2 * 0.75 + 160 * 0.25;
+                      const pathD =
+                        isSameComm && graphLayout === 'circular'
+                          ? `M ${x1} ${y1} Q ${controlX} ${controlY} ${x2} ${y2}`
+                          : `M ${x1} ${y1} L ${x2} ${y2}`;
+
                       return (
-                        <line
+                        <path
                           key={idx}
-                          x1={x1}
-                          y1={y1}
-                          x2={x2}
-                          y2={y2}
+                          d={pathD}
+                          fill="none"
                           stroke={edgeColor}
-                          strokeWidth={isConnectedToEgo ? 1.6 : isBridgeEdge ? 1.2 : 0.7}
+                          strokeWidth={isConnectedToEgo ? 1.6 : isBridgeEdge ? 1.1 : 0.75}
                           strokeOpacity={edgeOpacity}
                           strokeDasharray={isBridgeEdge && !isConnectedToEgo ? '3 2' : undefined}
                         />
+                      );
+                    })}
+
+                    {/* Community Sector Badge Labels for Circular Layout */}
+                    {graphLayout === 'circular' && [0, 1, 2, 3, 4, 5].map((cId) => {
+                      const commAngle = (cId * 60) * (Math.PI / 180);
+                      const labelX = 290 + Math.cos(commAngle) * 168;
+                      const labelY = 160 + Math.sin(commAngle) * 130;
+                      return (
+                        <text
+                          key={cId}
+                          x={labelX}
+                          y={labelY + 3}
+                          textAnchor="middle"
+                          fontSize="9"
+                          fontFamily="var(--font-mono)"
+                          fontWeight="800"
+                          fill={clusterColors[cId % clusterColors.length]}
+                          opacity="0.85"
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          COMMUNITY #{cId}
+                        </text>
                       );
                     })}
 
@@ -3530,30 +3643,31 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             {showBaselines && (
                               <g>
                                 <rect
-                                  x="160"
-                                  y="25"
-                                  width="270"
-                                  height="155"
-                                  fill="rgba(239, 68, 68, 0.05)"
-                                  stroke="rgba(239, 68, 68, 0.3)"
+                                  x="150"
+                                  y="22"
+                                  width="280"
+                                  height="164"
+                                  fill="rgba(239, 68, 68, 0.04)"
+                                  stroke="rgba(239, 68, 68, 0.25)"
                                   strokeDasharray="4 4"
                                   rx="4"
                                 />
-                                {/* Protective backdrop pill for P99 header */}
+                                {/* Safe Top Anchor for P99 Badge Plate (Above all data points) */}
                                 <rect
-                                  x="166"
-                                  y="28"
+                                  x="165"
+                                  y="6"
                                   width="250"
-                                  height="18"
+                                  height="16"
                                   rx="3"
-                                  fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)'}
+                                  fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
                                   stroke="rgba(239, 68, 68, 0.4)"
                                   strokeWidth="1"
                                 />
                                 <text
-                                  x="172"
-                                  y="41"
-                                  fontSize="10"
+                                  x="290"
+                                  y="18"
+                                  textAnchor="middle"
+                                  fontSize="9.5"
                                   fontFamily="var(--font-mono)"
                                   fontWeight="800"
                                   fill="#ef4444"
@@ -3565,25 +3679,25 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                         <line
                           x1="40"
-                          y1="180"
+                          y1="188"
                           x2="430"
-                          y2="180"
+                          y2="188"
                           stroke={themeStyles.axisLine}
-                          strokeWidth="1"
+                          strokeWidth="1.2"
                         />
                         <line
                           x1="40"
-                          y1="20"
+                          y1="10"
                           x2="40"
-                          y2="180"
+                          y2="188"
                           stroke={themeStyles.axisLine}
-                          strokeWidth="1"
+                          strokeWidth="1.2"
                         />
 
                         {/* Outlier Dots */}
                         {trendsData.anomalies.map((anom, idx) => {
-                          const cx = 40 + Math.min(370, (anom.word_count / 42000) * 370);
-                          const cy = 180 - Math.min(150, (anom.math_count / 4000) * 150);
+                          const cx = 48 + Math.min(365, (anom.word_count / 42000) * 365);
+                          const cy = 182 - Math.min(145, (anom.math_count / 4000) * 145);
                           const isHovered = hoveredAnomaly?.item.paper_id === anom.paper_id;
                           const isSelected = inspectedAnomaly?.paper_id === anom.paper_id;
 
