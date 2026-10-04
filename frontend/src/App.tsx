@@ -429,6 +429,7 @@ export default function App() {
               <InteractiveWorkflowCanvas
                 onNavigateTab={(tab) => setActiveTab(tab)}
                 isPipelineRunning={pipelineStatus === 'RUNNING'}
+                onTriggerPipeline={handleTriggerPipeline}
               />
             </div>
           )}
