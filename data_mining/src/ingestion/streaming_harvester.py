@@ -44,7 +44,7 @@ class StreamingHarvester:
         self.request_delay = request_delay
         self.silver_writer = SilverLakehouseWriter(r2_client=self.r2)
         self.lancedb_mgr = LanceDBManager(r2_client=self.r2)
-        self.chunker = AcademicChunker(chunk_size_words=350, chunk_overlap_words=50)
+        self.chunker = AcademicChunker(max_chunk_words=500, overlap_paragraphs=1)
 
         # Lazy loaded embedder
         self._embedder: Optional[NomicEmbedder] = None

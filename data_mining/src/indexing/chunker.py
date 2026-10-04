@@ -11,8 +11,15 @@ from typing import Any, Dict, List, Optional
 class AcademicChunker:
     """Chunks academic papers respecting section boundaries with contextual enrichment."""
 
-    def __init__(self, max_chunk_words: int = 500, overlap_paragraphs: int = 1):
-        self.max_chunk_words = max_chunk_words
+    def __init__(
+        self,
+        max_chunk_words: int = 500,
+        overlap_paragraphs: int = 1,
+        chunk_size_words: Optional[int] = None,
+        chunk_overlap_words: Optional[int] = None,
+        **kwargs: Any,
+    ):
+        self.max_chunk_words = chunk_size_words if chunk_size_words is not None else max_chunk_words
         self.overlap_paragraphs = overlap_paragraphs
 
     def chunk_paper(self, paper_record: Dict[str, Any]) -> List[Dict[str, Any]]:
