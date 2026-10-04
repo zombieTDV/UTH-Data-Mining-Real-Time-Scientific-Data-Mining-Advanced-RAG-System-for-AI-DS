@@ -57,6 +57,17 @@ def test_chat_endpoint():
     assert "similarity_score" in data
 
 
+def test_chat_stream_endpoint():
+    payload = {
+        "query": "What is diffusion distillation?",
+        "top_k": 2,
+    }
+    response = client.post("/api/chat/stream", json=payload)
+    assert response.status_code == 200
+    assert "text/event-stream" in response.headers["content-type"]
+    assert "data:" in response.text
+
+
 def test_mining_eda_endpoint():
     response = client.get("/api/mining/eda")
     assert response.status_code == 200
