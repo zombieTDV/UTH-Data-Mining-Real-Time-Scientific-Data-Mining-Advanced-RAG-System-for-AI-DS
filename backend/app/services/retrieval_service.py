@@ -26,7 +26,15 @@ class RetrievalService:
         try:
             logger.info("[RETRIEVAL] Verifying LanceDB at: %s (table: %s)", settings.LANCEDB_URI, settings.LANCEDB_TABLE)
             ensure_lancedb_seeded(settings.LANCEDB_URI, settings.LANCEDB_TABLE)
-            self.db = lancedb.connect(settings.LANCEDB_URI)
+            storage_options = None
+            if settings.LANCEDB_URI.startswith("s3://"):
+                storage_options = {
+                    "endpoint": settings.R2_ENDPOINT_URL,
+                    "aws_access_key_id": settings.R2_ACCESS_KEY_ID,
+                    "aws_secret_access_key": settings.R2_SECRET_ACCESS_KEY,
+                    "region": "auto",
+                }
+            self.db = lancedb.connect(settings.LANCEDB_URI, storage_options=storage_options)
             self.table = self.db.open_table(settings.LANCEDB_TABLE)
             # Verify table can be read
             self.table.head(1)

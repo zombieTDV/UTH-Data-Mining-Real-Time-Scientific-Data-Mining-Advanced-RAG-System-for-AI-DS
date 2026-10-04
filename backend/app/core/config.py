@@ -40,8 +40,12 @@ class Settings(BaseSettings):
     MINING_ARTIFACTS_DIR: Path = PROJECT_ROOT / "data" / "gold" / "mining"
 
     # LLM Settings
-    LLM_MODE: str = "mock"  # "mock", "groq", "local"
+    LLM_MODE: str = "mock"  # "mock", "local", "ollama", "groq"
+    LLM_SERVICE_URL: str = "http://localhost:9001/v1"
+    OLLAMA_SERVICE_URL: str = "http://localhost:11434/v1"
     LLM_MODEL_PATH: str = "./models/qwen2.5-7b-instruct-q4_k_m.gguf"
+    LLM_MAX_TOKENS: int = 1536
+    LLM_TEMPERATURE: float = 0.7
     GROQ_API_KEY: str = ""
 
     def get_model_path(self) -> Path:
