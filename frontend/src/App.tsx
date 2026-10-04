@@ -3,7 +3,7 @@ import { InteractiveWorkflowCanvas } from './components/InteractiveWorkflowCanva
 import { EdaView } from './components/EdaView';
 import { MiningPillarsView } from './components/MiningPillarsView';
 import { GroundedRagChat } from './components/GroundedRagChat';
-import { fetchHealth, subscribeTelemetry, triggerMiningPipeline } from './api/client';
+import { fetchHealth, subscribeTelemetry, subscribeIngestionStream, triggerMiningPipeline } from './api/client';
 
 export type AppTab = 'schematic' | 'eda' | 'pillars' | 'rag';
 
@@ -14,6 +14,11 @@ export default function App() {
 
   const [backendStatus, setBackendStatus] = useState<'ONLINE' | 'OFFLINE'>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
+
+  // Real-time Streaming State for Lakehouse Counter
+  const [totalPapers, setTotalPapers] = useState<number>(10000);
+  const [streamActive, setStreamActive] = useState<boolean>(false);
+  const [streamSpeed, setStreamSpeed] = useState<number>(0);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -36,7 +41,26 @@ export default function App() {
       () => setBackendStatus('OFFLINE')
     );
 
-    return () => unsubscribe();
+    const unsubStream = subscribeIngestionStream((event) => {
+      if (event.type === 'PAPER_INGESTED') {
+        setStreamActive(true);
+        setTotalPapers(event.total_corpus || 10000);
+        setStreamSpeed(event.speed_ppm || 0);
+      } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
+        if (event.status === 'STREAMING') {
+          setStreamActive(true);
+          setTotalPapers(event.total_corpus || 10000);
+          setStreamSpeed(event.speed_ppm || 0);
+        } else if (event.status === 'PAUSED' || event.status === 'COMPLETED') {
+          setStreamActive(false);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unsubStream();
+    };
   }, []);
 
   const toggleTheme = () => {
@@ -347,15 +371,17 @@ export default function App() {
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                backgroundColor: pipelineStatus === 'RUNNING' ? '#ea580c' : '#10b981',
-                boxShadow: pipelineStatus === 'RUNNING' ? '0 0 8px #ea580c' : 'none',
-                animation: pipelineStatus === 'RUNNING' ? 'stageGlowOrange 1.5s infinite' : 'none',
+                backgroundColor: pipelineStatus === 'RUNNING' ? '#ea580c' : streamActive ? '#10b981' : '#10b981',
+                boxShadow: pipelineStatus === 'RUNNING' ? '0 0 8px #ea580c' : streamActive ? '0 0 10px #10b981' : 'none',
+                animation: pipelineStatus === 'RUNNING' || streamActive ? 'stageGlowOrange 1.2s infinite' : 'none',
               }}
             />
             <span style={{ fontSize: '12px', fontWeight: 600, color: theme === 'dark' ? '#cbd5e1' : '#334155' }}>
               {pipelineStatus === 'RUNNING'
                 ? 'Pipeline Active: Ingesting papers, DuckDB parsing & LanceDB indexing...'
-                : 'Lakehouse Standby: 10,000 papers, 2.22M formulas, 143k LanceDB vectors synced.'}
+                : streamActive
+                ? `Real-Time CDC Stream Active: ${totalPapers.toLocaleString()} papers synced (+${totalPapers - 10000} new 2025/2026) · ${streamSpeed} papers/min`
+                : `Lakehouse Standby: ${totalPapers.toLocaleString()} papers, 2.22M formulas, 143k LanceDB vectors synced.`}
             </span>
           </div>
 
@@ -363,9 +389,11 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
               <span style={{ color: '#64748b' }}>R2 LAKE:</span>
-              <span style={{ fontWeight: 800, color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>5.688 GB</span>
+              <span style={{ fontWeight: 800, color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>
+                {(5.688 + (totalPapers - 10000) * 0.00056).toFixed(3)} GB
+              </span>
               <span style={{ backgroundColor: '#ecfdf5', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                56.9%
+                {Math.min(100, +(56.9 + (totalPapers - 10000) * 0.0056).toFixed(1))}%
               </span>
             </div>
 
@@ -471,11 +499,11 @@ export default function App() {
             <span>UNIVERSITY OF TRANSPORT AND COMMUNICATIONS // REAL-TIME SCIENTIFIC DATA MINING LAKEHOUSE</span>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
-            <span>10,000 PAPERS</span>
+            <span>{totalPapers.toLocaleString()} PAPERS</span>
             <span>&bull;</span>
-            <span>143,523 VECTORS</span>
+            <span>{(143523 + (totalPapers - 10000) * 14).toLocaleString()} VECTORS</span>
             <span>&bull;</span>
-            <span>2.22M FORMULAS</span>
+            <span>{(2.22 + (totalPapers - 10000) * 0.00022).toFixed(2)}M FORMULAS</span>
           </div>
         </footer>
       </div>

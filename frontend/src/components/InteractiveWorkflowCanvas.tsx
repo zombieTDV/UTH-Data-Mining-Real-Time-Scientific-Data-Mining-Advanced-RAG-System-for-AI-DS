@@ -1,4 +1,10 @@
 import { useState, useEffect, useRef, type FC, type MouseEvent } from 'react';
+import {
+  subscribeIngestionStream,
+  startStreamingIngestion,
+  stopStreamingIngestion,
+  fetchStreamingStatus,
+} from '../api/client';
 
 export type PipelineStageKey =
   | 'idle'
@@ -353,6 +359,72 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [formulasExtracted, setFormulasExtracted] = useState<number>(2224198);
   const [vectorsIndexed, setVectorsIndexed] = useState<number>(143523);
 
+  // Real-time Streaming CDC State
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [streamSessionCount, setStreamSessionCount] = useState<number>(0);
+  const [streamSpeed, setStreamSpeed] = useState<number>(0);
+  const [streamTarget, setStreamTarget] = useState<number>(3000);
+
+  useEffect(() => {
+    fetchStreamingStatus().then((st) => {
+      if (st && st.status === 'STREAMING') {
+        setIsStreaming(true);
+        setStreamSessionCount(st.session_ingested || 0);
+        setStreamSpeed(st.speed_ppm || 0);
+      }
+    }).catch(() => {});
+
+    const unsub = subscribeIngestionStream((event) => {
+      if (event.type === 'PAPER_INGESTED') {
+        setIsStreaming(true);
+        setStreamSessionCount(event.session_ingested || 0);
+        setStreamSpeed(event.speed_ppm || 0);
+        setPapersHarvested(event.total_corpus || 10000);
+
+        setLogs((prev) => [
+          ...prev,
+          {
+            id: Date.now() + Math.random(),
+            time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
+            level: 'SUCCESS',
+            tag: 'STREAM-CDC',
+            msg: `[STREAM 2025/2026] arXiv:${event.paper_id} (${event.category}) -> "${(event.title || '').substring(0, 48)}..." -> Appended Silver Parquet -> Synced ${event.vectors_synced} vectors to LanceDB Gold (${event.latency_ms}ms)`,
+          },
+        ]);
+      } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
+        if (event.status === 'STREAMING') {
+          setIsStreaming(true);
+          setStreamSessionCount(event.session_ingested || 0);
+          setStreamSpeed(event.speed_ppm || 0);
+        } else if (event.status === 'PAUSED' || event.status === 'COMPLETED') {
+          setIsStreaming(false);
+        }
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
+  const handleToggleStreaming = async () => {
+    if (isStreaming) {
+      try {
+        await stopStreamingIngestion();
+        setIsStreaming(false);
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      try {
+        setIsStreaming(true);
+        setBottomTab('logs');
+        await startStreamingIngestion(streamTarget, 2.0);
+      } catch (err) {
+        console.error(err);
+        setIsStreaming(false);
+      }
+    }
+  };
+
   // Progressive simulation when "Run Pipeline" is triggered
   useEffect(() => {
     if (!isPipelineRunning) {
@@ -617,17 +689,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
               </div>
 
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#7c3aed', backgroundColor: '#f5f3ff', padding: '1px 5px', borderRadius: '4px' }}>
-                v2.0
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: isStreaming ? '#10b981' : '#7c3aed', backgroundColor: isStreaming ? '#ecfdf5' : '#f5f3ff', padding: '1px 5px', borderRadius: '4px' }}>
+                {isStreaming ? '● STREAMING' : 'v2.0'}
               </span>
             </div>
 
             <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
-                {papersHarvested.toLocaleString()} Papers
+              <div style={{ fontSize: '12px', fontWeight: 800, color: isStreaming ? '#059669' : '#0f172a' }}>
+                {papersHarvested.toLocaleString()} Papers {isStreaming && streamSessionCount > 0 ? `(+${streamSessionCount})` : ''}
               </div>
               <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
-                cs.AI, cs.LG, cs.CV, stat.ML
+                {isStreaming ? `Live CDC: ${streamSpeed} bài/phút` : 'cs.AI, cs.LG, cs.CV, stat.ML'}
               </div>
             </div>
 
@@ -1567,6 +1639,105 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       </div>
 
                       <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {/* 1. Real-time Streaming CDC Section */}
+                        <div
+                          style={{
+                            padding: '10px 12px',
+                            backgroundColor: isStreaming ? '#ecfdf5' : '#f0fdf4',
+                            border: `1px solid ${isStreaming ? '#10b981' : '#bbf7d0'}`,
+                            borderRadius: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span
+                                style={{
+                                  width: '7px',
+                                  height: '7px',
+                                  borderRadius: '50%',
+                                  backgroundColor: isStreaming ? '#10b981' : '#64748b',
+                                  boxShadow: isStreaming ? '0 0 8px #10b981' : 'none',
+                                  animation: isStreaming ? 'stageGlowOrange 1.2s infinite' : 'none',
+                                }}
+                              />
+                              <span style={{ fontSize: '10.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#166534' }}>
+                                REALTIME STREAMING (CDC 2025/2026)
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isStreaming ? '#059669' : '#64748b', fontWeight: 700 }}>
+                              {isStreaming ? `${streamSpeed} bài/phút` : 'STANDBY'}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#4b5563' }}>Mục tiêu:</span>
+                            {[1000, 3000, 5000].map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => setStreamTarget(t)}
+                                disabled={isStreaming}
+                                style={{
+                                  fontSize: '10px',
+                                  fontFamily: 'var(--font-mono)',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  border: streamTarget === t ? '1px solid #16a34a' : '1px solid #d1d5db',
+                                  backgroundColor: streamTarget === t ? '#dcfce7' : '#ffffff',
+                                  color: streamTarget === t ? '#166534' : '#6b7280',
+                                  fontWeight: streamTarget === t ? 800 : 500,
+                                  cursor: isStreaming ? 'not-allowed' : 'pointer',
+                                }}
+                              >
+                                {t.toLocaleString()} bài
+                              </button>
+                            ))}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleToggleStreaming}
+                            style={{
+                              width: '100%',
+                              backgroundColor: isStreaming ? '#ef4444' : '#10b981',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '8px 0',
+                              fontSize: '11px',
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              boxShadow: isStreaming ? '0 2px 8px rgba(239, 68, 68, 0.35)' : '0 2px 8px rgba(16, 185, 129, 0.35)',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            {isStreaming ? (
+                              <>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+                                </svg>
+                                <span>⏸ DỪNG STREAMING (+{streamSessionCount} BÀI ĐÃ CÀO)</span>
+                              </>
+                            ) : (
+                              <>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                  <polygon points="5 3 19 12 5 21 5 3" />
+                                </svg>
+                                <span>▶ BẮT ĐẦU REALTIME STREAMING ({streamTarget.toLocaleString()} BÀI MỚI)</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* 2. Batch Harvest */}
                         <button
                           type="button"
                           onClick={handleStartHarvest}

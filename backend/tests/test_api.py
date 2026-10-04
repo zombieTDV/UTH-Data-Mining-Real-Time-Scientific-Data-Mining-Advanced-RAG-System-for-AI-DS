@@ -105,3 +105,23 @@ def test_mining_manifest_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "COMPLETED"
+
+
+def test_streaming_ingestion_endpoints():
+    # 1. Check status
+    res = client.get("/api/ingestion/status")
+    assert res.status_code == 200
+    status_data = res.json()
+    assert "status" in status_data
+    assert "total_corpus" in status_data
+
+    # 2. Trigger start
+    res_start = client.post("/api/ingestion/start?target=10&delay=0.1")
+    assert res_start.status_code == 200
+    assert res_start.json()["status"] in ["STARTED", "ALREADY_RUNNING"]
+
+    # 3. Stop
+    res_stop = client.post("/api/ingestion/stop")
+    assert res_stop.status_code == 200
+    assert res_stop.json()["status"] in ["STOPPED", "NOT_RUNNING"]
+
