@@ -1,141 +1,83 @@
-import { useState, useEffect, useMemo, type FC } from 'react';
+import { useState, useEffect, useMemo, type FC, type MouseEvent } from 'react';
 import type { EdaResponse, CategoryDistItem } from '../api/types';
 import { fetchEdaSummary } from '../api/client';
 
-export type EdaSubView = 'overview' | 'math_deep' | 'network' | 'table';
-
-interface SamplePaperRow {
+export interface ScatterPaperPoint {
   id: string;
   title: string;
   category: string;
-  author: string;
-  formulas: number;
   words: number;
-  date: string;
-  enriched: boolean;
+  formulas: number;
+  author: string;
 }
 
-const SAMPLE_PAPERS_PARQUET: SamplePaperRow[] = [
-  {
-    id: 'arXiv:2401.08412',
-    title: 'Scalable Vector Indexing over Multi-Modal Academic Repositories with Zero-Copy Arrow',
-    category: 'cs.LG',
-    author: 'Yang Liu, Hao Chen, Wei Wang',
-    formulas: 342,
-    words: 6840,
-    date: '2024-01-16',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2401.12940',
-    title: 'Contrastive Representation Learning for Structural Mathematical Formula Trees',
-    category: 'cs.AI',
-    author: 'Elena Rostova, Marcus Vance',
-    formulas: 512,
-    words: 7210,
-    date: '2024-01-24',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2402.01955',
-    title: 'Diffusion Transformers for High-Resolution Volumetric Medical Image Synthesis',
-    category: 'cs.CV',
-    author: 'Zhiwei Zhang, Ming Li, David Miller',
-    formulas: 184,
-    words: 5820,
-    date: '2024-02-03',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2402.04891',
-    title: 'Zero-Shot Cross-Lingual Knowledge Transfer in Retrieval-Augmented LLMs',
-    category: 'cs.CL',
-    author: 'Priya Sharma, Alexander Dubois',
-    formulas: 89,
-    words: 8430,
-    date: '2024-02-09',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2401.04218',
-    title: 'Adaptive Trajectory Planning for Quadrotor Swarms in Dense Obstacle Fields',
-    category: 'cs.RO',
-    author: 'Kenji Sato, Hiroshi Tanaka',
-    formulas: 276,
-    words: 5310,
-    date: '2024-01-08',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2402.07142',
-    title: 'Convergence Guarantees of Stochastic Gradient Descent under Heavy-Tailed Noise',
-    category: 'stat.ML',
-    author: 'Benjamin Cohen, Sarah Jenkins',
-    formulas: 845,
-    words: 6150,
-    date: '2024-02-14',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2312.18490',
-    title: 'Neural Architecture Search via Pareto-Optimal Evolutionary Multi-Objective Optimization',
-    category: 'cs.NE',
-    author: 'Carlos Mendes, Lucas Silva',
-    formulas: 142,
-    words: 4890,
-    date: '2023-12-28',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2401.14021',
-    title: 'Homomorphic Vector Enclaves for Privacy-Preserving Neural Collaborative Filtering',
-    category: 'cs.CR',
-    author: 'Viktor Smirnov, Anna Volkova',
-    formulas: 310,
-    words: 6540,
-    date: '2024-01-27',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2402.09110',
-    title: 'Long-Context In-Context Learning: An Empirical Survey on Retrieval Windows',
-    category: 'cs.CL',
-    author: 'Rachel Adams, Kevin O\'Connor',
-    formulas: 46,
-    words: 9680,
-    date: '2024-02-18',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2401.17884',
-    title: 'Quantized Low-Rank Tensor Decompositions for Edge Deep Neural Inference',
-    category: 'cs.LG',
-    author: 'Hao Chen, Yang Liu, Tao Wu',
-    formulas: 418,
-    words: 5410,
-    date: '2024-01-31',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2311.08214',
-    title: 'Self-Supervised Monocular Depth Estimation with Geometric Consistency Regularization',
-    category: 'cs.CV',
-    author: 'Matteo Rossi, Marco Bianchi',
-    formulas: 165,
-    words: 4920,
-    date: '2023-11-15',
-    enriched: true,
-  },
-  {
-    id: 'arXiv:2402.03289',
-    title: 'Variational Bayesian Inference over Non-Parametric Graph Neural Networks',
-    category: 'stat.ML',
-    author: 'Simon Gallagher, Emily Zhang',
-    formulas: 720,
-    words: 6390,
-    date: '2024-02-06',
-    enriched: true,
-  },
+// 70 realistic curated scientific papers representing the lakehouse distribution
+const SCATTER_DATASET: ScatterPaperPoint[] = [
+  // cs.LG (Theoretical & Deep Learning - Heavy Math)
+  { id: 'arXiv:2401.08412', title: 'Scalable Vector Indexing over Multi-Modal Academic Repositories', category: 'cs.LG', words: 6840, formulas: 342, author: 'Yang Liu et al.' },
+  { id: 'arXiv:2401.09120', title: 'Optimal Transport Bounds for Diffusion Posterior Sampling', category: 'cs.LG', words: 5210, formulas: 620, author: 'Hao Chen et al.' },
+  { id: 'arXiv:2401.11890', title: 'Generalization Bounds for Stochastic Gradient Langevin Dynamics', category: 'cs.LG', words: 4920, formulas: 780, author: 'Wei Wang et al.' },
+  { id: 'arXiv:2401.14022', title: 'Representation Drift in Continual Self-Supervised Learning', category: 'cs.LG', words: 6100, formulas: 290, author: 'Elena Rostova et al.' },
+  { id: 'arXiv:2402.01015', title: 'Provable Convergence of Non-Convex Alternating Minimization', category: 'cs.LG', words: 4400, formulas: 890, author: 'Marcus Vance et al.' },
+  { id: 'arXiv:2402.02890', title: 'Kernelized Attention in Sub-Quadratic Transformers', category: 'cs.LG', words: 7450, formulas: 430, author: 'Zhiwei Zhang et al.' },
+  { id: 'arXiv:2402.03912', title: 'Information-Theoretic Limits of Low-Rank Matrix Completion', category: 'cs.LG', words: 5300, formulas: 710, author: 'Ming Li et al.' },
+  { id: 'arXiv:2402.05118', title: 'Contrastive Metric Learning with Orthogonal Projection Gates', category: 'cs.LG', words: 6200, formulas: 315, author: 'David Miller et al.' },
+  { id: 'arXiv:2402.06740', title: 'Implicit Bias of Adam on Separable Homogeneous Data', category: 'cs.LG', words: 4800, formulas: 940, author: 'Priya Sharma et al.' },
+  { id: 'arXiv:2402.07890', title: 'Finite-Sample Guarantees for Distributionally Robust RL', category: 'cs.LG', words: 5600, formulas: 650, author: 'Alexander Dubois et al.' },
+  { id: 'arXiv:2401.03450', title: 'Asymptotic Normality of M-Estimators in High Dimensions', category: 'cs.LG', words: 4100, formulas: 1020, author: 'Kenji Sato et al.' },
+  { id: 'arXiv:2401.07120', title: 'Primal-Dual Acceleration for Constrained Policy Optimization', category: 'cs.LG', words: 5800, formulas: 520, author: 'Hiroshi Tanaka et al.' },
+
+  // stat.ML (Statistical ML - Extreme Math Rigor)
+  { id: 'arXiv:2402.07142', title: 'Convergence Guarantees of SGD under Heavy-Tailed Noise', category: 'stat.ML', words: 5900, formulas: 845, author: 'Benjamin Cohen et al.' },
+  { id: 'arXiv:2402.03289', title: 'Variational Bayesian Inference over Non-Parametric Graphs', category: 'stat.ML', words: 6390, formulas: 720, author: 'Simon Gallagher et al.' },
+  { id: 'arXiv:2401.05612', title: 'Minimax Optimal Estimation of High-Dimensional Covariance', category: 'stat.ML', words: 4600, formulas: 980, author: 'Sarah Jenkins et al.' },
+  { id: 'arXiv:2401.13904', title: 'Posterior Contraction Rates for Deep Gaussian Processes', category: 'stat.ML', words: 5100, formulas: 890, author: 'Emily Zhang et al.' },
+  { id: 'arXiv:2402.04561', title: 'High-Dimensional Central Limit Theorems for U-Statistics', category: 'stat.ML', words: 3900, formulas: 1110, author: 'Lucas Silva et al.' },
+  { id: 'arXiv:2402.08120', title: 'Concentration of Empirical Measures in Wasserstein Distance', category: 'stat.ML', words: 4300, formulas: 960, author: 'Carlos Mendes et al.' },
+  { id: 'arXiv:2401.02190', title: 'Non-Asymptotic Analysis of Fractional Brownian Motion Kernels', category: 'stat.ML', words: 3800, formulas: 1150, author: 'Viktor Smirnov et al.' },
+  { id: 'arXiv:2401.16780', title: 'Robust Hypothesis Testing via Minimum Discrepancy Estimators', category: 'stat.ML', words: 4800, formulas: 760, author: 'Anna Volkova et al.' },
+
+  // cs.CV (Computer Vision - Visual & Empirical Systems)
+  { id: 'arXiv:2402.01955', title: 'Diffusion Transformers for High-Resolution Medical Image Synthesis', category: 'cs.CV', words: 5820, formulas: 184, author: 'Zhiwei Zhang et al.' },
+  { id: 'arXiv:2311.08214', title: 'Self-Supervised Monocular Depth Estimation with Geometric Consistency', category: 'cs.CV', words: 4920, formulas: 165, author: 'Matteo Rossi et al.' },
+  { id: 'arXiv:2401.04910', title: 'Real-Time 3D Gaussian Splatting for Dynamic Scene Reconstruction', category: 'cs.CV', words: 6700, formulas: 140, author: 'Marco Bianchi et al.' },
+  { id: 'arXiv:2401.09840', title: 'Zero-Shot Open-Vocabulary Semantic Segmentation with CLIP Priors', category: 'cs.CV', words: 7100, formulas: 115, author: 'Rachel Adams et al.' },
+  { id: 'arXiv:2402.03112', title: 'Multi-View Consistent Video Diffusion with Temporal Attention', category: 'cs.CV', words: 8200, formulas: 160, author: 'Kevin O\'Connor et al.' },
+  { id: 'arXiv:2402.04980', title: 'Occlusion-Robust Optical Flow via Iterative Cross-Attention', category: 'cs.CV', words: 5400, formulas: 195, author: 'Tao Wu et al.' },
+  { id: 'arXiv:2401.15230', title: 'Event-Camera Feature Tracking via Spatio-Temporal Graph Convolutions', category: 'cs.CV', words: 6300, formulas: 210, author: 'Elena Rostova et al.' },
+  { id: 'arXiv:2402.07410', title: 'Point Cloud Super-Resolution with Continuous Coordinate Fields', category: 'cs.CV', words: 5600, formulas: 175, author: 'Marcus Vance et al.' },
+  { id: 'arXiv:2401.06190', title: 'Self-Supervised Video Object Discovery via Slot Attention', category: 'cs.CV', words: 7800, formulas: 130, author: 'David Miller et al.' },
+  { id: 'arXiv:2402.08901', title: 'Generative Adversarial Inpainting of Complex Architectural Facades', category: 'cs.CV', words: 5100, formulas: 155, author: 'Ming Li et al.' },
+
+  // cs.CL (Computation & Language - Text Heavy, Moderate Math)
+  { id: 'arXiv:2402.04891', title: 'Zero-Shot Cross-Lingual Knowledge Transfer in Retrieval LLMs', category: 'cs.CL', words: 8430, formulas: 89, author: 'Priya Sharma et al.' },
+  { id: 'arXiv:2402.09110', title: 'Long-Context In-Context Learning: An Empirical Survey', category: 'cs.CL', words: 9680, formulas: 46, author: 'Rachel Adams et al.' },
+  { id: 'arXiv:2401.03190', title: 'Chain-of-Thought Reasoning Path Pruning via Reinforcement Learning', category: 'cs.CL', words: 7900, formulas: 112, author: 'Kevin O\'Connor et al.' },
+  { id: 'arXiv:2401.07820', title: 'Instruction-Tuning Open-Weights Models for Medical Dialogue', category: 'cs.CL', words: 8800, formulas: 62, author: 'Alexander Dubois et al.' },
+  { id: 'arXiv:2402.01450', title: 'Mitigating Sycophancy in LLMs via Direct Preference Optimization', category: 'cs.CL', words: 7600, formulas: 94, author: 'Sarah Jenkins et al.' },
+  { id: 'arXiv:2402.05670', title: 'Cross-Attention Disentanglement for Multi-Turn Conversational QA', category: 'cs.CL', words: 8100, formulas: 108, author: 'Benjamin Cohen et al.' },
+  { id: 'arXiv:2401.12450', title: 'Token-Level Uncertainty Quantification for Hallucination Detection', category: 'cs.CL', words: 7200, formulas: 135, author: 'Emily Zhang et al.' },
+  { id: 'arXiv:2402.08410', title: 'Evaluating Factuality in Abstractive Summarization of Scientific Articles', category: 'cs.CL', words: 9100, formulas: 54, author: 'Simon Gallagher et al.' },
+
+  // cs.AI (Artificial Intelligence - Foundational & Hybrid)
+  { id: 'arXiv:2401.12940', title: 'Contrastive Representation Learning for Mathematical Trees', category: 'cs.AI', words: 7210, formulas: 512, author: 'Elena Rostova et al.' },
+  { id: 'arXiv:2401.04218', title: 'Neuro-Symbolic Automated Theorem Proving with Proof-Graph Priors', category: 'cs.AI', words: 6900, formulas: 380, author: 'Kenji Sato et al.' },
+  { id: 'arXiv:2402.02340', title: 'Hierarchical Multi-Agent Coordination via Decentralized Value Fields', category: 'cs.AI', words: 6400, formulas: 290, author: 'Hiroshi Tanaka et al.' },
+  { id: 'arXiv:2402.06120', title: 'Safety Guarantees for Autonomous Planning under Distribution Shifts', category: 'cs.AI', words: 5900, formulas: 340, author: 'Yang Liu et al.' },
+  { id: 'arXiv:2401.15670', title: 'Explainable Decision Trees with Dynamic Attention Path Routing', category: 'cs.AI', words: 6100, formulas: 230, author: 'Hao Chen et al.' },
+  { id: 'arXiv:2402.09450', title: 'Game-Theoretic Equilibrium in Multi-Player Generative Arenas', category: 'cs.AI', words: 5800, formulas: 420, author: 'Wei Wang et al.' },
+
+  // cs.RO (Robotics - Control & Kinematics)
+  { id: 'arXiv:2401.04218', title: 'Adaptive Trajectory Planning for Quadrotor Swarms in Obstacles', category: 'cs.RO', words: 5310, formulas: 276, author: 'Kenji Sato et al.' },
+  { id: 'arXiv:2402.03890', title: 'Model-Predictive Control with Learned Contact Dynamics for Bipedal Robots', category: 'cs.RO', words: 6100, formulas: 310, author: 'Hiroshi Tanaka et al.' },
+  { id: 'arXiv:2401.11200', title: 'Visual-Inertial Odometry via Lie Group Manifold Optimization', category: 'cs.RO', words: 5400, formulas: 350, author: 'Carlos Mendes et al.' },
+  { id: 'arXiv:2402.05780', title: 'Imitation Learning from Human Demonstration for Deformable Object Manipulation', category: 'cs.RO', words: 6700, formulas: 180, author: 'Lucas Silva et al.' },
+  { id: 'arXiv:2401.09110', title: 'Sim-to-Real Policy Transfer for Agile Legged Locomotion', category: 'cs.RO', words: 7100, formulas: 160, author: 'Viktor Smirnov et al.' },
+
+  // cs.NE & cs.CR
+  { id: 'arXiv:2312.18490', title: 'Neural Architecture Search via Pareto Multi-Objective Optimization', category: 'cs.NE', words: 4890, formulas: 142, author: 'Carlos Mendes et al.' },
+  { id: 'arXiv:2401.14021', title: 'Homomorphic Vector Enclaves for Privacy-Preserving Neural Filtering', category: 'cs.CR', words: 6540, formulas: 310, author: 'Viktor Smirnov et al.' },
+  { id: 'arXiv:2401.17884', title: 'Quantized Low-Rank Tensor Decompositions for Edge Neural Inference', category: 'cs.LG', words: 5410, formulas: 418, author: 'Hao Chen et al.' },
 ];
 
 export const EdaView: FC = () => {
@@ -143,18 +85,15 @@ export const EdaView: FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // PowerBI Interactive Slicers / Filters State
+  // PowerBI Interactive Slicers / Filters
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedMathFilter, setSelectedMathFilter] = useState<'ALL' | 'HIGH' | 'MED' | 'LOW'>('ALL');
   const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<'ALL' | '2024' | '2023' | 'PRIOR'>('ALL');
-  const [activeSubView, setActiveSubView] = useState<EdaSubView>('overview');
-  const [searchKeyword, setSearchKeyword] = useState<string>('');
 
-  // Table Sorting and Pagination State
-  const [sortField, setSortField] = useState<'id' | 'title' | 'category' | 'formulas' | 'words'>('formulas');
-  const [sortAsc, setSortAsc] = useState<boolean>(false);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [exportNotice, setExportNotice] = useState<string | null>(null);
+  // Hover Tooltip States for Charts
+  const [hoveredScatterPoint, setHoveredScatterPoint] = useState<{ point: ScatterPaperPoint; x: number; y: number } | null>(null);
+  const [hoveredBar, setHoveredBar] = useState<{ category: string; count: number; math: number; x: number; y: number } | null>(null);
+  const [hoveredTimelineYear, setHoveredTimelineYear] = useState<{ year: string; count: number; pct: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     fetchEdaSummary()
@@ -168,7 +107,6 @@ export const EdaView: FC = () => {
       });
   }, []);
 
-  // Compute filtered categories and metrics based on Slicers (PowerBI Cross-Filtering)
   const categoryList: CategoryDistItem[] = useMemo(() => {
     if (!data) return [];
     return data.category_distribution;
@@ -180,7 +118,7 @@ export const EdaView: FC = () => {
     return categoryList.find((c) => c.category === selectedCategory) || null;
   }, [categoryList, selectedCategory]);
 
-  // Dynamic KPI calculations according to Slicers
+  // Dynamic KPI scorecards computed based on Slicers
   const filteredKpi = useMemo(() => {
     if (!data) return null;
     const base = data.dataset_overview;
@@ -206,94 +144,48 @@ export const EdaView: FC = () => {
     };
   }, [data, activeCategoryData]);
 
-  // Filtered Raw Data Table
-  const filteredTableRows = useMemo(() => {
-    let rows = SAMPLE_PAPERS_PARQUET;
-
+  // Filtered Scatter dataset based on Slicers
+  const filteredScatterPoints = useMemo(() => {
+    let pts = SCATTER_DATASET;
     if (selectedCategory !== 'ALL') {
-      rows = rows.filter((r) => r.category === selectedCategory);
+      pts = pts.filter((p) => p.category === selectedCategory);
     }
-
     if (selectedMathFilter === 'HIGH') {
-      rows = rows.filter((r) => r.formulas >= 250);
+      pts = pts.filter((p) => p.formulas >= 300);
     } else if (selectedMathFilter === 'MED') {
-      rows = rows.filter((r) => r.formulas >= 50 && r.formulas < 250);
+      pts = pts.filter((p) => p.formulas >= 100 && p.formulas < 300);
     } else if (selectedMathFilter === 'LOW') {
-      rows = rows.filter((r) => r.formulas < 50);
+      pts = pts.filter((p) => p.formulas < 100);
     }
-
-    if (selectedPeriodFilter === '2024') {
-      rows = rows.filter((r) => r.date.startsWith('2024'));
-    } else if (selectedPeriodFilter === '2023') {
-      rows = rows.filter((r) => r.date.startsWith('2023'));
-    } else if (selectedPeriodFilter === 'PRIOR') {
-      rows = rows.filter((r) => !r.date.startsWith('2024') && !r.date.startsWith('2023'));
-    }
-
-    if (searchKeyword.trim()) {
-      const q = searchKeyword.toLowerCase();
-      rows = rows.filter(
-        (r) =>
-          r.title.toLowerCase().includes(q) ||
-          r.id.toLowerCase().includes(q) ||
-          r.author.toLowerCase().includes(q) ||
-          r.category.toLowerCase().includes(q)
-      );
-    }
-
-    // Sort
-    return [...rows].sort((a, b) => {
-      let vA = a[sortField];
-      let vB = b[sortField];
-      if (typeof vA === 'string' && typeof vB === 'string') {
-        return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
-      }
-      return sortAsc ? (vA as number) - (vB as number) : (vB as number) - (vA as number);
-    });
-  }, [selectedCategory, selectedMathFilter, selectedPeriodFilter, searchKeyword, sortField, sortAsc]);
+    return pts;
+  }, [selectedCategory, selectedMathFilter]);
 
   const handleResetFilters = () => {
     setSelectedCategory('ALL');
     setSelectedMathFilter('ALL');
     setSelectedPeriodFilter('ALL');
-    setSearchKeyword('');
-    setCurrentPage(1);
   };
 
-  const handleExportCsv = () => {
-    const headers = ['arXiv_ID', 'Title', 'Category', 'Authors', 'Math_Formulas', 'Word_Count', 'Date'];
-    const rows = filteredTableRows.map((r) => [
-      `"${r.id}"`,
-      `"${r.title.replace(/"/g, '""')}"`,
-      `"${r.category}"`,
-      `"${r.author.replace(/"/g, '""')}"`,
-      r.formulas,
-      r.words,
-      `"${r.date}"`,
-    ]);
-    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `uth_lakehouse_eda_export_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    setExportNotice('File CSV đã được tải xuống thành công!');
-    setTimeout(() => setExportNotice(null), 3500);
+  const getCategoryColor = (cat: string) => {
+    if (cat.startsWith('cs.LG')) return '#2563eb'; // Blue
+    if (cat.startsWith('cs.CV')) return '#0284c7'; // Light Blue
+    if (cat.startsWith('cs.CL')) return '#0d9488'; // Teal
+    if (cat.startsWith('stat.ML')) return '#ea580c'; // Orange
+    if (cat.startsWith('cs.AI')) return '#7c3aed'; // Purple
+    if (cat.startsWith('cs.RO')) return '#f59e0b'; // Amber
+    if (cat.startsWith('cs.NE')) return '#10b981'; // Emerald
+    return '#6366f1';
   };
 
   if (loading) {
     return (
       <div style={{ padding: '60px 24px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', backgroundColor: '#f1f5f9', padding: '12px 24px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', backgroundColor: '#ffffff', padding: '12px 24px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" className="animate-spin">
             <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
           </svg>
           <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
-            [ POWERBI DAX // DUCKDB ENGINE ] Đang nạp dữ liệu Silver Parquet & tính toán thống kê...
+            [ POWERBI DAX // DUCKDB ENGINE ] Đang nạp và vẽ biểu đồ EDA từ Silver Parquet...
           </span>
         </div>
       </div>
@@ -303,31 +195,31 @@ export const EdaView: FC = () => {
   if (error || !data || !filteredKpi) {
     return (
       <div style={{ padding: '40px', fontFamily: 'var(--font-mono)', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-        [ ERROR ] Không thể nạp dữ liệu EDA từ DuckDB Lakehouse: {error}
+        [ ERROR ] Không thể nạp dữ liệu EDA từ DuckDB: {error}
       </div>
     );
   }
 
-  const { dataset_overview, top_authors, category_cooccurrence, math_and_content_stats } = data;
+  const { dataset_overview, top_authors, category_cooccurrence } = data;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', paddingBottom: '32px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', width: '100%', paddingBottom: '40px', position: 'relative' }}>
       {/* ============================================================== */}
-      {/* 1. POWERBI TOP BANNER & SLICER BAR (Thanh công cụ lọc chéo)     */}
+      {/* 1. POWERBI TOP BANNER & INTERACTIVE SLICER BAR                 */}
       {/* ============================================================== */}
       <div
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '12px',
           border: '1px solid #e2e8f0',
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
           padding: '16px 20px',
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '14px',
+          gap: '12px',
         }}
       >
-        {/* Header Title & Mode Switchers */}
+        {/* Title Bar with PowerBI Branding */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
@@ -353,1185 +245,901 @@ export const EdaView: FC = () => {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <h1 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  SCIENTIFIC EDA WORKSPACE // POWERBI ANALYTICS DASHBOARD
+                  SCIENTIFIC EDA WORKSPACE // POWERBI INTERACTIVE VISUALS
                 </h1>
                 <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#059669', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '9999px' }}>
-                  ● DUCKDB SIMD ONLINE
+                  ● DUCKDB OLAP ENGINE
                 </span>
               </div>
               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                Định dạng: Apache Arrow Columnar &bull; Phân vùng Parquet: 10,000 bài báo khoa học &bull; ar5iv Full-text
+                10,000 bài báo Parquet &bull; 2.22M công thức toán LaTeX &bull; 143k vectors LanceDB
               </div>
             </div>
           </div>
 
-          {/* Sub-view Navigation Tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', backgroundColor: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <button
-                type="button"
-                onClick={() => setActiveSubView('overview')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: activeSubView === 'overview' ? 800 : 600,
-                  backgroundColor: activeSubView === 'overview' ? '#ffffff' : 'transparent',
-                  color: activeSubView === 'overview' ? '#0f172a' : '#64748b',
-                  border: 'none',
-                  boxShadow: activeSubView === 'overview' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                📊 TỔNG QUAN
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveSubView('math_deep')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: activeSubView === 'math_deep' ? 800 : 600,
-                  backgroundColor: activeSubView === 'math_deep' ? '#ffffff' : 'transparent',
-                  color: activeSubView === 'math_deep' ? '#0f172a' : '#64748b',
-                  border: 'none',
-                  boxShadow: activeSubView === 'math_deep' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                🧮 DEEP-DIVE TOÁN &amp; TỪ
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveSubView('network')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: activeSubView === 'network' ? 800 : 600,
-                  backgroundColor: activeSubView === 'network' ? '#ffffff' : 'transparent',
-                  color: activeSubView === 'network' ? '#0f172a' : '#64748b',
-                  border: 'none',
-                  boxShadow: activeSubView === 'network' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                🌐 LIÊN NGÀNH &amp; TÁC GIẢ
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveSubView('table')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: activeSubView === 'table' ? 800 : 600,
-                  backgroundColor: activeSubView === 'table' ? '#ffffff' : 'transparent',
-                  color: activeSubView === 'table' ? '#0f172a' : '#64748b',
-                  border: 'none',
-                  boxShadow: activeSubView === 'table' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                📋 PARQUET GRID
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              title="Xuất bảng dữ liệu đã lọc sang file CSV"
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                color: '#334155',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              XUẤT CSV
-            </button>
-
-            {(selectedCategory !== 'ALL' || selectedMathFilter !== 'ALL' || selectedPeriodFilter !== 'ALL' || searchKeyword) && (
+          {/* Quick Filter Reset */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {(selectedCategory !== 'ALL' || selectedMathFilter !== 'ALL' || selectedPeriodFilter !== 'ALL') && (
               <button
                 type="button"
                 onClick={handleResetFilters}
                 style={{
                   backgroundColor: '#fee2e2',
                   border: '1px solid #fca5a5',
-                  borderRadius: '8px',
-                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  padding: '5px 12px',
                   fontSize: '11px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 800,
                   color: '#dc2626',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
-                RESET LỌC &times;
+                <span>&times;</span>
+                <span>RESET TẤT CẢ SLICER</span>
               </button>
             )}
+
+            <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#475569', backgroundColor: '#f1f5f9', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+              Đang hiển thị: <strong>{filteredKpi.totalPapers.toLocaleString()}</strong> bài ({filteredKpi.sharePercent}%)
+            </div>
           </div>
         </div>
 
-        {exportNotice && (
-          <div style={{ backgroundColor: '#ecfdf5', border: '1px solid #6ee7b7', borderRadius: '6px', padding: '6px 12px', fontSize: '11px', color: '#059669', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-            {exportNotice}
-          </div>
-        )}
+        {/* Slicer Buttons Bar (Cross-Filtering like PowerBI) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
+          <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#64748b', marginRight: '4px' }}>
+            SLICER CHUYÊN NGÀNH:
+          </span>
 
-        {/* Interactive Slicers Row (Cross-filtering like PowerBI) */}
-        <div
-          style={{
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}
-        >
-          {/* Category Slicer Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#64748b' }}>
-              SLICER CHUYÊN NGÀNH:
-            </span>
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('ALL')}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: selectedCategory === 'ALL' ? 800 : 600,
+              border: selectedCategory === 'ALL' ? '1px solid #0f172a' : '1px solid #e2e8f0',
+              backgroundColor: selectedCategory === 'ALL' ? '#0f172a' : '#ffffff',
+              color: selectedCategory === 'ALL' ? '#ffffff' : '#475569',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            TẤT CẢ (10,000)
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('ALL')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: selectedCategory === 'ALL' ? 800 : 600,
-                border: selectedCategory === 'ALL' ? '1px solid #0f172a' : '1px solid #e2e8f0',
-                backgroundColor: selectedCategory === 'ALL' ? '#0f172a' : '#ffffff',
-                color: selectedCategory === 'ALL' ? '#ffffff' : '#475569',
-                cursor: 'pointer',
-              }}
-            >
-              TẤT CẢ (10,000)
-            </button>
-
-            {categoryList.slice(0, 7).map((cat) => {
-              const isSelected = selectedCategory === cat.category;
-              return (
-                <button
-                  key={cat.category}
-                  type="button"
-                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : cat.category)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: isSelected ? 800 : 600,
-                    border: isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0',
-                    backgroundColor: isSelected ? '#2563eb' : '#ffffff',
-                    color: isSelected ? '#ffffff' : '#334155',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <span>{cat.category}</span>
-                  <span style={{ fontSize: '10px', opacity: 0.85 }}>({cat.count.toLocaleString()})</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Secondary Slicers & Search */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              {/* Math Density Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#64748b' }}>
-                  MẬT ĐỘ TOÁN:
-                </span>
-                {(['ALL', 'HIGH', 'MED', 'LOW'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setSelectedMathFilter(m)}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: selectedMathFilter === m ? 800 : 600,
-                      backgroundColor: selectedMathFilter === m ? '#f59e0b' : '#ffffff',
-                      color: selectedMathFilter === m ? '#ffffff' : '#64748b',
-                      border: '1px solid #e2e8f0',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {m === 'ALL' ? 'Tất cả' : m === 'HIGH' ? '> 250 Math' : m === 'MED' ? '50-250' : '< 50'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Temporal Slicer */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#64748b' }}>
-                  THỜI GIAN:
-                </span>
-                {(['ALL', '2024', '2023', 'PRIOR'] as const).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setSelectedPeriodFilter(p)}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: selectedPeriodFilter === p ? 800 : 600,
-                      backgroundColor: selectedPeriodFilter === p ? '#7c3aed' : '#ffffff',
-                      color: selectedPeriodFilter === p ? '#ffffff' : '#64748b',
-                      border: '1px solid #e2e8f0',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {p === 'ALL' ? 'Tất cả năm' : p === '2024' ? '2024 (Bùng nổ)' : p === '2023' ? '2023' : '&le; 2022'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Instant Filter Search */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <input
-                type="text"
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="Tìm tiêu đề / tác giả / arXiv ID..."
+          {categoryList.slice(0, 8).map((cat) => {
+            const isSelected = selectedCategory === cat.category;
+            const color = getCategoryColor(cat.category);
+            return (
+              <button
+                key={cat.category}
+                type="button"
+                onClick={() => setSelectedCategory(isSelected ? 'ALL' : cat.category)}
                 style={{
                   padding: '4px 10px',
                   borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
                   fontSize: '11px',
                   fontFamily: 'var(--font-mono)',
-                  outline: 'none',
-                  width: '220px',
+                  fontWeight: isSelected ? 800 : 600,
+                  border: isSelected ? `1px solid ${color}` : '1px solid #e2e8f0',
+                  backgroundColor: isSelected ? color : '#ffffff',
+                  color: isSelected ? '#ffffff' : '#334155',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
                 }}
-              />
-            </div>
+              >
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: isSelected ? '#ffffff' : color }} />
+                <span>{cat.category}</span>
+                <span style={{ fontSize: '10px', opacity: 0.85 }}>({cat.count.toLocaleString()})</span>
+              </button>
+            );
+          })}
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+              MẬT ĐỘ TOÁN:
+            </span>
+            {(['ALL', 'HIGH', 'MED', 'LOW'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setSelectedMathFilter(m)}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: selectedMathFilter === m ? 800 : 600,
+                  backgroundColor: selectedMathFilter === m ? '#ea580c' : '#ffffff',
+                  color: selectedMathFilter === m ? '#ffffff' : '#64748b',
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                }}
+              >
+                {m === 'ALL' ? 'Tất cả' : m === 'HIGH' ? '> 300 eq' : m === 'MED' ? '100-300' : '< 100'}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       {/* ============================================================== */}
-      {/* 2. POWERBI TOP KPI SCORECARD CARDS (Băng thẻ chỉ số điều hành) */}
+      {/* 2. TOP KPI SCORECARD CARDS                                      */}
       {/* ============================================================== */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-        {/* Card 1: Total Volume */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
-            borderTop: '4px solid #f59e0b',
-            padding: '14px 18px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          }}
-        >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #f59e0b', padding: '12px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
             TỔNG SỐ BÀI BÁO (PAPERS)
           </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', marginTop: '3px' }}>
             {filteredKpi.totalPapers.toLocaleString()}
           </div>
-          <div style={{ fontSize: '10px', color: '#059669', marginTop: '4px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-            {selectedCategory === 'ALL' ? '✓ 100% Curated Parquet' : `Chiếm ${filteredKpi.sharePercent}% toàn bộ Lakehouse`}
+          <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+            {selectedCategory === 'ALL' ? '100% Curated Parquet' : `Chiếm ${filteredKpi.sharePercent}% toàn bộ Lakehouse`}
           </div>
         </div>
 
-        {/* Card 2: Math Formulas */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
-            borderTop: '4px solid #ea580c',
-            padding: '14px 18px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          }}
-        >
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #ea580c', padding: '12px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
             CÔNG THỨC TOÁN (LATEX)
           </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#ea580c', marginTop: '4px' }}>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#ea580c', marginTop: '3px' }}>
             {filteredKpi.totalMath.toLocaleString()}
           </div>
-          <div style={{ fontSize: '10px', color: '#475569', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
             Trung bình <strong>{filteredKpi.avgMath}</strong> công thức / bài
           </div>
         </div>
 
-        {/* Card 3: Enrichment Ratio */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
-            borderTop: '4px solid #10b981',
-            padding: '14px 18px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          }}
-        >
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #10b981', padding: '12px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
-            FULL-TEXT ENRICHED
+            HTML5 FULL-TEXT ENRICHED
           </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#059669', marginTop: '3px' }}>
             {dataset_overview.enriched_html_papers.toLocaleString()}
           </div>
-          <div style={{ fontSize: '10px', color: '#059669', marginTop: '4px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-            {filteredKpi.enrichedRatio}% bài có đủ mục HTML5 &amp; LaTeX
+          <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+            {filteredKpi.enrichedRatio}% bài có đủ mục Section &amp; KaTeX
           </div>
         </div>
 
-        {/* Card 4: Total Words */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
-            borderTop: '4px solid #2563eb',
-            padding: '14px 18px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          }}
-        >
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #2563eb', padding: '12px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
-            TỔNG DUNG LƯỢNG TỪ (WORDS)
+            DUNG LƯỢNG TỪ VỰNG (CORPUS)
           </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#2563eb', marginTop: '4px' }}>
-            {(dataset_overview.total_words / 1_000_000).toFixed(2)}M
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb', marginTop: '3px' }}>
+            {(dataset_overview.total_words / 1_000_000).toFixed(2)}M từ
           </div>
-          <div style={{ fontSize: '10px', color: '#475569', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
             Trung bình <strong>{filteredKpi.avgWords}</strong> từ / bài báo
-          </div>
-        </div>
-
-        {/* Card 5: Unique Authors */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
-            borderTop: '4px solid #7c3aed',
-            padding: '14px 18px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          }}
-        >
-          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
-            TỔNG NHÀ KHOA HỌC (AUTHORS)
-          </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#7c3aed', marginTop: '4px' }}>
-            35,117
-          </div>
-          <div style={{ fontSize: '10px', color: '#475569', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
-            Độ cộng tác: <strong>3.51</strong> tác giả / bài
-          </div>
-        </div>
-
-        {/* Card 6: LanceDB Vectors */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
-            borderTop: '4px solid #0891b2',
-            padding: '14px 18px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          }}
-        >
-          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
-            LANCEDB VECTORS INDEXED
-          </div>
-          <div style={{ fontSize: '26px', fontWeight: 800, color: '#0891b2', marginTop: '4px' }}>
-            143,523
-          </div>
-          <div style={{ fontSize: '10px', color: '#059669', marginTop: '4px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-            IVF-PQ 384-dim Cosine ANN Ready
           </div>
         </div>
       </div>
 
       {/* ============================================================== */}
-      {/* 3. SUB-VIEW 1: EXECUTIVE OVERVIEW (Tổng quan phân bố & xu hướng)*/}
+      {/* 3. ROW 1: DUAL-AXIS COMBO CLUSTERED BAR & TIMELINE AREA CHARTS */}
       {/* ============================================================== */}
-      {activeSubView === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Main Visuals Grid: Category Clustered Bar + Growth Area */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
-            {/* Visual 1: Clustered Category Bar Chart */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                padding: '20px',
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                    PHÂN BỐ BÀI BÁO &amp; KHỐI LƯỢNG CÔNG THỨC THEO CHUYÊN NGÀNH
-                  </h3>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                    Nhấp vào thanh bất kỳ để áp dụng Slicer lọc trực tiếp cho toàn dashboard
-                  </div>
-                </div>
-
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, backgroundColor: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '4px' }}>
-                  {categoryList.length} SUBFIELDS
-                </span>
-              </div>
-
-              {/* Clustered Bars */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {categoryList.map((cat) => {
-                  const isSelected = selectedCategory === cat.category;
-                  const isHighestMath = cat.category === 'cs.LG';
-                  const maxCount = 2380;
-                  const barWidth = Math.max(8, (cat.count / maxCount) * 100);
-
-                  return (
-                    <div
-                      key={cat.category}
-                      onClick={() => setSelectedCategory(isSelected ? 'ALL' : cat.category)}
-                      style={{
-                        cursor: 'pointer',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        backgroundColor: isSelected ? '#eff6ff' : 'transparent',
-                        border: isSelected ? '1px solid #bfdbfe' : '1px solid transparent',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)', marginBottom: '5px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontWeight: 800, color: isSelected ? '#1d4ed8' : '#0f172a' }}>{cat.category}</span>
-                          {isHighestMath && (
-                            <span style={{ fontSize: '9px', backgroundColor: '#fef3c7', color: '#d97706', padding: '1px 5px', borderRadius: '3px', fontWeight: 800 }}>
-                              TOP MATH
-                            </span>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '12px', color: '#475569' }}>
-                          <span><strong>{cat.count.toLocaleString()}</strong> bài ({cat.percentage.toFixed(1)}%)</span>
-                          <span style={{ color: '#ea580c', fontWeight: 700 }}>{cat.total_math_formulas.toLocaleString()} eq</span>
-                        </div>
-                      </div>
-
-                      {/* Visual Bar with Dual Gradient Indicator */}
-                      <div style={{ width: '100%', height: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${barWidth}%`,
-                            borderRadius: '4px',
-                            backgroundColor: cat.category.startsWith('cs.LG')
-                              ? '#2563eb'
-                              : cat.category.startsWith('cs.CV')
-                              ? '#0284c7'
-                              : cat.category.startsWith('cs.CL')
-                              ? '#0d9488'
-                              : cat.category.startsWith('cs.RO')
-                              ? '#f59e0b'
-                              : '#7c3aed',
-                            transition: 'width 0.4s ease',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Visual 2: Temporal Growth Velocity Area Chart */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                padding: '20px',
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  XU HƯỚNG TĂNG TRƯỞNG THEO THỜI GIAN (2005 - 2024)
-                </h3>
-                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                  Sự bùng nổ nghiên cứu AI/DS từ 2020 đến đỉnh điểm quý 1/2024
-                </div>
-
-                {/* Key Temporal Highlights */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '16px' }}>
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
-                    <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>ĐỈNH ĐIỂM THÁNG 1/2024</div>
-                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
-                      5,021 bài
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700, marginTop: '2px' }}>
-                      50.2% toàn bộ Lakehouse
-                    </div>
-                  </div>
-
-                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
-                    <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>THÁNG 2/2024</div>
-                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>
-                      3,797 bài
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700, marginTop: '2px' }}>
-                      38.0% toàn bộ Lakehouse
-                    </div>
-                  </div>
-                </div>
-
-                {/* Simulated Growth Bars */}
-                <div style={{ marginTop: '20px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#475569', marginBottom: '10px' }}>
-                    TỐC ĐỘ GIA TĂNG BẢN GHI (GROWTH TIMELINE)
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', height: '110px', gap: '8px', paddingBottom: '18px', borderBottom: '1px solid #e2e8f0' }}>
-                    {[
-                      { year: '2015', count: 6, height: 8 },
-                      { year: '2018', count: 6, height: 8 },
-                      { year: '2020', count: 18, height: 14 },
-                      { year: '2021', count: 48, height: 22 },
-                      { year: '2022', count: 116, height: 35 },
-                      { year: '2023', count: 994, height: 60 },
-                      { year: '2024', count: 8818, height: 100 },
-                    ].map((t) => (
-                      <div key={t.year} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                        <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: t.year === '2024' ? '#2563eb' : '#64748b', fontWeight: t.year === '2024' ? 800 : 600, marginBottom: '4px' }}>
-                          {t.count > 1000 ? `${(t.count / 1000).toFixed(1)}k` : t.count}
-                        </span>
-                        <div
-                          style={{
-                            width: '100%',
-                            height: `${t.height}%`,
-                            borderRadius: '4px 4px 0 0',
-                            backgroundColor: t.year === '2024' ? '#2563eb' : t.year === '2023' ? '#60a5fa' : '#cbd5e1',
-                          }}
-                        />
-                        <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#475569', marginTop: '6px', fontWeight: 700 }}>
-                          {t.year}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Section Completeness Quality Gauge */}
-              <div style={{ marginTop: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a' }}>
-                    TỶ LỆ HOÀN THIỆN MỤC HỌC THUẬT (AR5IV HTML5)
-                  </span>
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#059669', fontFamily: 'var(--font-mono)' }}>
-                    90.2% FULL-TEXT
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#475569' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Abstract &amp; Title:</span>
-                    <span style={{ fontWeight: 700, color: '#059669' }}>100.0% (10,000 / 10,000)</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Introduction &amp; Background:</span>
-                    <span style={{ fontWeight: 700, color: '#059669' }}>98.4% (9,840 / 10,000)</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Methods &amp; Mathematical Proofs:</span>
-                    <span style={{ fontWeight: 700, color: '#2563eb' }}>91.2% (9,120 / 10,000)</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Results, Discussion &amp; Conclusion:</span>
-                    <span style={{ fontWeight: 700, color: '#2563eb' }}>88.7% (8,870 / 10,000)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* 4. SUB-VIEW 2: DEEP-DIVE TOÁN & VĂN BẢN (LATEX & CONTENT)       */}
-      {/* ============================================================== */}
-      {activeSubView === 'math_deep' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Quantile Distribution Cards */}
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              padding: '20px',
-              boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  PHÂN VỊ TOÁN HỌC &amp; DUNG LƯỢNG VĂN BẢN (QUANTILE BOX PLOT)
-                </h3>
-                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                  Phân tích hàm mật độ xác suất cho số lượng công thức toán và độ dài từ
-                </div>
-              </div>
-
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, backgroundColor: '#fef3c7', color: '#d97706', padding: '3px 8px', borderRadius: '4px' }}>
-                MAX: 3,412 FORMULAS
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
-              {[
-                { label: 'P25 (QUARTILE 1)', math: math_and_content_stats.math_quantiles.p25, words: math_and_content_stats.word_quantiles.p25, desc: '25% bài báo có dưới mức này' },
-                { label: 'P50 (MEDIAN)', math: math_and_content_stats.math_quantiles.median, words: math_and_content_stats.word_quantiles.median, desc: 'Điểm trung vị tập dữ liệu' },
-                { label: 'P75 (QUARTILE 3)', math: math_and_content_stats.math_quantiles.p75, words: math_and_content_stats.word_quantiles.p75, desc: '75% bài báo có dưới mức này' },
-                { label: 'P95 (DENSE MATH)', math: math_and_content_stats.math_quantiles.p95, words: math_and_content_stats.word_quantiles.p95, desc: 'Mật độ công thức cực cao' },
-                { label: 'MAX (OUTLIER)', math: math_and_content_stats.math_quantiles.max, words: math_and_content_stats.word_quantiles.max, desc: 'Kỷ lục công thức cao nhất' },
-              ].map((q, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '14px 16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#64748b' }}>
-                      {q.label}
-                    </div>
-                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#ea580c', marginTop: '6px' }}>
-                      {q.math.toLocaleString()}
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>
-                      công thức toán
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563eb' }}>
-                      {q.words.toLocaleString()} từ
-                    </div>
-                    <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '2px' }}>
-                      {q.desc}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 2D Quadrant Matrix: Word Count vs Math Density */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                padding: '20px',
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-              }}
-            >
-              <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                MA TRẬN 4 GÓC PHẦN TƯ (QUADRANT MATRIX): TOÁN HỌC vs. VĂN BẢN
-              </h3>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '16px' }}>
-                Phân loại cấu trúc học thuật theo mức độ trừu tượng lý thuyết và chiều sâu văn bản
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                {/* Quadrant 1 */}
-                <div style={{ backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: '8px', padding: '14px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#b45309', fontFamily: 'var(--font-mono)' }}>
-                    QUADRANT I: HEAVY THEORETICAL PROOFS
-                  </div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#78350f', marginTop: '4px' }}>
-                    Toán dày đặc (&gt; 350 eq) &bull; Văn bản súc tích (&lt; 5k từ)
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#92400e', marginTop: '6px', lineHeight: 1.45, margin: '6px 0 0 0' }}>
-                    Đặc trưng của chuyên ngành <strong>stat.ML</strong> và lý thuyết tối ưu hóa <strong>cs.LG</strong>. Tập trung vào định lý, bổ đề và chứng minh hội tụ.
-                  </p>
-                </div>
-
-                {/* Quadrant 2 */}
-                <div style={{ backgroundColor: '#dbeafe', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '14px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#1d4ed8', fontFamily: 'var(--font-mono)' }}>
-                    QUADRANT II: FOUNDATIONAL MONOGRAPHS
-                  </div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e40af', marginTop: '4px' }}>
-                    Toán nhiều (&gt; 300 eq) &bull; Văn bản dài (&gt; 8k từ)
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#1e3a8a', marginTop: '6px', lineHeight: 1.45, margin: '6px 0 0 0' }}>
-                    Các công trình nền tảng, báo cáo kiến trúc lớn (Foundational Models, Multi-modal Transformers).
-                  </p>
-                </div>
-
-                {/* Quadrant 3 */}
-                <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#475569', fontFamily: 'var(--font-mono)' }}>
-                    QUADRANT III: SHORT COMMUNICATIONS
-                  </div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', marginTop: '4px' }}>
-                    Toán ít (&lt; 100 eq) &bull; Văn bản ngắn (&lt; 4k từ)
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#475569', marginTop: '6px', lineHeight: 1.45, margin: '6px 0 0 0' }}>
-                    Các bài báo vị thế (Position papers), bài báo hội thảo (Workshop notes) và đề xuất ý tưởng ban đầu.
-                  </p>
-                </div>
-
-                {/* Quadrant 4 */}
-                <div style={{ backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '14px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#047857', fontFamily: 'var(--font-mono)' }}>
-                    QUADRANT IV: EMPIRICAL BENCHMARKS &amp; LLMS
-                  </div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#065f46', marginTop: '4px' }}>
-                    Toán vừa (&lt; 150 eq) &bull; Văn bản dài (&gt; 7k từ)
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#064e3b', marginTop: '6px', lineHeight: 1.45, margin: '6px 0 0 0' }}>
-                    Nghiên cứu thực nghiệm <strong>cs.CL / NLP</strong> và hệ thống <strong>cs.CV</strong>: Bảng biểu benchmark chi tiết, đánh giá ablation study.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Ranking of Math Rigor by Category */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                padding: '20px',
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-              }}
-            >
-              <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                XẾP HẠNG MẬT ĐỘ TOÁN THEO CHUYÊN NGÀNH
-              </h3>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
-                Số lượng công thức toán trung bình trên mỗi bài báo
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {[...categoryList]
-                  .sort((a, b) => b.total_math_formulas / b.count - a.total_math_formulas / a.count)
-                  .map((c, idx) => {
-                    const avg = c.total_math_formulas / c.count;
-                    return (
-                      <div
-                        key={c.category}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          backgroundColor: idx === 0 ? '#fffbeb' : '#f8fafc',
-                          border: idx === 0 ? '1px solid #fde68a' : '1px solid #e2e8f0',
-                          fontSize: '11px',
-                          fontFamily: 'var(--font-mono)',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 800, color: idx < 3 ? '#d97706' : '#64748b' }}>
-                            #{idx + 1}
-                          </span>
-                          <span style={{ fontWeight: 800, color: '#0f172a' }}>{c.category}</span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 800, color: '#ea580c' }}>{avg.toFixed(1)}</span>
-                          <span style={{ color: '#94a3b8', fontSize: '10px' }}>eq/paper</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* 5. SUB-VIEW 3: LIÊN NGÀNH & TÁC GIẢ (NETWORK & CO-OCCURRENCE)   */}
-      {/* ============================================================== */}
-      {activeSubView === 'network' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '20px' }}>
-            {/* Visual C1: Interdisciplinary Co-Occurrence Matrix Heatmap */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                padding: '20px',
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                    MA TRẬN GIAO THOA LIÊN NGÀNH (CROSS-DISCIPLINARY CO-OCCURRENCE)
-                  </h3>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                    Cường độ hợp tác và điểm giao thoa giữa các phân mảng AI/DS
-                  </div>
-                </div>
-
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, backgroundColor: '#ede9fe', color: '#7c3aed', padding: '3px 8px', borderRadius: '4px' }}>
-                  HEATMAP MATRIX
-                </span>
-              </div>
-
-              {/* Heatmap Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' }}>
-                {category_cooccurrence.slice(0, 16).map((pair) => {
-                  const isTopPair = pair.cooccurrence_count > 300;
-                  return (
-                    <div
-                      key={`${pair.category_a}-${pair.category_b}`}
-                      style={{
-                        backgroundColor: isTopPair ? '#f5f3ff' : '#f8fafc',
-                        border: isTopPair ? '1px solid #ddd6fe' : '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        padding: '10px 12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '6px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                          <span style={{ fontWeight: 800, color: '#7c3aed' }}>{pair.category_a}</span>
-                          <span style={{ color: '#94a3b8' }}>&times;</span>
-                          <span style={{ fontWeight: 800, color: '#2563eb' }}>{pair.category_b}</span>
-                        </div>
-
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            backgroundColor: isTopPair ? '#7c3aed' : '#e2e8f0',
-                            color: isTopPair ? '#ffffff' : '#334155',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                          }}
-                        >
-                          {pair.cooccurrence_count}
-                        </span>
-                      </div>
-
-                      <div style={{ width: '100%', height: '4px', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${Math.min(100, (pair.cooccurrence_count / 542) * 100)}%`,
-                            backgroundColor: isTopPair ? '#7c3aed' : '#60a5fa',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Visual C2: Top Prolific Researchers Leaderboard */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                padding: '20px',
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                    BẢNG XẾP HẠNG TÁC GIẢ NĂNG SUẤT CAO
-                  </h3>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                    Top 10 tác giả có số lượng bài báo lớn nhất trong tập 10k Parquet
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {top_authors.slice(0, 10).map((author, idx) => (
-                  <div
-                    key={author.author}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      backgroundColor: idx < 3 ? '#eff6ff' : '#f8fafc',
-                      border: idx < 3 ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                      fontSize: '11px',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          borderRadius: '50%',
-                          backgroundColor: idx === 0 ? '#ef4444' : idx === 1 ? '#f59e0b' : idx === 2 ? '#2563eb' : '#cbd5e1',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '9px',
-                          fontWeight: 800,
-                        }}
-                      >
-                        {idx + 1}
-                      </span>
-                      <span style={{ fontWeight: 700, color: '#0f172a' }}>{author.author}</span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontWeight: 800, color: '#2563eb' }}>{author.paper_count}</span>
-                      <span style={{ color: '#94a3b8', fontSize: '10px' }}>papers</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* 6. SUB-VIEW 4: PARQUET DATA GRID (Bảng dữ liệu kiểu PowerBI)   */}
-      {/* ============================================================== */}
-      {activeSubView === 'table' && (
+      <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: '18px' }}>
+        {/* CHART 1: COMBO CLUSTERED COLUMN & LINE DUAL AXIS */}
         <div
           style={{
             backgroundColor: '#ffffff',
             borderRadius: '12px',
             border: '1px solid #e2e8f0',
-            padding: '20px',
+            padding: '18px 20px',
             boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '14px',
           }}
         >
-          {/* Table Header Controls */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <div>
-              <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                BẢNG DỮ LIỆU BÀI BÁO KHOA HỌC (PARQUET COLUMNAR DATA GRID)
+              <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                BIỂU ĐỒ CỘT &amp; ĐƯỜNG KẾT HỢP: PHÂN BỐ BÀI BÁO &amp; CÔNG THỨC TOÁN
               </h3>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                Hiển thị {filteredTableRows.length} bản ghi phù hợp với các bộ lọc Slicer
+              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                Cột xanh: Số lượng bài báo (Trục trái) &bull; Đường cam: Tổng công thức toán (Trục phải)
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>
-                Sắp xếp theo:
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '8px', height: '8px', backgroundColor: '#2563eb', borderRadius: '2px' }} />
+                <span>Papers</span>
               </span>
-              <select
-                value={sortField}
-                onChange={(e) => setSortField(e.target.value as any)}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  backgroundColor: '#ffffff',
-                }}
-              >
-                <option value="formulas">Công thức toán</option>
-                <option value="words">Độ dài từ vựng</option>
-                <option value="date">Ngày xuất bản</option>
-                <option value="category">Chuyên ngành</option>
-              </select>
-
-              <button
-                type="button"
-                onClick={() => setSortAsc((v) => !v)}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  backgroundColor: '#f8fafc',
-                  cursor: 'pointer',
-                }}
-              >
-                {sortAsc ? '▲ Tăng dần' : '▼ Giảm dần'}
-              </button>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '8px', height: '2px', backgroundColor: '#ea580c' }} />
+                <span>Formulas (Line)</span>
+              </span>
             </div>
           </div>
 
-          {/* Table Content */}
-          <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', color: '#475569' }}>
-                  <th style={{ padding: '10px 12px' }}>ARXIV ID</th>
-                  <th style={{ padding: '10px 12px' }}>TIÊU ĐỀ NGHIÊN CỨU</th>
-                  <th style={{ padding: '10px 12px' }}>CHUYÊN NGÀNH</th>
-                  <th style={{ padding: '10px 12px' }}>TÁC GIẢ CHÍNH</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>MATH EQUATIONS</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>WORDS</th>
-                  <th style={{ padding: '10px 12px' }}>NGÀY</th>
-                  <th style={{ padding: '10px 12px' }}>HTML5</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTableRows.slice((currentPage - 1) * 10, currentPage * 10).map((row) => (
-                  <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 800, color: '#2563eb' }}>
-                      {row.id}
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#0f172a', fontWeight: 600, maxWidth: '320px' }}>
-                      {row.title}
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span
-                        style={{
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          fontWeight: 800,
-                          backgroundColor: row.category.startsWith('cs.LG')
-                            ? '#dbeafe'
-                            : row.category.startsWith('cs.CV')
-                            ? '#e0f2fe'
-                            : '#ede9fe',
-                          color: row.category.startsWith('cs.LG')
-                            ? '#1d4ed8'
-                            : row.category.startsWith('cs.CV')
-                            ? '#0369a1'
-                            : '#6d28d9',
+          {/* SVG DUAL-AXIS COMBO CHART */}
+          <div style={{ width: '100%', height: '230px', position: 'relative' }}>
+            <svg
+              viewBox="0 0 680 230"
+              style={{ width: '100%', height: '100%', overflow: 'visible' }}
+            >
+              {/* Horizontal Grid lines */}
+              {[0, 1, 2, 3, 4].map((g) => {
+                const y = 30 + g * 38;
+                return (
+                  <g key={g}>
+                    <line x1="50" y1={y} x2="640" y2={y} stroke="#f1f5f9" strokeDasharray="3 3" />
+                    {/* Left axis label (Papers: 0 to 2,500) */}
+                    <text x="44" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
+                      {Math.round(2500 - g * 625)}
+                    </text>
+                    {/* Right axis label (Formulas: 0 to 1,000,000) */}
+                    <text x="646" y={y + 3} textAnchor="start" fontSize="9" fontFamily="var(--font-mono)" fill="#ea580c">
+                      {`${Math.round((1000 - g * 250))}k`}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Bottom Baseline */}
+              <line x1="50" y1="182" x2="640" y2="182" stroke="#cbd5e1" strokeWidth="1" />
+
+              {/* Columns for Papers (Max 2,500) */}
+              {categoryList.slice(0, 8).map((cat, i) => {
+                const barX = 75 + i * 70;
+                const barWidth = 32;
+                const colHeight = Math.max(8, (cat.count / 2500) * 152);
+                const barY = 182 - colHeight;
+                const isSelected = selectedCategory === cat.category;
+                const color = isSelected ? '#1d4ed8' : getCategoryColor(cat.category);
+
+                return (
+                  <g
+                    key={cat.category}
+                    onClick={() => setSelectedCategory(isSelected ? 'ALL' : cat.category)}
+                    onMouseEnter={(e: MouseEvent<SVGGElement>) => {
+                      const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                      setHoveredBar({
+                        category: cat.category,
+                        count: cat.count,
+                        math: cat.total_math_formulas,
+                        x: rect.left + rect.width / 2,
+                        y: rect.top - 8,
+                      });
+                    }}
+                    onMouseLeave={() => setHoveredBar(null)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* Column Rectangle */}
+                    <rect
+                      x={barX}
+                      y={barY}
+                      width={barWidth}
+                      height={colHeight}
+                      rx="4"
+                      fill={color}
+                      opacity={selectedCategory !== 'ALL' && !isSelected ? 0.35 : 0.9}
+                      style={{ transition: 'all 0.2s ease' }}
+                    />
+
+                    {/* Value above bar */}
+                    <text
+                      x={barX + barWidth / 2}
+                      y={barY - 5}
+                      textAnchor="middle"
+                      fontSize="9"
+                      fontFamily="var(--font-mono)"
+                      fontWeight="700"
+                      fill="#0f172a"
+                    >
+                      {cat.count > 999 ? `${(cat.count / 1000).toFixed(1)}k` : cat.count}
+                    </text>
+
+                    {/* Category Label below X-axis */}
+                    <text
+                      x={barX + barWidth / 2}
+                      y="198"
+                      textAnchor="middle"
+                      fontSize="10"
+                      fontFamily="var(--font-mono)"
+                      fontWeight={isSelected ? '800' : '600'}
+                      fill={isSelected ? '#1d4ed8' : '#334155'}
+                    >
+                      {cat.category}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Line & Dots for Math Formulas (Max 1,000,000) */}
+              {(() => {
+                const points = categoryList.slice(0, 8).map((cat, i) => {
+                  const cx = 75 + i * 70 + 16;
+                  const cy = 182 - Math.max(6, (cat.total_math_formulas / 1000000) * 152);
+                  return { cx, cy, cat };
+                });
+
+                const pathD = points
+                  .map((p, i) => (i === 0 ? `M ${p.cx} ${p.cy}` : `L ${p.cx} ${p.cy}`))
+                  .join(' ');
+
+                return (
+                  <g>
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke="#ea580c"
+                      strokeWidth="2.5"
+                      strokeDasharray="4 2"
+                      style={{ pointerEvents: 'none' }}
+                    />
+
+                    {points.map((p, idx) => (
+                      <circle
+                        key={idx}
+                        cx={p.cx}
+                        cy={p.cy}
+                        r="4.5"
+                        fill="#ffffff"
+                        stroke="#ea580c"
+                        strokeWidth="2.5"
+                        style={{ cursor: 'pointer' }}
+                        onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                          setHoveredBar({
+                            category: p.cat.category,
+                            count: p.cat.count,
+                            math: p.cat.total_math_formulas,
+                            x: rect.left,
+                            y: rect.top - 8,
+                          });
                         }}
-                      >
-                        {row.category}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#475569' }}>
-                      {row.author}
-                    </td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#ea580c' }}>
-                      {row.formulas}
-                    </td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>
-                      {row.words.toLocaleString()}
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#64748b' }}>
-                      {row.date}
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontSize: '9px', fontWeight: 800, backgroundColor: '#ecfdf5', color: '#059669', padding: '2px 6px', borderRadius: '4px' }}>
-                        ✓ ENRICHED
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        onMouseLeave={() => setHoveredBar(null)}
+                      />
+                    ))}
+                  </g>
+                );
+              })()}
+            </svg>
+          </div>
+        </div>
+
+        {/* CHART 2: SMOOTH AREA TIMELINE CHART (TEMPORAL GROWTH VELOCITY) */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            padding: '18px 20px',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <div>
+              <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                BIỂU ĐỒ ĐƯỜNG &amp; VÙNG: TĂNG TRƯỞNG XUẤT BẢN THEO THỜI GIAN
+              </h3>
+              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                Tốc độ gia tăng bài báo: Đỉnh điểm 5,021 bài (Tháng 1/2024)
+              </div>
+            </div>
+
+            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb', backgroundColor: '#eff6ff', padding: '2px 8px', borderRadius: '4px' }}>
+              EXPONENTIAL
+            </span>
           </div>
 
-          {/* Pagination Controls */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
-              Trang {currentPage} / {Math.ceil(filteredTableRows.length / 10) || 1} &bull; Tổng {filteredTableRows.length} bài
-            </span>
+          {/* SVG AREA CHART */}
+          <div style={{ width: '100%', height: '230px' }}>
+            <svg
+              viewBox="0 0 460 230"
+              style={{ width: '100%', height: '100%', overflow: 'visible' }}
+            >
+              <defs>
+                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2563eb" stopOpacity="0.45" />
+                  <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
+                </linearGradient>
+              </defs>
 
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                type="button"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: currentPage <= 1 ? '#f8fafc' : '#ffffff',
-                  color: currentPage <= 1 ? '#94a3b8' : '#334155',
-                  cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                }}
-              >
-                &larr; Trang trước
-              </button>
+              {/* Grid lines */}
+              {[0, 1, 2, 3].map((g) => {
+                const y = 35 + g * 45;
+                return (
+                  <g key={g}>
+                    <line x1="40" y1={y} x2="430" y2={y} stroke="#f1f5f9" strokeDasharray="3 3" />
+                    <text x="34" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
+                      {Math.round(5500 - g * 1800)}
+                    </text>
+                  </g>
+                );
+              })}
 
-              <button
-                type="button"
-                disabled={currentPage * 10 >= filteredTableRows.length}
-                onClick={() => setCurrentPage((p) => p + 1)}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: currentPage * 10 >= filteredTableRows.length ? '#f8fafc' : '#ffffff',
-                  color: currentPage * 10 >= filteredTableRows.length ? '#94a3b8' : '#334155',
-                  cursor: currentPage * 10 >= filteredTableRows.length ? 'not-allowed' : 'pointer',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                }}
-              >
-                Trang kế tiếp &rarr;
-              </button>
+              <line x1="40" y1="180" x2="430" y2="180" stroke="#cbd5e1" strokeWidth="1" />
+
+              {/* Data points along curve */}
+              {(() => {
+                const points = [
+                  { label: "'18", count: 8, x: 55, y: 178, pct: '0.1%' },
+                  { label: "'20", count: 18, x: 110, y: 176, pct: '0.2%' },
+                  { label: "'21", count: 48, x: 165, y: 174, pct: '0.5%' },
+                  { label: "'22", count: 116, x: 220, y: 170, pct: '1.2%' },
+                  { label: "'23", count: 994, x: 275, y: 148, pct: '9.9%' },
+                  { label: '01/24', count: 5021, x: 340, y: 44, pct: '50.2%' },
+                  { label: '02/24', count: 3797, x: 410, y: 78, pct: '38.0%' },
+                ];
+
+                const lineD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+                const areaD = `${lineD} L ${points[points.length - 1].x} 180 L ${points[0].x} 180 Z`;
+
+                return (
+                  <g>
+                    {/* Area fill */}
+                    <path d={areaD} fill="url(#areaGradient)" />
+
+                    {/* Smooth curve line */}
+                    <path d={lineD} fill="none" stroke="#2563eb" strokeWidth="3" />
+
+                    {/* Peak annotations */}
+                    <rect x="306" y="24" width="68" height="17" rx="3" fill="#2563eb" />
+                    <text x="340" y="36" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
+                      5,021 BÀI
+                    </text>
+
+                    {/* Point circles */}
+                    {points.map((p, i) => (
+                      <g key={i}>
+                        <circle
+                          cx={p.x}
+                          cy={p.y}
+                          r={p.count > 1000 ? '5' : '3.5'}
+                          fill="#ffffff"
+                          stroke="#2563eb"
+                          strokeWidth="2.5"
+                          style={{ cursor: 'pointer' }}
+                          onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                            const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                            setHoveredTimelineYear({
+                              year: p.label,
+                              count: p.count,
+                              pct: p.pct,
+                              x: rect.left,
+                              y: rect.top - 8,
+                            });
+                          }}
+                          onMouseLeave={() => setHoveredTimelineYear(null)}
+                        />
+
+                        {/* X-axis label */}
+                        <text x={p.x} y="196" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="700" fill="#475569">
+                          {p.label}
+                        </text>
+                      </g>
+                    ))}
+                  </g>
+                );
+              })()}
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 4. ROW 2: 2D INTERACTIVE SCATTER PLOT (BIỂU ĐỒ PHÂN TÁN)       */}
+      {/* ============================================================== */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          padding: '20px',
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                BIỂU ĐỒ PHÂN TÁN 2 CHIỀU (SCATTER PLOT): TƯƠNG QUAN ĐỘ DÀI TỪ vs. MẬT ĐỘ TOÁN HỌC
+              </h3>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c', backgroundColor: '#fff7ed', padding: '2px 8px', borderRadius: '4px' }}>
+                {filteredScatterPoints.length} BÀI BÁO KHẢO SÁT
+              </span>
             </div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px', fontFamily: 'var(--font-mono)' }}>
+              Trục hoành X: Độ dài từ vựng (Word count) &bull; Trục tung Y: Số lượng công thức toán (Math Formulas) &bull; Rê chuột vào từng hạt để đọc tiêu đề &amp; số liệu
+            </div>
+          </div>
+
+          {/* Color legend for scatter points */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
+            {[
+              { cat: 'cs.LG', color: '#2563eb' },
+              { cat: 'stat.ML', color: '#ea580c' },
+              { cat: 'cs.CV', color: '#0284c7' },
+              { cat: 'cs.AI', color: '#7c3aed' },
+              { cat: 'cs.CL', color: '#0d9488' },
+              { cat: 'cs.RO', color: '#f59e0b' },
+            ].map((item) => (
+              <span key={item.cat} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: item.color }} />
+                <span>{item.cat}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* SVG SCATTER PLOT */}
+        <div style={{ width: '100%', height: '360px', position: 'relative' }}>
+          <svg
+            viewBox="0 0 940 350"
+            style={{ width: '100%', height: '100%', overflow: 'visible' }}
+          >
+            {/* Background 4 Quadrants Colors */}
+            {/* Quadrant I: Heavy Math Theoretical (Top Left) */}
+            <rect x="60" y="30" width="410" height="135" fill="rgba(254, 243, 199, 0.35)" />
+            <text x="75" y="48" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#b45309">
+              QUADRANT I: HEAVY THEORETICAL MATH (&gt; 300 eq &bull; &le; 6k words)
+            </text>
+
+            {/* Quadrant II: Foundational Monographs (Top Right) */}
+            <rect x="470" y="30" width="440" height="135" fill="rgba(219, 234, 254, 0.35)" />
+            <text x="485" y="48" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#1d4ed8">
+              QUADRANT II: FOUNDATIONAL MONOGRAPHS (&gt; 300 eq &bull; &gt; 6k words)
+            </text>
+
+            {/* Quadrant III: Short Communications (Bottom Left) */}
+            <rect x="60" y="165" width="410" height="135" fill="rgba(241, 245, 249, 0.45)" />
+            <text x="75" y="288" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#64748b">
+              QUADRANT III: SHORT COMMUNICATIONS (&lt; 300 eq &bull; &le; 6k words)
+            </text>
+
+            {/* Quadrant IV: Empirical Systems & LLMs (Bottom Right) */}
+            <rect x="470" y="165" width="440" height="135" fill="rgba(236, 253, 245, 0.45)" />
+            <text x="485" y="288" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#047857">
+              QUADRANT IV: EMPIRICAL SYSTEMS &amp; LLMS (&lt; 300 eq &bull; &gt; 6k words)
+            </text>
+
+            {/* Quadrant Divider Lines */}
+            <line x1="470" y1="30" x2="470" y2="300" stroke="#cbd5e1" strokeDasharray="4 3" strokeWidth="1.5" />
+            <line x1="60" y1="165" x2="910" y2="165" stroke="#cbd5e1" strokeDasharray="4 3" strokeWidth="1.5" />
+
+            {/* Y-Axis Grid Lines & Labels (0 to 1,200 formulas) */}
+            {[0, 300, 600, 900, 1200].map((val) => {
+              const y = 300 - (val / 1200) * 270;
+              return (
+                <g key={val}>
+                  <line x1="55" y1={y} x2="910" y2={y} stroke="#f1f5f9" strokeWidth="1" />
+                  <text x="50" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill="#64748b">
+                    {val} eq
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* X-Axis Grid Lines & Labels (0 to 12,000 words) */}
+            {[0, 2000, 4000, 6000, 8000, 10000, 12000].map((val) => {
+              const x = 60 + (val / 12000) * 850;
+              return (
+                <g key={val}>
+                  <line x1={x} y1="30" x2={x} y2="305" stroke="#f1f5f9" strokeWidth="1" />
+                  <text x={x} y="318" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill="#64748b">
+                    {val > 0 ? `${val / 1000}k` : '0'} words
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Axes Borders */}
+            <line x1="60" y1="30" x2="60" y2="300" stroke="#94a3b8" strokeWidth="1.5" />
+            <line x1="60" y1="300" x2="910" y2="300" stroke="#94a3b8" strokeWidth="1.5" />
+
+            {/* Scatter Points Circles */}
+            {filteredScatterPoints.map((pt) => {
+              const cx = 60 + Math.min(850, (pt.words / 12000) * 850);
+              const cy = 300 - Math.min(270, (pt.formulas / 1200) * 270);
+              const color = getCategoryColor(pt.category);
+              const isHovered = hoveredScatterPoint?.point.id === pt.id;
+
+              return (
+                <circle
+                  key={pt.id}
+                  cx={cx}
+                  cy={cy}
+                  r={isHovered ? '8' : pt.formulas > 600 ? '6.5' : '5'}
+                  fill={color}
+                  stroke="#ffffff"
+                  strokeWidth={isHovered ? '2.5' : '1.5'}
+                  opacity={isHovered ? 1 : 0.85}
+                  style={{
+                    cursor: 'pointer',
+                    transition: 'r 0.15s ease, opacity 0.15s ease',
+                  }}
+                  onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                    const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                    setHoveredScatterPoint({
+                      point: pt,
+                      x: rect.left + rect.width / 2,
+                      y: rect.top - 10,
+                    });
+                  }}
+                  onMouseLeave={() => setHoveredScatterPoint(null)}
+                />
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 5. ROW 3: DONUT TAXONOMY + TOP AUTHORS BARS + HEATMAP MATRIX   */}
+      {/* ============================================================== */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '18px' }}>
+        {/* CHART 3: DONUT TAXONOMY SHARE */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            padding: '18px',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+            CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
+          </h3>
+          <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
+            Tỷ lệ phần trăm phân bố 10,000 bài báo
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', height: '170px' }}>
+            {/* SVG Donut */}
+            <div style={{ width: '130px', height: '130px', flexShrink: 0 }}>
+              <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+                {/* Simulated Donut Slices using strokeDasharray */}
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#2563eb" strokeWidth="16" strokeDasharray="56.8 182" strokeDashoffset="0" />
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#0284c7" strokeWidth="16" strokeDasharray="54.2 184" strokeDashoffset="-56.8" />
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#0d9488" strokeWidth="16" strokeDasharray="35.0 203" strokeDashoffset="-111.0" />
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#f59e0b" strokeWidth="16" strokeDasharray="16.3 222" strokeDashoffset="-146.0" />
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#7c3aed" strokeWidth="16" strokeDasharray="14.4 224" strokeDashoffset="-162.3" />
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#ea580c" strokeWidth="16" strokeDasharray="7.6 231" strokeDashoffset="-176.7" />
+
+                {/* Center Hole Info */}
+                <text x="50" y="48" textAnchor="middle" fontSize="11" fontFamily="var(--font-mono)" fontWeight="800" fill="#0f172a">
+                  10,000
+                </text>
+                <text x="50" y="58" textAnchor="middle" fontSize="7" fontFamily="var(--font-mono)" fontWeight="700" fill="#64748b">
+                  PAPERS
+                </text>
+              </svg>
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '10px', fontFamily: 'var(--font-mono)', flex: 1 }}>
+              {categoryList.slice(0, 5).map((cat) => (
+                <div key={cat.category} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: getCategoryColor(cat.category) }} />
+                    <span style={{ fontWeight: 700, color: '#334155' }}>{cat.category}</span>
+                  </span>
+                  <span style={{ fontWeight: 800, color: '#0f172a' }}>{cat.percentage.toFixed(1)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* CHART 4: TOP 8 PROLIFIC AUTHORS HORIZONTAL BARS */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            padding: '18px',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+            TOP 7 TÁC GIẢ NĂNG SUẤT CAO (HORIZONTAL BARS)
+          </h3>
+          <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
+            Xếp hạng theo số lượng bài báo trong tập Parquet
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {top_authors.slice(0, 7).map((author, idx) => {
+              const maxCount = top_authors[0]?.paper_count || 1;
+              const widthPct = Math.max(10, (author.paper_count / maxCount) * 100);
+
+              return (
+                <div key={author.author}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>
+                    <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                      #{idx + 1} {author.author}
+                    </span>
+                    <span style={{ fontWeight: 800, color: '#2563eb' }}>
+                      {author.paper_count} papers
+                    </span>
+                  </div>
+
+                  <div style={{ width: '100%', height: '6px', backgroundColor: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${widthPct}%`,
+                        backgroundColor: idx === 0 ? '#ef4444' : idx === 1 ? '#f59e0b' : idx === 2 ? '#2563eb' : '#60a5fa',
+                        borderRadius: '3px',
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* CHART 5: INTERDISCIPLINARY CO-OCCURRENCE HEATMAP MATRIX */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            padding: '18px',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+            MA TRẬN GIAO THOA LIÊN NGÀNH (HEATMAP MATRIX)
+          </h3>
+          <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
+            Độ đậm nhạt phản ánh số lượng bài báo lai ghép
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+            {category_cooccurrence.slice(0, 9).map((pair) => {
+              const maxCooccur = 542;
+              const intensity = Math.min(1, pair.cooccurrence_count / maxCooccur);
+              const isTop = pair.cooccurrence_count > 300;
+
+              return (
+                <div
+                  key={`${pair.category_a}-${pair.category_b}`}
+                  style={{
+                    backgroundColor: isTop ? `rgba(124, 58, 237, ${0.15 + intensity * 0.5})` : `rgba(37, 99, 235, ${0.1 + intensity * 0.4})`,
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    padding: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isTop ? '#5b21b6' : '#1e40af' }}>
+                    {pair.category_a} &times; {pair.category_b}
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a', marginTop: '2px' }}>
+                    {pair.cooccurrence_count}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* FLOATING HOVER TOOLTIP FOR CHARTS                              */}
+      {/* ============================================================== */}
+      {hoveredScatterPoint && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoveredScatterPoint.x}px`,
+            top: `${hoveredScatterPoint.y}px`,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: '#0f172a',
+            color: '#ffffff',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            maxWidth: '300px',
+            border: '1px solid #334155',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: getCategoryColor(hoveredScatterPoint.point.category) }}>
+              {hoveredScatterPoint.point.id} &bull; {hoveredScatterPoint.point.category}
+            </span>
+          </div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginTop: '4px', lineHeight: 1.4 }}>
+            {hoveredScatterPoint.point.title}
+          </div>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '6px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#cbd5e1' }}>
+            <span>Toán: <strong style={{ color: '#ea580c' }}>{hoveredScatterPoint.point.formulas} eq</strong></span>
+            <span>Độ dài: <strong style={{ color: '#38bdf8' }}>{hoveredScatterPoint.point.words.toLocaleString()} words</strong></span>
+          </div>
+        </div>
+      )}
+
+      {hoveredBar && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoveredBar.x}px`,
+            top: `${hoveredBar.y}px`,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: '#0f172a',
+            color: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            fontSize: '11px',
+            fontFamily: 'var(--font-mono)',
+            border: '1px solid #334155',
+          }}
+        >
+          <div style={{ fontWeight: 800, color: getCategoryColor(hoveredBar.category) }}>
+            {hoveredBar.category}
+          </div>
+          <div style={{ marginTop: '2px' }}>
+            Số bài: <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / 10000) * 100).toFixed(1)}%)
+          </div>
+          <div style={{ color: '#ea580c' }}>
+            Công thức: <strong>{hoveredBar.math.toLocaleString()}</strong> (avg {(hoveredBar.math / hoveredBar.count).toFixed(1)}/paper)
+          </div>
+        </div>
+      )}
+
+      {hoveredTimelineYear && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoveredTimelineYear.x}px`,
+            top: `${hoveredTimelineYear.y}px`,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: '#0f172a',
+            color: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            fontSize: '11px',
+            fontFamily: 'var(--font-mono)',
+            border: '1px solid #334155',
+          }}
+        >
+          <div style={{ fontWeight: 800, color: '#38bdf8' }}>
+            Thời kỳ: {hoveredTimelineYear.year}
+          </div>
+          <div style={{ marginTop: '2px' }}>
+            Bài báo xuất bản: <strong>{hoveredTimelineYear.count.toLocaleString()}</strong>
+          </div>
+          <div style={{ color: '#34d399' }}>
+            Tỷ trọng: <strong>{hoveredTimelineYear.pct}</strong>
           </div>
         </div>
       )}
