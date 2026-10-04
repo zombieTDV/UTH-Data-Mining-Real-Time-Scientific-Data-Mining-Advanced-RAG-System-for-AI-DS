@@ -173,7 +173,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
                 fontWeight: 700,
                 color: (hasPannedOrZoomed || zoomLevel !== 1) ? (isDark ? '#38bdf8' : '#2563eb') : btnStyle.color,
                 backgroundColor: (hasPannedOrZoomed || zoomLevel !== 1) ? (isDark ? 'rgba(56, 189, 248, 0.16)' : '#e0f2fe') : btnStyle.backgroundColor,
-                borderColor: (hasPannedOrZoomed || zoomLevel !== 1) ? (isDark ? 'rgba(56, 189, 248, 0.4)' : '#93c5fd') : btnStyle.borderColor,
+                border: (hasPannedOrZoomed || zoomLevel !== 1) ? `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#93c5fd'}` : btnStyle.border,
               }}
               title="Đặt lại góc nhìn và tỷ lệ ban đầu 100% (Reset Pan & Zoom)"
             >

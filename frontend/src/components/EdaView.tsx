@@ -1270,7 +1270,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     return (
                       <g
                         key={cat.category}
-                        onClick={() => setSelectedCategory(isSelected ? 'ALL' : cat.category)}
+                        onClick={() => {
+                          if (!comboPanZoom.didDrag()) {
+                            setSelectedCategory(isSelected ? 'ALL' : cat.category);
+                          }
+                        }}
                         onMouseEnter={(e: MouseEvent<SVGGElement>) => {
                           const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
                           setHoveredBar({
@@ -1465,10 +1469,34 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     );
                   })()}
                 </svg>
-              );
-            })()}
-          </div>
-        </div>
+                {comboPanZoom.hasPannedOrZoomed && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      right: '8px',
+                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
+                      border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
+                      borderRadius: '4px',
+                      padding: '2px 7px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      color: isDark ? '#38bdf8' : '#0284c7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      pointerEvents: 'none',
+                      backdropFilter: 'blur(4px)',
+                      zIndex: 10,
+                    }}
+                  >
+                    <span>✥</span>
+                    <span>{Math.round(comboPanZoom.zoom * 100)}%</span>
+                    <span style={{ color: themeStyles.textMuted }}>• Kéo để pan</span>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* CHART 2: SMOOTH AREA TIMELINE CHART */}
             {!isSidebarCollapsed && (
@@ -1513,10 +1541,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         { period: '01/24', papers: 5021, cumulative_share: '50.2%' },
                         { period: '02/24', papers: 3797, cumulative_share: '38.0%' },
                       ]}
-                      zoomLevel={timelineZoom}
-                      onZoomIn={() => setTimelineZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
-                      onZoomOut={() => setTimelineZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
-                      onResetZoom={() => setTimelineZoom(1)}
+                      zoomLevel={timelinePanZoom.zoom}
+                      hasPannedOrZoomed={timelinePanZoom.hasPannedOrZoomed}
+                      onZoomIn={() => timelinePanZoom.zoomIn(0.25)}
+                      onZoomOut={() => timelinePanZoom.zoomOut(0.25)}
+                      onResetZoom={timelinePanZoom.resetView}
                       onShowToast={(msg) => {
                         setFeedbackToast(msg);
                         setTimeout(() => setFeedbackToast(null), 2500);
@@ -1527,27 +1556,21 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                 {/* SVG AREA CHART */}
                 <div
-                  style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}
-                  onWheel={(e) => {
-                    if (e.deltaY < 0) {
-                      setTimelineZoom((z) => Math.min(2.5, +(z + 0.15).toFixed(2)));
-                    } else {
-                      setTimelineZoom((z) => Math.max(0.5, +(z - 0.15).toFixed(2)));
-                    }
+                  {...timelinePanZoom.containerProps}
+                  style={{
+                    ...timelinePanZoom.containerProps.style,
+                    flex: 1,
+                    minHeight: 0,
+                    position: 'relative',
+                    overflow: 'hidden',
                   }}
                 >
-                  {(() => {
-                    const w = 460 / timelineZoom;
-                    const h = 230 / timelineZoom;
-                    const minX = 230 - w / 2;
-                    const minY = 115 - h / 2;
-                    return (
-                      <svg
-                        ref={timelineSvgRef}
-                        viewBox={`${minX} ${minY} ${w} ${h}`}
-                        preserveAspectRatio="xMidYMid meet"
-                        style={{ width: '100%', height: '100%' }}
-                      >
+                  <svg
+                    ref={timelineSvgRef}
+                    viewBox={timelinePanZoom.viewBox}
+                    preserveAspectRatio="xMidYMid meet"
+                    style={{ width: '100%', height: '100%' }}
+                  >
                         <defs>
                           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#2563eb" stopOpacity={isDark ? '0.6' : '0.45'} />
@@ -1624,11 +1647,35 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           );
                         })()}
                       </svg>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
+                      {timelinePanZoom.hasPannedOrZoomed && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: '8px',
+                            right: '8px',
+                            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
+                            border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
+                            borderRadius: '4px',
+                            padding: '2px 7px',
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            color: isDark ? '#38bdf8' : '#0284c7',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            pointerEvents: 'none',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 10,
+                          }}
+                        >
+                          <span>✥</span>
+                          <span>{Math.round(timelinePanZoom.zoom * 100)}%</span>
+                          <span style={{ color: themeStyles.textMuted }}>• Kéo để pan</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
           </div>
         )}
 
@@ -1753,10 +1800,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   theme={theme}
                   svgRef={scatterSvgRef}
                   filename="eda-content-depth-math-rigor-scatter"
-                  zoomLevel={scatterZoom}
-                  onZoomIn={() => setScatterZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
-                  onZoomOut={() => setScatterZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
-                  onResetZoom={() => setScatterZoom(1)}
+                  zoomLevel={scatterPanZoom.zoom}
+                  hasPannedOrZoomed={scatterPanZoom.hasPannedOrZoomed}
+                  onZoomIn={() => scatterPanZoom.zoomIn(0.25)}
+                  onZoomOut={() => scatterPanZoom.zoomOut(0.25)}
+                  onResetZoom={scatterPanZoom.resetView}
                   isLensActive={isLensActive}
                   onToggleLens={() => setIsLensActive((v) => !v)}
                   isTheater={isTheaterMode}
@@ -1779,26 +1827,25 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
             {/* SVG SCATTER PLOT */}
             <div
-              style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}
-              onWheel={(e) => {
-                if (e.deltaY < 0) {
-                  setScatterZoom((z) => Math.min(2.5, +(z + 0.15).toFixed(2)));
-                } else {
-                  setScatterZoom((z) => Math.max(0.5, +(z - 0.15).toFixed(2)));
-                }
+              {...(isLensActive ? {} : scatterPanZoom.containerProps)}
+              style={{
+                ...(isLensActive ? {} : scatterPanZoom.containerProps.style),
+                flex: 1,
+                minHeight: 0,
+                position: 'relative',
+                overflow: 'hidden',
               }}
             >
-              {(() => {
-                const w = 940 / scatterZoom;
-                const h = 330 / scatterZoom;
-                const minX = 470 - w / 2;
-                const minY = 165 - h / 2;
-                return (
-                  <svg
-                    ref={scatterSvgRef}
-                    viewBox={`${minX} ${minY} ${w} ${h}`}
-                    preserveAspectRatio="xMidYMid meet"
-                    style={{ width: '100%', height: '100%', overflow: 'visible', cursor: isLensActive ? 'crosshair' : 'default' }}
+              <svg
+                ref={scatterSvgRef}
+                viewBox={scatterPanZoom.viewBox}
+                preserveAspectRatio="xMidYMid meet"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  overflow: 'visible',
+                  cursor: isLensActive ? 'crosshair' : (scatterPanZoom.containerProps.style.cursor || 'default'),
+                }}
                     onMouseMove={(e: MouseEvent<SVGSVGElement>) => {
                       if (!isLensActive) return;
                       const rect = e.currentTarget.getBoundingClientRect();
@@ -1824,7 +1871,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       stroke={selectedQuadrant === 'Q1' ? '#f59e0b' : 'transparent'}
                       strokeWidth="1.5"
                       style={{ cursor: 'pointer' }}
-                      onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q1' ? 'ALL' : 'Q1')}
+                      onClick={() => {
+                        if (!scatterPanZoom.didDrag()) {
+                          setSelectedQuadrant(selectedQuadrant === 'Q1' ? 'ALL' : 'Q1');
+                        }
+                      }}
                     />
                     {/* Protective plate for Quadrant I */}
                     <rect
@@ -1851,7 +1902,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       stroke={selectedQuadrant === 'Q2' ? '#3b82f6' : 'transparent'}
                       strokeWidth="1.5"
                       style={{ cursor: 'pointer' }}
-                      onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q2' ? 'ALL' : 'Q2')}
+                      onClick={() => {
+                        if (!scatterPanZoom.didDrag()) {
+                          setSelectedQuadrant(selectedQuadrant === 'Q2' ? 'ALL' : 'Q2');
+                        }
+                      }}
                     />
                     {/* Protective plate for Quadrant II */}
                     <rect
@@ -1878,7 +1933,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       stroke={selectedQuadrant === 'Q3' ? '#94a3b8' : 'transparent'}
                       strokeWidth="1.5"
                       style={{ cursor: 'pointer' }}
-                      onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q3' ? 'ALL' : 'Q3')}
+                      onClick={() => {
+                        if (!scatterPanZoom.didDrag()) {
+                          setSelectedQuadrant(selectedQuadrant === 'Q3' ? 'ALL' : 'Q3');
+                        }
+                      }}
                     />
                     {/* Protective plate for Quadrant III */}
                     <rect
@@ -1905,7 +1964,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       stroke={selectedQuadrant === 'Q4' ? '#10b981' : 'transparent'}
                       strokeWidth="1.5"
                       style={{ cursor: 'pointer' }}
-                      onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q4' ? 'ALL' : 'Q4')}
+                      onClick={() => {
+                        if (!scatterPanZoom.didDrag()) {
+                          setSelectedQuadrant(selectedQuadrant === 'Q4' ? 'ALL' : 'Q4');
+                        }
+                      }}
                     />
                     {/* Protective plate for Quadrant IV */}
                     <rect
@@ -1977,7 +2040,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         cursor: 'pointer',
                         transition: 'r 0.15s ease, opacity 0.15s ease',
                       }}
-                      onClick={() => setSelectedPaperForDrawer(pt)}
+                      onClick={() => {
+                        if (!scatterPanZoom.didDrag()) {
+                          setSelectedPaperForDrawer(pt);
+                        }
+                      }}
                       onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
                         const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
                         setHoveredScatterPoint({
@@ -2098,11 +2165,35 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   </g>
                 )}
               </svg>
-            );
-          })()}
-        </div>
-      </div>
-    )}
+              {scatterPanZoom.hasPannedOrZoomed && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
+                    border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
+                    borderRadius: '4px',
+                    padding: '2px 7px',
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    color: isDark ? '#38bdf8' : '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    pointerEvents: 'none',
+                    backdropFilter: 'blur(4px)',
+                    zIndex: 10,
+                  }}
+                >
+                  <span>✥</span>
+                  <span>{Math.round(scatterPanZoom.zoom * 100)}%</span>
+                  <span style={{ color: themeStyles.textMuted }}>• Kéo để pan</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ------------------------------------------------------------ */}
         {/* SUB-DECK 3: TAXONOMY DONUT & HEATMAP MATRIX                  */}
