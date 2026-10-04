@@ -34,6 +34,17 @@ class Settings:
     ]
     ARXIV_REQUEST_DELAY_SECONDS: float = float(os.getenv("ARXIV_REQUEST_DELAY_SECONDS", "6.0"))
 
+    # OpenAlex API Keys
+    OPENALEX_API_KEY: str = os.getenv("OPENALEX_API_KEY","").strip()
+
+    # OpenAlex Categories Config
+    OPENALEX_SUB_FIELDS: List[str] = [
+        c.strip() 
+        for c in os.getenv("OPENALEX_SUB_FIELDS","1203,1702,1703,1706,1707,1710,1711,1804,2207,2613,3309,3310").split(",") 
+        if c.strip()
+    ]
+
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
 
