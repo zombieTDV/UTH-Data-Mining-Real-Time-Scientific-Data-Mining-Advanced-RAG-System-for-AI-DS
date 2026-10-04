@@ -63,6 +63,7 @@ export default function App() {
     };
   }, []);
 
+  const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
@@ -475,7 +476,10 @@ export default function App() {
             <div style={{ maxWidth: '1600px', width: '100%', height: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <MiningPillarsView
                 theme={theme}
-                onNavigateToRag={(_title) => {
+                onNavigateToRag={(title) => {
+                  if (title) {
+                    setRagInitialQuery(`What are the core findings, methodology, and empirical results of paper "${title}"?`);
+                  }
                   setActiveTab('rag');
                 }}
               />
@@ -484,7 +488,11 @@ export default function App() {
 
           {activeTab === 'rag' && (
             <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <GroundedRagChat />
+              <GroundedRagChat
+                theme={theme}
+                initialQuery={ragInitialQuery}
+                onClearInitialQuery={() => setRagInitialQuery('')}
+              />
             </div>
           )}
         </main>

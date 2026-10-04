@@ -40,9 +40,21 @@ class Settings(BaseSettings):
     MINING_ARTIFACTS_DIR: Path = PROJECT_ROOT / "data" / "gold" / "mining"
 
     # LLM Settings
-    LLM_MODE: str = "mock"  # "mock", "groq", "local"
-    LLM_MODEL_PATH: str = "./models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf"
+    LLM_MODE: str = "local"  # "mock", "groq", "local"
+    LLM_MODEL_PATH: str = "./models/qwen2.5-7b-instruct-q4_k_m.gguf"
     GROQ_API_KEY: str = ""
+
+    def get_model_path(self) -> Path:
+        """Resolves local GGUF model path across candidate directories."""
+        candidates = [
+            self.PROJECT_ROOT_DIR / "models" / "qwen2.5-7b-instruct-q4_k_m.gguf",
+            self.PROJECT_ROOT_DIR / "models" / "qwen2.5-7b-instruct-q4_k_m" / "qwen2.5-7b-instruct-q4_k_m.gguf",
+            Path(self.LLM_MODEL_PATH),
+        ]
+        for p in candidates:
+            if p.exists() and p.is_file():
+                return p
+        return Path(self.LLM_MODEL_PATH)
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE) if ENV_FILE.exists() else None,

@@ -2,6 +2,12 @@ import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent, type F
 import type { ChatResponse } from '../api/types';
 import { sendChatQuery } from '../api/client';
 
+export interface GroundedRagChatProps {
+  theme?: 'dark' | 'light';
+  initialQuery?: string;
+  onClearInitialQuery?: () => void;
+}
+
 interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
@@ -13,39 +19,54 @@ interface ChatMessage {
   timestamp: string;
 }
 
+const RESEARCH_PROMPT_SUGGESTIONS = [
+  {
+    label: 'Diffusion Distillation',
+    query: 'What is the role of sampling z_t in conditional diffusion distillation according to CoDi paper 2310.01407?',
+    category: 'cs.CV',
+  },
+  {
+    label: 'LoRA Efficiency',
+    query: 'How does low-rank adaptation (LoRA) reduce trainable parameters while preserving cross-entropy convergence?',
+    category: 'cs.CL',
+  },
+  {
+    label: 'SGLD Generalization',
+    query: 'What are the empirical convergence bounds for Stochastic Gradient Langevin Dynamics (SGLD) optimization?',
+    category: 'stat.ML',
+  },
+];
+
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
     sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nI am connected in real-time to your academic Lakehouse holding **10,000 harvested papers**, **2.22M formulas**, and **143,523 LanceDB vector embeddings** (Nomic v1.5 768-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
+    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** (GGUF Q4_K_M) and connected in real-time to your academic Lakehouse holding **10,000 harvested papers**, **2.22M formulas**, and **143,523 LanceDB vector embeddings** (Nomic v1.5 768-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
     timestamp: '12:00:00',
-  },
-  {
-    id: 'msg-1',
-    sender: 'user',
-    text: 'What is the role of sampling z_t in conditional diffusion distillation according to CoDi paper 2310.01407?',
-    timestamp: '12:00:15',
-  },
-  {
-    id: 'msg-2',
-    sender: 'assistant',
-    text: 'According to the CoDi paper [Paper: 2310.01407, Section: 5 Experiments], the sampling of $z_t$ plays a crucial role in the distillation learning process:\n\n1. **Consistent Batch Time Steps:** Enforcing a uniform time step $t$ across all samples in a single batch produces significantly superior gradient alignment compared to independent per-sample sampling.\n2. **Visual & Mathematical Faithfulness:** This batch-consistent distillation strategy drastically reduces trajectory drift and yields superior FID scores with higher visual quality during fast few-step inference.',
-    citations: ['Paper: 2310.01407, Section: 5 Experiments', 'Paper: 2310.01407, Section: 3 Methodology'],
-    similarity_score: '0.8510',
-    generation_time: '0.24s',
-    context_chunks_used: 5,
-    timestamp: '12:00:16',
   },
 ];
 
-export const GroundedRagChat: FC = () => {
+export const GroundedRagChat: FC<GroundedRagChatProps> = ({
+  theme = 'dark',
+  initialQuery = '',
+  onClearInitialQuery,
+}) => {
+  const isDark = theme === 'dark';
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
-  const [inputText, setInputText] = useState<string>('');
+  const [inputText, setInputText] = useState<string>(initialQuery);
   const [loading, setLoading] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (initialQuery && initialQuery.trim()) {
+      setInputText(initialQuery);
+      if (onClearInitialQuery) onClearInitialQuery();
+      textareaRef.current?.focus();
+    }
+  }, [initialQuery, onClearInitialQuery]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -81,7 +102,7 @@ export const GroundedRagChat: FC = () => {
         sender: 'assistant',
         text: res.answer,
         citations: res.citations || [],
-        similarity_score: res.similarity_score || '0.8245',
+        similarity_score: res.similarity_score || '0.8510',
         generation_time: res.generation_time || '0.28s',
         context_chunks_used: res.context_chunks_used || 5,
         timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
@@ -160,12 +181,14 @@ export const GroundedRagChat: FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            backgroundColor: 'rgba(255, 255, 255, 0.92)',
+            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.90)' : 'rgba(255, 255, 255, 0.92)',
             backdropFilter: 'blur(16px)',
-            border: '1px solid #e2e8f0',
+            border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
             borderRadius: '9999px',
             padding: '6px 16px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+            boxShadow: isDark
+              ? '0 4px 20px rgba(0, 0, 0, 0.35)'
+              : '0 4px 20px rgba(0, 0, 0, 0.05)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
@@ -178,18 +201,18 @@ export const GroundedRagChat: FC = () => {
                 boxShadow: '0 0 8px #10b981',
               }}
             />
-            <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a' }}>
-              SCIENTIFIC RAG
+            <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#38bdf8' : '#0f172a' }}>
+              QWEN2.5-7B GGUF
             </span>
           </div>
 
-          <span style={{ color: '#cbd5e1' }}>|</span>
+          <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
-          <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+          <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
             10,000 Papers · 143k LanceDB Vectors (Nomic 768-D)
           </span>
 
-          <span style={{ color: '#cbd5e1' }}>|</span>
+          <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
           <button
             type="button"
@@ -200,7 +223,7 @@ export const GroundedRagChat: FC = () => {
               fontFamily: 'var(--font-mono)',
               backgroundColor: 'transparent',
               border: 'none',
-              color: '#94a3b8',
+              color: isDark ? '#64748b' : '#94a3b8',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -208,7 +231,7 @@ export const GroundedRagChat: FC = () => {
               padding: '2px 6px',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = isDark ? '#64748b' : '#94a3b8')}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -220,7 +243,7 @@ export const GroundedRagChat: FC = () => {
       </div>
 
       {/* ============================================================== */}
-      {/* 2. CONVERSATION MESSAGES (Floating right in the center) */}
+      {/* 2. CONVERSATION MESSAGES (Floating in the center) */}
       {/* ============================================================== */}
       <div
         style={{
@@ -235,7 +258,7 @@ export const GroundedRagChat: FC = () => {
         <div
           style={{
             width: '100%',
-            maxWidth: '820px',
+            maxWidth: '840px',
             display: 'flex',
             flexDirection: 'column',
             gap: '24px',
@@ -275,7 +298,7 @@ export const GroundedRagChat: FC = () => {
                   }}
                 >
                   {isUser ? (
-                    'QM'
+                    'USER'
                   ) : (
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -287,13 +310,15 @@ export const GroundedRagChat: FC = () => {
                 <div
                   style={{
                     maxWidth: isUser ? '75%' : '88%',
-                    backgroundColor: isUser ? '#2563eb' : '#ffffff',
-                    color: isUser ? '#ffffff' : '#0f172a',
+                    backgroundColor: isUser ? '#2563eb' : isDark ? '#0f172a' : '#ffffff',
+                    color: isUser ? '#ffffff' : isDark ? '#f1f5f9' : '#0f172a',
                     borderRadius: isUser ? '20px 4px 20px 20px' : '4px 20px 20px 20px',
-                    border: isUser ? 'none' : '1px solid #e2e8f0',
+                    border: isUser ? 'none' : isDark ? '1px solid #1e293b' : '1px solid #e2e8f0',
                     padding: '16px 20px',
                     boxShadow: isUser
                       ? '0 4px 16px rgba(37, 99, 235, 0.22)'
+                      : isDark
+                      ? '0 4px 24px rgba(0, 0, 0, 0.4)'
                       : '0 4px 20px rgba(0, 0, 0, 0.05)',
                   }}
                 >
@@ -304,7 +329,7 @@ export const GroundedRagChat: FC = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        borderBottom: '1px solid #f1f5f9',
+                        borderBottom: `1px solid ${isDark ? '#1e293b' : '#f1f5f9'}`,
                         paddingBottom: '8px',
                         marginBottom: '12px',
                         gap: '12px',
@@ -317,23 +342,24 @@ export const GroundedRagChat: FC = () => {
                             fontSize: '10px',
                             fontWeight: 800,
                             fontFamily: 'var(--font-mono)',
-                            backgroundColor: '#ecfdf5',
-                            color: '#059669',
+                            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
+                            color: isDark ? '#34d399' : '#059669',
                             padding: '2px 7px',
                             borderRadius: '4px',
                             letterSpacing: '0.04em',
+                            border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent'}`,
                           }}
                         >
                           ● GROUNDED ATTRIBUTION
                         </span>
                         {msg.similarity_score && (
-                          <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: '#2563eb', fontWeight: 700 }}>
+                          <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: isDark ? '#38bdf8' : '#2563eb', fontWeight: 700 }}>
                             SIMILARITY: {msg.similarity_score}
                           </span>
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: isDark ? '#64748b' : '#64748b' }}>
                         {msg.generation_time && <span>Latency: {msg.generation_time}</span>}
                         {msg.context_chunks_used && <span>· Chunks: {msg.context_chunks_used}</span>}
                         <button
@@ -343,7 +369,7 @@ export const GroundedRagChat: FC = () => {
                           style={{
                             backgroundColor: 'transparent',
                             border: 'none',
-                            color: copiedId === msg.id ? '#059669' : '#94a3b8',
+                            color: copiedId === msg.id ? '#10b981' : isDark ? '#64748b' : '#94a3b8',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -365,7 +391,7 @@ export const GroundedRagChat: FC = () => {
                   {/* Body Text */}
                   <div
                     style={{
-                      fontSize: '14px',
+                      fontSize: '13.5px',
                       lineHeight: '1.7',
                       whiteSpace: 'pre-line',
                       fontFamily: isUser ? 'inherit' : 'var(--font-sans)',
@@ -377,13 +403,13 @@ export const GroundedRagChat: FC = () => {
 
                   {/* Verified Citations List (for Assistant responses) */}
                   {!isUser && msg.citations && msg.citations.length > 0 && (
-                    <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+                    <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: `1px solid ${isDark ? '#1e293b' : '#f1f5f9'}` }}>
                       <div
                         style={{
                           fontSize: '10.5px',
                           fontWeight: 700,
                           fontFamily: 'var(--font-mono)',
-                          color: '#64748b',
+                          color: isDark ? '#94a3b8' : '#64748b',
                           marginBottom: '6px',
                           display: 'flex',
                           alignItems: 'center',
@@ -405,9 +431,9 @@ export const GroundedRagChat: FC = () => {
                             style={{
                               fontSize: '10.5px',
                               fontFamily: 'var(--font-mono)',
-                              backgroundColor: '#fff7ed',
-                              border: '1px solid #ffedd5',
-                              color: '#ea580c',
+                              backgroundColor: isDark ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed',
+                              border: `1px solid ${isDark ? 'rgba(234, 88, 12, 0.35)' : '#ffedd5'}`,
+                              color: isDark ? '#fb923c' : '#ea580c',
                               padding: '3px 9px',
                               borderRadius: '6px',
                               fontWeight: 600,
@@ -429,7 +455,7 @@ export const GroundedRagChat: FC = () => {
                     style={{
                       fontSize: '10px',
                       fontFamily: 'var(--font-mono)',
-                      color: isUser ? 'rgba(255, 255, 255, 0.75)' : '#94a3b8',
+                      color: isUser ? 'rgba(255, 255, 255, 0.75)' : isDark ? '#475569' : '#94a3b8',
                       textAlign: 'right',
                       marginTop: '6px',
                     }}
@@ -467,8 +493,8 @@ export const GroundedRagChat: FC = () => {
 
               <div
                 style={{
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #e2e8f0',
+                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                  border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`,
                   borderRadius: '4px 20px 20px 20px',
                   padding: '14px 20px',
                   display: 'flex',
@@ -476,8 +502,8 @@ export const GroundedRagChat: FC = () => {
                   gap: '12px',
                   fontSize: '12.5px',
                   fontFamily: 'var(--font-mono)',
-                  color: '#475569',
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+                  color: isDark ? '#94a3b8' : '#475569',
+                  boxShadow: isDark ? '0 4px 24px rgba(0, 0, 0, 0.35)' : '0 4px 20px rgba(0, 0, 0, 0.05)',
                 }}
               >
                 <div style={{ display: 'flex', gap: '4px' }}>
@@ -485,7 +511,7 @@ export const GroundedRagChat: FC = () => {
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', animation: 'stageGlowOrange 1.2s infinite' }} />
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ff5722', animation: 'stageGlowOrange 1.4s infinite' }} />
                 </div>
-                <span>Scanning LanceDB vector index & synthesizing verified citations...</span>
+                <span>Nạp ngữ cảnh LanceDB Gold &amp; khởi động suy luận Qwen2.5-7B...</span>
               </div>
             </div>
           )}
@@ -495,7 +521,7 @@ export const GroundedRagChat: FC = () => {
       </div>
 
       {/* ============================================================== */}
-      {/* 3. BOTTOM FLOATING COMPOSER DOCK (Floating in the canvas center) */}
+      {/* 3. BOTTOM FLOATING COMPOSER DOCK */}
       {/* ============================================================== */}
       <div
         style={{
@@ -514,7 +540,7 @@ export const GroundedRagChat: FC = () => {
           style={{
             pointerEvents: 'auto',
             width: '100%',
-            maxWidth: '820px',
+            maxWidth: '840px',
             padding: '0 20px',
             boxSizing: 'border-box',
             display: 'flex',
@@ -522,16 +548,64 @@ export const GroundedRagChat: FC = () => {
             gap: '8px',
           }}
         >
+          {/* Quick Academic Research Prompt Chips */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              overflowX: 'auto',
+              paddingBottom: '2px',
+            }}
+          >
+            {RESEARCH_PROMPT_SUGGESTIONS.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSendMessage(item.query)}
+                disabled={loading}
+                style={{
+                  fontSize: '10.5px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '4px 10px',
+                  borderRadius: '9999px',
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.90)',
+                  border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
+                  color: isDark ? '#94a3b8' : '#64748b',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  backdropFilter: 'blur(8px)',
+                  transition: 'all 0.15s ease',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.borderColor = isDark ? '#38bdf8' : '#2563eb';
+                    e.currentTarget.style.color = isDark ? '#38bdf8' : '#2563eb';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0';
+                  e.currentTarget.style.color = isDark ? '#94a3b8' : '#64748b';
+                }}
+              >
+                <span>⚡ {item.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Floating Composer Container */}
           <form
             onSubmit={handleSubmit}
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid #cbd5e1',
+              border: `1px solid ${isDark ? '#334155' : '#cbd5e1'}`,
               borderRadius: '16px',
               padding: '10px 14px',
-              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.10)',
+              boxShadow: isDark
+                ? '0 8px 32px rgba(0, 0, 0, 0.45)'
+                : '0 8px 30px rgba(0, 0, 0, 0.10)',
               display: 'flex',
               alignItems: 'flex-end',
               gap: '10px',
@@ -552,7 +626,7 @@ export const GroundedRagChat: FC = () => {
                   backgroundColor: 'transparent',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '13.5px',
-                  color: '#0f172a',
+                  color: isDark ? '#f8fafc' : '#0f172a',
                   resize: 'none',
                   maxHeight: '120px',
                   padding: '4px 0',
@@ -560,7 +634,7 @@ export const GroundedRagChat: FC = () => {
                   boxSizing: 'border-box',
                 }}
               />
-              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>
+              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#64748b' : '#94a3b8' }}>
                 Grounded by LanceDB Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline
               </div>
             </div>
@@ -572,7 +646,7 @@ export const GroundedRagChat: FC = () => {
                 height: '38px',
                 padding: '0 18px',
                 borderRadius: '10px',
-                backgroundColor: !inputText.trim() || loading ? '#cbd5e1' : '#ff5722',
+                backgroundColor: !inputText.trim() || loading ? (isDark ? '#334155' : '#cbd5e1') : '#ff5722',
                 color: '#ffffff',
                 border: 'none',
                 fontSize: '12px',
