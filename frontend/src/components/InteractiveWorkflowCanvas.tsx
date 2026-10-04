@@ -226,7 +226,7 @@ Ground every assertion strictly in provided LanceDB chunks.
 };
 
 export interface InteractiveWorkflowCanvasProps {
-  onNavigateTab?: (tab: 'schematic' | 'eda' | 'pillars' | 'rag' | 'logs') => void;
+  onNavigateTab?: (tab: 'schematic' | 'eda' | 'pillars' | 'rag') => void;
   isPipelineRunning?: boolean;
   onTriggerPipeline?: () => void;
 }

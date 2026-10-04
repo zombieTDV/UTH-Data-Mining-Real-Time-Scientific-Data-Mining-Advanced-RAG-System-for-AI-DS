@@ -3,11 +3,9 @@ import { InteractiveWorkflowCanvas } from './components/InteractiveWorkflowCanva
 import { EdaView } from './components/EdaView';
 import { MiningPillarsView } from './components/MiningPillarsView';
 import { GroundedRagChat } from './components/GroundedRagChat';
-import { LiveTelemetryFeed } from './components/LiveTelemetryFeed';
-import { ToolLogosGrid } from './components/ToolLogos';
 import { fetchHealth, subscribeTelemetry, triggerMiningPipeline } from './api/client';
 
-export type AppTab = 'schematic' | 'eda' | 'pillars' | 'rag' | 'logs';
+export type AppTab = 'schematic' | 'eda' | 'pillars' | 'rag';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('schematic');
@@ -195,55 +193,31 @@ export default function App() {
             <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>MODEL</span>
           </button>
 
-          {/* Grounded RAG Chat */}
+          {/* Grounded RAG Chat (Right after MODEL) */}
           <button
             type="button"
             onClick={() => setActiveTab('rag')}
             title="Grounded Scientific RAG Chat"
             style={{
-              width: '38px',
-              height: '38px',
+              width: '44px',
+              height: '44px',
               borderRadius: '9px',
-              backgroundColor: activeTab === 'rag' ? 'rgba(255, 255, 255, 0.16)' : 'transparent',
+              backgroundColor: activeTab === 'rag' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
               color: activeTab === 'rag' ? '#ffffff' : '#94a3b8',
-              border: 'none',
+              border: activeTab === 'rag' ? '1px solid rgba(255, 255, 255, 0.25)' : 'none',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
+              gap: '2px',
             }}
           >
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-          </button>
-
-          {/* Telemetry & Storage */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('logs')}
-            title="Live Telemetry Feed & Cloudflare R2 Stats"
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '9px',
-              backgroundColor: activeTab === 'logs' ? 'rgba(255, 255, 255, 0.16)' : 'transparent',
-              color: activeTab === 'logs' ? '#ffffff' : '#94a3b8',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
+            <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>RAG</span>
           </button>
         </nav>
 
@@ -470,15 +444,8 @@ export default function App() {
           )}
 
           {activeTab === 'rag' && (
-            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto', height: '100%' }}>
               <GroundedRagChat />
-            </div>
-          )}
-
-          {activeTab === 'logs' && (
-            <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <LiveTelemetryFeed />
-              <ToolLogosGrid />
             </div>
           )}
         </main>
