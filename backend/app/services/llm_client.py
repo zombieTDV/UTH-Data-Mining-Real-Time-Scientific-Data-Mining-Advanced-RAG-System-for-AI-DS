@@ -18,8 +18,12 @@ logger = logging.getLogger("llm_client")
 
 class LlmClient:
     def __init__(self):
-        self.node_llm_url = f"{settings.LLM_SERVICE_URL.rstrip('/')}/chat/completions"
-        self.ollama_url = f"{settings.OLLAMA_SERVICE_URL.rstrip('/')}/chat/completions"
+        base_node = settings.LLM_SERVICE_URL.rstrip('/')
+        self.node_llm_url = f"{base_node}/chat/completions" if base_node.endswith("/v1") else f"{base_node}/v1/chat/completions"
+
+        base_ollama = settings.OLLAMA_SERVICE_URL.rstrip('/')
+        self.ollama_url = f"{base_ollama}/chat/completions" if base_ollama.endswith("/v1") else f"{base_ollama}/v1/chat/completions"
+
         self.groq_url = "https://api.groq.com/openai/v1/chat/completions"
 
     def _get_active_endpoint(self) -> Optional[str]:
