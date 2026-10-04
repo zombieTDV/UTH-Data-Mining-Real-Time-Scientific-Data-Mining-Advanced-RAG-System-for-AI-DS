@@ -1,4 +1,4 @@
-import { useState, useEffect, type FC } from 'react';
+import { useState, useEffect, useRef, type FC, type MouseEvent } from 'react';
 
 export type PipelineStageKey =
   | 'idle'
@@ -235,8 +235,55 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   onTriggerPipeline,
   isPipelineRunning = false,
 }) => {
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('duckdb');
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+
+  // Pan and Zoom Canvas State
+  const [zoom, setZoom] = useState<number>(1.0);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Native Wheel Event Listener for smooth zoom centered on mouse
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+      setZoom((prev) => {
+        const next = Math.min(Math.max(prev * zoomFactor, 0.4), 2.4);
+        return parseFloat(next.toFixed(2));
+      });
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button, aside, pre, code, input')) return;
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    panStartRef.current = { ...pan };
+  };
+
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    setPan({
+      x: panStartRef.current.x + dx,
+      y: panStartRef.current.y + dy,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
   // Simulation state for realistic data streaming animation
   const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
@@ -310,6 +357,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   return (
     <div
+      ref={canvasRef}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -319,6 +371,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         alignItems: 'center',
         userSelect: 'none',
         position: 'relative',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        overflow: 'hidden',
       }}
     >
       {/* Minimal Floating Canvas Telemetry HUD */}
@@ -334,6 +388,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           padding: '6px 16px',
           boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
           marginBottom: '40px',
+          zIndex: 10,
         }}
       >
         <span
@@ -375,12 +430,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       </div>
 
       {/* ============================================================== */}
-      {/* HORIZONTAL DATA MINING PIPELINE (Centered in Viewport) */}
+      {/* HORIZONTAL DATA MINING PIPELINE (Centered in Viewport & Zoomable) */}
       {/* ============================================================== */}
       <div
         style={{
           width: '100%',
-          overflowX: 'auto',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
@@ -389,6 +443,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       >
         <div
           style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: 'center center',
+            transition: isDragging ? 'none' : 'transform 0.12s cubic-bezier(0.16, 1, 0.3, 1)',
             display: 'flex',
             alignItems: 'center',
             minWidth: '1280px',
@@ -1210,6 +1267,119 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
         </aside>
       )}
+
+      {/* Floating Canvas Pan & Zoom Controls */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '48px',
+          right: '32px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          backgroundColor: 'rgba(255, 255, 255, 0.92)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: '10px',
+          border: '1px solid #e2e8f0',
+          padding: '4px 10px',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+          zIndex: 40,
+        }}
+      >
+        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b', marginRight: '4px' }}>
+          CANVAS
+        </span>
+
+        <button
+          type="button"
+          onClick={() => setZoom((z) => Math.max(parseFloat((z - 0.1).toFixed(2)), 0.4))}
+          title="Zoom Out (Mouse Wheel Down)"
+          style={{
+            width: '28px',
+            height: '28px',
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
+            backgroundColor: '#f8fafc',
+            color: '#0f172a',
+            fontSize: '15px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          -
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setZoom(1.0);
+            setPan({ x: 0, y: 0 });
+          }}
+          title="Reset Zoom & Pan (100%)"
+          style={{
+            border: 'none',
+            borderRadius: '6px',
+            backgroundColor: 'transparent',
+            color: '#0f172a',
+            fontSize: '11px',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 800,
+            padding: '4px 8px',
+            cursor: 'pointer',
+          }}
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setZoom((z) => Math.min(parseFloat((z + 0.1).toFixed(2)), 2.4))}
+          title="Zoom In (Mouse Wheel Up)"
+          style={{
+            width: '28px',
+            height: '28px',
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
+            backgroundColor: '#f8fafc',
+            color: '#0f172a',
+            fontSize: '15px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          +
+        </button>
+
+        <div style={{ width: '1px', height: '18px', backgroundColor: '#e2e8f0', margin: '0 2px' }} />
+
+        <button
+          type="button"
+          onClick={() => {
+            setZoom(1.0);
+            setPan({ x: 0, y: 0 });
+          }}
+          title="Reset to Center"
+          style={{
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
+            backgroundColor: '#f8fafc',
+            color: '#475569',
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 700,
+            padding: '5px 8px',
+            cursor: 'pointer',
+          }}
+        >
+          RESET
+        </button>
+      </div>
     </div>
   );
 };
