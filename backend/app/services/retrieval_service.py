@@ -136,9 +136,10 @@ class RetrievalService:
         return results
 
     def get_paper(self, paper_id: str) -> List[ChunkDto]:
+        clean_id = paper_id.replace("arXiv:", "").replace("arxiv:", "").strip()
         if self.is_ready():
             try:
-                rows = self.table.search().where(f"paper_id = '{paper_id}'").limit(20).to_pandas()
+                rows = self.table.search().where(f"paper_id = '{clean_id}' OR paper_id = '{paper_id}'").limit(20).to_pandas()
                 results = []
                 for _, r in rows.iterrows():
                     results.append(
@@ -173,7 +174,7 @@ class RetrievalService:
                 source="canonical_gold_corpus",
             )
             for c in CANONICAL_SCIENTIFIC_CHUNKS
-            if c.get("paper_id") == paper_id
+            if c.get("paper_id") in (paper_id, clean_id)
         ]
 
 
