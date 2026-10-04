@@ -39,6 +39,12 @@ class RagService:
         if self._llm_initialized:
             return self._llm
 
+        if settings.LLM_MODE.lower() != "local":
+            logger.info("[RAG] LLM_MODE is '%s'. Heavy local LLM inference is disabled.", settings.LLM_MODE)
+            self._llm_initialized = True
+            self._llm = None
+            return None
+
         model_path = settings.get_model_path()
         if not model_path.exists():
             logger.warning("[RAG] GGUF model file not found at: %s. Using heuristic synthesis.", model_path)

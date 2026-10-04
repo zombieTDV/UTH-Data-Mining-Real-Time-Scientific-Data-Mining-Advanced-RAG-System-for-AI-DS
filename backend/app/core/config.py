@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     MINING_ARTIFACTS_DIR: Path = PROJECT_ROOT / "data" / "gold" / "mining"
 
     # LLM Settings
-    LLM_MODE: str = "local"  # "mock", "groq", "local"
+    LLM_MODE: str = "mock"  # "mock", "groq", "local"
     LLM_MODEL_PATH: str = "./models/qwen2.5-7b-instruct-q4_k_m.gguf"
     GROQ_API_KEY: str = ""
 
