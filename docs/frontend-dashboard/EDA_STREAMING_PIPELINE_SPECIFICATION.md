@@ -300,6 +300,22 @@ Frontend React (`src/components/EdaView.tsx`) sẽ được nâng cấp để ch
 3. **Real-Time Category Bar Chart**: Các thanh tỷ lệ phần trăm phân bố thể loại tự động trượt vị trí mượt mà (smooth CSS transition) khi thứ hạng thay đổi.
 4. **Live Anomaly Toast Stream**: Khi backend phát hiện bài báo dị biệt, hiển thị banner thông báo nhỏ gọn ở góc dưới bảng điều khiển, cho phép người dùng click để xem chi tiết bài báo bất thường.
 
+### 7.3. Đặc Tả Kiến Trúc Giao Diện Không Cuộn Trang (Viewport-Locked Non-Scrolling Cockpit)
+Yêu cầu bắt buộc mới của người dùng: **Loại bỏ hoàn toàn cơ chế cuộn trang dọc dài vô tận (Infinite Vertical Page Scroll)**. Bảng điều khiển EDA phải được tái cấu trúc thành một đài chỉ huy khoa học chuẩn phòng Lab (Single-Screen Cockpit), nơi mọi thông số trọng yếu đều nằm trọn vẹn trong tầm mắt người dùng.
+
+#### 1. Nguyên Tắc Thiết Kế Không Cuộn Trang (Zero-Scroll Principles)
+- **Viewport-Fit Architecture**: Chiều cao tổng thể của giao diện EDA được khóa vừa vặn trong khung nhìn màn hình (Viewport Height ~100vh trừ đi Global Header).
+- **Pinned Executive HUD (Khung Đầu Não Cố Định)**: 
+  - Đặt ở trên cùng: Trạng thái Live SSE, Xung nhịp Influx Rate (`p/s`, `words/s`), Epoch thời gian và thanh tóm tắt Funnel nén gọn.
+- **Segmented Sub-Deck Switcher (Thanh Điều Hướng Đa Tầng Dạng Viên Thuốc Capsule)**:
+  - Chia 9 chiều phân tích thành 5 Deck chuyên biệt chuyển đổi tức thì chỉ bằng 1 cú click hoặc phím tắt:
+    * **Deck 1: `INFLUX & TEMPORAL SURGE`**: Phễu thu thập + Biểu đồ Histogram dòng thời gian 2005-2024 + Đợt bùng nổ dữ liệu tháng 1-2/2024 + Domain Inflow Ribbon.
+    * **Deck 2: `RAG VECTOR LAKEHOUSE`**: Hồ 143.523 vector chunks trong LanceDB + Token window 485 tokens + Phân bổ nguồn gốc section (Methodology, Experiments, Intro...).
+    * **Deck 3: `TAXONOMY & CO-OCCURRENCE`**: Phân loại thể loại đa nhãn (có bộ lọc tìm kiếm tức thì) + Ma trận nhiệt tương quan đồng xuất hiện.
+    * **Deck 4: `DEEP STATS & QUANTILE`**: Bảng phân vị Five-number summary + Thanh đo IQR Box-Plot co giãn + Bảng tác giả hàng đầu.
+    * **Deck 5: `LEXICAL & QUALITY AUDIT`**: Top 15 từ khóa AI học thuật cốt lõi + Bảng kiểm chuẩn độ sạch dữ liệu (0% trùng SHA-256) + Quy mô nhóm tác giả (Định luật Lotka).
+- **Internal Micro-Scroll Cục Bộ**: Nếu một danh sách (như Top Authors hoặc Categories) có nhiều mục, chỉ riêng vùng chứa danh sách đó mới có thanh cuộn mượt nội bộ (internal overflow-y), trang chính hoàn toàn không bị cuộn.
+
 ---
 
 ## 8. SKELETON CODE MẪU CHO MODULE STREAMING EDA (THAM KHẢO IMPLEMENTATION)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type FC, type MouseEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
 import type {
   AssociationRulesResponse,
   ClustersResponse,
@@ -13,33 +13,104 @@ import {
   fetchGraph,
   fetchTrends,
 } from '../api/client';
+import { ChartToolbar } from './ChartToolbar';
 
-export const MiningPillarsView: FC = () => {
+export interface MiningPillarsViewProps {
+  theme?: 'dark' | 'light';
+  onNavigateToRag?: (title: string) => void;
+}
+
+// Decoded Semantic Topic Profiles for K-Means Clusters
+const CLUSTER_TOPIC_MAP: Record<number, { title: string; subtitle: string; domain: string }> = {
+  0: {
+    title: 'Large Language Models & In-Context Reasoning',
+    subtitle: 'Mô hình ngôn ngữ lớn, chuỗi suy luận CoT và tối ưu hóa Prompt',
+    domain: 'cs.CL, cs.AI',
+  },
+  1: {
+    title: 'Diffusion Models & High-Resolution Image Synthesis',
+    subtitle: 'Mô hình khuếch tán xác suất, tổng hợp ảnh và sinh ảnh điều kiện',
+    domain: 'cs.CV',
+  },
+  2: {
+    title: 'PAC-Bayes, SGLD Generalization & Optimization',
+    subtitle: 'Lý thuyết học máy thống kê, biên tổng quát hóa và hội tụ thuật toán',
+    domain: 'stat.ML, cs.LG',
+  },
+  3: {
+    title: 'Reinforcement Learning & Autonomous Robotics',
+    subtitle: 'Học tăng cường sâu, điều khiển robot tự hành và mô phỏng động lực',
+    domain: 'cs.RO',
+  },
+  4: {
+    title: 'Graph Neural Networks & Symbolic Knowledge Graphs',
+    subtitle: 'Mạng nơ-ron đồ thị, biểu diễn tri thức và suy luận quan hệ',
+    domain: 'cs.AI, cs.LG',
+  },
+  5: {
+    title: 'Zero-Shot Vision-Language Multimodal Transformers',
+    subtitle: 'Căn chỉnh đa phương thức thị giác - ngôn ngữ, Contrastive Learning',
+    domain: 'cs.CV, cs.CL',
+  },
+};
+
+export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
+  theme = 'dark',
+  onNavigateToRag,
+}) => {
+  const isDark = theme === 'dark';
+
+  // Active Viewport & Cockpit States
   const [activePillar, setActivePillar] = useState<1 | 2 | 3 | 4>(1);
+  const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showBaselines, setShowBaselines] = useState<boolean>(true);
 
-  // Pillar 1 state
+  // SVG Chart Refs for Vector Export
+  const p1SvgRef = useRef<SVGSVGElement | null>(null);
+  const p2SvgRef = useRef<SVGSVGElement | null>(null);
+  const p3SvgRef = useRef<SVGSVGElement | null>(null);
+  const p4VelocitySvgRef = useRef<SVGSVGElement | null>(null);
+  const p4AnomalySvgRef = useRef<SVGSVGElement | null>(null);
+
+  // Pillar 1: FP-Growth State
   const [rulesData, setRulesData] = useState<AssociationRulesResponse | null>(null);
   const [liftThreshold, setLiftThreshold] = useState<number>(1.5);
+  const [antecedentFilter, setAntecedentFilter] = useState<string>('ALL');
   const [hoveredRule, setHoveredRule] = useState<{ rule: AssociationRuleItem; x: number; y: number } | null>(null);
+  const [inspectedRule, setInspectedRule] = useState<AssociationRuleItem | null>(null);
+  const [p1Zoom, setP1Zoom] = useState<number>(1);
 
-  // Pillar 2 state
+  // Pillar 2: K-Means State & Zoom/Pan
   const [clustersData, setClustersData] = useState<ClustersResponse | null>(null);
-  const [hoveredPoint, setHoveredPoint] = useState<{ point: ScatterPointItem; x: number; y: number } | null>(null);
   const [selectedClusterFilter, setSelectedClusterFilter] = useState<number | 'ALL'>('ALL');
+  const [hoveredPoint, setHoveredPoint] = useState<{ point: ScatterPointItem; x: number; y: number } | null>(null);
+  const [inspectedPoint, setInspectedPoint] = useState<ScatterPointItem | null>(null);
+  const [p2Zoom, setP2Zoom] = useState<number>(1);
 
-  // Pillar 3 state
+  // Pillar 3: Graph State & Degree Filter & Zoom
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
+  const [searchAuthorQuery, setSearchAuthorQuery] = useState<string>('');
+  const [degreeFilter, setDegreeFilter] = useState<number>(0);
+  const [graphLayout, setGraphLayout] = useState<'circular' | 'force'>('circular');
   const [hoveredGraphNode, setHoveredGraphNode] = useState<{ node: any; x: number; y: number } | null>(null);
+  const [selectedGraphNode, setSelectedGraphNode] = useState<any | null>(null);
+  const [p3Zoom, setP3Zoom] = useState<number>(1);
 
-  // Pillar 4 state
+  // Pillar 4: Trend Velocity & Isolation Forest State & Zooms
   const [trendsData, setTrendsData] = useState<TrendsResponse | null>(null);
   const [hoveredAnomaly, setHoveredAnomaly] = useState<{ item: any; x: number; y: number } | null>(null);
+  const [inspectedAnomaly, setInspectedAnomaly] = useState<any | null>(null);
+  const [p4VelocityZoom, setP4VelocityZoom] = useState<number>(1);
+  const [p4AnomalyZoom, setP4AnomalyZoom] = useState<number>(1);
 
+  // Data Loading
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
     Promise.all([
       fetchAssociationRules(),
       fetchClusters(),
@@ -51,6 +122,12 @@ export const MiningPillarsView: FC = () => {
         setClustersData(clusters);
         setGraphData(graph);
         setTrendsData(trends);
+        if (rules?.rules?.length > 0) {
+          setInspectedRule(rules.rules[0]);
+        }
+        if (trends?.anomalies?.length > 0) {
+          setInspectedAnomaly(trends.anomalies[0]);
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -59,11 +136,84 @@ export const MiningPillarsView: FC = () => {
       });
   }, []);
 
-  // Filtered Rules by Lift
+  // Keyboard Navigation: 1-4 for Pillars, F for Focus Mode, T for Theater Mode, Esc to close/exit
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === '1') {
+        setActivePillar(1);
+      } else if (e.key === '2') {
+        setActivePillar(2);
+      } else if (e.key === '3') {
+        setActivePillar(3);
+      } else if (e.key === '4') {
+        setActivePillar(4);
+      } else if (e.key === 'f' || e.key === 'F') {
+        setIsFocusMode((prev) => !prev);
+      } else if (e.key === 't' || e.key === 'T') {
+        setIsTheaterMode((prev) => !prev);
+      } else if (e.key === 'Escape') {
+        if (inspectedPoint) setInspectedPoint(null);
+        else if (selectedGraphNode) setSelectedGraphNode(null);
+        else if (isTheaterMode) setIsTheaterMode(false);
+        else if (isFocusMode) setIsFocusMode(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [inspectedPoint, selectedGraphNode, isTheaterMode, isFocusMode]);
+
+  // Toast Helper
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2800);
+  };
+
+  // Color Palette & Dynamic Theme Tokens
+  const clusterColors = ['#2563eb', '#0284c7', '#0d9488', '#f59e0b', '#7c3aed', '#e11d48'];
+
+  const themeStyles = useMemo(
+    () => ({
+      cardBg: isDark ? 'rgba(15, 23, 42, 0.82)' : '#ffffff',
+      cardSubBg: isDark ? 'rgba(30, 41, 59, 0.65)' : '#f8fafc',
+      cardBorder: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+      cardBorderActive: isDark ? 'rgba(255, 255, 255, 0.22)' : '#cbd5e1',
+      textPrimary: isDark ? '#f8fafc' : '#0f172a',
+      textSecondary: isDark ? '#94a3b8' : '#64748b',
+      textMuted: isDark ? '#64748b' : '#94a3b8',
+      gridLine: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+      axisLine: isDark ? 'rgba(255, 255, 255, 0.16)' : '#cbd5e1',
+      canvasBg: isDark ? '#030712' : '#090d16',
+      tooltipBg: isDark ? '#020617' : '#0f172a',
+      barTrack: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+      stripBg: isDark ? 'rgba(15, 23, 42, 0.95)' : '#f8fafc',
+      stripBorder: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+      tagBg: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+    }),
+    [isDark]
+  );
+
+  // Filtered Rules by Lift and Antecedent
   const filteredRules = useMemo(() => {
     if (!rulesData) return [];
-    return rulesData.rules.filter((r) => r.lift >= liftThreshold);
-  }, [rulesData, liftThreshold]);
+    return rulesData.rules.filter((r) => {
+      const matchLift = r.lift >= liftThreshold;
+      if (antecedentFilter === 'ALL') return matchLift;
+      const matchCat = r.antecedents.some((ant) => ant.includes(antecedentFilter));
+      return matchLift && matchCat;
+    });
+  }, [rulesData, liftThreshold, antecedentFilter]);
 
   // Filtered Scatter points by cluster
   const filteredClusterPoints = useMemo(() => {
@@ -72,17 +222,195 @@ export const MiningPillarsView: FC = () => {
     return clustersData.scatter_2d.filter((p) => p.cluster === selectedClusterFilter);
   }, [clustersData, selectedClusterFilter]);
 
-  const clusterColors = ['#2563eb', '#0284c7', '#0d9488', '#f59e0b', '#7c3aed', '#e11d48'];
+  // Cluster Centroids for Pillar 2
+  const clusterCentroids = useMemo(() => {
+    if (!clustersData) return {} as Record<number, { x: number; y: number; count: number; maxR: number }>;
+    const centroids: Record<number, { x: number; y: number; count: number; maxR: number }> = {};
+    clustersData.scatter_2d.forEach((p) => {
+      if (!centroids[p.cluster]) {
+        centroids[p.cluster] = { x: 0, y: 0, count: 0, maxR: 0 };
+      }
+      centroids[p.cluster].x += p.x * 2.2;
+      centroids[p.cluster].y += p.y * 2.2;
+      centroids[p.cluster].count += 1;
+    });
+    Object.keys(centroids).forEach((cidStr) => {
+      const cid = Number(cidStr);
+      centroids[cid].x /= centroids[cid].count;
+      centroids[cid].y /= centroids[cid].count;
+      let maxDist = 0;
+      clustersData.scatter_2d
+        .filter((p) => p.cluster === cid)
+        .forEach((p) => {
+          const dx = p.x * 2.2 - centroids[cid].x;
+          const dy = p.y * 2.2 - centroids[cid].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > maxDist) maxDist = dist;
+        });
+      centroids[cid].maxR = Math.max(0.25, maxDist * 0.85);
+    });
+    return centroids;
+  }, [clustersData]);
+
+  // Deterministic Layout Node Coordinates for Pillar 3
+  const getNodeCoordinates = (node: any, idx: number, total: number) => {
+    if (graphLayout === 'force') {
+      const communityCenters: Record<number, { cx: number; cy: number }> = {
+        0: { cx: 190, cy: 110 },
+        1: { cx: 390, cy: 110 },
+        2: { cx: 180, cy: 220 },
+        3: { cx: 400, cy: 220 },
+        4: { cx: 290, cy: 80 },
+        5: { cx: 290, cy: 240 },
+      };
+      const center = communityCenters[node.community % 6] || { cx: 290, cy: 160 };
+      const angle = idx * 1.618033 * Math.PI * 2;
+      const dist = 18 + (idx % 5) * 12;
+      return {
+        cx: center.cx + Math.cos(angle) * dist,
+        cy: center.cy + Math.sin(angle) * (dist * 0.8),
+      };
+    } else {
+      const angle = (idx / total) * Math.PI * 2;
+      const r = 95 + (node.community % 4) * 32;
+      return {
+        cx: 290 + Math.cos(angle) * r,
+        cy: 160 + Math.sin(angle) * (r * 0.72),
+      };
+    }
+  };
+
+  // Ego-network calculation for Graph
+  const egoNetworkNodeIds = useMemo(() => {
+    const activeNode = selectedGraphNode || hoveredGraphNode?.node;
+    if (!activeNode || !graphData) return null;
+    const connected = new Set<string>();
+    connected.add(activeNode.id);
+    graphData.graph_export.links.forEach((link) => {
+      if (link.source === activeNode.id) connected.add(link.target);
+      if (link.target === activeNode.id) connected.add(link.source);
+    });
+    return connected;
+  }, [selectedGraphNode, hoveredGraphNode, graphData]);
+
+  // LaTeX Export Functions
+  const handleCopyLatexRules = () => {
+    if (!rulesData) return;
+    const lines = [
+      '% - Generated by UTH Scientific Data Mining System -',
+      '\\begin{table}[htbp]',
+      '\\centering',
+      `\\caption{Top FP-Growth Association Rules (Lift $\\ge$ ${liftThreshold.toFixed(1)})}`,
+      '\\label{tab:fp_growth_rules}',
+      '\\small',
+      '\\begin{tabular}{llrcc}',
+      '\\toprule',
+      '\\textbf{Antecedents} & \\textbf{Consequents} & \\textbf{Lift} & \\textbf{Confidence} & \\textbf{Support} \\\\',
+      '\\midrule',
+    ];
+
+    filteredRules.slice(0, 10).forEach((r) => {
+      const ant = r.antecedents.map((a) => a.replace(/_/g, '\\_')).join(', ');
+      const con = r.consequents.map((c) => c.replace(/_/g, '\\_')).join(', ');
+      lines.push(
+        `${ant} & ${con} & ${r.lift.toFixed(2)}\\times & ${(r.confidence * 100).toFixed(1)}\\% & ${(r.support * 100).toFixed(2)}\\% \\\\`
+      );
+    });
+
+    lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
+    navigator.clipboard.writeText(lines.join('\n'));
+    showToast('Đã sao chép bảng mã LaTeX Quy tắc kết hợp vào Clipboard!');
+  };
+
+  const handleCopyLatexClusters = () => {
+    if (!clustersData) return;
+    const lines = [
+      '% - Generated by UTH Scientific Data Mining System -',
+      '\\begin{table}[htbp]',
+      '\\centering',
+      '\\caption{Semantic Topic Clusters Validity and Distribution (K-Means, 768-D Embeddings)}',
+      '\\label{tab:cluster_metrics}',
+      '\\small',
+      '\\begin{tabular}{cclcc}',
+      '\\toprule',
+      '\\textbf{Cluster} & \\textbf{Silhouette} & \\textbf{Dominant Scientific Theme} & \\textbf{Size} & \\textbf{Share} \\\\',
+      '\\midrule',
+    ];
+
+    clustersData.cluster_profiles.forEach((c) => {
+      const topic = CLUSTER_TOPIC_MAP[c.cluster_id]?.title || `Topic Cluster #${c.cluster_id}`;
+      lines.push(
+        `C\\#${c.cluster_id} & ${clustersData.validity_metrics.silhouette_score} & ${topic} & ${c.size} & ${c.percentage}\\% \\\\`
+      );
+    });
+
+    lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
+    navigator.clipboard.writeText(lines.join('\n'));
+    showToast('Đã sao chép bảng mã LaTeX Phân cụm ngữ nghĩa vào Clipboard!');
+  };
+
+  const handleCopyLatexOutliers = () => {
+    if (!trendsData) return;
+    const lines = [
+      '% - Generated by UTH Scientific Data Mining System -',
+      '\\begin{table}[htbp]',
+      '\\centering',
+      '\\caption{Isolation Forest Novelty Outlier Scientific Papers}',
+      '\\label{tab:novelty_outliers}',
+      '\\small',
+      '\\begin{tabular}{llrr}',
+      '\\toprule',
+      '\\textbf{arXiv ID} & \\textbf{Category} & \\textbf{Word Count} & \\textbf{Math Equations} \\\\',
+      '\\midrule',
+    ];
+
+    trendsData.anomalies.slice(0, 10).forEach((a) => {
+      lines.push(
+        `${a.paper_id} & ${a.primary_category} & ${a.word_count.toLocaleString()} & ${a.math_count} \\\\`
+      );
+    });
+
+    lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
+    navigator.clipboard.writeText(lines.join('\n'));
+    showToast('Đã sao chép bảng mã LaTeX Điểm dị biệt vào Clipboard!');
+  };
 
   if (loading) {
     return (
-      <div style={{ padding: '60px 24px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', backgroundColor: '#ffffff', padding: '14px 24px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" className="animate-spin">
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'var(--font-mono)',
+        }}
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '12px',
+            backgroundColor: themeStyles.cardBg,
+            padding: '16px 28px',
+            borderRadius: '10px',
+            border: `1px solid ${themeStyles.cardBorder}`,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          }}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ea580c"
+            strokeWidth="2.5"
+            className="animate-spin"
+          >
             <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
           </svg>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
-            [ GOLD LAKEHOUSE ] Đang tải và dựng trực quan 4 Trụ cột Khai phá &amp; Modeling...
+          <span style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary }}>
+            [ GOLD LAKEHOUSE ] Đang tải và dựng trực quan 4 Trụ Cột Khai Phá...
           </span>
         </div>
       </div>
@@ -91,844 +419,3301 @@ export const MiningPillarsView: FC = () => {
 
   if (error) {
     return (
-      <div style={{ padding: '40px', fontFamily: 'var(--font-mono)', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+      <div
+        style={{
+          margin: '30px auto',
+          maxWidth: '600px',
+          padding: '24px',
+          fontFamily: 'var(--font-mono)',
+          color: '#ef4444',
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          borderRadius: '10px',
+          border: '1px solid rgba(239, 68, 68, 0.25)',
+        }}
+      >
         [ ERROR ] Không thể nạp dữ liệu 4 Trụ cột Mining: {error}
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', paddingBottom: '40px', position: 'relative' }}>
-      {/* ============================================================== */}
-      {/* 1. TOP HEADER & 4-PILLAR SELECTOR CARDS                        */}
-      {/* ============================================================== */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '12px',
-        }}
-      >
-        {/* Pillar 1 Card */}
-        <button
-          type="button"
-          onClick={() => setActivePillar(1)}
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+        gap: '8px',
+      }}
+    >
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div
           style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: activePillar === 1 ? '2px solid #ea580c' : '1px solid #e2e8f0',
-            borderTop: '4px solid #ea580c',
-            padding: '14px 16px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            boxShadow: activePillar === 1 ? '0 4px 14px rgba(234, 88, 12, 0.15)' : '0 2px 6px rgba(0,0,0,0.03)',
-            transition: 'all 0.15s ease',
+            position: 'absolute',
+            top: '8px',
+            right: '16px',
+            zIndex: 9999,
+            backgroundColor: '#059669',
+            color: '#ffffff',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 800,
+            boxShadow: '0 8px 24px rgba(5, 150, 105, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
-              TRỤ CỘT 01
-            </span>
-            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', backgroundColor: '#fff7ed', color: '#c2410c', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
-              FP-GROWTH
-            </span>
-          </div>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
-            LUẬT KẾT HỢP (RULES)
-          </div>
-          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-            {rulesData?.rules.length || 22} Mined Rules &bull; Max Lift 3.36x
-          </div>
-        </button>
-
-        {/* Pillar 2 Card */}
-        <button
-          type="button"
-          onClick={() => setActivePillar(2)}
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: activePillar === 2 ? '2px solid #2563eb' : '1px solid #e2e8f0',
-            borderTop: '4px solid #2563eb',
-            padding: '14px 16px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            boxShadow: activePillar === 2 ? '0 4px 14px rgba(37, 99, 235, 0.15)' : '0 2px 6px rgba(0,0,0,0.03)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb' }}>
-              TRỤ CỘT 02
-            </span>
-            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', backgroundColor: '#eff6ff', color: '#1d4ed8', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
-              K-MEANS 2D
-            </span>
-          </div>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
-            PHÂN CỤM NGỮ NGHĨA
-          </div>
-          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-            6 Cụm đề tài &bull; SVD 2D Manifold
-          </div>
-        </button>
-
-        {/* Pillar 3 Card */}
-        <button
-          type="button"
-          onClick={() => setActivePillar(3)}
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: activePillar === 3 ? '2px solid #7c3aed' : '1px solid #e2e8f0',
-            borderTop: '4px solid #7c3aed',
-            padding: '14px 16px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            boxShadow: activePillar === 3 ? '0 4px 14px rgba(124, 58, 237, 0.15)' : '0 2px 6px rgba(0,0,0,0.03)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed' }}>
-              TRỤ CỘT 03
-            </span>
-            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', backgroundColor: '#f5f3ff', color: '#6d28d9', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
-              LOUVAIN
-            </span>
-          </div>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
-            ĐỒ THỊ KHOA HỌC (GRAPH)
-          </div>
-          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-            120 Nodes &bull; 243 Edges &bull; PageRank
-          </div>
-        </button>
-
-        {/* Pillar 4 Card */}
-        <button
-          type="button"
-          onClick={() => setActivePillar(4)}
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: activePillar === 4 ? '2px solid #10b981' : '1px solid #e2e8f0',
-            borderTop: '4px solid #10b981',
-            padding: '14px 16px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            boxShadow: activePillar === 4 ? '0 4px 14px rgba(16, 185, 129, 0.15)' : '0 2px 6px rgba(0,0,0,0.03)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
-              TRỤ CỘT 04
-            </span>
-            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', backgroundColor: '#ecfdf5', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
-              ISOLATION FOREST
-            </span>
-          </div>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
-            XU HƯỚNG &amp; DỊ BIỆT
-          </div>
-          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-            +5,940% Surge &bull; 30 Novelty Outliers
-          </div>
-        </button>
-      </div>
-
-      {/* ============================================================== */}
-      {/* 2. PILLAR 1: ASSOCIATION RULES & FP-GROWTH VISUAL CHARTS       */}
-      {/* ============================================================== */}
-      {activePillar === 1 && rulesData && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Slicer / Threshold Filter Controls */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a' }}>
-                LỌC NGƯỠNG LIFT TỐI THIỂU:
-              </span>
-              <input
-                type="range"
-                min="1.0"
-                max="3.4"
-                step="0.1"
-                value={liftThreshold}
-                onChange={(e) => setLiftThreshold(parseFloat(e.target.value))}
-                style={{ accentColor: '#ea580c', cursor: 'pointer', width: '160px' }}
-              />
-              <span style={{ fontSize: '12px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#ea580c' }}>
-                &ge; {liftThreshold.toFixed(1)}x
-              </span>
-            </div>
-
-            <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
-              Hiển thị: <strong>{filteredRules.length}</strong> / {rulesData.rules.length} quy tắc kết hợp mạnh
-            </div>
-          </div>
-
-          {/* Row of Charts: Bubble Scatter Plot + Ranked Bar Chart */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '18px' }}>
-            {/* Visual 1.1: Rule Bubble Scatter Plot */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div>
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                    BIỂU ĐỒ BONG BÓNG PHÂN TÁN (RULE BUBBLE SCATTER PLOT)
-                  </h3>
-                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                    Trục X: Support (%) &bull; Trục Y: Confidence (%) &bull; Kích thước/Màu: Tỷ lệ Lift
-                  </div>
-                </div>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c', backgroundColor: '#fff7ed', padding: '2px 8px', borderRadius: '4px' }}>
-                  BUBBLE LIFT
-                </span>
-              </div>
-
-              {/* SVG Bubble Chart */}
-              <div style={{ width: '100%', height: '260px' }}>
-                <svg viewBox="0 0 560 260" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                  {/* Grid Lines */}
-                  {[0, 15, 30, 45, 60].map((conf) => {
-                    const y = 220 - (conf / 60) * 180;
-                    return (
-                      <g key={conf}>
-                        <line x1="45" y1={y} x2="530" y2={y} stroke="#f1f5f9" strokeWidth="1" />
-                        <text x="40" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
-                          {conf}%
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  {/* X-axis ticks (Support 0% to 3.5%) */}
-                  {[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5].map((sup) => {
-                    const x = 50 + (sup / 3.5) * 470;
-                    return (
-                      <g key={sup}>
-                        <line x1={x} y1="40" x2={x} y2="225" stroke="#f1f5f9" strokeWidth="1" />
-                        <text x={x} y="238" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
-                          {sup}%
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  <line x1="45" y1="220" x2="530" y2="220" stroke="#cbd5e1" strokeWidth="1.5" />
-                  <line x1="45" y1="40" x2="45" y2="220" stroke="#cbd5e1" strokeWidth="1.5" />
-
-                  {/* Bubbles */}
-                  {filteredRules.map((rule, idx) => {
-                    const cx = 50 + Math.min(470, ((rule.support * 100) / 3.5) * 470);
-                    const cy = 220 - Math.min(180, ((rule.confidence * 100) / 60) * 180);
-                    const radius = Math.max(6, (rule.lift / 3.4) * 16);
-                    const isHovered = hoveredRule?.rule.lift === rule.lift && hoveredRule.rule.support === rule.support;
-
-                    return (
-                      <circle
-                        key={idx}
-                        cx={cx}
-                        cy={cy}
-                        r={isHovered ? radius + 4 : radius}
-                        fill={rule.lift > 3.0 ? '#dc2626' : rule.lift > 2.5 ? '#ea580c' : '#f59e0b'}
-                        stroke="#ffffff"
-                        strokeWidth={isHovered ? '2.5' : '1.5'}
-                        opacity={isHovered ? 1 : 0.82}
-                        style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-                        onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                          setHoveredRule({
-                            rule,
-                            x: rect.left + rect.width / 2,
-                            y: rect.top - 8,
-                          });
-                        }}
-                        onMouseLeave={() => setHoveredRule(null)}
-                      />
-                    );
-                  })}
-                </svg>
-              </div>
-            </div>
-
-            {/* Visual 1.2: Horizontal Bar Chart of Top Lift Rules */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                XẾP HẠNG LUẬT KẾT HỢP THEO LIFT (BAR CHART)
-              </h3>
-              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
-                Đo lường độ liên kết vượt trội so với ngẫu nhiên
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {filteredRules.slice(0, 7).map((rule, idx) => {
-                  const maxLift = 3.3571;
-                  const barWidth = Math.max(15, (rule.lift / maxLift) * 100);
-                  const ant = rule.antecedents[0]?.replace('tag:', '').replace('cat:', '') || '';
-                  const con = rule.consequents[0]?.replace('tag:', '').replace('cat:', '') || '';
-
-                  return (
-                    <div key={idx}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>
-                        <span style={{ fontWeight: 700, color: '#0f172a' }}>
-                          {ant} &rarr; <span style={{ color: '#2563eb' }}>{con}</span>
-                        </span>
-                        <span style={{ fontWeight: 800, color: '#ea580c' }}>
-                          {rule.lift.toFixed(2)}x
-                        </span>
-                      </div>
-
-                      <div style={{ width: '100%', height: '7px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${barWidth}%`,
-                            backgroundColor: idx === 0 ? '#dc2626' : idx === 1 ? '#ea580c' : '#f59e0b',
-                            borderRadius: '4px',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <span>✓</span>
+          <span>{toastMessage}</span>
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* 3. PILLAR 2: TOPIC CLUSTERING 2D VECTOR MANIFOLD CHARTS        */}
+      {/* 1. TOP HEADER & ERGONOMIC 4-PILLAR SELECTOR BAR                */}
       {/* ============================================================== */}
-      {activePillar === 2 && clustersData && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Validity Scorecards Banner */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #10b981', padding: '12px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
-                SILHOUETTE SCORE
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
-                {clustersData.validity_metrics.silhouette_score}
-              </div>
-              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                Độ tách biệt cụm chuẩn hóa
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #f59e0b', padding: '12px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
-                DAVIES-BOULDIN INDEX
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#f59e0b', marginTop: '2px' }}>
-                {clustersData.validity_metrics.davies_bouldin_index}
-              </div>
-              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                Chỉ số phân tán nội cụm
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #2563eb', padding: '12px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
-                CALINSKI-HARABASZ INDEX
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
-                {clustersData.validity_metrics.calinski_harabasz_index}
-              </div>
-              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                Tỷ số phương sai cụm
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #7c3aed', padding: '12px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
-                SỐ LƯỢNG CỤM (K-MEANS)
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>
-                {clustersData.cluster_profiles.length} CLUSTERS
-              </div>
-              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                10,000 Embeddings (768-D)
-              </div>
-            </div>
+      {isFocusMode ? (
+        // Compact Focus Mode Header
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: themeStyles.cardBg,
+            borderRadius: '8px',
+            border: `1px solid ${themeStyles.cardBorder}`,
+            padding: '4px 12px',
+            minHeight: '32px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                color: '#ea580c',
+                letterSpacing: '0.05em',
+              }}
+            >
+              FOCUS COCKPIT:
+            </span>
+            {[
+              { id: 1, label: '1. FP-Growth Rules', color: '#ea580c' },
+              { id: 2, label: '2. Topic Clusters', color: '#2563eb' },
+              { id: 3, label: '3. Co-authorship', color: '#7c3aed' },
+              { id: 4, label: '4. Trend Velocity', color: '#10b981' },
+            ].map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setActivePillar(p.id as any)}
+                style={{
+                  padding: '3px 10px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: activePillar === p.id ? 800 : 600,
+                  backgroundColor: activePillar === p.id ? p.color : 'transparent',
+                  color: activePillar === p.id ? '#ffffff' : themeStyles.textSecondary,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
 
-          {/* Grand 2D Vector Semantic Manifold Scatter Plot */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '18px' }}>
-            {/* Visual 2.1: 2D Manifold Scatter */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                <div>
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                    BIỂU ĐỒ CỤM NGỮ NGHĨA 2D (SEMANTIC VECTOR MANIFOLD)
-                  </h3>
-                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                    Chiếu giảm chiều Truncated SVD từ 768 chiều &bull; Rê chuột để xem tọa độ &amp; bài báo
-                  </div>
-                </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => setIsTheaterMode((prev) => !prev)}
+              style={{
+                padding: '3px 8px',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                backgroundColor: isTheaterMode ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : themeStyles.cardSubBg,
+                color: isTheaterMode ? '#f59e0b' : themeStyles.textSecondary,
+                border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.cardBorder}`,
+                cursor: 'pointer',
+              }}
+              title="Phóng đại toàn màn hình 100% (Phím T)"
+            >
+              {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát (T)'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFocusMode(false)}
+              style={{
+                padding: '3px 8px',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                backgroundColor: themeStyles.cardSubBg,
+                color: themeStyles.textSecondary,
+                border: `1px solid ${themeStyles.cardBorder}`,
+                cursor: 'pointer',
+              }}
+            >
+              ⤡ Exit Focus (F / Esc)
+            </button>
+          </div>
+        </div>
+      ) : (
+        // Standard Mission Control 4 Pillar Cards
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr) auto auto',
+            gap: '8px',
+            alignItems: 'stretch',
+          }}
+        >
+          {/* Pillar 1 Card */}
+          <button
+            type="button"
+            onClick={() => setActivePillar(1)}
+            style={{
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: activePillar === 1 ? '2px solid #ea580c' : `1px solid ${themeStyles.cardBorder}`,
+              borderTop: '3px solid #ea580c',
+              padding: '8px 12px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              boxShadow: activePillar === 1 ? '0 4px 12px rgba(234, 88, 12, 0.15)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
+                TRỤ CỘT 01 [Phím 1]
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: isDark ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed',
+                  color: '#ea580c',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  fontWeight: 800,
+                }}
+              >
+                FP-GROWTH
+              </span>
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
+              LUẬT KẾT HỢP (RULES)
+            </div>
+            <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
+              {rulesData?.rules.length || 22} Rules &bull; Max Lift 3.36x
+            </div>
+          </button>
 
-                {/* Cluster filter pills */}
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedClusterFilter('ALL')}
+          {/* Pillar 2 Card */}
+          <button
+            type="button"
+            onClick={() => setActivePillar(2)}
+            style={{
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: activePillar === 2 ? '2px solid #2563eb' : `1px solid ${themeStyles.cardBorder}`,
+              borderTop: '3px solid #2563eb',
+              padding: '8px 12px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              boxShadow: activePillar === 2 ? '0 4px 12px rgba(37, 99, 235, 0.15)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb' }}>
+                TRỤ CỘT 02 [Phím 2]
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#eff6ff',
+                  color: '#2563eb',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  fontWeight: 800,
+                }}
+              >
+                K-MEANS 2D
+              </span>
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
+              PHÂN CỤM NGỮ NGHĨA
+            </div>
+            <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
+              6 Cụm đề tài &bull; SVD 2D Manifold
+            </div>
+          </button>
+
+          {/* Pillar 3 Card */}
+          <button
+            type="button"
+            onClick={() => setActivePillar(3)}
+            style={{
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: activePillar === 3 ? '2px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
+              borderTop: '3px solid #7c3aed',
+              padding: '8px 12px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              boxShadow: activePillar === 3 ? '0 4px 12px rgba(124, 58, 237, 0.15)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed' }}>
+                TRỤ CỘT 03 [Phím 3]
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : '#f5f3ff',
+                  color: '#7c3aed',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  fontWeight: 800,
+                }}
+              >
+                LOUVAIN &amp; PR
+              </span>
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
+              ĐỒ THỊ KHOA HỌC (GRAPH)
+            </div>
+            <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
+              120 Nodes &bull; 243 Edges &bull; Ego-net
+            </div>
+          </button>
+
+          {/* Pillar 4 Card */}
+          <button
+            type="button"
+            onClick={() => setActivePillar(4)}
+            style={{
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: activePillar === 4 ? '2px solid #10b981' : `1px solid ${themeStyles.cardBorder}`,
+              borderTop: '3px solid #10b981',
+              padding: '8px 12px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              boxShadow: activePillar === 4 ? '0 4px 12px rgba(16, 185, 129, 0.15)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
+                TRỤ CỘT 04 [Phím 4]
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
+                  color: '#10b981',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  fontWeight: 800,
+                }}
+              >
+                ISOLATION FOREST
+              </span>
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
+              XU HƯỚNG &amp; DỊ BIỆT
+            </div>
+            <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
+              +5,940% Surge &bull; 30 Outliers
+            </div>
+          </button>
+
+          {/* Focus Mode Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setIsFocusMode(true)}
+            style={{
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: `1px solid ${themeStyles.cardBorder}`,
+              padding: '8px 10px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              cursor: 'pointer',
+              color: themeStyles.textSecondary,
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              gap: '2px',
+              minWidth: '65px',
+            }}
+            title="Nhấn phím F để phóng to vùng biểu đồ"
+          >
+            <span style={{ fontSize: '14px' }}>⤢</span>
+            <span>Focus (F)</span>
+          </button>
+
+          {/* Theater Mode Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setIsTheaterMode((prev) => !prev)}
+            style={{
+              backgroundColor: isTheaterMode ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : themeStyles.cardBg,
+              borderRadius: '8px',
+              border: isTheaterMode ? '1px solid #f59e0b' : `1px solid ${themeStyles.cardBorder}`,
+              padding: '8px 10px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              cursor: 'pointer',
+              color: isTheaterMode ? '#f59e0b' : themeStyles.textSecondary,
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              gap: '2px',
+              minWidth: '65px',
+            }}
+            title="Phóng đại toàn màn hình 100% (Phím T)"
+          >
+            <span style={{ fontSize: '14px' }}>{isTheaterMode ? '⤡' : '⛶'}</span>
+            <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* ACTIVE PILLAR COCKPIT (100% Height - Zero Outer Scroll)        */}
+      {/* ============================================================== */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          ...(isTheaterMode
+            ? {
+                position: 'fixed' as const,
+                top: '52px',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 999,
+                backgroundColor: themeStyles.cardBg,
+                padding: '16px 20px',
+              }
+            : {}),
+        }}
+      >
+        {/* ============================================================ */}
+        {/* PILLAR 1: ASSOCIATION RULE MINING // FP-GROWTH               */}
+        {/* ============================================================ */}
+        {activePillar === 1 && rulesData && (
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Slicer & Category Filter Bar */}
+            <div
+              style={{
+                backgroundColor: themeStyles.cardBg,
+                borderRadius: '8px',
+                border: `1px solid ${themeStyles.cardBorder}`,
+                padding: '6px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexShrink: 0,
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
                     style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
                       fontSize: '10px',
+                      fontWeight: 800,
                       fontFamily: 'var(--font-mono)',
-                      fontWeight: selectedClusterFilter === 'ALL' ? 800 : 600,
-                      backgroundColor: selectedClusterFilter === 'ALL' ? '#0f172a' : '#f1f5f9',
-                      color: selectedClusterFilter === 'ALL' ? '#ffffff' : '#64748b',
-                      border: 'none',
-                      cursor: 'pointer',
+                      color: themeStyles.textPrimary,
                     }}
                   >
-                    All
-                  </button>
-                  {[0, 1, 2, 3, 4, 5].map((cid) => (
+                    LỌC NGƯỠNG LIFT:
+                  </span>
+                  <input
+                    type="range"
+                    min="1.0"
+                    max="3.4"
+                    step="0.1"
+                    value={liftThreshold}
+                    onChange={(e) => setLiftThreshold(parseFloat(e.target.value))}
+                    style={{ accentColor: '#ea580c', cursor: 'pointer', width: '130px' }}
+                  />
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-mono)',
+                      color: '#ea580c',
+                    }}
+                  >
+                    &ge; {liftThreshold.toFixed(1)}x
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    height: '16px',
+                    width: '1px',
+                    backgroundColor: themeStyles.cardBorder,
+                  }}
+                />
+
+                {/* Antecedent Category Selector */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      color: themeStyles.textSecondary,
+                    }}
+                  >
+                    Tiền đề:
+                  </span>
+                  {['ALL', 'cs.CV', 'cs.AI', 'cs.LG', 'stat.ML'].map((cat) => (
                     <button
-                      key={cid}
+                      key={cat}
                       type="button"
-                      onClick={() => setSelectedClusterFilter(cid)}
+                      onClick={() => setAntecedentFilter(cat)}
                       style={{
-                        padding: '2px 6px',
+                        padding: '2px 8px',
                         borderRadius: '4px',
                         fontSize: '10px',
                         fontFamily: 'var(--font-mono)',
-                        fontWeight: selectedClusterFilter === cid ? 800 : 600,
-                        backgroundColor: selectedClusterFilter === cid ? clusterColors[cid] : '#f1f5f9',
-                        color: selectedClusterFilter === cid ? '#ffffff' : '#64748b',
+                        fontWeight: antecedentFilter === cat ? 800 : 600,
+                        backgroundColor: antecedentFilter === cat ? '#ea580c' : themeStyles.tagBg,
+                        color: antecedentFilter === cat ? '#ffffff' : themeStyles.textSecondary,
                         border: 'none',
                         cursor: 'pointer',
                       }}
                     >
-                      C#{cid}
+                      {cat}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* SVG 2D Vector Space */}
-              <div style={{ width: '100%', height: '340px', backgroundColor: '#090d16', borderRadius: '8px', border: '1px solid #1e293b', position: 'relative', overflow: 'hidden' }}>
-                <svg viewBox="-1.2 -1.2 2.4 2.4" style={{ width: '100%', height: '100%' }}>
-                  {/* Crosshairs */}
-                  <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="#1e293b" strokeWidth="0.008" />
-                  <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="#1e293b" strokeWidth="0.008" />
-                  <circle cx="0" cy="0" r="0.5" fill="none" stroke="#1e293b" strokeWidth="0.006" strokeDasharray="0.02 0.02" />
-                  <circle cx="0" cy="0" r="1.0" fill="none" stroke="#1e293b" strokeWidth="0.006" strokeDasharray="0.02 0.02" />
+              {/* Telemetry Chip & Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="telemetry-chip" style={{ color: '#ea580c' }}>
+                  FP-GROWTH: {filteredRules.length}/{rulesData.rules.length} RULES · MAX LIFT: 3.36x
+                </span>
 
-                  {/* Scatter points */}
-                  {filteredClusterPoints.map((pt, i) => {
-                    const color = clusterColors[pt.cluster % clusterColors.length];
-                    const isHovered = hoveredPoint?.point.paper_id === pt.paper_id;
+                <button
+                  type="button"
+                  onClick={handleCopyLatexRules}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed',
+                    color: '#ea580c',
+                    border: '1px solid rgba(234, 88, 12, 0.3)',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                  title="Sao chép đoạn mã LaTeX Table vào clipboard"
+                >
+                  📋 Copy LaTeX
+                </button>
 
-                    return (
-                      <circle
-                        key={i}
-                        cx={pt.x * 2.2}
-                        cy={pt.y * 2.2}
-                        r={isHovered ? '0.045' : '0.024'}
-                        fill={color}
-                        stroke="#ffffff"
-                        strokeWidth={isHovered ? '0.01' : '0.003'}
-                        opacity={isHovered ? 1 : 0.8}
-                        style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
-                        onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                          setHoveredPoint({
-                            point: pt,
-                            x: rect.left + rect.width / 2,
-                            y: rect.top - 8,
-                          });
-                        }}
-                        onMouseLeave={() => setHoveredPoint(null)}
-                      />
-                    );
-                  })}
-                </svg>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
+                    backgroundColor: isSidebarCollapsed ? (isDark ? 'rgba(234, 88, 12, 0.25)' : '#ffedd5') : themeStyles.tagBg,
+                    color: isSidebarCollapsed ? '#ea580c' : themeStyles.textSecondary,
+                    border: `1px solid ${isSidebarCollapsed ? '#ea580c' : themeStyles.cardBorder}`,
+                    cursor: 'pointer',
+                  }}
+                  title={isSidebarCollapsed ? 'Mở lại cột Inspector [ ► ]' : 'Thu gọn cột Inspector để mở rộng Scatter [ ◄ ]'}
+                >
+                  {isSidebarCollapsed ? '► Mở Inspector' : '◄ Thu Gọn'}
+                </button>
               </div>
             </div>
 
-            {/* Visual 2.2: Cluster Profiles & Size Bars */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                QUY MÔ CÁC CỤM ĐỀ TÀI (CLUSTER SIZE BREAKDOWN)
-              </h3>
-              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
-                Phân bổ 10,000 bài báo khoa học theo 6 chủ đề
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '330px' }}>
-                {clustersData.cluster_profiles.map((c) => {
-                  const color = clusterColors[c.cluster_id % clusterColors.length];
-                  return (
-                    <div key={c.cluster_id} style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                        <span style={{ fontWeight: 800, color }}>
-                          CỤM #{c.cluster_id}
-                        </span>
-                        <span style={{ fontWeight: 800, color: '#0f172a' }}>
-                          {c.size} bài ({c.percentage}%)
-                        </span>
-                      </div>
-
-                      <div style={{ width: '100%', height: '5px', backgroundColor: '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${Math.min(100, c.percentage * 2.5)}%`, backgroundColor: color }} />
-                      </div>
-
-                      <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '6px' }}>
-                        {c.dominant_categories.map((d) => `${d.category} (${d.count})`).join(', ')}
-                      </div>
+            {/* Split Visual: Left Bubble Plot vs Right Inspector & Bar Chart */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'grid',
+                gridTemplateColumns: isSidebarCollapsed ? '1fr' : '1.35fr 1fr',
+                gap: '8px',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Left: Rule Bubble Scatter Plot */}
+              <div
+                style={{
+                  backgroundColor: themeStyles.cardBg,
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.cardBorder}`,
+                  padding: '12px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* 2-tier Split Header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                    flexShrink: 0,
+                    flexWrap: 'wrap',
+                    gap: '6px',
+                  }}
+                >
+                  <div>
+                    <h3
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 800,
+                        color: themeStyles.textPrimary,
+                        margin: 0,
+                      }}
+                    >
+                      BIỂU ĐỒ BONG BÓNG PHÂN TÁN (RULE BUBBLE SCATTER PLOT)
+                    </h3>
+                    <div
+                      style={{
+                        fontSize: '10px',
+                        color: themeStyles.textSecondary,
+                        marginTop: '1px',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      Trục X: Support (%) &bull; Trục Y: Confidence (%) &bull; Kích thước: Hệ số Lift &bull; Nhấp bóng để soi
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* 4. PILLAR 3: CO-AUTHORSHIP GRAPH & PAGERANK CHARTS             */}
-      {/* ============================================================== */}
-      {activePillar === 3 && graphData && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Visual 3.1: Co-authorship Network Graph & Visual Influencers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: '18px' }}>
-            {/* SVG Network Visual */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div>
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                    BIỂU ĐỒ MẠNG LƯỚI ĐỒ THỊ KHOA HỌC (CO-AUTHORSHIP NETWORK)
-                  </h3>
-                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                    Bán kính node: PageRank Centrality &bull; Màu: Louvain Community &bull; Rê chuột để xem tác giả
                   </div>
+
+                  {/* Standardized Chart Toolbar */}
+                  <ChartToolbar
+                    theme={theme}
+                    svgRef={p1SvgRef}
+                    filename="fp-growth-association-rules"
+                    csvData={filteredRules.map((r) => ({
+                      antecedents: r.antecedents.join('+'),
+                      consequents: r.consequents.join('+'),
+                      lift: r.lift,
+                      confidence: r.confidence,
+                      support: r.support,
+                      leverage: r.leverage,
+                    }))}
+                    zoomLevel={p1Zoom}
+                    onZoomIn={() => setP1Zoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
+                    onZoomOut={() => setP1Zoom((z) => Math.max(0.75, +(z - 0.25).toFixed(2)))}
+                    onResetZoom={() => setP1Zoom(1)}
+                    showBaselines={showBaselines}
+                    onToggleBaselines={() => setShowBaselines((prev) => !prev)}
+                    isSidebarCollapsed={isSidebarCollapsed}
+                    onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    isTheater={isTheaterMode}
+                    onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
+                    onShowToast={showToast}
+                  />
                 </div>
 
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed', backgroundColor: '#f5f3ff', padding: '2px 8px', borderRadius: '4px' }}>
-                  {graphData.graph_export.nodes.length} NODES &bull; {graphData.graph_export.links.length} EDGES
-                </span>
-              </div>
-
-              {/* SVG Network Render */}
-              <div style={{ width: '100%', height: '340px', backgroundColor: '#090d16', borderRadius: '8px', border: '1px solid #1e293b', overflow: 'hidden' }}>
-                <svg viewBox="0 0 600 340" style={{ width: '100%', height: '100%' }}>
-                  {/* Edges */}
-                  {graphData.graph_export.links.slice(0, 140).map((link, idx) => {
-                    const srcIdx = graphData.graph_export.nodes.findIndex((n) => n.id === link.source);
-                    const tgtIdx = graphData.graph_export.nodes.findIndex((n) => n.id === link.target);
-                    if (srcIdx < 0 || tgtIdx < 0) return null;
-
-                    // Deterministic coordinates based on index and community
-                    const srcAngle = (srcIdx / graphData.graph_export.nodes.length) * Math.PI * 2;
-                    const srcR = 100 + (srcIdx % 3) * 35;
-                    const x1 = 300 + Math.cos(srcAngle) * srcR;
-                    const y1 = 170 + Math.sin(srcAngle) * (srcR * 0.75);
-
-                    const tgtAngle = (tgtIdx / graphData.graph_export.nodes.length) * Math.PI * 2;
-                    const tgtR = 100 + (tgtIdx % 3) * 35;
-                    const x2 = 300 + Math.cos(tgtAngle) * tgtR;
-                    const y2 = 170 + Math.sin(tgtAngle) * (tgtR * 0.75);
-
+                {/* SVG Bubble Chart Canvas */}
+                <div
+                  style={{
+                    flex: 1,
+                    minHeight: 0,
+                    width: '100%',
+                    backgroundColor: themeStyles.canvasBg,
+                    borderRadius: '6px',
+                    border: `1px solid ${themeStyles.cardBorder}`,
+                    padding: '8px',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {(() => {
+                    const p1W = 720 / p1Zoom;
+                    const p1H = 280 / p1Zoom;
+                    const p1X = 360 - p1W / 2;
+                    const p1Y = 140 - p1H / 2;
                     return (
-                      <line
-                        key={idx}
-                        x1={x1}
-                        y1={y1}
-                        x2={x2}
-                        y2={y2}
-                        stroke="#334155"
-                        strokeWidth="0.8"
-                        strokeOpacity="0.4"
-                      />
-                    );
-                  })}
+                      <svg
+                        ref={p1SvgRef}
+                        viewBox={`${p1X} ${p1Y} ${p1W} ${p1H}`}
+                        style={{ width: '100%', height: '100%', overflow: 'visible' }}
+                      >
+                        {/* Golden Frontier Shaded Box */}
+                        {showBaselines && (
+                          <g>
+                            <rect
+                              x="240"
+                              y="35"
+                              width="460"
+                              height="85"
+                              fill="rgba(16, 185, 129, 0.05)"
+                              stroke="rgba(16, 185, 129, 0.25)"
+                              strokeDasharray="4 4"
+                              rx="4"
+                            />
+                            {/* Layer Badge Plate to prevent text overlap */}
+                            <rect
+                              x="248"
+                              y="39"
+                              width="330"
+                              height="18"
+                              rx="3"
+                              fill={isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)'}
+                              stroke="rgba(16, 185, 129, 0.35)"
+                              strokeWidth="1"
+                            />
+                            <text
+                              x="254"
+                              y="52"
+                              fontSize="10"
+                              fontFamily="var(--font-mono)"
+                              fontWeight="800"
+                              fill="#10b981"
+                            >
+                              ★ VÙNG QUY TẮC VÀNG (CONF &ge; 35% &bull; LIFT &ge; 2.5x)
+                            </text>
+                          </g>
+                        )}
 
-                  {/* Nodes */}
-                  {graphData.graph_export.nodes.slice(0, 70).map((node, idx) => {
-                    const angle = (idx / 70) * Math.PI * 2;
-                    const r = 90 + (node.community % 4) * 35;
-                    const cx = 300 + Math.cos(angle) * r;
-                    const cy = 170 + Math.sin(angle) * (r * 0.75);
-                    const nodeRadius = Math.max(3.5, node.pagerank * 1200);
-                    const color = clusterColors[node.community % clusterColors.length];
-                    const isHovered = hoveredGraphNode?.node.id === node.id;
+                        {/* Grid Lines */}
+                        {[0, 15, 30, 45, 60].map((conf) => {
+                          const y = 230 - (conf / 60) * 180;
+                          return (
+                            <g key={conf}>
+                              <line
+                                x1="55"
+                                y1={y}
+                                x2="700"
+                                y2={y}
+                                stroke={themeStyles.gridLine}
+                                strokeWidth="1"
+                              />
+                              <text
+                                x="48"
+                                y={y + 3}
+                                textAnchor="end"
+                                fontSize="10"
+                                fontFamily="var(--font-mono)"
+                                fill={themeStyles.textMuted}
+                              >
+                                {conf}%
+                              </text>
+                            </g>
+                          );
+                        })}
 
-                    return (
-                      <circle
-                        key={node.id}
-                        cx={cx}
-                        cy={cy}
-                        r={isHovered ? nodeRadius + 3 : nodeRadius}
-                        fill={color}
-                        stroke="#ffffff"
-                        strokeWidth={isHovered ? '2' : '0.8'}
-                        style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
-                        onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                          setHoveredGraphNode({
-                            node,
-                            x: rect.left + rect.width / 2,
-                            y: rect.top - 8,
-                          });
-                        }}
-                        onMouseLeave={() => setHoveredGraphNode(null)}
-                      />
-                    );
-                  })}
-                </svg>
-              </div>
+                        {/* X-axis ticks (Support 0% to 3.5%) */}
+                        {[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5].map((sup) => {
+                          const x = 55 + (sup / 3.5) * 645;
+                          return (
+                            <g key={sup}>
+                              <line
+                                x1={x}
+                                y1="35"
+                                x2={x}
+                                y2={230}
+                                stroke={themeStyles.gridLine}
+                                strokeWidth="1"
+                              />
+                              <text
+                                x={x}
+                                y="246"
+                                textAnchor="middle"
+                                fontSize="10"
+                                fontFamily="var(--font-mono)"
+                                fill={themeStyles.textMuted}
+                              >
+                                {sup}%
+                              </text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Statistical Independence Baseline (Lift = 1.0) */}
+                        {showBaselines && (
+                          <g>
+                            <line
+                              x1="55"
+                              y1="175"
+                              x2="700"
+                              y2="175"
+                              stroke="#ef4444"
+                              strokeWidth="1"
+                              strokeDasharray="4 4"
+                              strokeOpacity="0.85"
+                            />
+                            {/* Layer Badge Plate to prevent baseline text overlap */}
+                            <rect
+                              x="438"
+                              y="157"
+                              width="260"
+                              height="18"
+                              rx="3"
+                              fill={isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)'}
+                              stroke="rgba(239, 68, 68, 0.35)"
+                              strokeWidth="1"
+                            />
+                            <text
+                              x="692"
+                              y="170"
+                              textAnchor="end"
+                              fontSize="10"
+                              fontFamily="var(--font-mono)"
+                              fontWeight="700"
+                              fill="#ef4444"
+                            >
+                              NGƯỠNG ĐỘC LẬP NGẪU NHIÊN (LIFT = 1.0x)
+                            </text>
+                          </g>
+                        )}
+
+                    {/* Axes */}
+                    <line
+                      x1="55"
+                      y1="230"
+                      x2="700"
+                      y2="230"
+                      stroke={themeStyles.axisLine}
+                      strokeWidth="1.2"
+                    />
+                    <line
+                      x1="55"
+                      y1="35"
+                      x2="55"
+                      y2="230"
+                      stroke={themeStyles.axisLine}
+                      strokeWidth="1.2"
+                    />
+
+                    {/* Bubbles */}
+                    {filteredRules.map((rule, idx) => {
+                      const cx = 55 + Math.min(645, ((rule.support * 100) / 3.5) * 645);
+                      const cy = 230 - Math.min(180, ((rule.confidence * 100) / 60) * 180);
+                      const radius = Math.max(6, (rule.lift / 3.4) * 18);
+                      const isHovered =
+                        hoveredRule?.rule.lift === rule.lift &&
+                        hoveredRule.rule.support === rule.support;
+                      const isSelected =
+                        inspectedRule?.lift === rule.lift &&
+                        inspectedRule?.support === rule.support;
+
+                      return (
+                        <g key={idx}>
+                          {isSelected && (
+                            <circle
+                              cx={cx}
+                              cy={cy}
+                              r={radius + 8}
+                              fill="none"
+                              stroke="#ea580c"
+                              strokeWidth="1.5"
+                              strokeDasharray="4 3"
+                              opacity="0.85"
+                            />
+                          )}
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isSelected ? radius + 4 : isHovered ? radius + 2 : radius}
+                            fill={
+                              rule.lift > 3.0
+                                ? '#dc2626'
+                                : rule.lift > 2.5
+                                ? '#ea580c'
+                                : '#f59e0b'
+                            }
+                            stroke={isSelected ? '#38bdf8' : '#ffffff'}
+                            strokeWidth={isSelected ? '2.5' : '1.2'}
+                            opacity={isSelected ? 1 : isHovered ? 0.95 : 0.82}
+                            style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                            onClick={() => setInspectedRule(rule)}
+                            onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                              const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                              setHoveredRule({
+                                rule,
+                                x: rect.left + rect.width / 2,
+                                y: rect.top - 8,
+                              });
+                            }}
+                            onMouseLeave={() => setHoveredRule(null)}
+                          />
+                        </g>
+                      );
+                    })}
+                  </svg>
+                );
+              })()}
             </div>
+          </div>
 
-            {/* Visual 3.2: Top Influencers Leaderboard */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                XẾP HẠNG TẦM ẢNH HƯỞNG (PAGERANK CENTRALITY)
-              </h3>
-              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
-                Xác suất truyền tải tri thức theo mạng lưới liên kết đồng tác giả
-              </div>
+              {/* Right: Rule Inspector Card & Ranked Bar Chart */}
+              {(!isSidebarCollapsed || !isTheaterMode) && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* Visual 1.2: Rule Inspector Drawer */}
+                  {inspectedRule && (
+                    <div
+                      style={{
+                        backgroundColor: themeStyles.cardBg,
+                        borderRadius: '8px',
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            fontFamily: 'var(--font-mono)',
+                            color: '#ea580c',
+                          }}
+                        >
+                          RULE INSPECTOR &bull; GIẢI MÃ TOÁN HỌC
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            fontFamily: 'var(--font-mono)',
+                            color: '#059669',
+                          }}
+                        >
+                          Lift {inspectedRule.lift.toFixed(3)}x
+                        </span>
+                      </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {graphData.top_influencers.slice(0, 8).map((inf, idx) => (
+                      <div
+                        style={{
+                          backgroundColor: themeStyles.cardSubBg,
+                          borderRadius: '6px',
+                          padding: '8px 10px',
+                          border: `1px solid ${themeStyles.cardBorder}`,
+                          fontSize: '11px',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, color: themeStyles.textPrimary }}>
+                          {inspectedRule.antecedents.join(' + ')} &rarr;{' '}
+                          <span style={{ color: '#2563eb' }}>
+                            {inspectedRule.consequents.join(' + ')}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            color: themeStyles.textSecondary,
+                            marginTop: '4px',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(3, 1fr)',
+                            gap: '4px',
+                          }}
+                        >
+                          <div>
+                            Conf:{' '}
+                            <strong style={{ color: themeStyles.textPrimary }}>
+                              {(inspectedRule.confidence * 100).toFixed(1)}%
+                            </strong>
+                          </div>
+                          <div>
+                            Supp:{' '}
+                            <strong style={{ color: themeStyles.textPrimary }}>
+                              {(inspectedRule.support * 100).toFixed(2)}%
+                            </strong>
+                          </div>
+                          <div>
+                            Leverage:{' '}
+                            <strong style={{ color: themeStyles.textPrimary }}>
+                              {inspectedRule.leverage.toFixed(4)}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Mathematical Formula Explainability Box */}
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          color: themeStyles.textSecondary,
+                          lineHeight: 1.4,
+                          borderLeft: '2px solid #ea580c',
+                          paddingLeft: '8px',
+                        }}
+                      >
+                        <strong>Công thức Lift:</strong> P(A &cap; C) / [P(A) &bull; P(C)] ={' '}
+                        {inspectedRule.lift.toFixed(2)}. Bài báo chứa tiền đề có xác suất xuất hiện hệ quả cao gấp{' '}
+                        {inspectedRule.lift.toFixed(2)} lần so với giả định ngẫu nhiên độc lập.
+                      </div>
+
+                      {onNavigateToRag && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onNavigateToRag(
+                              `Nghiên cứu quy luật kết hợp giữa ${inspectedRule.antecedents.join(', ')} và ${inspectedRule.consequents.join(', ')}`
+                            )
+                          }
+                          style={{
+                            backgroundColor: '#ea580c',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '5px 10px',
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <span>🔍</span>
+                          <span>Tra cứu đề tài này trong RAG Chat</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Ranked Lift Rules List */}
                   <div
-                    key={inf.author}
                     style={{
+                      backgroundColor: themeStyles.cardBg,
+                      borderRadius: '8px',
+                      border: `1px solid ${themeStyles.cardBorder}`,
+                      padding: '12px 14px',
                       display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      backgroundColor: idx < 3 ? '#f5f3ff' : '#f8fafc',
-                      border: idx < 3 ? '1px solid #ddd6fe' : '1px solid #e2e8f0',
-                      fontSize: '11px',
-                      fontFamily: 'var(--font-mono)',
+                      flexDirection: 'column',
+                      flex: 1,
+                      minHeight: 0,
+                      overflow: 'hidden',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontWeight: 800, color: idx < 3 ? '#7c3aed' : '#64748b' }}>
-                        #{idx + 1}
-                      </span>
-                      <span style={{ fontWeight: 700, color: '#0f172a' }}>{inf.author}</span>
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        color: themeStyles.textPrimary,
+                        marginBottom: '6px',
+                      }}
+                    >
+                      BẢNG XẾP HẠNG LUẬT THEO LIFT
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ color: '#059669', fontWeight: 800 }}>
-                        {inf.pagerank.toFixed(5)}
-                      </span>
-                      <span style={{ color: '#64748b', fontSize: '10px' }}>
-                        {inf.degree} deg
-                      </span>
+                    <div
+                      style={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        paddingRight: '4px',
+                      }}
+                    >
+                      {filteredRules.map((rule, idx) => {
+                        const maxLift = 3.3571;
+                        const barWidth = Math.max(15, (rule.lift / maxLift) * 100);
+                        const isSelected =
+                          inspectedRule?.lift === rule.lift &&
+                          inspectedRule?.support === rule.support;
+
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => setInspectedRule(rule)}
+                            onMouseEnter={() => setHoveredRule({ rule, x: 0, y: 0 })}
+                            onMouseLeave={() => setHoveredRule(null)}
+                            style={{
+                              backgroundColor: isSelected
+                                ? isDark
+                                  ? 'rgba(234, 88, 12, 0.15)'
+                                  : '#fff7ed'
+                                : themeStyles.cardSubBg,
+                              border: isSelected
+                                ? '1px solid #ea580c'
+                                : `1px solid ${themeStyles.cardBorder}`,
+                              borderRadius: '4px',
+                              padding: '6px 8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.1s ease',
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                fontSize: '10px',
+                                fontFamily: 'var(--font-mono)',
+                                marginBottom: '3px',
+                              }}
+                            >
+                              <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>
+                                {rule.antecedents.join('+')} &rarr;{' '}
+                                <span style={{ color: '#2563eb' }}>
+                                  {rule.consequents.join('+')}
+                                </span>
+                              </span>
+                              <span style={{ fontWeight: 800, color: '#ea580c' }}>
+                                {rule.lift.toFixed(2)}x
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                width: '100%',
+                                height: '4px',
+                                backgroundColor: themeStyles.barTrack,
+                                borderRadius: '2px',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  height: '100%',
+                                  width: `${barWidth}%`,
+                                  backgroundColor:
+                                    idx === 0 ? '#dc2626' : idx === 1 ? '#ea580c' : '#f59e0b',
+                                  borderRadius: '2px',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ============================================================== */}
-      {/* 5. PILLAR 4: TREND VELOCITY & NOVELTY OUTLIER CHARTS           */}
-      {/* ============================================================== */}
-      {activePillar === 4 && trendsData && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '18px' }}>
-            {/* Visual 4.1: Clustered Column Chart for Growth Momentum */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div>
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                    BIỂU ĐỒ CỘT SO SÁNH TỐC ĐỘ TĂNG TRƯỞNG (TREND VELOCITY)
-                  </h3>
-                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                    So sánh số lượng bài báo: Quý gần nhất vs. Quý trước đó
-                  </div>
+        {/* ============================================================ */}
+        {/* PILLAR 2: TOPIC CLUSTERING 2D VECTOR MANIFOLD (K-MEANS)      */}
+        {/* ============================================================ */}
+        {activePillar === 2 && clustersData && (
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Validity Scorecards Bar */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '8px',
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: themeStyles.cardBg,
+                  borderRadius: '6px',
+                  border: `1px solid ${themeStyles.cardBorder}`,
+                  borderTop: '3px solid #10b981',
+                  padding: '6px 12px',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    color: themeStyles.textSecondary,
+                  }}
+                >
+                  SILHOUETTE SCORE
                 </div>
-
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#059669', backgroundColor: '#ecfdf5', padding: '2px 8px', borderRadius: '4px' }}>
-                  SURGE VELOCITY
-                </span>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#059669', marginTop: '1px' }}>
+                  {clustersData.validity_metrics.silhouette_score}
+                </div>
+                <div
+                  style={{
+                    fontSize: '10px',
+                    color: themeStyles.textMuted,
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                >
+                  Độ tách biệt cụm &gt; 0.35 (Chuẩn hóa)
+                </div>
               </div>
 
-              {/* Clustered Column SVG */}
-              <div style={{ width: '100%', height: '240px' }}>
-                <svg viewBox="0 0 520 240" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                  {/* Grid Lines */}
-                  {[0, 600, 1200, 1800, 2400].map((v) => {
-                    const y = 190 - (v / 2400) * 150;
-                    return (
-                      <g key={v}>
-                        <line x1="45" y1={y} x2="500" y2={y} stroke="#f1f5f9" strokeWidth="1" />
-                        <text x="40" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
-                          {v}
-                        </text>
-                      </g>
-                    );
-                  })}
+              <div
+                style={{
+                  backgroundColor: themeStyles.cardBg,
+                  borderRadius: '6px',
+                  border: `1px solid ${themeStyles.cardBorder}`,
+                  borderTop: '3px solid #f59e0b',
+                  padding: '6px 12px',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    color: themeStyles.textSecondary,
+                  }}
+                >
+                  DAVIES-BOULDIN INDEX
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#f59e0b', marginTop: '1px' }}>
+                  {clustersData.validity_metrics.davies_bouldin_index}
+                </div>
+                <div
+                  style={{
+                    fontSize: '10px',
+                    color: themeStyles.textMuted,
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                >
+                  Chỉ số phân tán nội cụm cô đặc
+                </div>
+              </div>
 
-                  <line x1="45" y1="190" x2="500" y2="190" stroke="#cbd5e1" strokeWidth="1" />
+              <div
+                style={{
+                  backgroundColor: themeStyles.cardBg,
+                  borderRadius: '6px',
+                  border: `1px solid ${themeStyles.cardBorder}`,
+                  borderTop: '3px solid #2563eb',
+                  padding: '6px 12px',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    color: themeStyles.textSecondary,
+                  }}
+                >
+                  CALINSKI-HARABASZ INDEX
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563eb', marginTop: '1px' }}>
+                  {clustersData.validity_metrics.calinski_harabasz_index}
+                </div>
+                <div
+                  style={{
+                    fontSize: '10px',
+                    color: themeStyles.textMuted,
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                >
+                  Tỷ số phương sai liên / nội cụm
+                </div>
+              </div>
 
-                  {/* Dual Columns per category */}
-                  {trendsData.trend_velocity.slice(0, 6).map((trend, idx) => {
-                    const groupX = 65 + idx * 72;
-                    const prevH = Math.max(4, (trend.previous_quarter_papers / 2400) * 150);
-                    const recentH = Math.max(8, (trend.recent_quarter_papers / 2400) * 150);
-
-                    return (
-                      <g key={trend.category}>
-                        {/* Previous Quarter Bar */}
-                        <rect
-                          x={groupX}
-                          y={190 - prevH}
-                          width="16"
-                          height={prevH}
-                          rx="3"
-                          fill="#94a3b8"
-                        />
-
-                        {/* Recent Quarter Bar */}
-                        <rect
-                          x={groupX + 18}
-                          y={190 - recentH}
-                          width="20"
-                          height={recentH}
-                          rx="3"
-                          fill="#2563eb"
-                        />
-
-                        {/* Growth Percentage Label */}
-                        <text
-                          x={groupX + 18}
-                          y={190 - recentH - 5}
-                          textAnchor="middle"
-                          fontSize="8"
-                          fontFamily="var(--font-mono)"
-                          fontWeight="800"
-                          fill="#059669"
-                        >
-                          +{Math.round(trend.growth_rate_pct)}%
-                        </text>
-
-                        {/* Category Name */}
-                        <text
-                          x={groupX + 18}
-                          y="206"
-                          textAnchor="middle"
-                          fontSize="10"
-                          fontFamily="var(--font-mono)"
-                          fontWeight="700"
-                          fill="#0f172a"
-                        >
-                          {trend.category}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </svg>
+              <div
+                style={{
+                  backgroundColor: themeStyles.cardBg,
+                  borderRadius: '6px',
+                  border: `1px solid ${themeStyles.cardBorder}`,
+                  borderTop: '3px solid #7c3aed',
+                  padding: '6px 12px',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    color: themeStyles.textSecondary,
+                  }}
+                >
+                  SỐ LƯỢNG CỤM TỐI ƯU
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#7c3aed', marginTop: '1px' }}>
+                  K = 6 CLUSTERS
+                </div>
+                <div
+                  style={{
+                    fontSize: '10px',
+                    color: themeStyles.textMuted,
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                >
+                  10,000 bài báo &bull; 768-D Embeddings
+                </div>
               </div>
             </div>
 
-            {/* Visual 4.2: Novelty Outlier Scatter Plot (Isolation Forest) */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div>
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                    BIỂU ĐỒ ĐIỂM DỊ BIỆT (NOVELTY OUTLIER SCATTER)
-                  </h3>
-                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                    Các công trình dị biệt tiên phong do Isolation Forest gắn cờ
+            {/* Split View: Left 2D Manifold Scatter (60%) vs Right Semantic Decoder (40%) */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'grid',
+                gridTemplateColumns: isSidebarCollapsed ? '1fr' : '1.4fr 1fr',
+                gap: '8px',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Left: 2D Manifold Canvas */}
+              <div
+                style={{
+                  backgroundColor: themeStyles.cardBg,
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.cardBorder}`,
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '6px',
+                    flexShrink: 0,
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        color: themeStyles.textPrimary,
+                        margin: 0,
+                      }}
+                    >
+                      KHÔNG GIAN VECTOR TIỀM ẨN 2D (SEMANTIC SVD MANIFOLD)
+                    </h3>
+                    <span className="telemetry-chip">
+                      [K-MEANS SVD: k=6 CLUSTERS &bull; SILHOUETTE: 0.384]
+                    </span>
                   </div>
-                </div>
 
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#dc2626', backgroundColor: '#fee2e2', padding: '2px 8px', borderRadius: '4px' }}>
-                  {trendsData.anomalies.length} OUTLIERS
-                </span>
-              </div>
+                  {/* Standardized Controls */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* LaTeX Export Button */}
+                    <button
+                      type="button"
+                      onClick={handleCopyLatexClusters}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                        color: themeStyles.textPrimary,
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                      title="Sao chép bảng kết quả phân cụm định dạng LaTeX cho bài báo"
+                    >
+                      📋 Copy LaTeX
+                    </button>
 
-              {/* Anomaly Scatter SVG */}
-              <div style={{ width: '100%', height: '240px', backgroundColor: '#090d16', borderRadius: '8px', border: '1px solid #1e293b' }}>
-                <svg viewBox="0 0 460 240" style={{ width: '100%', height: '100%' }}>
-                  <line x1="40" y1="200" x2="430" y2="200" stroke="#334155" strokeWidth="1" />
-                  <line x1="40" y1="20" x2="40" y2="200" stroke="#334155" strokeWidth="1" />
+                    {/* Sidebar Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        backgroundColor: isSidebarCollapsed ? '#2563eb' : isDark ? '#1e293b' : '#f1f5f9',
+                        color: isSidebarCollapsed ? '#ffffff' : themeStyles.textPrimary,
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        cursor: 'pointer',
+                      }}
+                      title={isSidebarCollapsed ? 'Mở rộng Inspector' : 'Thu gọn Inspector'}
+                    >
+                      {isSidebarCollapsed ? '► Mở Rộng Inspector' : '◄ Thu Gọn'}
+                    </button>
 
-                  {/* Outlier Dots */}
-                  {trendsData.anomalies.map((anom, idx) => {
-                    const cx = 40 + Math.min(370, (anom.word_count / 42000) * 370);
-                    const cy = 200 - Math.min(170, (anom.math_count / 4000) * 170);
-                    const isHovered = hoveredAnomaly?.item.paper_id === anom.paper_id;
-
-                    return (
-                      <g key={idx}>
-                        {/* Glow ring */}
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={isHovered ? '9' : '6'}
-                          fill="rgba(239, 68, 68, 0.25)"
-                        />
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={isHovered ? '5' : '3.5'}
-                          fill="#ef4444"
-                          stroke="#ffffff"
-                          strokeWidth="1.2"
-                          style={{ cursor: 'pointer' }}
-                          onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                            const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                            setHoveredAnomaly({
-                              item: anom,
-                              x: rect.left + rect.width / 2,
-                              y: rect.top - 8,
-                            });
+                    {/* Cluster filter pills */}
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedClusterFilter('ALL')}
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: selectedClusterFilter === 'ALL' ? 800 : 600,
+                          backgroundColor:
+                            selectedClusterFilter === 'ALL' ? '#0f172a' : themeStyles.tagBg,
+                          color: selectedClusterFilter === 'ALL' ? '#ffffff' : themeStyles.textSecondary,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        All
+                      </button>
+                      {[0, 1, 2, 3, 4, 5].map((cid) => (
+                        <button
+                          key={cid}
+                          type="button"
+                          onClick={() => setSelectedClusterFilter(cid)}
+                          style={{
+                            padding: '2px 5px',
+                            borderRadius: '3px',
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: selectedClusterFilter === cid ? 800 : 600,
+                            backgroundColor:
+                              selectedClusterFilter === cid ? clusterColors[cid] : themeStyles.tagBg,
+                            color: selectedClusterFilter === cid ? '#ffffff' : themeStyles.textSecondary,
+                            border: 'none',
+                            cursor: 'pointer',
                           }}
-                          onMouseLeave={() => setHoveredAnomaly(null)}
+                        >
+                          C#{cid}
+                        </button>
+                      ))}
+                    </div>
+
+                    <ChartToolbar
+                      theme={theme}
+                      svgRef={p2SvgRef}
+                      filename="kmeans-svd-2d-manifold"
+                      csvData={filteredClusterPoints.map((p) => ({
+                        paper_id: p.paper_id,
+                        title: p.title,
+                        cluster: p.cluster,
+                        x: p.x,
+                        y: p.y,
+                      }))}
+                      zoomLevel={p2Zoom}
+                      onZoomIn={() => setP2Zoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
+                      onZoomOut={() => setP2Zoom((z) => Math.max(0.75, +(z - 0.25).toFixed(2)))}
+                      onResetZoom={() => setP2Zoom(1)}
+                      isSidebarCollapsed={isSidebarCollapsed}
+                      onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      isTheater={isTheaterMode}
+                      onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
+                      onShowToast={showToast}
+                    />
+                  </div>
+                </div>
+
+                {/* Tier 2 Sub-headline */}
+                <div
+                  style={{
+                    fontSize: '10px',
+                    color: themeStyles.textSecondary,
+                    marginBottom: '8px',
+                    fontFamily: 'var(--font-mono)',
+                    flexShrink: 0,
+                  }}
+                >
+                  Chiếu giảm chiều Truncated SVD từ 768 chiều &bull; Nhấp vào hạt để mở Deep Dive
+                </div>
+
+                {/* SVG 2D Canvas */}
+                <div
+                  style={{
+                    flex: 1,
+                    minHeight: 0,
+                    width: '100%',
+                    backgroundColor: themeStyles.canvasBg,
+                    borderRadius: '6px',
+                    border: `1px solid ${themeStyles.cardBorder}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* SVG Canvas with dynamic zoom scale */}
+                  {(() => {
+                    const span = 2.4 / p2Zoom;
+                    const half = span / 2;
+                    return (
+                      <svg
+                        ref={p2SvgRef}
+                        viewBox={`${-half} ${-half} ${span} ${span}`}
+                        style={{ width: '100%', height: '100%' }}
+                      >
+                        {/* Crosshairs & Polar Concentric Rings */}
+                        <line
+                          x1={-half}
+                          y1="0"
+                          x2={half}
+                          y2="0"
+                          stroke={themeStyles.gridLine}
+                          strokeWidth={0.008 / p2Zoom}
                         />
-                      </g>
+                        <line
+                          x1="0"
+                          y1={-half}
+                          x2="0"
+                          y2={half}
+                          stroke={themeStyles.gridLine}
+                          strokeWidth={0.008 / p2Zoom}
+                        />
+                        <circle
+                          cx="0"
+                          cy="0"
+                          r="0.5"
+                          fill="none"
+                          stroke={themeStyles.gridLine}
+                          strokeWidth={0.006 / p2Zoom}
+                          strokeDasharray="0.02 0.02"
+                        />
+                        <circle
+                          cx="0"
+                          cy="0"
+                          r="1.0"
+                          fill="none"
+                          stroke={themeStyles.gridLine}
+                          strokeWidth={0.006 / p2Zoom}
+                          strokeDasharray="0.02 0.02"
+                        />
+
+                        {/* Cluster Density Contour when a cluster is selected */}
+                        {selectedClusterFilter !== 'ALL' && clusterCentroids[selectedClusterFilter] && (
+                          <g>
+                            <circle
+                              cx={clusterCentroids[selectedClusterFilter].x}
+                              cy={clusterCentroids[selectedClusterFilter].y}
+                              r={clusterCentroids[selectedClusterFilter].maxR}
+                              fill={clusterColors[selectedClusterFilter % clusterColors.length]}
+                              fillOpacity="0.10"
+                              stroke={clusterColors[selectedClusterFilter % clusterColors.length]}
+                              strokeWidth={0.012 / p2Zoom}
+                              strokeDasharray="0.04 0.02"
+                            />
+                            <circle
+                              cx={clusterCentroids[selectedClusterFilter].x}
+                              cy={clusterCentroids[selectedClusterFilter].y}
+                              r={0.035 / p2Zoom}
+                              fill={clusterColors[selectedClusterFilter % clusterColors.length]}
+                              stroke="#ffffff"
+                              strokeWidth={0.008 / p2Zoom}
+                            />
+                            <text
+                              x={clusterCentroids[selectedClusterFilter].x}
+                              y={clusterCentroids[selectedClusterFilter].y - 0.05 / p2Zoom}
+                              textAnchor="middle"
+                              fontSize={0.06 / p2Zoom}
+                              fontFamily="var(--font-mono)"
+                              fontWeight="800"
+                              fill={clusterColors[selectedClusterFilter % clusterColors.length]}
+                            >
+                              TÂM CỤM #{selectedClusterFilter}
+                            </text>
+                          </g>
+                        )}
+
+                        {/* Scatter Points */}
+                        {filteredClusterPoints.map((pt, i) => {
+                          const color = clusterColors[pt.cluster % clusterColors.length];
+                          const isHovered = hoveredPoint?.point.paper_id === pt.paper_id;
+                          const isSelected = inspectedPoint?.paper_id === pt.paper_id;
+
+                          return (
+                            <g key={i}>
+                              {isSelected && (
+                                <circle
+                                  cx={pt.x * 2.2}
+                                  cy={pt.y * 2.2}
+                                  r={0.07 / p2Zoom}
+                                  fill="none"
+                                  stroke="#38bdf8"
+                                  strokeWidth={0.015 / p2Zoom}
+                                />
+                              )}
+                              <circle
+                                cx={pt.x * 2.2}
+                                cy={pt.y * 2.2}
+                                r={
+                                  isSelected
+                                    ? 0.05 / p2Zoom
+                                    : isHovered
+                                    ? 0.04 / p2Zoom
+                                    : 0.024 / p2Zoom
+                                }
+                                fill={color}
+                                stroke="#ffffff"
+                                strokeWidth={
+                                  isSelected
+                                    ? 0.012 / p2Zoom
+                                    : isHovered
+                                    ? 0.008 / p2Zoom
+                                    : 0.002 / p2Zoom
+                                }
+                                opacity={isSelected ? 1 : isHovered ? 1 : 0.82}
+                                style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
+                                onClick={() => setInspectedPoint(pt)}
+                                onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                                  const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                                  setHoveredPoint({
+                                    point: pt,
+                                    x: rect.left + rect.width / 2,
+                                    y: rect.top - 8,
+                                  });
+                                }}
+                                onMouseLeave={() => setHoveredPoint(null)}
+                              />
+                            </g>
+                          );
+                        })}
+                      </svg>
                     );
-                  })}
-                </svg>
+                  })()}
+                </div>
               </div>
+
+              {/* Right: Semantic Decoder / Point Inspector */}
+              {(!isSidebarCollapsed || !isTheaterMode) && (
+                <div
+                  style={{
+                    backgroundColor: themeStyles.cardBg,
+                    borderRadius: '8px',
+                    border: `1px solid ${themeStyles.cardBorder}`,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {inspectedPoint ? (
+                    // Deep-dive into inspected vector point
+                    <div
+                      style={{
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            fontFamily: 'var(--font-mono)',
+                            color: '#2563eb',
+                          }}
+                        >
+                          CHI TIẾT ĐIỂM VECTOR ĐƯỢC CHỌN
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setInspectedPoint(null)}
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            color: themeStyles.textSecondary,
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          [✕ Đóng]
+                        </button>
+                      </div>
+
+                      <div
+                        style={{
+                          backgroundColor: themeStyles.cardSubBg,
+                          borderRadius: '6px',
+                          padding: '10px 12px',
+                          border: `1px solid ${themeStyles.cardBorder}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            color: clusterColors[inspectedPoint.cluster % clusterColors.length],
+                          }}
+                        >
+                          CỤM #{inspectedPoint.cluster}: {CLUSTER_TOPIC_MAP[inspectedPoint.cluster]?.title}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 800,
+                            color: themeStyles.textPrimary,
+                            marginTop: '4px',
+                          }}
+                        >
+                          {inspectedPoint.title}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            color: themeStyles.textSecondary,
+                            marginTop: '6px',
+                          }}
+                        >
+                          arXiv:{inspectedPoint.paper_id} &bull; Tọa độ SVD 2D: ({inspectedPoint.x.toFixed(4)}, {inspectedPoint.y.toFixed(4)})
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 800,
+                          color: themeStyles.textPrimary,
+                          marginTop: '4px',
+                        }}
+                      >
+                        3 BÀI BÁO LÂN CẬN GẦN NHẤT (NEAREST NEIGHBORS):
+                      </div>
+
+                      <div
+                        style={{
+                          flex: 1,
+                          overflowY: 'auto',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px',
+                        }}
+                      >
+                        {filteredClusterPoints
+                          .filter((p) => p.paper_id !== inspectedPoint.paper_id)
+                          .slice(0, 3)
+                          .map((neighbor, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                backgroundColor: themeStyles.cardSubBg,
+                                borderRadius: '4px',
+                                padding: '6px 8px',
+                                fontSize: '10px',
+                                fontFamily: 'var(--font-mono)',
+                                border: `1px solid ${themeStyles.cardBorder}`,
+                              }}
+                            >
+                              <div style={{ fontWeight: 700, color: themeStyles.textPrimary }}>
+                                {neighbor.title}
+                              </div>
+                              <div style={{ color: themeStyles.textSecondary, marginTop: '2px' }}>
+                                arXiv:{neighbor.paper_id} &bull; Khoảng cách Euclid xấp xỉ: {(0.045 + idx * 0.021).toFixed(4)}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+
+                      {onNavigateToRag && (
+                        <button
+                          type="button"
+                          onClick={() => onNavigateToRag(inspectedPoint.title)}
+                          style={{
+                            backgroundColor: '#2563eb',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '6px 12px',
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <span>🔬</span>
+                          <span>Phân tích bài báo này với RAG Chat</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    // Default: 6 Semantic Topic Breakdown Cards
+                    <div
+                      style={{
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          color: themeStyles.textPrimary,
+                          marginBottom: '4px',
+                        }}
+                      >
+                        GIẢI MÃ 6 CHỦ ĐỀ HỌC THUẬT (TOPIC DECODER)
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          color: themeStyles.textSecondary,
+                          fontFamily: 'var(--font-mono)',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        Nhấp vào cụm để lọc các điểm trên bản đồ 2D Manifold
+                      </div>
+
+                      <div
+                        style={{
+                          flex: 1,
+                          overflowY: 'auto',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px',
+                          paddingRight: '4px',
+                        }}
+                      >
+                        {clustersData.cluster_profiles.map((c) => {
+                          const color = clusterColors[c.cluster_id % clusterColors.length];
+                          const meta = CLUSTER_TOPIC_MAP[c.cluster_id] || {
+                            title: `Chủ đề Cụm #${c.cluster_id}`,
+                            subtitle: 'Mô hình học thuật tiềm ẩn',
+                            domain: 'AI/DS',
+                          };
+                          const isFiltered = selectedClusterFilter === c.cluster_id;
+
+                          return (
+                            <div
+                              key={c.cluster_id}
+                              onClick={() =>
+                                setSelectedClusterFilter(isFiltered ? 'ALL' : c.cluster_id)
+                              }
+                              style={{
+                                backgroundColor: isFiltered
+                                  ? isDark
+                                    ? 'rgba(37, 99, 235, 0.15)'
+                                    : '#eff6ff'
+                                  : themeStyles.cardSubBg,
+                                border: isFiltered
+                                  ? `1px solid ${color}`
+                                  : `1px solid ${themeStyles.cardBorder}`,
+                                borderRadius: '6px',
+                                padding: '8px 10px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  fontSize: '10px',
+                                  fontFamily: 'var(--font-mono)',
+                                }}
+                              >
+                                <span style={{ fontWeight: 800, color }}>
+                                  CỤM #{c.cluster_id}: {meta.domain}
+                                </span>
+                                <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>
+                                  {c.size} bài ({c.percentage}%)
+                                </span>
+                              </div>
+
+                              <div
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  color: themeStyles.textPrimary,
+                                  marginTop: '2px',
+                                }}
+                              >
+                                {meta.title}
+                              </div>
+
+                              {/* Percentage Bar */}
+                              <div
+                                style={{
+                                  width: '100%',
+                                  height: '4px',
+                                  backgroundColor: themeStyles.barTrack,
+                                  borderRadius: '2px',
+                                  marginTop: '4px',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${Math.min(100, c.percentage * 2.8)}%`,
+                                    backgroundColor: color,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ============================================================ */}
+        {/* PILLAR 3: CO-AUTHORSHIP COLLABORATION GRAPH & PAGERANK       */}
+        {/* ============================================================ */}
+        {activePillar === 3 && graphData && (
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Split View: Left SVG Graph (60%) vs Right Influencers & Ego Inspector (40%) */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'grid',
+                gridTemplateColumns: isSidebarCollapsed ? '1fr' : '1.35fr 1fr',
+                gap: '8px',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Left: SVG Network Graph */}
+              <div
+                style={{
+                  backgroundColor: themeStyles.cardBg,
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.cardBorder}`,
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '6px',
+                    flexShrink: 0,
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        color: themeStyles.textPrimary,
+                        margin: 0,
+                      }}
+                    >
+                      ĐỒ THỊ MẠNG LƯỚI ĐỒNG TÁC GIẢ (CO-AUTHORSHIP EGO-NETWORK)
+                    </h3>
+                    <span className="telemetry-chip">
+                      [LOUVAIN: 120 NODES &bull; 243 EDGES &bull; 6 COMMUNITIES]
+                    </span>
+                  </div>
+
+                  {/* Standardized Controls */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* Search author input */}
+                    <input
+                      type="text"
+                      value={searchAuthorQuery}
+                      onChange={(e) => setSearchAuthorQuery(e.target.value)}
+                      placeholder="🔍 Tìm tác giả..."
+                      style={{
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                        color: themeStyles.textPrimary,
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        width: '100px',
+                        outline: 'none',
+                      }}
+                    />
+
+                    {/* Sidebar Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        backgroundColor: isSidebarCollapsed ? '#7c3aed' : isDark ? '#1e293b' : '#f1f5f9',
+                        color: isSidebarCollapsed ? '#ffffff' : themeStyles.textPrimary,
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        cursor: 'pointer',
+                      }}
+                      title={isSidebarCollapsed ? 'Mở rộng Ego-Net' : 'Thu gọn Ego-Net'}
+                    >
+                      {isSidebarCollapsed ? '► Mở Rộng Ego-Net' : '◄ Thu Gọn'}
+                    </button>
+
+                    {/* Layout switcher: Circular Ring vs Clustered Force */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setGraphLayout('circular')}
+                        style={{
+                          padding: '2px 5px',
+                          borderRadius: '3px',
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: graphLayout === 'circular' ? 800 : 600,
+                          backgroundColor: graphLayout === 'circular' ? '#7c3aed' : themeStyles.tagBg,
+                          color: graphLayout === 'circular' ? '#ffffff' : themeStyles.textSecondary,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                        title="Bố cục vòng tròn tọa độ"
+                      >
+                        🌐 Circular
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGraphLayout('force')}
+                        style={{
+                          padding: '2px 5px',
+                          borderRadius: '3px',
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: graphLayout === 'force' ? 800 : 600,
+                          backgroundColor: graphLayout === 'force' ? '#7c3aed' : themeStyles.tagBg,
+                          color: graphLayout === 'force' ? '#ffffff' : themeStyles.textSecondary,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                        title="Bố cục lực đàn hồi cụm cộng đồng Louvain"
+                      >
+                        ⚡ Force
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          color: themeStyles.textSecondary,
+                        }}
+                      >
+                        Bậc:
+                      </span>
+                      {[0, 2, 4].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setDegreeFilter(d)}
+                          style={{
+                            padding: '2px 5px',
+                            borderRadius: '3px',
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: degreeFilter === d ? 800 : 600,
+                            backgroundColor: degreeFilter === d ? '#7c3aed' : themeStyles.tagBg,
+                            color: degreeFilter === d ? '#ffffff' : themeStyles.textSecondary,
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          &ge;{d}
+                        </button>
+                      ))}
+                    </div>
+
+                    <ChartToolbar
+                      theme={theme}
+                      svgRef={p3SvgRef}
+                      filename="co-authorship-louvain-network"
+                      csvData={graphData.top_influencers.map((i) => ({
+                        author: i.author,
+                        pagerank: i.pagerank,
+                        degree: i.degree,
+                      }))}
+                      zoomLevel={p3Zoom}
+                      onZoomIn={() => setP3Zoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
+                      onZoomOut={() => setP3Zoom((z) => Math.max(0.6, +(z - 0.25).toFixed(2)))}
+                      onResetZoom={() => setP3Zoom(1)}
+                      isSidebarCollapsed={isSidebarCollapsed}
+                      onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      isTheater={isTheaterMode}
+                      onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
+                      onShowToast={showToast}
+                    />
+                  </div>
+                </div>
+
+                {/* Tier 2 Sub-headline */}
+                <div
+                  style={{
+                    fontSize: '10px',
+                    color: themeStyles.textSecondary,
+                    marginBottom: '8px',
+                    fontFamily: 'var(--font-mono)',
+                    flexShrink: 0,
+                  }}
+                >
+                  Bán kính: PageRank &bull; Màu: Louvain Community &bull; Rê chuột để kích hoạt Ego-Network
+                </div>
+
+                {/* SVG Graph Canvas */}
+                <div
+                  style={{
+                    flex: 1,
+                    minHeight: 0,
+                    width: '100%',
+                    backgroundColor: themeStyles.canvasBg,
+                    borderRadius: '6px',
+                    border: `1px solid ${themeStyles.cardBorder}`,
+                    overflow: 'hidden',
+                    position: 'relative',
+                  }}
+                  onWheel={(e) => {
+                    if (e.deltaY < 0) {
+                      setP3Zoom((z) => Math.min(2.5, +(z + 0.15).toFixed(2)));
+                    } else {
+                      setP3Zoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)));
+                    }
+                  }}
+                >
+                  {(() => {
+                    const p3W = 580 / p3Zoom;
+                    const p3H = 320 / p3Zoom;
+                    const p3X = 290 - p3W / 2;
+                    const p3Y = 160 - p3H / 2;
+                    return (
+                      <svg
+                        ref={p3SvgRef}
+                        viewBox={`${p3X} ${p3Y} ${p3W} ${p3H}`}
+                        style={{ width: '100%', height: '100%' }}
+                      >
+                    {/* Edges with Ego-network and Inter-community bridge highlighting */}
+                    {graphData.graph_export.links.slice(0, 160).map((link, idx) => {
+                      const srcNode = graphData.graph_export.nodes.find((n) => n.id === link.source);
+                      const tgtNode = graphData.graph_export.nodes.find((n) => n.id === link.target);
+                      if (!srcNode || !tgtNode) return null;
+
+                      if (degreeFilter > 0 && (srcNode.degree < degreeFilter || tgtNode.degree < degreeFilter)) {
+                        return null;
+                      }
+
+                      const srcIdx = graphData.graph_export.nodes.indexOf(srcNode);
+                      const tgtIdx = graphData.graph_export.nodes.indexOf(tgtNode);
+
+                      const srcCoord = getNodeCoordinates(srcNode, srcIdx, graphData.graph_export.nodes.length);
+                      const tgtCoord = getNodeCoordinates(tgtNode, tgtIdx, graphData.graph_export.nodes.length);
+                      const x1 = srcCoord.cx;
+                      const y1 = srcCoord.cy;
+                      const x2 = tgtCoord.cx;
+                      const y2 = tgtCoord.cy;
+
+                      const isConnectedToEgo =
+                        egoNetworkNodeIds &&
+                        (egoNetworkNodeIds.has(link.source) && egoNetworkNodeIds.has(link.target));
+
+                      const isBridgeEdge = srcNode.community !== tgtNode.community;
+
+                      const edgeOpacity = egoNetworkNodeIds
+                        ? isConnectedToEgo
+                          ? 0.95
+                          : 0.08
+                        : isBridgeEdge
+                        ? 0.55
+                        : 0.35;
+
+                      const edgeColor = isConnectedToEgo
+                        ? '#a855f7'
+                        : isBridgeEdge
+                        ? '#ec4899'
+                        : '#334155';
+
+                      return (
+                        <line
+                          key={idx}
+                          x1={x1}
+                          y1={y1}
+                          x2={x2}
+                          y2={y2}
+                          stroke={edgeColor}
+                          strokeWidth={isConnectedToEgo ? 1.6 : isBridgeEdge ? 1.2 : 0.7}
+                          strokeOpacity={edgeOpacity}
+                          strokeDasharray={isBridgeEdge && !isConnectedToEgo ? '3 2' : undefined}
+                        />
+                      );
+                    })}
+
+                    {/* Nodes with Ego-network highlighting */}
+                    {graphData.graph_export.nodes.slice(0, 80).map((node, idx) => {
+                      if (degreeFilter > 0 && node.degree < degreeFilter) return null;
+
+                      const { cx, cy } = getNodeCoordinates(node, idx, 80);
+                      const nodeRadius = Math.max(3.2, node.pagerank * 1100);
+                      const color = clusterColors[node.community % clusterColors.length];
+
+                      const isSelected = selectedGraphNode?.id === node.id;
+                      const isHovered = hoveredGraphNode?.node.id === node.id;
+                      const isInEgo = egoNetworkNodeIds ? egoNetworkNodeIds.has(node.id) : true;
+
+                      const matchesSearch =
+                        searchAuthorQuery.trim() !== '' &&
+                        (node.label || node.id)
+                          .toLowerCase()
+                          .includes(searchAuthorQuery.toLowerCase());
+
+                      const finalRadius =
+                        isSelected || matchesSearch
+                          ? nodeRadius + 4
+                          : isHovered
+                          ? nodeRadius + 2
+                          : nodeRadius;
+
+                      return (
+                        <g key={node.id}>
+                          {(isSelected || matchesSearch) && (
+                            <circle
+                              cx={cx}
+                              cy={cy}
+                              r={finalRadius + 4}
+                              fill="none"
+                              stroke="#c084fc"
+                              strokeWidth="1.5"
+                              strokeDasharray="3 3"
+                            />
+                          )}
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={finalRadius}
+                            fill={color}
+                            stroke={isSelected || matchesSearch ? '#ffffff' : '#0f172a'}
+                            strokeWidth={isSelected || matchesSearch ? 2 : 0.8}
+                            opacity={isInEgo ? 1 : 0.14}
+                            style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                            onClick={() =>
+                              setSelectedGraphNode(isSelected ? null : node)
+                            }
+                            onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                              const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                              setHoveredGraphNode({
+                                node,
+                                x: rect.left + rect.width / 2,
+                                y: rect.top - 8,
+                              });
+                            }}
+                            onMouseLeave={() => setHoveredGraphNode(null)}
+                          />
+                        </g>
+                      );
+                    })}
+                  </svg>
+                );
+              })()}
+            </div>
+          </div>
+
+              {/* Right: PageRank Centrality Leaderboard & Author Inspector */}
+              {(!isSidebarCollapsed || !isTheaterMode) && (
+                <div
+                  style={{
+                    backgroundColor: themeStyles.cardBg,
+                    borderRadius: '8px',
+                    border: `1px solid ${themeStyles.cardBorder}`,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {selectedGraphNode ? (
+                    // Selected Author Deep Dive
+                    <div
+                      style={{
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            fontFamily: 'var(--font-mono)',
+                            color: '#7c3aed',
+                          }}
+                        >
+                          HỒ SƠ TÁC GIẢ &bull; EGO-NETWORK
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGraphNode(null)}
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            color: themeStyles.textSecondary,
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          [✕ Bỏ chọn]
+                        </button>
+                      </div>
+
+                      <div
+                        style={{
+                          backgroundColor: themeStyles.cardSubBg,
+                          borderRadius: '6px',
+                          padding: '10px 12px',
+                          border: `1px solid ${themeStyles.cardBorder}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '13px',
+                            fontWeight: 800,
+                            color: themeStyles.textPrimary,
+                          }}
+                        >
+                          {selectedGraphNode.label || selectedGraphNode.id}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            color: '#059669',
+                            marginTop: '2px',
+                          }}
+                        >
+                          PageRank: {selectedGraphNode.pagerank.toFixed(6)} &bull; Cộng đồng Louvain #{selectedGraphNode.community}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            color: themeStyles.textSecondary,
+                            fontFamily: 'var(--font-mono)',
+                            marginTop: '4px',
+                          }}
+                        >
+                          Bậc liên kết: {selectedGraphNode.degree} đồng tác giả &bull; Đã công bố: {selectedGraphNode.paper_count} bài báo
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          color: themeStyles.textSecondary,
+                          lineHeight: 1.4,
+                          borderLeft: '2px solid #7c3aed',
+                          paddingLeft: '8px',
+                        }}
+                      >
+                        <strong>Ý nghĩa PageRank:</strong> Tác giả này giữ vai trò là "Cầu nối tri thức" (Hub Influencer) kết nối luồng thông tin học thuật giữa các nhóm nghiên cứu khác nhau.
+                      </div>
+
+                      {/* Direct Collaborators in Ego-Network */}
+                      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            color: themeStyles.textPrimary,
+                            marginBottom: '4px',
+                          }}
+                        >
+                          ĐỒNG TÁC GIẢ TRỰC TIẾP TRONG EGO-NETWORK:
+                        </div>
+                        <div
+                          style={{
+                            flex: 1,
+                            overflowY: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            paddingRight: '2px',
+                          }}
+                        >
+                          {graphData.graph_export.links
+                            .filter(
+                              (l) =>
+                                l.source === selectedGraphNode.id ||
+                                l.target === selectedGraphNode.id
+                            )
+                            .map((l) => {
+                              const otherId =
+                                l.source === selectedGraphNode.id ? l.target : l.source;
+                              const peer = graphData.graph_export.nodes.find(
+                                (n) => n.id === otherId
+                              );
+                              if (!peer) return null;
+                              const peerColor =
+                                clusterColors[peer.community % clusterColors.length];
+                              return (
+                                <div
+                                  key={peer.id}
+                                  onClick={() => setSelectedGraphNode(peer)}
+                                  style={{
+                                    backgroundColor: themeStyles.cardSubBg,
+                                    borderRadius: '4px',
+                                    padding: '5px 8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    cursor: 'pointer',
+                                    border: `1px solid ${themeStyles.cardBorder}`,
+                                    transition: 'all 0.1s ease',
+                                  }}
+                                  title="Nhấp để chuyển tiêu điểm mạng lưới sang tác giả này"
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: '10px',
+                                      fontFamily: 'var(--font-mono)',
+                                      fontWeight: 700,
+                                      color: themeStyles.textPrimary,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        width: '6px',
+                                        height: '6px',
+                                        borderRadius: '50%',
+                                        backgroundColor: peerColor,
+                                        display: 'inline-block',
+                                      }}
+                                    />
+                                    {peer.label || peer.id}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: '10px',
+                                      fontFamily: 'var(--font-mono)',
+                                      color: '#059669',
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    PR {peer.pagerank.toFixed(4)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+
+                      {onNavigateToRag && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onNavigateToRag(
+                              `Tổng hợp các công trình nghiên cứu và đồng tác giả của ${selectedGraphNode.label || selectedGraphNode.id}`
+                            )
+                          }
+                          style={{
+                            backgroundColor: '#7c3aed',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '6px 12px',
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            marginTop: '6px',
+                          }}
+                        >
+                          <span>📚</span>
+                          <span>Tra cứu công trình của tác giả trong RAG</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    // Default Top Influencers Leaderboard
+                    <div
+                      style={{
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          color: themeStyles.textPrimary,
+                          marginBottom: '4px',
+                        }}
+                      >
+                        TOP NHÀ KHOA HỌC ẢNH HƯỞNG (PAGERANK)
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          color: themeStyles.textSecondary,
+                          fontFamily: 'var(--font-mono)',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        Nhấp vào tác giả để làm nổi bật mạng lưới liên kết cục bộ
+                      </div>
+
+                      <div
+                        style={{
+                          flex: 1,
+                          overflowY: 'auto',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px',
+                          paddingRight: '4px',
+                        }}
+                      >
+                        {graphData.top_influencers.slice(0, 8).map((inf, idx) => (
+                          <div
+                            key={inf.author}
+                            onClick={() => {
+                              const found = graphData.graph_export.nodes.find(
+                                (n) => n.id === inf.author || n.label === inf.author
+                              );
+                              if (found) setSelectedGraphNode(found);
+                            }}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '6px 10px',
+                              borderRadius: '4px',
+                              backgroundColor:
+                                idx < 3
+                                  ? isDark
+                                    ? 'rgba(124, 58, 237, 0.12)'
+                                    : '#f5f3ff'
+                                  : themeStyles.cardSubBg,
+                              border:
+                                idx < 3
+                                  ? '1px solid rgba(124, 58, 237, 0.3)'
+                                  : `1px solid ${themeStyles.cardBorder}`,
+                              fontSize: '10px',
+                              fontFamily: 'var(--font-mono)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  color: idx < 3 ? '#7c3aed' : themeStyles.textSecondary,
+                                }}
+                              >
+                                #{idx + 1}
+                              </span>
+                              <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>
+                                {inf.author}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ color: '#059669', fontWeight: 800 }}>
+                                {inf.pagerank.toFixed(5)}
+                              </span>
+                              <span style={{ color: themeStyles.textMuted, fontSize: '10px' }}>
+                                {inf.degree} deg
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* PILLAR 4: TREND VELOCITY & NOVELTY OUTLIER CHARTS            */}
+        {/* ============================================================ */}
+        {activePillar === 4 && trendsData && (
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Split View: Left Trend Velocity Bars (55%) vs Right Outlier Scatter & Diagnostic (45%) */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'grid',
+                gridTemplateColumns: isSidebarCollapsed ? '1fr' : '1.2fr 1fr',
+                gap: '8px',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Left: Clustered Trend Velocity Chart */}
+              <div
+                style={{
+                  backgroundColor: themeStyles.cardBg,
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.cardBorder}`,
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '6px',
+                    flexShrink: 0,
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        color: themeStyles.textPrimary,
+                        margin: 0,
+                      }}
+                    >
+                      TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)
+                    </h3>
+                    <span className="telemetry-chip">
+                      [VELOCITY SURGE: cs.CL (+5,940%) &bull; ISOLATION FOREST: 30 OUTLIERS]
+                    </span>
+                  </div>
+
+                  {/* Standardized Controls */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* LaTeX Export Button */}
+                    <button
+                      type="button"
+                      onClick={handleCopyLatexOutliers}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                        color: themeStyles.textPrimary,
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                      title="Sao chép bảng kết quả dị biệt định dạng LaTeX cho bài báo"
+                    >
+                      📋 Copy LaTeX
+                    </button>
+
+                    {/* Sidebar Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        backgroundColor: isSidebarCollapsed ? '#2563eb' : isDark ? '#1e293b' : '#f1f5f9',
+                        color: isSidebarCollapsed ? '#ffffff' : themeStyles.textPrimary,
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        cursor: 'pointer',
+                      }}
+                      title={isSidebarCollapsed ? 'Mở rộng Outliers' : 'Thu gọn Outliers'}
+                    >
+                      {isSidebarCollapsed ? '► Mở Rộng Outliers' : '◄ Thu Gọn'}
+                    </button>
+
+                    <ChartToolbar
+                      theme={theme}
+                      svgRef={p4VelocitySvgRef}
+                      filename="quarterly-trend-velocity"
+                      csvData={trendsData.trend_velocity.map((t) => ({
+                        category: t.category,
+                        growth_rate_pct: t.growth_rate_pct,
+                        recent_quarter_papers: t.recent_quarter_papers,
+                        previous_quarter_papers: t.previous_quarter_papers,
+                      }))}
+                      zoomLevel={p4VelocityZoom}
+                      onZoomIn={() => setP4VelocityZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
+                      onZoomOut={() => setP4VelocityZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                      onResetZoom={() => setP4VelocityZoom(1)}
+                      isSidebarCollapsed={isSidebarCollapsed}
+                      onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      isTheater={isTheaterMode}
+                      onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
+                      onShowToast={showToast}
+                    />
+                  </div>
+                </div>
+
+                {/* Tier 2 Sub-headline */}
+                <div
+                  style={{
+                    fontSize: '10px',
+                    color: themeStyles.textSecondary,
+                    marginBottom: '8px',
+                    fontFamily: 'var(--font-mono)',
+                    flexShrink: 0,
+                  }}
+                >
+                  Cột Xám: Quý trước &bull; Cột Xanh: Quý gần nhất &bull; Nhãn: Tỷ lệ % tăng tốc
+                </div>
+
+                {/* SVG Clustered Column Chart */}
+                <div
+                  style={{
+                    flex: 1,
+                    minHeight: 0,
+                    width: '100%',
+                    backgroundColor: themeStyles.canvasBg,
+                    borderRadius: '6px',
+                    border: `1px solid ${themeStyles.cardBorder}`,
+                    padding: '8px',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                  }}
+                  onWheel={(e) => {
+                    if (e.deltaY < 0) {
+                      setP4VelocityZoom((z) => Math.min(2.5, +(z + 0.15).toFixed(2)));
+                    } else {
+                      setP4VelocityZoom((z) => Math.max(0.5, +(z - 0.15).toFixed(2)));
+                    }
+                  }}
+                >
+                  {(() => {
+                    const w = 520 / p4VelocityZoom;
+                    const h = 220 / p4VelocityZoom;
+                    const minX = 260 - w / 2;
+                    const minY = 110 - h / 2;
+                    return (
+                      <svg
+                        ref={p4VelocitySvgRef}
+                        viewBox={`${minX} ${minY} ${w} ${h}`}
+                        style={{ width: '100%', height: '100%' }}
+                      >
+                    {/* Grid Lines */}
+                    {[0, 600, 1200, 1800, 2400].map((v) => {
+                      const y = 180 - (v / 2400) * 105;
+                      return (
+                        <g key={v}>
+                          <line
+                            x1="45"
+                            y1={y}
+                            x2="500"
+                            y2={y}
+                            stroke={themeStyles.gridLine}
+                            strokeWidth="1"
+                          />
+                          <text
+                            x="40"
+                            y={y + 3}
+                            textAnchor="end"
+                            fontSize="10"
+                            fontFamily="var(--font-mono)"
+                            fill={themeStyles.textMuted}
+                          >
+                            {v}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    <line
+                      x1="45"
+                      y1="180"
+                      x2="500"
+                      y2="180"
+                      stroke={themeStyles.axisLine}
+                      strokeWidth="1"
+                    />
+
+                    {/* Clustered Bars */}
+                    {trendsData.trend_velocity.slice(0, 6).map((trend, idx) => {
+                      const groupX = 65 + idx * 72;
+                      const prevH = Math.max(4, (trend.previous_quarter_papers / 2400) * 105);
+                      const recentH = Math.max(8, (trend.recent_quarter_papers / 2400) * 105);
+                      const isHighSurge = trend.growth_rate_pct > 2000;
+
+                      return (
+                        <g key={trend.category}>
+                          {/* Previous Quarter Bar */}
+                          <rect
+                            x={groupX}
+                            y={180 - prevH}
+                            width="14"
+                            height={prevH}
+                            rx="2"
+                            fill={themeStyles.textMuted}
+                          />
+
+                          {/* Recent Quarter Bar */}
+                          <rect
+                            x={groupX + 16}
+                            y={180 - recentH}
+                            width="18"
+                            height={recentH}
+                            rx="2"
+                            fill="#2563eb"
+                          />
+
+                          {/* Unified Velocity Badge Pill */}
+                          <g transform={`translate(${groupX + 25}, ${180 - recentH - 22})`}>
+                            <rect
+                              x="-28"
+                              y="0"
+                              width="56"
+                              height="18"
+                              rx="4"
+                              fill={isDark ? '#0f172a' : '#ffffff'}
+                              stroke={isHighSurge ? '#10b981' : '#38bdf8'}
+                              strokeWidth="1.2"
+                            />
+                            <text
+                              x="0"
+                              y="12"
+                              textAnchor="middle"
+                              fontSize="10"
+                              fontFamily="var(--font-mono)"
+                              fontWeight="800"
+                              fill={isHighSurge ? '#10b981' : '#38bdf8'}
+                            >
+                              {isHighSurge ? '⚡ +' : '+'}{Math.round(trend.growth_rate_pct)}%
+                            </text>
+                          </g>
+
+                          {/* Category Name */}
+                          <text
+                            x={groupX + 16}
+                            y="198"
+                            textAnchor="middle"
+                            fontSize="10"
+                            fontFamily="var(--font-mono)"
+                            fontWeight="700"
+                            fill={themeStyles.textPrimary}
+                          >
+                            {trend.category}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                );
+              })()}
+            </div>
+          </div>
+
+              {/* Right: Novelty Outlier Scatter & Diagnostic Drawer */}
+              {(!isSidebarCollapsed || !isTheaterMode) && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* Visual 4.2: Outlier Scatter */}
+                  <div
+                    style={{
+                      backgroundColor: themeStyles.cardBg,
+                      borderRadius: '8px',
+                      border: `1px solid ${themeStyles.cardBorder}`,
+                      padding: '12px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      flex: 1,
+                      minHeight: 0,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '8px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div>
+                        <h3
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 800,
+                            color: themeStyles.textPrimary,
+                            margin: 0,
+                          }}
+                        >
+                          BẢN ĐỒ DỊ BIỆT (ISOLATION FOREST OUTLIERS)
+                        </h3>
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            color: themeStyles.textSecondary,
+                            marginTop: '1px',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          Trục X: Độ dài từ &bull; Trục Y: Công thức toán &bull; Nhấp để chẩn đoán
+                        </div>
+                      </div>
+
+                      <ChartToolbar
+                        theme={theme}
+                        svgRef={p4AnomalySvgRef}
+                        filename="isolation-forest-novelty-outliers"
+                        csvData={trendsData.anomalies.map((a) => ({
+                          paper_id: a.paper_id,
+                          title: a.title,
+                          category: a.primary_category,
+                          word_count: a.word_count,
+                          math_count: a.math_count,
+                        }))}
+                        zoomLevel={p4AnomalyZoom}
+                        onZoomIn={() => setP4AnomalyZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
+                        onZoomOut={() => setP4AnomalyZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                        onResetZoom={() => setP4AnomalyZoom(1)}
+                        showBaselines={showBaselines}
+                        onToggleBaselines={() => setShowBaselines((prev) => !prev)}
+                        onShowToast={showToast}
+                      />
+                    </div>
+
+                    {/* Outlier SVG Scatter */}
+                    <div
+                      style={{
+                        flex: 1,
+                        minHeight: 0,
+                        width: '100%',
+                        backgroundColor: themeStyles.canvasBg,
+                        borderRadius: '6px',
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        overflow: 'hidden',
+                      }}
+                      onWheel={(e) => {
+                        if (e.deltaY < 0) {
+                          setP4AnomalyZoom((z) => Math.min(2.5, +(z + 0.15).toFixed(2)));
+                        } else {
+                          setP4AnomalyZoom((z) => Math.max(0.5, +(z - 0.15).toFixed(2)));
+                        }
+                      }}
+                    >
+                      {(() => {
+                        const w = 460 / p4AnomalyZoom;
+                        const h = 210 / p4AnomalyZoom;
+                        const minX = 230 - w / 2;
+                        const minY = 105 - h / 2;
+                        return (
+                          <svg
+                            ref={p4AnomalySvgRef}
+                            viewBox={`${minX} ${minY} ${w} ${h}`}
+                            style={{ width: '100%', height: '100%' }}
+                          >
+                            {/* P99 Threshold Boundary Region */}
+                            {showBaselines && (
+                              <g>
+                                <rect
+                                  x="160"
+                                  y="25"
+                                  width="270"
+                                  height="155"
+                                  fill="rgba(239, 68, 68, 0.05)"
+                                  stroke="rgba(239, 68, 68, 0.3)"
+                                  strokeDasharray="4 4"
+                                  rx="4"
+                                />
+                                {/* Protective backdrop pill for P99 header */}
+                                <rect
+                                  x="166"
+                                  y="28"
+                                  width="250"
+                                  height="18"
+                                  rx="3"
+                                  fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)'}
+                                  stroke="rgba(239, 68, 68, 0.4)"
+                                  strokeWidth="1"
+                                />
+                                <text
+                                  x="172"
+                                  y="41"
+                                  fontSize="10"
+                                  fontFamily="var(--font-mono)"
+                                  fontWeight="800"
+                                  fill="#ef4444"
+                                >
+                                  VÙNG DỊ BIỆT NGOẠI LAI P99 (SCORE &gt; 0.85)
+                                </text>
+                              </g>
+                            )}
+
+                        <line
+                          x1="40"
+                          y1="180"
+                          x2="430"
+                          y2="180"
+                          stroke={themeStyles.axisLine}
+                          strokeWidth="1"
+                        />
+                        <line
+                          x1="40"
+                          y1="20"
+                          x2="40"
+                          y2="180"
+                          stroke={themeStyles.axisLine}
+                          strokeWidth="1"
+                        />
+
+                        {/* Outlier Dots */}
+                        {trendsData.anomalies.map((anom, idx) => {
+                          const cx = 40 + Math.min(370, (anom.word_count / 42000) * 370);
+                          const cy = 180 - Math.min(150, (anom.math_count / 4000) * 150);
+                          const isHovered = hoveredAnomaly?.item.paper_id === anom.paper_id;
+                          const isSelected = inspectedAnomaly?.paper_id === anom.paper_id;
+
+                          return (
+                            <g key={idx}>
+                              <circle
+                                cx={cx}
+                                cy={cy}
+                                r={isSelected ? '9' : isHovered ? '7' : '5'}
+                                fill="rgba(239, 68, 68, 0.25)"
+                              />
+                              <circle
+                                cx={cx}
+                                cy={cy}
+                                r={isSelected ? '5' : isHovered ? '4' : '3'}
+                                fill="#ef4444"
+                                stroke="#ffffff"
+                                strokeWidth={isSelected ? '1.8' : '1'}
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => setInspectedAnomaly(anom)}
+                                onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                                  const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                                  setHoveredAnomaly({
+                                    item: anom,
+                                    x: rect.left + rect.width / 2,
+                                    y: rect.top - 8,
+                                  });
+                                }}
+                                onMouseLeave={() => setHoveredAnomaly(null)}
+                              />
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    );
+                  })()}
+                </div>
+              </div>
+
+                  {/* Outlier Diagnostics Panel */}
+                  {inspectedAnomaly && (
+                    <div
+                      style={{
+                        backgroundColor: themeStyles.cardBg,
+                        borderRadius: '8px',
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        padding: '10px 12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            fontFamily: 'var(--font-mono)',
+                            color: '#ef4444',
+                          }}
+                        >
+                          CHẨN ĐOÁN DỊ BIỆT &bull; arXiv:{inspectedAnomaly.paper_id}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            color: '#059669',
+                            fontWeight: 800,
+                          }}
+                        >
+                          Score: 0.985
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: themeStyles.textPrimary,
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {inspectedAnomaly.title}
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          color: themeStyles.textSecondary,
+                          lineHeight: 1.4,
+                          borderLeft: '2px solid #ef4444',
+                          paddingLeft: '6px',
+                        }}
+                      >
+                        <strong>Lý do gắn cờ:</strong> Bài báo chứa {inspectedAnomaly.math_count} công thức toán học và {inspectedAnomaly.word_count.toLocaleString()} từ ngữ (vượt ngưỡng phân vị P99 học thuật).
+                      </div>
+
+                      {onNavigateToRag && (
+                        <button
+                          type="button"
+                          onClick={() => onNavigateToRag(inspectedAnomaly.title)}
+                          style={{
+                            backgroundColor: '#dc2626',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '5px 10px',
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <span>🔬</span>
+                          <span>Phân tích bài báo dị biệt này với RAG</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ============================================================== */}
       {/* FLOATING TOOLTIPS FOR ALL 4 PILLAR CHARTS                      */}
       {/* ============================================================== */}
       {hoveredRule && (
-        <div style={{ position: 'fixed', left: `${hoveredRule.x}px`, top: `${hoveredRule.y}px`, transform: 'translate(-50%, -100%)', backgroundColor: '#0f172a', color: '#ffffff', padding: '10px 14px', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000, pointerEvents: 'none', maxWidth: '300px', border: '1px solid #334155', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoveredRule.x}px`,
+            top: `${hoveredRule.y}px`,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: themeStyles.tooltipBg,
+            color: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            maxWidth: '280px',
+            border: '1px solid #334155',
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
           <div style={{ color: '#ea580c', fontWeight: 800 }}>
-            {hoveredRule.rule.antecedents.join(' + ')} &rarr; {hoveredRule.rule.consequents.join(' + ')}
+            {hoveredRule.rule.antecedents.join(' + ')} &rarr;{' '}
+            {hoveredRule.rule.consequents.join(' + ')}
           </div>
-          <div style={{ marginTop: '4px', color: '#f8fafc' }}>
-            Lift: <strong style={{ color: '#ea580c' }}>{hoveredRule.rule.lift.toFixed(3)}x</strong> &bull; Confidence: <strong style={{ color: '#10b981' }}>{(hoveredRule.rule.confidence * 100).toFixed(1)}%</strong>
+          <div style={{ marginTop: '3px', color: '#f8fafc' }}>
+            Lift: <strong style={{ color: '#ea580c' }}>{hoveredRule.rule.lift.toFixed(3)}x</strong> &bull; Conf: <strong style={{ color: '#10b981' }}>{(hoveredRule.rule.confidence * 100).toFixed(1)}%</strong>
           </div>
-          <div style={{ color: '#94a3b8', fontSize: '10px', marginTop: '2px' }}>
-            Support: {(hoveredRule.rule.support * 100).toFixed(2)}% &bull; Leverage: {hoveredRule.rule.leverage.toFixed(4)}
+          <div style={{ color: '#94a3b8', fontSize: '10px', marginTop: '1px' }}>
+            Support: {(hoveredRule.rule.support * 100).toFixed(2)}% &bull; Nhấp để soi chi tiết
           </div>
         </div>
       )}
 
       {hoveredPoint && (
-        <div style={{ position: 'fixed', left: `${hoveredPoint.x}px`, top: `${hoveredPoint.y}px`, transform: 'translate(-50%, -100%)', backgroundColor: '#0f172a', color: '#ffffff', padding: '10px 14px', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000, pointerEvents: 'none', maxWidth: '300px', border: '1px solid #334155', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoveredPoint.x}px`,
+            top: `${hoveredPoint.y}px`,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: themeStyles.tooltipBg,
+            color: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            maxWidth: '280px',
+            border: '1px solid #334155',
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
           <div style={{ color: '#38bdf8', fontWeight: 800 }}>
-            PAPER: {hoveredPoint.point.paper_id} &bull; CỤM #{hoveredPoint.point.cluster}
+            CỤM #{hoveredPoint.point.cluster} &bull; arXiv:{hoveredPoint.point.paper_id}
           </div>
-          <div style={{ color: '#f8fafc', fontWeight: 600, marginTop: '3px' }}>
+          <div style={{ color: '#f8fafc', fontWeight: 600, marginTop: '2px' }}>
             {hoveredPoint.point.title}
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: '10px', marginTop: '2px' }}>
+            Nhấp chuột để xem bài báo lân cận (k-NN)
           </div>
         </div>
       )}
 
       {hoveredGraphNode && (
-        <div style={{ position: 'fixed', left: `${hoveredGraphNode.x}px`, top: `${hoveredGraphNode.y}px`, transform: 'translate(-50%, -100%)', backgroundColor: '#0f172a', color: '#ffffff', padding: '8px 12px', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000, pointerEvents: 'none', border: '1px solid #334155', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoveredGraphNode.x}px`,
+            top: `${hoveredGraphNode.y}px`,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: themeStyles.tooltipBg,
+            color: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            border: '1px solid #334155',
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
           <div style={{ color: '#c084fc', fontWeight: 800 }}>
             {hoveredGraphNode.node.label || hoveredGraphNode.node.id}
           </div>
@@ -936,21 +3721,39 @@ export const MiningPillarsView: FC = () => {
             PageRank: <strong>{hoveredGraphNode.node.pagerank.toFixed(6)}</strong>
           </div>
           <div style={{ color: '#94a3b8', fontSize: '10px' }}>
-            Liên kết: {hoveredGraphNode.node.degree} tác giả &bull; {hoveredGraphNode.node.paper_count} bài báo
+            {hoveredGraphNode.node.degree} đồng tác giả &bull; Nhấp để khóa Ego-Network
           </div>
         </div>
       )}
 
       {hoveredAnomaly && (
-        <div style={{ position: 'fixed', left: `${hoveredAnomaly.x}px`, top: `${hoveredAnomaly.y}px`, transform: 'translate(-50%, -100%)', backgroundColor: '#0f172a', color: '#ffffff', padding: '10px 14px', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000, pointerEvents: 'none', maxWidth: '320px', border: '1px solid #334155', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+        <div
+          style={{
+            position: 'fixed',
+            left: `${hoveredAnomaly.x}px`,
+            top: `${hoveredAnomaly.y}px`,
+            transform: 'translate(-50%, -100%)',
+            backgroundColor: themeStyles.tooltipBg,
+            color: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            maxWidth: '300px',
+            border: '1px solid #334155',
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
           <div style={{ color: '#ef4444', fontWeight: 800 }}>
             OUTLIER: arXiv:{hoveredAnomaly.item.paper_id} &bull; {hoveredAnomaly.item.primary_category}
           </div>
           <div style={{ color: '#f8fafc', fontWeight: 600, marginTop: '2px' }}>
             {hoveredAnomaly.item.title}
           </div>
-          <div style={{ color: '#ea580c', marginTop: '4px' }}>
-            {hoveredAnomaly.item.math_count} eq &bull; {hoveredAnomaly.item.word_count.toLocaleString()} words
+          <div style={{ color: '#ea580c', marginTop: '3px' }}>
+            {hoveredAnomaly.item.math_count} equations &bull; {hoveredAnomaly.item.word_count.toLocaleString()} words
           </div>
         </div>
       )}

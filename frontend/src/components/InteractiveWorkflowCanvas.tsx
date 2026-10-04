@@ -1337,7 +1337,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 TERMINAL LOGS
                 <span
                   style={{
-                    fontSize: '9px',
+                    fontSize: '10px',
                     backgroundColor: bottomTab === 'logs' ? '#0f172a' : '#cbd5e1',
                     color: bottomTab === 'logs' ? '#ffffff' : '#1e293b',
                     padding: '1px 5px',

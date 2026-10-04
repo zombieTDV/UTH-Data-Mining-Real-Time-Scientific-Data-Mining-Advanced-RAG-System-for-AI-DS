@@ -413,9 +413,9 @@ export default function App() {
         <main
           style={{
             flex: 1,
-            overflowY: activeTab === 'schematic' || activeTab === 'rag' ? 'hidden' : 'auto',
+            overflowY: activeTab === 'schematic' || activeTab === 'rag' || activeTab === 'eda' || activeTab === 'pillars' ? 'hidden' : 'auto',
             overflowX: 'hidden',
-            padding: activeTab === 'schematic' ? '20px 24px' : activeTab === 'rag' ? '0' : '28px 36px',
+            padding: activeTab === 'schematic' ? '20px 24px' : activeTab === 'rag' ? '0' : activeTab === 'eda' || activeTab === 'pillars' ? '12px 24px' : '28px 36px',
             backgroundColor: 'transparent',
             display: 'flex',
             flexDirection: 'column',
@@ -433,14 +433,24 @@ export default function App() {
           )}
 
           {activeTab === 'eda' && (
-            <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
-              <EdaView />
+            <div style={{ maxWidth: '1600px', width: '100%', height: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <EdaView
+                theme={theme}
+                onNavigateToRag={(_title) => {
+                  setActiveTab('rag');
+                }}
+              />
             </div>
           )}
 
           {activeTab === 'pillars' && (
-            <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
-              <MiningPillarsView />
+            <div style={{ maxWidth: '1600px', width: '100%', height: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <MiningPillarsView
+                theme={theme}
+                onNavigateToRag={(_title) => {
+                  setActiveTab('rag');
+                }}
+              />
             </div>
           )}
 

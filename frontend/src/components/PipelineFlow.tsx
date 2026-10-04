@@ -142,7 +142,7 @@ export function PipelineFlow() {
                 </span>
 
                 <span style={{
-                  fontSize: '9px',
+                  fontSize: '10px',
                   fontFamily: 'var(--font-mono)',
                   padding: '2px 6px',
                   borderRadius: '4px',

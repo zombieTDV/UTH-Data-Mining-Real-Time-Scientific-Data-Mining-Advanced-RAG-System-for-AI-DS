@@ -314,7 +314,7 @@ export const GroundedRagChat: FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span
                           style={{
-                            fontSize: '9.5px',
+                            fontSize: '10px',
                             fontWeight: 800,
                             fontFamily: 'var(--font-mono)',
                             backgroundColor: '#ecfdf5',
@@ -427,7 +427,7 @@ export const GroundedRagChat: FC = () => {
                   {/* Timestamp */}
                   <div
                     style={{
-                      fontSize: '9.5px',
+                      fontSize: '10px',
                       fontFamily: 'var(--font-mono)',
                       color: isUser ? 'rgba(255, 255, 255, 0.75)' : '#94a3b8',
                       textAlign: 'right',

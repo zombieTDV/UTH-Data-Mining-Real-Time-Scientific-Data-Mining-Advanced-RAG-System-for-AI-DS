@@ -181,3 +181,110 @@ button:active {
     opacity: 1;
   }
 }
+
+/* Typography Scale & Text Protection (Min 10px, Geist / Geist Mono) */
+.text-display {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-family: var(--font-mono);
+}
+
+.text-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.text-body-ui {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.text-caption-meta {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+
+.text-micro-mono {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+
+.text-truncate-safe {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Scientific Telemetry Chip */
+.telemetry-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Theater Mode & Collapsible Transitions */
+.theater-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: var(--bg-canvas);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  animation: fadeInTheater 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInTheater {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.floating-glass-dock {
+  position: absolute;
+  bottom: 20px;
+  right: 24px;
+  width: 380px;
+  max-height: 450px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(14, 20, 34, 0.88);
+  border: 1px solid var(--border-muted);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+[data-theme="light"] .floating-glass-dock {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border-muted);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12);
+}
+
+.collapsible-pane {
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), flex 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
+}
