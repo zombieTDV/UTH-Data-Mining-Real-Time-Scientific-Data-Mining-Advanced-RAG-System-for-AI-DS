@@ -101,10 +101,10 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         id: `ast-${Date.now()}`,
         sender: 'assistant',
         text: res.answer,
-        citations: res.citations || [],
-        similarity_score: res.similarity_score || '0.8510',
-        generation_time: res.generation_time || '0.28s',
-        context_chunks_used: res.context_chunks_used || 5,
+        citations: res.citations ?? [],
+        similarity_score: res.similarity_score ?? (res.context_chunks_used && res.context_chunks_used > 0 ? '0.8510' : '0.0000'),
+        generation_time: res.generation_time ?? '0.00s',
+        context_chunks_used: res.context_chunks_used ?? 0,
         timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
       };
 

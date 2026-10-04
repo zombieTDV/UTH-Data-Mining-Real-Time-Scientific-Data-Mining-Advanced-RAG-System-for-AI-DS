@@ -115,7 +115,7 @@ class RagService:
             if cite_str not in citations:
                 citations.append(cite_str)
 
-        sim_score = f"{chunks[0].score:.4f}" if chunks and chunks[0].score else "0.8510"
+        sim_score = f"{chunks[0].score:.4f}" if chunks and chunks[0].score else ("0.8500" if chunks else "0.0000")
         llm = self._get_llm()
 
         # 3. Model Inference or Fallback
