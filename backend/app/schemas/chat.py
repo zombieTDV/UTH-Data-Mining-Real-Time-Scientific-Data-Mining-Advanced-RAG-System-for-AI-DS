@@ -16,3 +16,4 @@ class ChatResponse(BaseModel):
     similarity_score: str
     generation_time: str
     context_chunks_used: int
+    retrieval_context: Optional[List[str]] = None

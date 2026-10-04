@@ -24,7 +24,7 @@ class RagService:
             query=req.query,
             top_k=req.top_k or 5,
             category=req.category,
-            mode="fts",
+            mode="vector",
         )
         chunks = retrieval_service.search(search_req)
 
@@ -84,6 +84,7 @@ class RagService:
                 similarity_score="0.0000",
                 generation_time=f"{elapsed}s",
                 context_chunks_used=0,
+                retrieval_context=[],
             )
 
         # Generate answer with real LLM
@@ -114,6 +115,7 @@ class RagService:
             similarity_score=top_score,
             generation_time=f"{elapsed}s",
             context_chunks_used=len(chunks),
+            retrieval_context=[c.text for c in chunks],
         )
 
     async def answer_query_stream(self, req: ChatRequest) -> AsyncIterator[str]:

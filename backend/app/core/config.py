@@ -48,6 +48,16 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.7
     GROQ_API_KEY: str = ""
 
+    # DeepEval Benchmarking Settings
+    DEEPEVAL_JUDGE_MODEL: str = "local"  # "local", "deepseek", "groq", "openai"
+    DEEPEVAL_LOCAL_URL: str = "http://localhost:9001/v1"
+    DEEPEVAL_LOCAL_MODEL: str = "qwen2.5-7b-instruct"
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+    OPENAI_API_KEY: str = ""
+    CONFIDENT_AI_API_KEY: str = ""
+
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE) if ENV_FILE.exists() else None,
         env_file_encoding="utf-8",

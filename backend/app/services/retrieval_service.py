@@ -9,6 +9,7 @@ from typing import List, Optional
 import lancedb
 from backend.app.core.config import settings
 from backend.app.schemas.search import ChunkDto, SearchRequest
+from backend.app.services.embedder_service import embedder_service
 
 logger = logging.getLogger("retrieval_service")
 
@@ -49,10 +50,19 @@ class RetrievalService:
 
         try:
             k = req.top_k or 5
-            mode = (req.mode or "fts").lower()
+            mode = (req.mode or "vector").lower()
 
             # Execute search on LanceDB
-            query_builder = self.table.search(req.query)
+            if mode in ("vector", "dense", "hybrid"):
+                query_vector = embedder_service.embed_query(req.query)
+                if query_vector is not None:
+                    query_builder = self.table.search(query_vector).metric("cosine")
+                else:
+                    logger.warning("[RETRIEVAL] Dense embedding unavailable, falling back to text search.")
+                    query_builder = self.table.search(req.query)
+            else:
+                query_builder = self.table.search(req.query)
+
             if req.category:
                 query_builder = query_builder.where(f"primary_category = '{req.category}'")
 
@@ -68,6 +78,14 @@ class RetrievalService:
                 else:
                     authors_list = [str(raw_authors)] if raw_authors else []
 
+                # Calculate similarity score
+                if "_distance" in r:
+                    sim_score = max(0.0, round(1.0 - float(r["_distance"]), 4))
+                elif "_score" in r:
+                    sim_score = float(r["_score"])
+                else:
+                    sim_score = 0.85
+
                 results.append(
                     ChunkDto(
                         chunk_id=str(r.get("chunk_id", "")),
@@ -79,7 +97,7 @@ class RetrievalService:
                         year=int(r.get("year", 2026)) if r.get("year") else 2026,
                         primary_category=str(r.get("primary_category", "")) if r.get("primary_category") else None,
                         section_title=str(r.get("section_title", "")) if r.get("section_title") else None,
-                        score=float(r.get("_score", 0.85)) if "_score" in r else 0.85,
+                        score=sim_score,
                         source=f"{settings.LANCEDB_URI}/{settings.LANCEDB_TABLE}",
                     )
                 )
