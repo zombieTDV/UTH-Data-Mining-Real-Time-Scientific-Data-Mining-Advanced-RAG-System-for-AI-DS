@@ -17,7 +17,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
     sender: 'assistant',
-    text: 'Hello! I am the **UTH Scientific RAG Assistant**, connected to your real-time academic Lakehouse.\n\nI have direct access to **10,000 harvested papers**, **2.22M mathematical formulas**, and **143,523 LanceDB vector embeddings** (Nomic v1.5 768-D). Every answer is strictly grounded in verified arXiv full texts with zero hallucination. How can I assist your research today?',
+    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nI am connected in real-time to your academic Lakehouse holding **10,000 harvested papers**, **2.22M formulas**, and **143,523 LanceDB vector embeddings** (Nomic v1.5 768-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
     timestamp: '12:00:00',
   },
   {
@@ -29,7 +29,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-2',
     sender: 'assistant',
-    text: 'According to the CoDi paper [Paper: 2310.01407, Section: 5 Experiments], the sampling of $z_t$ plays a crucial role in the distillation learning process:\n\n1. **Consistent Batch Time Steps:** The paper demonstrates that enforcing a consistent timestep $t$ across different samples within a single batch produces significantly superior gradient alignment compared to sampling $z_t$ across independent timesteps.\n2. **Visual & Mathematical Faithfulness:** This batch-consistent distillation strategy drastically reduces trajectory drift and yields superior FID scores with higher visual accuracy during fast few-step inference.',
+    text: 'According to the CoDi paper [Paper: 2310.01407, Section: 5 Experiments], the sampling of $z_t$ plays a crucial role in the distillation learning process:\n\n1. **Consistent Batch Time Steps:** Enforcing a uniform time step $t$ across all samples in a single batch produces significantly superior gradient alignment compared to independent per-sample sampling.\n2. **Visual & Mathematical Faithfulness:** This batch-consistent distillation strategy drastically reduces trajectory drift and yields superior FID scores with higher visual quality during fast few-step inference.',
     citations: ['Paper: 2310.01407, Section: 5 Experiments', 'Paper: 2310.01407, Section: 3 Methodology'],
     similarity_score: '0.8510',
     generation_time: '0.24s',
@@ -39,10 +39,10 @@ const INITIAL_MESSAGES: ChatMessage[] = [
 ];
 
 const SAMPLE_QUERIES = [
-  'What is the role of sampling z_t in conditional diffusion distillation according to CoDi paper 2310.01407?',
-  'How does gated distillation improve OCR faithfulness in Vision-Language Models?',
-  'What are the core efficiency trade-offs between LoRA and full fine-tuning in LLMs?',
-  'How does LanceDB vector indexing achieve sub-millisecond similarity search over Arrow tables?',
+  'Sampling z_t in conditional diffusion distillation (CoDi 2310.01407)',
+  'How does gated distillation improve OCR faithfulness?',
+  'Efficiency trade-offs between LoRA and full fine-tuning',
+  'LanceDB vector indexing latency over Apache Arrow',
 ];
 
 export const GroundedRagChat: FC = () => {
@@ -142,130 +142,138 @@ export const GroundedRagChat: FC = () => {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: '24px', height: 'calc(100vh - 140px)', minHeight: '620px' }}>
+    <div
+      style={{
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        backgroundColor: 'transparent',
+        overflow: 'hidden',
+      }}
+    >
       {/* ============================================================== */}
-      {/* LEFT COLUMN: CONVERSATIONAL CHAT THREAD & INPUT COMPOSER */}
+      {/* 1. TOP FLOATING CONTROL PILL (Centered in open canvas) */}
       {/* ============================================================== */}
       <div
         style={{
           display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '12px',
-          boxShadow: 'var(--card-shadow)',
-          overflow: 'hidden',
-          height: '100%',
+          justifyContent: 'center',
+          padding: '16px 20px 8px',
+          zIndex: 10,
+          flexShrink: 0,
         }}
       >
-        {/* Chat Stream Header */}
         <div
           style={{
-            padding: '12px 20px',
-            borderBottom: '1px solid var(--border-subtle)',
-            backgroundColor: 'var(--bg-surface-elevated)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            flexShrink: 0,
+            gap: '12px',
+            backgroundColor: 'rgba(255, 255, 255, 0.92)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid #e2e8f0',
+            borderRadius: '9999px',
+            padding: '6px 16px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+            <span
               style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '8px',
-                backgroundColor: '#3b82f6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor: '#10b981',
+                boxShadow: '0 0 8px #10b981',
               }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>SCIENTIFIC RAG CHAT ASSISTANT</span>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    color: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    fontWeight: 700,
-                  }}
-                >
-                  ONLINE
-                </span>
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                Hybrid LanceDB Vector Search + BM25 Full-Text Re-ranking
-              </div>
-            </div>
+            />
+            <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a' }}>
+              SCIENTIFIC RAG
+            </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* Domain Filter */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              style={{
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                backgroundColor: 'var(--bg-canvas)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '6px',
-                padding: '4px 8px',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="all">All Domains (cs.*, stat.*)</option>
-              <option value="cs.AI">cs.AI (Artificial Intelligence)</option>
-              <option value="cs.LG">cs.LG (Machine Learning)</option>
-              <option value="cs.CV">cs.CV (Computer Vision)</option>
-              <option value="cs.CL">cs.CL (Computation & Language)</option>
-              <option value="stat.ML">stat.ML (Machine Learning Stats)</option>
-            </select>
+          <span style={{ color: '#cbd5e1' }}>|</span>
 
-            {/* Clear History Button */}
-            <button
-              type="button"
-              onClick={handleClearHistory}
-              title="Reset conversation"
-              style={{
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                backgroundColor: 'transparent',
-                color: 'var(--text-muted)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '6px',
-                padding: '4px 10px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Reset
-            </button>
-          </div>
+          <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+            10,000 Papers · 143k LanceDB Vectors (Nomic 768-D)
+          </span>
+
+          <span style={{ color: '#cbd5e1' }}>|</span>
+
+          {/* Domain Category Selector */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            style={{
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              backgroundColor: '#f8fafc',
+              color: '#334155',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              padding: '2px 8px',
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="all">All Domains (cs.*, stat.*)</option>
+            <option value="cs.AI">cs.AI (Artificial Intelligence)</option>
+            <option value="cs.LG">cs.LG (Machine Learning)</option>
+            <option value="cs.CV">cs.CV (Computer Vision)</option>
+            <option value="cs.CL">cs.CL (Computation & Language)</option>
+            <option value="stat.ML">stat.ML (Machine Learning Stats)</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={handleClearHistory}
+            title="Reset conversation thread"
+            style={{
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '2px 6px',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            <span>Reset</span>
+          </button>
         </div>
+      </div>
 
-        {/* Scrollable Chat Messages Container */}
+      {/* ============================================================== */}
+      {/* 2. CONVERSATION MESSAGES (Floating right in the center) */}
+      {/* ============================================================== */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '20px 24px 170px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
         <div
           style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '20px',
+            width: '100%',
+            maxWidth: '820px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '18px',
+            gap: '24px',
           }}
         >
           {messages.map((msg) => {
@@ -278,17 +286,17 @@ export const GroundedRagChat: FC = () => {
                   display: 'flex',
                   flexDirection: isUser ? 'row-reverse' : 'row',
                   alignItems: 'flex-start',
-                  gap: '12px',
-                  maxWidth: '100%',
+                  gap: '14px',
+                  width: '100%',
                 }}
               >
-                {/* Avatar Icon */}
+                {/* Floating Avatar */}
                 <div
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: isUser ? '50%' : '8px',
-                    backgroundColor: isUser ? '#3b82f6' : '#10b981',
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: isUser ? '50%' : '10px',
+                    backgroundColor: isUser ? '#2563eb' : '#ff5722',
                     color: '#ffffff',
                     display: 'flex',
                     alignItems: 'center',
@@ -296,29 +304,32 @@ export const GroundedRagChat: FC = () => {
                     fontSize: '11px',
                     fontWeight: 800,
                     flexShrink: 0,
-                    boxShadow: isUser ? '0 2px 6px rgba(59, 130, 246, 0.35)' : '0 2px 6px rgba(16, 185, 129, 0.35)',
+                    boxShadow: isUser
+                      ? '0 3px 10px rgba(37, 99, 235, 0.35)'
+                      : '0 3px 10px rgba(255, 87, 34, 0.35)',
                   }}
                 >
                   {isUser ? (
                     'QM'
                   ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   )}
                 </div>
 
-                {/* Message Bubble Card */}
+                {/* Floating Bubble */}
                 <div
                   style={{
-                    maxWidth: '82%',
-                    backgroundColor: isUser ? '#2563eb' : 'var(--bg-canvas)',
-                    color: isUser ? '#ffffff' : 'var(--text-primary)',
-                    borderRadius: isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-                    border: isUser ? 'none' : '1px solid var(--border-subtle)',
-                    padding: '14px 18px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                    position: 'relative',
+                    maxWidth: isUser ? '75%' : '88%',
+                    backgroundColor: isUser ? '#2563eb' : '#ffffff',
+                    color: isUser ? '#ffffff' : '#0f172a',
+                    borderRadius: isUser ? '20px 4px 20px 20px' : '4px 20px 20px 20px',
+                    border: isUser ? 'none' : '1px solid #e2e8f0',
+                    padding: '16px 20px',
+                    boxShadow: isUser
+                      ? '0 4px 16px rgba(37, 99, 235, 0.22)'
+                      : '0 4px 20px rgba(0, 0, 0, 0.05)',
                   }}
                 >
                   {/* Top Bar for Assistant: Grounded status & Metrics */}
@@ -328,9 +339,9 @@ export const GroundedRagChat: FC = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        borderBottom: '1px solid var(--border-subtle)',
+                        borderBottom: '1px solid #f1f5f9',
                         paddingBottom: '8px',
-                        marginBottom: '10px',
+                        marginBottom: '12px',
                         gap: '12px',
                         flexWrap: 'wrap',
                       }}
@@ -338,36 +349,36 @@ export const GroundedRagChat: FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span
                           style={{
-                            fontSize: '9px',
+                            fontSize: '9.5px',
                             fontWeight: 800,
                             fontFamily: 'var(--font-mono)',
-                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                            color: '#10b981',
-                            padding: '2px 6px',
+                            backgroundColor: '#ecfdf5',
+                            color: '#059669',
+                            padding: '2px 7px',
                             borderRadius: '4px',
                             letterSpacing: '0.04em',
                           }}
                         >
-                          GROUNDED ATTRIBUTION
+                          ● GROUNDED ATTRIBUTION
                         </span>
                         {msg.similarity_score && (
-                          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#3b82f6', fontWeight: 700 }}>
+                          <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: '#2563eb', fontWeight: 700 }}>
                             SIMILARITY: {msg.similarity_score}
                           </span>
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
                         {msg.generation_time && <span>Latency: {msg.generation_time}</span>}
                         {msg.context_chunks_used && <span>· Chunks: {msg.context_chunks_used}</span>}
                         <button
                           type="button"
                           onClick={() => handleCopyText(msg.id, msg.text)}
-                          title="Copy response text"
+                          title="Copy answer"
                           style={{
                             backgroundColor: 'transparent',
                             border: 'none',
-                            color: copiedId === msg.id ? '#10b981' : 'var(--text-muted)',
+                            color: copiedId === msg.id ? '#059669' : '#94a3b8',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -389,8 +400,8 @@ export const GroundedRagChat: FC = () => {
                   {/* Body Text */}
                   <div
                     style={{
-                      fontSize: '13.5px',
-                      lineHeight: '1.65',
+                      fontSize: '14px',
+                      lineHeight: '1.7',
                       whiteSpace: 'pre-line',
                       fontFamily: isUser ? 'inherit' : 'var(--font-sans)',
                       wordBreak: 'break-word',
@@ -401,13 +412,13 @@ export const GroundedRagChat: FC = () => {
 
                   {/* Verified Citations List (for Assistant responses) */}
                   {!isUser && msg.citations && msg.citations.length > 0 && (
-                    <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+                    <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
                       <div
                         style={{
-                          fontSize: '10px',
+                          fontSize: '10.5px',
                           fontWeight: 700,
                           fontFamily: 'var(--font-mono)',
-                          color: 'var(--text-muted)',
+                          color: '#64748b',
                           marginBottom: '6px',
                           display: 'flex',
                           alignItems: 'center',
@@ -420,20 +431,20 @@ export const GroundedRagChat: FC = () => {
                           <line x1="16" y1="13" x2="8" y2="13" />
                           <line x1="16" y1="17" x2="8" y2="17" />
                         </svg>
-                        <span>VERIFIED CITATIONS (ZERO HALLUCINATION):</span>
+                        <span>VERIFIED CITATIONS:</span>
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {msg.citations.map((cite, i) => (
                           <div
                             key={i}
                             style={{
-                              fontSize: '10px',
+                              fontSize: '10.5px',
                               fontFamily: 'var(--font-mono)',
-                              backgroundColor: 'var(--bg-surface-elevated)',
-                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: '#fff7ed',
+                              border: '1px solid #ffedd5',
                               color: '#ea580c',
-                              padding: '3px 8px',
-                              borderRadius: '4px',
+                              padding: '3px 9px',
+                              borderRadius: '6px',
                               fontWeight: 600,
                               display: 'flex',
                               alignItems: 'center',
@@ -453,7 +464,7 @@ export const GroundedRagChat: FC = () => {
                     style={{
                       fontSize: '9.5px',
                       fontFamily: 'var(--font-mono)',
-                      color: isUser ? 'rgba(255, 255, 255, 0.75)' : 'var(--text-muted)',
+                      color: isUser ? 'rgba(255, 255, 255, 0.75)' : '#94a3b8',
                       textAlign: 'right',
                       marginTop: '6px',
                     }}
@@ -465,15 +476,15 @@ export const GroundedRagChat: FC = () => {
             );
           })}
 
-          {/* Animated Loading/Thinking Bubble */}
+          {/* Animated Thinking Bubble */}
           {loading && (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
               <div
                 style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  backgroundColor: '#10b981',
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '10px',
+                  backgroundColor: '#ff5722',
                   color: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
@@ -481,30 +492,31 @@ export const GroundedRagChat: FC = () => {
                   fontSize: '11px',
                   fontWeight: 800,
                   flexShrink: 0,
-                  animation: 'stageGlowOrange 1.5s infinite',
+                  boxShadow: '0 3px 10px rgba(255, 87, 34, 0.35)',
                 }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
                   <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                 </svg>
               </div>
 
               <div
                 style={{
-                  backgroundColor: 'var(--bg-canvas)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '4px 16px 16px 16px',
-                  padding: '12px 18px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '4px 20px 20px 20px',
+                  padding: '14px 20px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
-                  fontSize: '12px',
+                  gap: '12px',
+                  fontSize: '12.5px',
                   fontFamily: 'var(--font-mono)',
-                  color: 'var(--text-secondary)',
+                  color: '#475569',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
                 }}
               >
                 <div style={{ display: 'flex', gap: '4px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#3b82f6', animation: 'stageGlowOrange 1s infinite' }} />
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', animation: 'stageGlowOrange 1s infinite' }} />
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', animation: 'stageGlowOrange 1.2s infinite' }} />
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ff5722', animation: 'stageGlowOrange 1.4s infinite' }} />
                 </div>
@@ -515,241 +527,167 @@ export const GroundedRagChat: FC = () => {
 
           <div ref={messagesEndRef} />
         </div>
-
-        {/* Suggested Queries Quick Carousel */}
-        <div
-          style={{
-            padding: '8px 16px',
-            borderTop: '1px solid var(--border-subtle)',
-            backgroundColor: 'var(--bg-surface-elevated)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            overflowX: 'auto',
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-            PROMPTS:
-          </span>
-          {SAMPLE_QUERIES.map((q, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => {
-                setInputText(q);
-                handleSendMessage(q);
-              }}
-              style={{
-                fontSize: '10.5px',
-                fontFamily: 'var(--font-mono)',
-                backgroundColor: 'var(--bg-canvas)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '9999px',
-                padding: '4px 10px',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#3b82f6';
-                e.currentTarget.style.color = '#3b82f6';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                e.currentTarget.style.color = 'var(--text-secondary)';
-              }}
-            >
-              {q.length > 48 ? `${q.substring(0, 48)}...` : q}
-            </button>
-          ))}
-        </div>
-
-        {/* Bottom Interactive Message Composer */}
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            padding: '14px 16px',
-            borderTop: '1px solid var(--border-subtle)',
-            backgroundColor: 'var(--bg-surface)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            gap: '10px',
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ flex: 1, position: 'relative' }}>
-            <textarea
-              ref={textareaRef}
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={2}
-              placeholder="Ask any scientific inquiry across 10,000 papers (e.g., 'Explain the attention mechanism in FlashAttention-2')..."
-              style={{
-                width: '100%',
-                backgroundColor: 'var(--bg-canvas)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '13px',
-                padding: '10px 14px',
-                outline: 'none',
-                resize: 'none',
-                boxSizing: 'border-box',
-                lineHeight: '1.4',
-              }}
-            />
-            <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginTop: '3px' }}>
-              Press <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for a new line
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={!inputText.trim() || loading}
-            style={{
-              height: '42px',
-              padding: '0 20px',
-              borderRadius: '8px',
-              backgroundColor: !inputText.trim() || loading ? '#94a3b8' : '#ff5722',
-              color: '#ffffff',
-              border: 'none',
-              fontSize: '12px',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono)',
-              cursor: !inputText.trim() || loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: !inputText.trim() || loading ? 'none' : '0 2px 8px rgba(255, 87, 34, 0.4)',
-              transition: 'all 0.15s ease',
-              flexShrink: 0,
-            }}
-          >
-            {loading ? (
-              <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                </svg>
-                <span>RETRIEVING...</span>
-              </>
-            ) : (
-              <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-                <span>SEND</span>
-              </>
-            )}
-          </button>
-        </form>
       </div>
 
       {/* ============================================================== */}
-      {/* RIGHT COLUMN: RAG GROUNDING & ARCHITECTURE TELEMETRY */}
+      {/* 3. BOTTOM FLOATING COMPOSER DOCK (Floating in the canvas center) */}
       {/* ============================================================== */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-        {/* Specifications Engine Card */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: 0,
+          right: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          pointerEvents: 'none',
+          zIndex: 20,
+        }}
+      >
         <div
           style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '12px',
-            padding: '18px',
-            boxShadow: 'var(--card-shadow)',
+            pointerEvents: 'auto',
+            width: '100%',
+            maxWidth: '820px',
+            padding: '0 20px',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
-              [ RAG ENGINE SPECIFICATIONS ]
-            </span>
+          {/* Quick Prompt Suggestion Chips */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              overflowX: 'auto',
+              paddingBottom: '2px',
+            }}
+          >
+            {SAMPLE_QUERIES.map((q, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setInputText(q);
+                  handleSendMessage(q);
+                }}
+                style={{
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                  backdropFilter: 'blur(12px)',
+                  color: '#475569',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '9999px',
+                  padding: '5px 12px',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#2563eb';
+                  e.currentTarget.style.color = '#2563eb';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.color = '#475569';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                {q}
+              </button>
+            ))}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Vector Lake:</span>
-              <span style={{ fontWeight: 800, color: '#f59e0b' }}>LanceDB Gold</span>
+          {/* Floating Composer Container */}
+          <form
+            onSubmit={handleSubmit}
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid #cbd5e1',
+              borderRadius: '16px',
+              padding: '10px 14px',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.10)',
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: '10px',
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <textarea
+                ref={textareaRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                placeholder="Ask any scientific inquiry across 10,000 papers..."
+                style={{
+                  width: '100%',
+                  border: 'none',
+                  outline: 'none',
+                  backgroundColor: 'transparent',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '13.5px',
+                  color: '#0f172a',
+                  resize: 'none',
+                  maxHeight: '120px',
+                  padding: '4px 0',
+                  lineHeight: '1.5',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>
+                Grounded by LanceDB Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Embeddings:</span>
-              <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>Nomic v1.5 (768-D)</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Vector Count:</span>
-              <span style={{ fontWeight: 800, color: '#10b981' }}>143,523 Chunks</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Context Window:</span>
-              <span style={{ fontWeight: 800 }}>8,192 Tokens</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Search Mode:</span>
-              <span style={{ fontWeight: 800, color: '#3b82f6' }}>Hybrid (Vector + BM25)</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>FastAPI Backend:</span>
-              <span style={{ fontWeight: 800, color: '#10b981' }}>Port 8000 (ONLINE)</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Grounding Protocol Card */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '12px',
-            padding: '18px',
-            boxShadow: 'var(--card-shadow)',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', marginBottom: '8px' }}>
-            [ STRICT GROUNDING PROTOCOL ]
-          </div>
-          <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: '1.6', margin: 0 }}>
-            Every statement generated in response to your query must cite the exact <strong>arXiv paper ID</strong> and <strong>section title</strong> extracted from the Parquet Silver layer. Hallucinations are actively filtered by cosine distance thresholding (&ge; 0.75).
-          </p>
-        </div>
-
-        {/* Academic Domains Breakdown */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '12px',
-            padding: '18px',
-            boxShadow: 'var(--card-shadow)',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', marginBottom: '10px' }}>
-            [ INDEXED CORPUS STATS ]
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>cs.AI / Artificial Intelligence</span>
-              <span style={{ fontWeight: 700 }}>3,420</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>cs.LG / Machine Learning</span>
-              <span style={{ fontWeight: 700 }}>2,850</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>cs.CV / Computer Vision</span>
-              <span style={{ fontWeight: 700 }}>1,980</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>cs.CL / Computation & Language</span>
-              <span style={{ fontWeight: 700 }}>1,150</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>stat.ML / Statistics ML</span>
-              <span style={{ fontWeight: 700 }}>600</span>
-            </div>
-          </div>
+            <button
+              type="submit"
+              disabled={!inputText.trim() || loading}
+              style={{
+                height: '38px',
+                padding: '0 18px',
+                borderRadius: '10px',
+                backgroundColor: !inputText.trim() || loading ? '#cbd5e1' : '#ff5722',
+                color: '#ffffff',
+                border: 'none',
+                fontSize: '12px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                cursor: !inputText.trim() || loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: !inputText.trim() || loading ? 'none' : '0 2px 10px rgba(255, 87, 34, 0.4)',
+                transition: 'all 0.15s ease',
+                flexShrink: 0,
+              }}
+            >
+              {loading ? (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                    <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+                  </svg>
+                  <span>RETRIEVING...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                  <span>SEND</span>
+                </>
+              )}
+            </button>
+          </form>
         </div>
       </div>
     </div>

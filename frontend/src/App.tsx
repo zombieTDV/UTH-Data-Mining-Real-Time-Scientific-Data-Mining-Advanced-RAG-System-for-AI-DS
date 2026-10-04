@@ -413,12 +413,13 @@ export default function App() {
         <main
           style={{
             flex: 1,
-            overflowY: activeTab === 'schematic' ? 'hidden' : 'auto',
+            overflowY: activeTab === 'schematic' || activeTab === 'rag' ? 'hidden' : 'auto',
             overflowX: 'hidden',
-            padding: activeTab === 'schematic' ? '20px 24px' : '28px 36px',
+            padding: activeTab === 'schematic' ? '20px 24px' : activeTab === 'rag' ? '0' : '28px 36px',
             backgroundColor: 'transparent',
             display: 'flex',
             flexDirection: 'column',
+            position: 'relative',
           }}
         >
           {activeTab === 'schematic' && (
@@ -444,7 +445,7 @@ export default function App() {
           )}
 
           {activeTab === 'rag' && (
-            <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto', height: '100%' }}>
+            <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
               <GroundedRagChat />
             </div>
           )}
