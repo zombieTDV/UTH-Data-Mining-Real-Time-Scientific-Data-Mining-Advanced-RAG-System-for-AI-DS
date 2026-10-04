@@ -3,7 +3,7 @@ data_mining/src/mining/association_rules.py
 -------------------------------------------
 Pillar 1: Frequent Pattern & Association Rule Mining Pipeline (FP-Growth).
 Discovers non-trivial co-occurrence patterns across scientific categories
-and domain concepts extracted from 10,000 arXiv papers.
+and domain concepts extracted from academic papers.
 
 Adheres strictly to docs/agents/rules/LOGGING_CHECKPOINT_RULES.md:
 - Strictly NO emojis/icons.
@@ -22,7 +22,7 @@ from mlxtend.frequent_patterns import fpgrowth, association_rules
 
 logger = logging.getLogger("association_rules")
 
-# Canonical AI/DS vocabulary keywords for transaction extraction from paper titles
+# Canonical AI/DS vocabulary keywords for transaction extraction from paper titles and abstracts
 KEYWORD_VOCAB = [
     ("diffusion", "diffusion-models"),
     ("transformer", "transformer"),
@@ -59,47 +59,83 @@ class AssociationRuleMiner:
         self.parquet_path = parquet_path
 
     def _extract_transactions(self) -> List[List[str]]:
-        """Constructs market-basket transactions per paper (categories + concepts)."""
-        logger.info("[PILLAR 1] Loading papers for basket encoding...")
+        """Constructs market-basket transactions per paper (categories, topics, concepts)."""
+        logger.info("[PILLAR 1] Loading papers for basket encoding from: %s", self.parquet_path)
         con = duckdb.connect()
-        df = con.execute(
-            f"SELECT paper_id, title, categories FROM read_parquet('{self.parquet_path}')"
-        ).fetchdf()
+
+        # Discover available schema columns
+        cols_df = con.execute(f"DESCRIBE SELECT * FROM read_parquet('{self.parquet_path}')").fetchdf()
+        available_cols = set(cols_df["column_name"].tolist())
+
+        select_cols = ["paper_id", "title"]
+        if "abstract" in available_cols:
+            select_cols.append("abstract")
+        if "categories" in available_cols:
+            select_cols.append("categories")
+        if "primary_category" in available_cols:
+            select_cols.append("primary_category")
+        if "topics" in available_cols:
+            select_cols.append("topics")
+        if "keywords" in available_cols:
+            select_cols.append("keywords")
+
+        cols_clause = ", ".join(select_cols)
+        df = con.execute(f"SELECT {cols_clause} FROM read_parquet('{self.parquet_path}')").fetchdf()
 
         transactions: List[List[str]] = []
         for _, row in df.iterrows():
             basket = set()
 
-            # Add arXiv categories
+            # 1. Add arXiv categories (handle numpy.ndarray, list, tuple)
             raw_cats = row.get("categories")
-            if isinstance(raw_cats, (list, tuple)):
+            if raw_cats is not None and hasattr(raw_cats, "__iter__") and not isinstance(raw_cats, str):
                 for c in raw_cats:
-                    if c:
-                        basket.add(f"cat:{c.strip()}")
+                    c_str = str(c).strip()
+                    if c_str:
+                        basket.add(f"cat:{c_str}")
+            elif row.get("primary_category"):
+                basket.add(f"cat:{str(row['primary_category']).strip()}")
 
-            # Extract recognized scientific concepts from title
-            title = str(row.get("title", "")).lower()
+            # 2. Add OpenAlex topics and keywords if present
+            raw_topics = row.get("topics")
+            if raw_topics is not None and hasattr(raw_topics, "__iter__") and not isinstance(raw_topics, str):
+                for t in raw_topics:
+                    t_str = str(t).strip()
+                    if t_str:
+                        basket.add(f"topic:{t_str}")
+
+            raw_kws = row.get("keywords")
+            if raw_kws is not None and hasattr(raw_kws, "__iter__") and not isinstance(raw_kws, str):
+                for kw in raw_kws:
+                    kw_str = str(kw).strip().lower()
+                    if kw_str:
+                        basket.add(f"kw:{kw_str}")
+
+            # 3. Extract recognized scientific concepts from title + abstract
+            text_corpus = (str(row.get("title", "")) + " " + str(row.get("abstract", ""))).lower()
             for pattern, tag in KEYWORD_VOCAB:
-                if re.search(r"\b" + re.escape(pattern) + r"\b", title):
+                if re.search(r"\b" + re.escape(pattern) + r"\b", text_corpus):
                     basket.add(f"tag:{tag}")
 
             if len(basket) >= 2:
                 transactions.append(list(basket))
 
         logger.info(
-            "[PILLAR 1] Extracted %d multi-item transactions from %d papers.",
+            "[PILLAR 1] Extracted %d multi-item transactions from %d papers (coverage: %.1f%%).",
             len(transactions),
             len(df),
+            (len(transactions) * 100.0 / max(1, len(df))),
         )
         return transactions
 
     def mine_rules(
         self,
-        min_support: float = 0.015,
+        min_support: float = 0.02,
         min_lift: float = 1.2,
         top_k: int = 50,
+        min_abs_transactions: int = 25,
     ) -> Dict[str, Any]:
-        """Executes FP-Growth algorithm and generates association rules."""
+        """Executes FP-Growth algorithm, deduplicates symmetric rules, and filters by support/lift."""
         transactions = self._extract_transactions()
         if not transactions:
             logger.warning("[PILLAR 1] [WARNING] No transactions found. Returning empty rules.")
@@ -111,18 +147,20 @@ class AssociationRuleMiner:
         te_ary = te.fit_transform(transactions)
         df_encoded = pd.DataFrame(te_ary, columns=te.columns_)
 
-        # 2. Discover frequent itemsets via FP-Growth (avoiding Apriori candidate explosion)
-        logger.info(
-            "[PILLAR 1] Running FP-Growth with min_support=%.4f...",
-            min_support,
-        )
+        # 2. Discover frequent itemsets via FP-Growth
+        logger.info("[PILLAR 1] Running FP-Growth with min_support=%.4f...", min_support)
         frequent_itemsets = fpgrowth(df_encoded, min_support=min_support, use_colnames=True)
         logger.info("[PILLAR 1] Found %d frequent itemsets.", len(frequent_itemsets))
 
         if frequent_itemsets.empty:
+            logger.warning("[PILLAR 1] No itemsets met min_support=%.4f, trying fallback min_support=0.01", min_support)
+            min_support = 0.01
+            frequent_itemsets = fpgrowth(df_encoded, min_support=min_support, use_colnames=True)
+
+        if frequent_itemsets.empty:
             return {"frequent_itemsets": [], "rules": [], "summary": {}}
 
-        # 3. Generate and filter rules by Lift
+        # 3. Generate rules by Lift
         logger.info("[PILLAR 1] Generating association rules with min_lift=%.2f...", min_lift)
         rules = association_rules(frequent_itemsets, metric="lift", min_threshold=min_lift)
 
@@ -130,9 +168,27 @@ class AssociationRuleMiner:
             logger.warning("[PILLAR 1] No rules met min_lift threshold. Falling back to lift=1.0.")
             rules = association_rules(frequent_itemsets, metric="lift", min_threshold=1.0)
 
-        # 4. Sort by Lift and Confidence
+        # 4. Filter by minimum absolute transaction count
+        total_tx = len(transactions)
+        if "support" in rules.columns:
+            rules = rules[rules["support"] * total_tx >= min_abs_transactions]
+
+        # 5. Sort by Lift and Confidence
         sorted_rules = rules.sort_values(by=["lift", "confidence"], ascending=[False, False])
-        top_rules = sorted_rules.head(top_k)
+
+        # 6. Deduplicate symmetric rules (A -> B vs B -> A: keep the higher confidence one)
+        deduped_rows = []
+        seen_pairs = set()
+        for _, row in sorted_rules.iterrows():
+            ant = tuple(sorted(list(row["antecedents"])))
+            con = tuple(sorted(list(row["consequents"])))
+            pair_key = frozenset([ant, con])
+            if pair_key in seen_pairs:
+                continue
+            seen_pairs.add(pair_key)
+            deduped_rows.append(row)
+
+        top_rules = pd.DataFrame(deduped_rows).head(top_k) if deduped_rows else pd.DataFrame()
 
         # Format output for JSON serialization and Frontend consumption
         formatted_itemsets = []
@@ -143,27 +199,28 @@ class AssociationRuleMiner:
             })
 
         formatted_rules = []
-        for _, row in top_rules.iterrows():
-            formatted_rules.append({
-                "antecedents": list(row["antecedents"]),
-                "consequents": list(row["consequents"]),
-                "support": round(float(row["support"]), 4),
-                "confidence": round(float(row["confidence"]), 4),
-                "lift": round(float(row["lift"]), 4),
-                "leverage": round(float(row["leverage"]), 4),
-                "conviction": (
-                    round(float(row["conviction"]), 4)
-                    if row["conviction"] != float("inf")
-                    else 999.0
-                ),
-            })
+        if not top_rules.empty:
+            for _, row in top_rules.iterrows():
+                formatted_rules.append({
+                    "antecedents": list(row["antecedents"]),
+                    "consequents": list(row["consequents"]),
+                    "support": round(float(row["support"]), 4),
+                    "confidence": round(float(row["confidence"]), 4),
+                    "lift": round(float(row["lift"]), 4),
+                    "leverage": round(float(row["leverage"]), 4),
+                    "conviction": (
+                        round(float(row["conviction"]), 4)
+                        if row["conviction"] != float("inf")
+                        else 999.0
+                    ),
+                })
 
         result = {
             "summary": {
                 "total_transactions": len(transactions),
                 "total_unique_items": len(te.columns_),
                 "frequent_itemsets_count": len(frequent_itemsets),
-                "mined_rules_count": len(rules),
+                "mined_rules_count": len(formatted_rules),
                 "min_support_used": min_support,
                 "min_lift_threshold": min_lift,
             },
@@ -172,13 +229,13 @@ class AssociationRuleMiner:
         }
 
         logger.info(
-            "[PILLAR 1] [SUCCESS] Mined %d actionable association rules (top lift: %.3f).",
+            "[PILLAR 1] [SUCCESS] Mined %d deduplicated association rules (top lift: %.3f).",
             len(formatted_rules),
             formatted_rules[0]["lift"] if formatted_rules else 0.0,
         )
         return result
 
-    def save_rules(self, output_path: str, min_support: float = 0.015, min_lift: float = 1.2) -> None:
+    def save_rules(self, output_path: str, min_support: float = 0.02, min_lift: float = 1.2) -> None:
         """Runs association rule mining and writes formatted JSON to disk."""
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         results = self.mine_rules(min_support=min_support, min_lift=min_lift)
