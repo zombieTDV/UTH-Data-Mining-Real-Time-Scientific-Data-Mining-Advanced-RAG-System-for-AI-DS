@@ -193,11 +193,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
       textPrimary: isDark ? '#f8fafc' : '#0f172a',
       textSecondary: isDark ? '#94a3b8' : '#64748b',
       textMuted: isDark ? '#64748b' : '#94a3b8',
-      gridLine: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+      gridLine: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.07)',
       axisLine: isDark ? 'rgba(255, 255, 255, 0.16)' : '#cbd5e1',
-      canvasBg: isDark ? '#030712' : '#090d16',
+      canvasBg: isDark ? '#030712' : '#f8fafc',
       tooltipBg: isDark ? '#020617' : '#0f172a',
-      barTrack: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+      barTrack: isDark ? 'rgba(255, 255, 255, 0.06)' : '#e2e8f0',
       stripBg: isDark ? 'rgba(15, 23, 42, 0.95)' : '#f8fafc',
       stripBorder: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
       tagBg: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
@@ -2652,7 +2652,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         ? '#a855f7'
                         : isBridgeEdge
                         ? '#ec4899'
-                        : '#334155';
+                        : isDark
+                        ? '#334155'
+                        : '#cbd5e1';
 
                       return (
                         <line
@@ -2712,8 +2714,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             cy={cy}
                             r={finalRadius}
                             fill={color}
-                            stroke={isSelected || matchesSearch ? '#ffffff' : '#0f172a'}
-                            strokeWidth={isSelected || matchesSearch ? 2 : 0.8}
+                            stroke={isSelected || matchesSearch ? '#ffffff' : (isDark ? '#0f172a' : '#ffffff')}
+                            strokeWidth={isSelected || matchesSearch ? 2 : 1}
                             opacity={isInEgo ? 1 : 0.14}
                             style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
                             onClick={() => {

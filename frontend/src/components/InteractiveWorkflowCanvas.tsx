@@ -235,12 +235,46 @@ export interface InteractiveWorkflowCanvasProps {
   onNavigateTab?: (tab: 'schematic' | 'eda' | 'pillars' | 'rag') => void;
   isPipelineRunning?: boolean;
   onTriggerPipeline?: () => void;
+  theme?: 'dark' | 'light';
 }
 
 export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   isPipelineRunning = false,
   onTriggerPipeline,
+  theme = 'dark',
 }) => {
+  const isDark = theme === 'dark';
+
+  const themeStyles = {
+    isDark,
+    cardBg: isDark ? 'rgba(15, 23, 42, 0.90)' : '#ffffff',
+    cardBorder: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
+    cardDivider: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
+    textPrimary: isDark ? '#f8fafc' : '#0f172a',
+    textSecondary: isDark ? '#cbd5e1' : '#334155',
+    textMuted: isDark ? '#94a3b8' : '#64748b',
+    wire: isDark ? 'rgba(255, 255, 255, 0.22)' : '#cbd5e1',
+    btnInspectBg: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f8fafc',
+    btnInspectBorder: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
+    btnInspectText: isDark ? '#cbd5e1' : '#475569',
+    drawerBg: isDark ? '#0b0f19' : '#ffffff',
+    drawerBorder: isDark ? 'rgba(255, 255, 255, 0.14)' : '#e2e8f0',
+    drawerHeaderBg: isDark ? '#0e1422' : '#f8fafc',
+    drawerHeaderBorder: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+    drawerTabsTrack: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+    drawerTabsTrackBorder: isDark ? 'rgba(255, 255, 255, 0.10)' : '#e2e8f0',
+    drawerTabActiveBg: isDark ? '#1e293b' : '#ffffff',
+    drawerTabActiveText: isDark ? '#f8fafc' : '#0f172a',
+    drawerTabInactiveText: isDark ? '#94a3b8' : '#64748b',
+    drawerSectionBg: isDark ? '#111827' : '#f8fafc',
+    drawerSectionBorder: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+    zoomBarBg: isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)',
+    zoomBarBorder: isDark ? 'rgba(255, 255, 255, 0.14)' : '#e2e8f0',
+    zoomBtnBg: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f8fafc',
+    zoomBtnBorder: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
+    zoomBtnText: isDark ? '#f8fafc' : '#0f172a',
+  };
+
   const canvasRef = useRef<HTMLDivElement>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('start-flow');
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
@@ -644,16 +678,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onClick={() => handleOpenInspector('start-flow')}
             style={{
               width: '210px',
-              backgroundColor: '#ffffff',
+              backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
               border: isStageActive('harvest')
                 ? '2px solid #8b5cf6'
                 : selectedNodeId === 'start-flow' && drawerOpen
                 ? '2px solid #7c3aed'
-                : '1px solid #e2e8f0',
+                : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('harvest')
                 ? '0 0 20px rgba(139, 92, 246, 0.35)'
+                : isDark
+                ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                 : '0 4px 16px rgba(0, 0, 0, 0.05)',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
@@ -684,21 +720,32 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#6d28d9' }}>arXiv Harvester</div>
-                  <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>OAI-PMH & HTML5</div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>arXiv Harvester</div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>OAI-PMH & HTML5</div>
                 </div>
               </div>
 
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: isStreaming ? '#10b981' : '#7c3aed', backgroundColor: isStreaming ? '#ecfdf5' : '#f5f3ff', padding: '1px 5px', borderRadius: '4px' }}>
+              <span style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                color: isStreaming ? (isDark ? '#34d399' : '#059669') : (isDark ? '#c084fc' : '#7c3aed'),
+                backgroundColor: isStreaming
+                  ? (isDark ? 'rgba(16, 185, 129, 0.18)' : '#ecfdf5')
+                  : (isDark ? 'rgba(124, 58, 237, 0.18)' : '#f5f3ff'),
+                border: `1px solid ${isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent') : (isDark ? 'rgba(124, 58, 237, 0.3)' : 'transparent')}`,
+                padding: '1px 5px',
+                borderRadius: '4px',
+              }}>
                 {isStreaming ? '● STREAMING' : 'v2.0'}
               </span>
             </div>
 
-            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: isStreaming ? '#059669' : '#0f172a' }}>
+            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary }}>
                 {papersHarvested.toLocaleString()} Papers {isStreaming && streamSessionCount > 0 ? `(+${streamSessionCount})` : ''}
               </div>
-              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
+              <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
                 {isStreaming ? `Live CDC: ${streamSpeed} bài/phút` : 'cs.AI, cs.LG, cs.CV, stat.ML'}
               </div>
             </div>
@@ -709,10 +756,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 width: '100%',
                 marginTop: '10px',
                 padding: '4px 0',
-                border: '1px solid #e2e8f0',
+                border: `1px solid ${themeStyles.btnInspectBorder}`,
                 borderRadius: '6px',
-                backgroundColor: '#f8fafc',
-                color: '#475569',
+                backgroundColor: themeStyles.btnInspectBg,
+                color: themeStyles.btnInspectText,
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
@@ -724,7 +771,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Horizontal Connector 1 */}
-          <div style={{ width: '42px', height: '2px', backgroundColor: '#cbd5e1', position: 'relative', flexShrink: 0 }}>
+          <div style={{ width: '42px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
             {isStageActive('harvest') && (
               <div
                 style={{
@@ -749,16 +796,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onClick={() => handleOpenInspector('bronze-instance')}
             style={{
               width: '210px',
-              backgroundColor: '#ffffff',
+              backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
               border: isStageActive('bronze')
                 ? '2px solid #e11d48'
                 : selectedNodeId === 'bronze-instance' && drawerOpen
                 ? '2px solid #e11d48'
-                : '1px solid #e2e8f0',
+                : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('bronze')
                 ? '0 0 20px rgba(225, 29, 72, 0.35)'
+                : isDark
+                ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                 : '0 4px 16px rgba(0, 0, 0, 0.05)',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
@@ -787,21 +836,30 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#e11d48' }}>Cloudflare R2</div>
-                  <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>Bronze Lake</div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48' }}>Cloudflare R2</div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Bronze Lake</div>
                 </div>
               </div>
 
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#e11d48', backgroundColor: '#fff1f2', padding: '1px 5px', borderRadius: '4px' }}>
+              <span style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                color: isDark ? '#fb7185' : '#e11d48',
+                backgroundColor: isDark ? 'rgba(225, 29, 72, 0.20)' : '#fff1f2',
+                border: `1px solid ${isDark ? 'rgba(225, 29, 72, 0.35)' : 'transparent'}`,
+                padding: '1px 5px',
+                borderRadius: '4px',
+              }}>
                 S3 API
               </span>
             </div>
 
-            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
                 2.841 GB Stored
               </div>
-              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
+              <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
                 9,022 HTML5 + 12 Batches
               </div>
             </div>
@@ -812,10 +870,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 width: '100%',
                 marginTop: '10px',
                 padding: '4px 0',
-                border: '1px solid #e2e8f0',
+                border: `1px solid ${themeStyles.btnInspectBorder}`,
                 borderRadius: '6px',
-                backgroundColor: '#f8fafc',
-                color: '#475569',
+                backgroundColor: themeStyles.btnInspectBg,
+                color: themeStyles.btnInspectText,
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
@@ -827,7 +885,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Horizontal Connector 2 */}
-          <div style={{ width: '42px', height: '2px', backgroundColor: '#cbd5e1', position: 'relative', flexShrink: 0 }}>
+          <div style={{ width: '42px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
             {isStageActive('bronze') && (
               <div
                 style={{
@@ -852,16 +910,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onClick={() => handleOpenInspector('review-duckdb')}
             style={{
               width: '220px',
-              backgroundColor: '#ffffff',
+              backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
               border: isStageActive('duckdb')
                 ? '2px solid #f59e0b'
                 : selectedNodeId === 'review-duckdb' && drawerOpen
                 ? '2px solid #f59e0b'
-                : '1px solid #e2e8f0',
+                : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('duckdb')
                 ? '0 0 20px rgba(245, 158, 11, 0.35)'
+                : isDark
+                ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                 : '0 4px 16px rgba(0, 0, 0, 0.05)',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
@@ -892,21 +952,30 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#d97706' }}>DuckDB</div>
-                  <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>In-Process OLAP</div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706' }}>DuckDB</div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>In-Process OLAP</div>
                 </div>
               </div>
 
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#d97706', backgroundColor: '#fef3c7', padding: '1px 5px', borderRadius: '4px' }}>
+              <span style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                color: isDark ? '#fbbf24' : '#d97706',
+                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.20)' : '#fef3c7',
+                border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : 'transparent'}`,
+                padding: '1px 5px',
+                borderRadius: '4px',
+              }}>
                 SIMD
               </span>
             </div>
 
-            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
                 {formulasExtracted.toLocaleString()} Formulas
               </div>
-              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
+              <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
                 Zero-Copy Apache Arrow
               </div>
             </div>
@@ -917,10 +986,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 width: '100%',
                 marginTop: '10px',
                 padding: '4px 0',
-                border: '1px solid #e2e8f0',
+                border: `1px solid ${themeStyles.btnInspectBorder}`,
                 borderRadius: '6px',
-                backgroundColor: '#f8fafc',
-                color: '#475569',
+                backgroundColor: themeStyles.btnInspectBg,
+                color: themeStyles.btnInspectText,
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
@@ -932,7 +1001,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Horizontal Connector 3 into Red Split Node */}
-          <div style={{ width: '36px', height: '2px', backgroundColor: '#cbd5e1', position: 'relative', flexShrink: 0 }}>
+          <div style={{ width: '36px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
             {isStageActive('duckdb') && (
               <div
                 style={{
@@ -981,10 +1050,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Split Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '72px', left: '0', width: '14px', height: '2px', backgroundColor: '#cbd5e1' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: '#cbd5e1' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: '#cbd5e1' }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: '#cbd5e1' }} />
+              <div style={{ position: 'absolute', top: '72px', left: '0', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', bottom: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
             </div>
 
             {/* Parallel Cards: Apache Parquet (Top) & LanceDB (Bottom) */}
@@ -994,16 +1063,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onClick={() => handleOpenInspector('silver-parquet')}
                 style={{
                   width: '260px',
-                  backgroundColor: '#ffffff',
+                  backgroundColor: themeStyles.cardBg,
                   borderRadius: '14px',
                   padding: '12px 16px',
                   border: isStageActive('parallel')
                     ? '2px solid #10b981'
                     : selectedNodeId === 'silver-parquet' && drawerOpen
                     ? '2px solid #10b981'
-                    : '1px solid #e2e8f0',
+                    : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
                     ? '0 0 20px rgba(16, 185, 129, 0.35)'
+                    : isDark
+                    ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                     : '0 4px 16px rgba(0, 0, 0, 0.05)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
@@ -1034,19 +1105,28 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#047857' }}>Apache Parquet</div>
-                      <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>Silver Columnar</div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#34d399' : '#047857' }}>Apache Parquet</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Silver Columnar</div>
                     </div>
                   </div>
 
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#059669', backgroundColor: '#ecfdf5', padding: '1px 5px', borderRadius: '4px' }}>
+                  <span style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    color: isDark ? '#34d399' : '#059669',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5',
+                    border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent'}`,
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                  }}>
                     Snappy
                   </span>
                 </div>
 
-                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                  <span style={{ color: '#64748b' }}>Partition: 2026</span>
-                  <span style={{ fontWeight: 800, color: '#0f172a' }}>231.73 MB Parquet</span>
+                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ color: themeStyles.textMuted }}>Partition: 2026</span>
+                  <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>231.73 MB Parquet</span>
                 </div>
               </div>
 
@@ -1055,16 +1135,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onClick={() => handleOpenInspector('gold-lancedb')}
                 style={{
                   width: '260px',
-                  backgroundColor: '#ffffff',
+                  backgroundColor: themeStyles.cardBg,
                   borderRadius: '14px',
                   padding: '12px 16px',
                   border: isStageActive('parallel')
                     ? '2px solid #2563eb'
                     : selectedNodeId === 'gold-lancedb' && drawerOpen
                     ? '2px solid #2563eb'
-                    : '1px solid #e2e8f0',
+                    : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
                     ? '0 0 20px rgba(37, 99, 235, 0.35)'
+                    : isDark
+                    ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                     : '0 4px 16px rgba(0, 0, 0, 0.05)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
@@ -1093,29 +1175,38 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#1d4ed8' }}>LanceDB Vectors</div>
-                      <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>Gold Vector Store</div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#60a5fa' : '#1d4ed8' }}>LanceDB Vectors</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Gold Vector Store</div>
                     </div>
                   </div>
 
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#2563eb', backgroundColor: '#eff6ff', padding: '1px 5px', borderRadius: '4px' }}>
+                  <span style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    color: isDark ? '#60a5fa' : '#2563eb',
+                    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.20)' : '#eff6ff',
+                    border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.35)' : 'transparent'}`,
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                  }}>
                     Nomic AI
                   </span>
                 </div>
 
-                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                  <span style={{ color: '#64748b' }}>768-dim Vectors</span>
-                  <span style={{ fontWeight: 800, color: '#0f172a' }}>{vectorsIndexed.toLocaleString()}</span>
+                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ color: themeStyles.textMuted }}>768-dim Vectors</span>
+                  <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>{vectorsIndexed.toLocaleString()}</span>
                 </div>
               </div>
             </div>
 
             {/* Merge Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: '#cbd5e1' }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: '#cbd5e1' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: '#cbd5e1' }} />
-              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: '#cbd5e1' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
             </div>
 
             {/* Orange Convergence Anchor Ring */}
@@ -1124,7 +1215,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 width: '22px',
                 height: '22px',
                 borderRadius: '50%',
-                backgroundColor: '#ffffff',
+                backgroundColor: isDark ? '#0b0f19' : '#ffffff',
                 border: '4px solid #ea580c',
                 boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
                 flexShrink: 0,
@@ -1134,7 +1225,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             />
 
             {/* Final Horizontal Connector into Grounded RAG */}
-            <div style={{ width: '36px', height: '2px', backgroundColor: '#cbd5e1', position: 'relative', flexShrink: 0 }}>
+            <div style={{ width: '36px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
               {simulationStage === 'completed' && (
                 <div
                   style={{
@@ -1159,15 +1250,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               onClick={() => handleOpenInspector('grounded-rag')}
               style={{
                 width: '230px',
-                backgroundColor: '#ffffff',
+                backgroundColor: themeStyles.cardBg,
                 borderRadius: '14px',
                 padding: '14px 16px',
                 border: simulationStage === 'completed'
                   ? '2px solid #6366f1'
                   : selectedNodeId === 'grounded-rag' && drawerOpen
                   ? '2px solid #6366f1'
-                  : '1px solid #e2e8f0',
-                boxShadow: '0 4px 16px rgba(99, 102, 241, 0.1)',
+                  : `1px solid ${themeStyles.cardBorder}`,
+                boxShadow: isDark
+                  ? '0 4px 16px rgba(0, 0, 0, 0.45)'
+                  : '0 4px 16px rgba(99, 102, 241, 0.1)',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 flexShrink: 0,
@@ -1195,21 +1288,30 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </div>
 
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#4338ca' }}>Grounded RAG</div>
-                    <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
+                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
                   </div>
                 </div>
 
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#6366f1', backgroundColor: '#ede9fe', padding: '1px 5px', borderRadius: '4px' }}>
+                <span style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  color: isDark ? '#a5b4fc' : '#6366f1',
+                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe',
+                  border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                }}>
                   Metal
                 </span>
               </div>
 
-              <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
-                <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+              <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
+                <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
                   Verified Citations
                 </div>
-                <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
+                <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
                   Sub-50ms ANN Search
                 </div>
               </div>
@@ -1220,10 +1322,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   width: '100%',
                   marginTop: '10px',
                   padding: '4px 0',
-                  border: '1px solid #e2e8f0',
+                  border: `1px solid ${themeStyles.btnInspectBorder}`,
                   borderRadius: '6px',
-                  backgroundColor: '#f8fafc',
-                  color: '#475569',
+                  backgroundColor: themeStyles.btnInspectBg,
+                  color: themeStyles.btnInspectText,
                   fontSize: '10px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
@@ -1245,12 +1347,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           style={{
             position: 'fixed',
             bottom: '32px', // Docked right above the 32px engineering footer
-            left: '58px',   // Aligned beside the 58px black sidebar rail
+            left: '58px',   // Aligned beside the 58px sidebar rail
             right: 0,
             height: '355px',
-            backgroundColor: '#ffffff',
-            borderTop: '2px solid #e2e8f0',
-            boxShadow: '0 -10px 32px rgba(0, 0, 0, 0.12)',
+            backgroundColor: themeStyles.drawerBg,
+            borderTop: `2px solid ${themeStyles.drawerBorder}`,
+            boxShadow: isDark ? '0 -10px 32px rgba(0, 0, 0, 0.55)' : '0 -10px 32px rgba(0, 0, 0, 0.12)',
             display: 'flex',
             flexDirection: 'column',
             zIndex: 60,
@@ -1262,11 +1364,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             style={{
               height: '48px',
               padding: '0 20px',
-              borderBottom: '1px solid #e2e8f0',
+              borderBottom: `1px solid ${themeStyles.drawerHeaderBorder}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              backgroundColor: '#f8fafc',
+              backgroundColor: themeStyles.drawerHeaderBg,
               flexShrink: 0,
             }}
           >
@@ -1282,19 +1384,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               />
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+                <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
                   {selectedTool.category.toUpperCase()}
                 </span>
-                <span style={{ color: '#cbd5e1' }}>/</span>
-                <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                <span style={{ color: themeStyles.wire }}>/</span>
+                <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
                   {selectedTool.name}
                 </h3>
                 <span
                   style={{
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
-                    color: '#64748b',
-                    backgroundColor: '#f1f5f9',
+                    color: themeStyles.textMuted,
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
                     padding: '1px 6px',
                     borderRadius: '4px',
                     fontWeight: 600,
@@ -1307,8 +1409,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 800,
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    color: '#059669',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+                    color: isDark ? '#34d399' : '#059669',
+                    border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent'}`,
                     padding: '2px 7px',
                     borderRadius: '9999px',
                   }}
@@ -1323,10 +1426,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                backgroundColor: '#f1f5f9',
+                backgroundColor: themeStyles.drawerTabsTrack,
                 padding: '3px',
                 borderRadius: '8px',
-                border: '1px solid #e2e8f0',
+                border: `1px solid ${themeStyles.drawerTabsTrackBorder}`,
                 gap: '2px',
               }}
             >
@@ -1338,11 +1441,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontSize: '11px',
                   fontWeight: bottomTab === 'control' ? 800 : 600,
                   fontFamily: 'var(--font-mono)',
-                  color: bottomTab === 'control' ? '#0f172a' : '#64748b',
-                  backgroundColor: bottomTab === 'control' ? '#ffffff' : 'transparent',
+                  color: bottomTab === 'control' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
+                  backgroundColor: bottomTab === 'control' ? themeStyles.drawerTabActiveBg : 'transparent',
                   borderRadius: '6px',
-                  border: 'none',
-                  boxShadow: bottomTab === 'control' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  border: bottomTab === 'control' && isDark ? '1px solid rgba(255, 255, 255, 0.16)' : 'none',
+                  boxShadow: bottomTab === 'control' ? (isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)') : 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1364,11 +1467,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontSize: '11px',
                   fontWeight: bottomTab === 'specs' ? 800 : 600,
                   fontFamily: 'var(--font-mono)',
-                  color: bottomTab === 'specs' ? '#0f172a' : '#64748b',
-                  backgroundColor: bottomTab === 'specs' ? '#ffffff' : 'transparent',
+                  color: bottomTab === 'specs' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
+                  backgroundColor: bottomTab === 'specs' ? themeStyles.drawerTabActiveBg : 'transparent',
                   borderRadius: '6px',
-                  border: 'none',
-                  boxShadow: bottomTab === 'specs' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  border: bottomTab === 'specs' && isDark ? '1px solid rgba(255, 255, 255, 0.16)' : 'none',
+                  boxShadow: bottomTab === 'specs' ? (isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)') : 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1391,11 +1494,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontSize: '11px',
                   fontWeight: bottomTab === 'logs' ? 800 : 600,
                   fontFamily: 'var(--font-mono)',
-                  color: bottomTab === 'logs' ? '#0f172a' : '#64748b',
-                  backgroundColor: bottomTab === 'logs' ? '#ffffff' : 'transparent',
+                  color: bottomTab === 'logs' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
+                  backgroundColor: bottomTab === 'logs' ? themeStyles.drawerTabActiveBg : 'transparent',
                   borderRadius: '6px',
-                  border: 'none',
-                  boxShadow: bottomTab === 'logs' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  border: bottomTab === 'logs' && isDark ? '1px solid rgba(255, 255, 255, 0.16)' : 'none',
+                  boxShadow: bottomTab === 'logs' ? (isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)') : 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1410,8 +1513,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <span
                   style={{
                     fontSize: '10px',
-                    backgroundColor: bottomTab === 'logs' ? '#0f172a' : '#cbd5e1',
-                    color: bottomTab === 'logs' ? '#ffffff' : '#1e293b',
+                    backgroundColor: bottomTab === 'logs' ? (isDark ? '#38bdf8' : '#0f172a') : (isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1'),
+                    color: bottomTab === 'logs' ? (isDark ? '#0f172a' : '#ffffff') : (isDark ? '#cbd5e1' : '#1e293b'),
                     padding: '1px 5px',
                     borderRadius: '9999px',
                     fontWeight: 800,
@@ -1429,10 +1532,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onClick={() => setDrawerOpen(false)}
                 style={{
                   background: 'transparent',
-                  border: '1px solid #e2e8f0',
+                  border: `1px solid ${themeStyles.drawerBorder}`,
                   borderRadius: '6px',
                   fontSize: '13px',
-                  color: '#64748b',
+                  color: themeStyles.textMuted,
                   cursor: 'pointer',
                   padding: '4px 10px',
                   display: 'flex',
@@ -1450,7 +1553,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Panel Scrollable Body */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', backgroundColor: '#ffffff' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', backgroundColor: themeStyles.drawerBg, color: themeStyles.textPrimary }}>
             {/* ============================================================== */}
             {/* TAB 1: CẤU HÌNH & ĐIỀU KHIỂN (INTERACTIVE CONTROLS)           */}
             {/* ============================================================== */}
@@ -1464,10 +1567,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       {/* Categories Section */}
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#334155' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
                             CHỌN DANH MỤC CÀO (CATEGORIES TO HARVEST)
                           </span>
-                          <span style={{ fontSize: '10px', color: '#7c3aed', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                          <span style={{ fontSize: '10px', color: isDark ? '#c084fc' : '#7c3aed', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                             {harvestCategories.length} đã chọn
                           </span>
                         </div>
@@ -1496,9 +1599,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                                   fontFamily: 'var(--font-mono)',
                                   fontWeight: 700,
                                   cursor: 'pointer',
-                                  border: isSelected ? '1px solid #7c3aed' : '1px solid #e2e8f0',
-                                  backgroundColor: isSelected ? '#7c3aed' : '#f8fafc',
-                                  color: isSelected ? '#ffffff' : '#475569',
+                                  border: isSelected ? '1px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
+                                  backgroundColor: isSelected ? '#7c3aed' : themeStyles.btnInspectBg,
+                                  color: isSelected ? '#ffffff' : themeStyles.btnInspectText,
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: '4px',
@@ -1516,7 +1619,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       {/* Limit & Rate Limit */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                         <div>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#334155', display: 'block', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
                             GIỚI HẠN THU THẬP (INGESTION LIMIT)
                           </span>
                           <div style={{ display: 'flex', gap: '6px' }}>
@@ -1532,9 +1635,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                                   fontSize: '11px',
                                   fontFamily: 'var(--font-mono)',
                                   fontWeight: harvestLimit === limitVal ? 800 : 600,
-                                  border: harvestLimit === limitVal ? '1px solid #7c3aed' : '1px solid #e2e8f0',
-                                  backgroundColor: harvestLimit === limitVal ? '#f5f3ff' : '#f8fafc',
-                                  color: harvestLimit === limitVal ? '#7c3aed' : '#475569',
+                                  border: harvestLimit === limitVal ? '1px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
+                                  backgroundColor: harvestLimit === limitVal ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#f5f3ff') : themeStyles.btnInspectBg,
+                                  color: harvestLimit === limitVal ? (isDark ? '#c084fc' : '#7c3aed') : themeStyles.btnInspectText,
                                   cursor: 'pointer',
                                 }}
                               >
@@ -1545,7 +1648,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         </div>
 
                         <div>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#334155', display: 'block', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
                             CHÍNH SÁCH RATE-LIMIT (DELAY)
                           </span>
                           <div style={{ display: 'flex', gap: '6px' }}>
@@ -1565,9 +1668,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                                   fontSize: '10px',
                                   fontFamily: 'var(--font-mono)',
                                   fontWeight: harvestDelay === d.val ? 800 : 600,
-                                  border: harvestDelay === d.val ? '1px solid #7c3aed' : '1px solid #e2e8f0',
-                                  backgroundColor: harvestDelay === d.val ? '#f5f3ff' : '#f8fafc',
-                                  color: harvestDelay === d.val ? '#7c3aed' : '#475569',
+                                  border: harvestDelay === d.val ? '1px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
+                                  backgroundColor: harvestDelay === d.val ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#f5f3ff') : themeStyles.btnInspectBg,
+                                  color: harvestDelay === d.val ? (isDark ? '#c084fc' : '#7c3aed') : themeStyles.btnInspectText,
                                   cursor: 'pointer',
                                 }}
                               >
@@ -1579,8 +1682,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       </div>
 
                       {/* Format checkmarks */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#475569' }}>
-                        <span style={{ fontWeight: 800, color: '#0f172a' }}>ĐỊNH DẠNG:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
+                        <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>ĐỊNH DẠNG:</span>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                           <input
                             type="checkbox"
@@ -1605,8 +1708,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     {/* Right Ingestion Action Card */}
                     <div
                       style={{
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #e2e8f0',
+                        backgroundColor: themeStyles.drawerSectionBg,
+                        border: `1px solid ${themeStyles.drawerSectionBorder}`,
                         borderRadius: '10px',
                         padding: '14px 16px',
                         display: 'flex',
@@ -1615,25 +1718,25 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a', marginBottom: '8px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '8px' }}>
                           TRẠNG THÁI VÀ BẢN GHI ĐÍCH
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#64748b' }}>Target Bucket:</span>
-                            <span style={{ fontWeight: 700, color: '#0f172a' }}>s3://uth-scientific-lakehouse</span>
+                            <span style={{ color: themeStyles.textMuted }}>Target Bucket:</span>
+                            <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>s3://uth-scientific-lakehouse</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#64748b' }}>Partition Scheme:</span>
-                            <span style={{ fontWeight: 700, color: '#0f172a' }}>bronze/raw_html/year=2026/</span>
+                            <span style={{ color: themeStyles.textMuted }}>Partition Scheme:</span>
+                            <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>bronze/raw_html/year=2026/</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#64748b' }}>Integrity Check:</span>
-                            <span style={{ fontWeight: 700, color: '#059669' }}>SHA-256 Digest Required</span>
+                            <span style={{ color: themeStyles.textMuted }}>Integrity Check:</span>
+                            <span style={{ fontWeight: 700, color: isDark ? '#34d399' : '#059669' }}>SHA-256 Digest Required</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#64748b' }}>Concurrent Workers:</span>
-                            <span style={{ fontWeight: 700, color: '#2563eb' }}>4 Async HTTPX Clients</span>
+                            <span style={{ color: themeStyles.textMuted }}>Concurrent Workers:</span>
+                            <span style={{ fontWeight: 700, color: isDark ? '#60a5fa' : '#2563eb' }}>4 Async HTTPX Clients</span>
                           </div>
                         </div>
                       </div>
@@ -1643,8 +1746,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         <div
                           style={{
                             padding: '10px 12px',
-                            backgroundColor: isStreaming ? '#ecfdf5' : '#f0fdf4',
-                            border: `1px solid ${isStreaming ? '#10b981' : '#bbf7d0'}`,
+                            backgroundColor: isDark ? (isStreaming ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.04)') : (isStreaming ? '#ecfdf5' : '#f0fdf4'),
+                            border: `1px solid ${isDark ? (isStreaming ? 'rgba(16, 185, 129, 0.35)' : 'rgba(255, 255, 255, 0.10)') : (isStreaming ? '#10b981' : '#bbf7d0')}`,
                             borderRadius: '8px',
                             display: 'flex',
                             flexDirection: 'column',
@@ -1663,17 +1766,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                                   animation: isStreaming ? 'stageGlowOrange 1.2s infinite' : 'none',
                                 }}
                               />
-                              <span style={{ fontSize: '10.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#166534' }}>
+                              <span style={{ fontSize: '10.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#166534' }}>
                                 REALTIME STREAMING (CDC 2025/2026)
                               </span>
                             </div>
-                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isStreaming ? '#059669' : '#64748b', fontWeight: 700 }}>
+                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textMuted, fontWeight: 700 }}>
                               {isStreaming ? `${streamSpeed} bài/phút` : 'STANDBY'}
                             </span>
                           </div>
 
                           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#4b5563' }}>Mục tiêu:</span>
+                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Mục tiêu:</span>
                             {[1000, 3000, 5000].map((t) => (
                               <button
                                 key={t}
@@ -1685,9 +1788,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                                   fontFamily: 'var(--font-mono)',
                                   padding: '2px 8px',
                                   borderRadius: '4px',
-                                  border: streamTarget === t ? '1px solid #16a34a' : '1px solid #d1d5db',
-                                  backgroundColor: streamTarget === t ? '#dcfce7' : '#ffffff',
-                                  color: streamTarget === t ? '#166534' : '#6b7280',
+                                  border: streamTarget === t ? '1px solid #16a34a' : `1px solid ${themeStyles.cardBorder}`,
+                                  backgroundColor: streamTarget === t ? (isDark ? 'rgba(22, 163, 74, 0.25)' : '#dcfce7') : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#ffffff'),
+                                  color: streamTarget === t ? (isDark ? '#4ade80' : '#166534') : themeStyles.textMuted,
                                   fontWeight: streamTarget === t ? 800 : 500,
                                   cursor: isStreaming ? 'not-allowed' : 'pointer',
                                 }}
@@ -1806,7 +1909,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#334155' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
                           TRUY VẤN VECTORIZED SIMD SQL (DUCKDB IN-PROCESS)
                         </span>
                         <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
@@ -1863,13 +1966,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           onClick={() => setBottomTab('logs')}
                           style={{
                             padding: '0 12px',
-                            backgroundColor: '#f8fafc',
-                            border: '1px solid #e2e8f0',
+                            backgroundColor: themeStyles.btnInspectBg,
+                            border: `1px solid ${themeStyles.btnInspectBorder}`,
                             borderRadius: '6px',
                             fontSize: '11px',
                             fontFamily: 'var(--font-mono)',
                             fontWeight: 700,
-                            color: '#475569',
+                            color: themeStyles.btnInspectText,
                             cursor: 'pointer',
                           }}
                         >
@@ -1879,13 +1982,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </div>
 
                     {/* Results Table */}
-                    <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a', marginBottom: '6px' }}>
+                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 14px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '6px' }}>
                         KẾT QUẢ THỰC THI (VECTORIZED ARROW SCHEMA)
                       </div>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                         <thead>
-                          <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#64748b' }}>
+                          <tr style={{ borderBottom: `1px solid ${themeStyles.cardBorder}`, textAlign: 'left', color: themeStyles.textMuted }}>
                             <th style={{ padding: '4px 0' }}>CATEGORY</th>
                             <th style={{ padding: '4px 0' }}>PAPERS</th>
                             <th style={{ padding: '4px 0' }}>FORMULAS</th>
@@ -1894,11 +1997,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         </thead>
                         <tbody>
                           {duckResults.map((r, i) => (
-                            <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                              <td style={{ padding: '5px 0', fontWeight: 800, color: '#f59e0b' }}>{r.category}</td>
-                              <td style={{ padding: '5px 0', color: '#0f172a' }}>{r.papers.toLocaleString()}</td>
-                              <td style={{ padding: '5px 0', color: '#0f172a' }}>{r.formulas.toLocaleString()}</td>
-                              <td style={{ padding: '5px 0', color: '#059669', fontWeight: 700 }}>{r.avg_math}</td>
+                            <tr key={i} style={{ borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : '#e2e8f0'}` }}>
+                              <td style={{ padding: '5px 0', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706' }}>{r.category}</td>
+                              <td style={{ padding: '5px 0', color: themeStyles.textPrimary }}>{r.papers.toLocaleString()}</td>
+                              <td style={{ padding: '5px 0', color: themeStyles.textPrimary }}>{r.formulas.toLocaleString()}</td>
+                              <td style={{ padding: '5px 0', color: isDark ? '#34d399' : '#059669', fontWeight: 700 }}>{r.avg_math}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1911,7 +2014,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 {selectedTool.id === 'lance-storage' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#334155' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
                         TÌM KIẾM SEMANTIC VECTOR ANN (143,523 EMBEDDINGS)
                       </span>
 
@@ -1961,22 +2064,31 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </div>
 
                     {/* LanceDB Hits */}
-                    <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a', marginBottom: '8px' }}>
+                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 14px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '8px' }}>
                         TOP-3 NEAREST NEIGHBORS (COSINE SIMILARITY)
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {lanceResults.map((hit, i) => (
-                          <div key={i} style={{ padding: '6px 8px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                          <div key={i} style={{ padding: '6px 8px', backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.cardBorder}`, borderRadius: '6px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
+                              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: isDark ? '#34d399' : '#10b981' }}>
                                 {hit.id} &bull; {hit.category}
                               </span>
-                              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, backgroundColor: '#ecfdf5', color: '#059669', padding: '1px 5px', borderRadius: '4px' }}>
+                              <span style={{
+                                fontSize: '10px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 800,
+                                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5',
+                                color: isDark ? '#34d399' : '#059669',
+                                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent'}`,
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                              }}>
                                 Sim: {hit.score}
                               </span>
                             </div>
-                            <div style={{ fontSize: '11px', color: '#334155', marginTop: '2px', fontWeight: 600 }}>
+                            <div style={{ fontSize: '11px', color: themeStyles.textSecondary, marginTop: '2px', fontWeight: 600 }}>
                               {hit.title}
                             </div>
                           </div>
@@ -1990,7 +2102,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 {selectedTool.id === 'bronze-instance' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
                     <div>
-                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#334155', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
                         CẤU TRÚC PHÂN VÙNG OBJECT STORAGE (S3 COMPATIBLE)
                       </div>
                       <div style={{ backgroundColor: '#0f172a', color: '#f8fafc', padding: '12px', borderRadius: '8px', fontFamily: 'var(--font-mono)', fontSize: '11px', lineHeight: 1.6 }}>
@@ -2001,18 +2113,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       </div>
                     </div>
 
-                    <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
                           STORAGE CAPACITY &amp; HEALTH
                         </div>
-                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#e11d48', marginTop: '4px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '4px' }}>
                           5.688 GB / 10.00 GB (56.9%)
                         </div>
-                        <div style={{ height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
+                        <div style={{ height: '6px', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
                           <div style={{ width: '56.9%', height: '100%', backgroundColor: '#e11d48' }} />
                         </div>
-                        <div style={{ fontSize: '10px', color: '#059669', fontFamily: 'var(--font-mono)', marginTop: '6px', fontWeight: 700 }}>
+                        <div style={{ fontSize: '10px', color: isDark ? '#34d399' : '#059669', fontFamily: 'var(--font-mono)', marginTop: '6px', fontWeight: 700 }}>
                           ✓ ZERO EGRESS FEES (Cloudflare Global Network)
                         </div>
                       </div>
@@ -2049,7 +2161,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 {selectedTool.id === 'grounded-rag' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#334155' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
                         CỔNG KIỂM THỬ ANTI-HALLUCINATION RAG (STRICT CITATION GATE)
                       </span>
 
@@ -2072,7 +2184,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       />
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
                           Ngưỡng Cosine:
                         </span>
                         <input
@@ -2084,7 +2196,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           onChange={(e) => setRagStrictThreshold(parseFloat(e.target.value))}
                           style={{ accentColor: '#6366f1', flex: 1 }}
                         />
-                        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#6366f1' }}>
+                        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: isDark ? '#a5b4fc' : '#6366f1' }}>
                           {ragStrictThreshold}
                         </span>
                       </div>
@@ -2109,18 +2221,36 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       </button>
                     </div>
 
-                    <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a', marginBottom: '6px' }}>
+                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 14px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '6px' }}>
                         KẾT QUẢ TỔNG HỢP VỚI ATTRIBUTION
                       </div>
-                      <p style={{ fontSize: '12px', color: '#334155', lineHeight: 1.5, margin: 0 }}>
+                      <p style={{ fontSize: '12px', color: themeStyles.textSecondary, lineHeight: 1.5, margin: 0 }}>
                         {ragResponse}
                       </p>
                       <div style={{ marginTop: '8px', display: 'flex', gap: '6px' }}>
-                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, backgroundColor: '#ede9fe', color: '#6366f1', padding: '2px 6px', borderRadius: '4px' }}>
+                        <span style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 800,
+                          backgroundColor: isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe',
+                          color: isDark ? '#a5b4fc' : '#6366f1',
+                          border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                        }}>
                           Verified: arXiv:2602.04128
                         </span>
-                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, backgroundColor: '#ecfdf5', color: '#059669', padding: '2px 6px', borderRadius: '4px' }}>
+                        <span style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 800,
+                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5',
+                          color: isDark ? '#34d399' : '#059669',
+                          border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent'}`,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                        }}>
                           Cosine: 0.914 &gt; {ragStrictThreshold}
                         </span>
                       </div>
@@ -2138,30 +2268,30 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {/* Telemetry Metrics 2x2 Bento */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>PRIMARY VOLUME</div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginTop: '3px' }}>
+                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 12px' }}>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>PRIMARY VOLUME</div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '3px' }}>
                         {selectedTool.telemetrySummary.primaryMetric}
                       </div>
                     </div>
 
-                    <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>SCOPE &amp; SPECS</div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', marginTop: '3px' }}>
+                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 12px' }}>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>SCOPE &amp; SPECS</div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: themeStyles.textPrimary, marginTop: '3px' }}>
                         {selectedTool.telemetrySummary.secondaryMetric}
                       </div>
                     </div>
 
-                    <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>LATENCY BENCHMARK</div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#059669', marginTop: '3px' }}>
+                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 12px' }}>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>LATENCY BENCHMARK</div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#34d399' : '#059669', marginTop: '3px' }}>
                         {selectedTool.telemetrySummary.latency}
                       </div>
                     </div>
 
-                    <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)' }}>THROUGHPUT / EGRESS</div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#2563eb', marginTop: '3px' }}>
+                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 12px' }}>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>THROUGHPUT / EGRESS</div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '3px' }}>
                         {selectedTool.telemetrySummary.throughput}
                       </div>
                     </div>
@@ -2169,12 +2299,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                   {/* Capabilities List */}
                   <div>
-                    <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#475569', marginBottom: '6px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '6px' }}>
                       TÍNH NĂNG KIẾN TRÚC CỐT LÕI
                     </div>
                     <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {selectedTool.features.map((feature, idx) => (
-                        <li key={idx} style={{ fontSize: '12px', color: '#334155', lineHeight: 1.45 }}>
+                        <li key={idx} style={{ fontSize: '12px', color: themeStyles.textSecondary, lineHeight: 1.45 }}>
                           {feature}
                         </li>
                       ))}
@@ -2184,12 +2314,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                 {/* Right Schema/Code Preview */}
                 <div>
-                  <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#475569', marginBottom: '6px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '6px' }}>
                     {selectedTool.samplePreviewTitle.toUpperCase()}
                   </div>
                   <pre
                     style={{
-                      backgroundColor: '#0f172a',
+                      backgroundColor: isDark ? '#050811' : '#0f172a',
                       color: '#f8fafc',
                       fontFamily: 'var(--font-mono)',
                       fontSize: '11px',
@@ -2198,7 +2328,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       overflowX: 'auto',
                       lineHeight: 1.5,
                       margin: 0,
-                      border: '1px solid #334155',
+                      border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#334155'}`,
                       maxHeight: '190px',
                     }}
                   >
@@ -2333,17 +2463,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          backgroundColor: 'rgba(255, 255, 255, 0.94)',
+          backgroundColor: themeStyles.zoomBarBg,
           backdropFilter: 'blur(12px)',
           borderRadius: '10px',
-          border: '1px solid #e2e8f0',
+          border: `1px solid ${themeStyles.zoomBarBorder}`,
           padding: '4px 10px',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+          boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.45)' : '0 4px 16px rgba(0, 0, 0, 0.08)',
           zIndex: 40,
           transition: 'bottom 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b', marginRight: '4px' }}>
+        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginRight: '4px' }}>
           CANVAS
         </span>
 
@@ -2354,10 +2484,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           style={{
             width: '28px',
             height: '28px',
-            border: '1px solid #e2e8f0',
+            border: `1px solid ${themeStyles.zoomBtnBorder}`,
             borderRadius: '6px',
-            backgroundColor: '#f8fafc',
-            color: '#0f172a',
+            backgroundColor: themeStyles.zoomBtnBg,
+            color: themeStyles.zoomBtnText,
             fontSize: '15px',
             fontWeight: 700,
             cursor: 'pointer',
@@ -2380,7 +2510,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             border: 'none',
             borderRadius: '6px',
             backgroundColor: 'transparent',
-            color: '#0f172a',
+            color: themeStyles.zoomBtnText,
             fontSize: '11px',
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
@@ -2398,10 +2528,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           style={{
             width: '28px',
             height: '28px',
-            border: '1px solid #e2e8f0',
+            border: `1px solid ${themeStyles.zoomBtnBorder}`,
             borderRadius: '6px',
-            backgroundColor: '#f8fafc',
-            color: '#0f172a',
+            backgroundColor: themeStyles.zoomBtnBg,
+            color: themeStyles.zoomBtnText,
             fontSize: '15px',
             fontWeight: 700,
             cursor: 'pointer',
@@ -2413,7 +2543,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           +
         </button>
 
-        <div style={{ width: '1px', height: '18px', backgroundColor: '#e2e8f0', margin: '0 2px' }} />
+        <div style={{ width: '1px', height: '18px', backgroundColor: themeStyles.zoomBtnBorder, margin: '0 2px' }} />
 
         <button
           type="button"
@@ -2423,10 +2553,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           }}
           title="Reset to Center"
           style={{
-            border: '1px solid #e2e8f0',
+            border: `1px solid ${themeStyles.zoomBtnBorder}`,
             borderRadius: '6px',
-            backgroundColor: '#f8fafc',
-            color: '#475569',
+            backgroundColor: themeStyles.zoomBtnBg,
+            color: themeStyles.textMuted,
             fontSize: '10px',
             fontFamily: 'var(--font-mono)',
             fontWeight: 700,

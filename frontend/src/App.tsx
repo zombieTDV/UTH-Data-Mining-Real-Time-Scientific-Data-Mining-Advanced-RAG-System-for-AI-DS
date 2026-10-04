@@ -398,7 +398,7 @@ export default function App() {
               <span style={{ fontWeight: 800, color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>
                 {(5.688 + (totalPapers - 10000) * 0.00056).toFixed(3)} GB
               </span>
-              <span style={{ backgroundColor: '#ecfdf5', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+              <span style={{ backgroundColor: theme === 'dark' ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5', color: theme === 'dark' ? '#34d399' : '#059669', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, border: `1px solid ${theme === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'transparent'}` }}>
                 {Math.min(100, +(56.9 + (totalPapers - 10000) * 0.0056).toFixed(1))}%
               </span>
             </div>
@@ -462,6 +462,7 @@ export default function App() {
                 onNavigateTab={(tab) => setActiveTab(tab)}
                 isPipelineRunning={pipelineStatus === 'RUNNING'}
                 onTriggerPipeline={handleTriggerPipeline}
+                theme={theme}
               />
             </div>
           )}
