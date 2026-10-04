@@ -456,7 +456,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             position: 'absolute',
             top: '8px',
             right: '16px',
-            zIndex: 9999,
+            zIndex: 75,
             backgroundColor: '#059669',
             color: '#ffffff',
             padding: '8px 16px',
@@ -587,7 +587,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             style={{
               backgroundColor: themeStyles.cardBg,
               borderRadius: '8px',
-              border: activePillar === 1 ? '2px solid #ea580c' : `1px solid ${themeStyles.cardBorder}`,
+              borderLeft: activePillar === 1 ? '2px solid #ea580c' : `1px solid ${themeStyles.cardBorder}`,
+              borderRight: activePillar === 1 ? '2px solid #ea580c' : `1px solid ${themeStyles.cardBorder}`,
+              borderBottom: activePillar === 1 ? '2px solid #ea580c' : `1px solid ${themeStyles.cardBorder}`,
               borderTop: '3px solid #ea580c',
               padding: '8px 12px',
               textAlign: 'left',
@@ -629,7 +631,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             style={{
               backgroundColor: themeStyles.cardBg,
               borderRadius: '8px',
-              border: activePillar === 2 ? '2px solid #2563eb' : `1px solid ${themeStyles.cardBorder}`,
+              borderLeft: activePillar === 2 ? '2px solid #2563eb' : `1px solid ${themeStyles.cardBorder}`,
+              borderRight: activePillar === 2 ? '2px solid #2563eb' : `1px solid ${themeStyles.cardBorder}`,
+              borderBottom: activePillar === 2 ? '2px solid #2563eb' : `1px solid ${themeStyles.cardBorder}`,
               borderTop: '3px solid #2563eb',
               padding: '8px 12px',
               textAlign: 'left',
@@ -671,7 +675,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             style={{
               backgroundColor: themeStyles.cardBg,
               borderRadius: '8px',
-              border: activePillar === 3 ? '2px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
+              borderLeft: activePillar === 3 ? '2px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
+              borderRight: activePillar === 3 ? '2px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
+              borderBottom: activePillar === 3 ? '2px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
               borderTop: '3px solid #7c3aed',
               padding: '8px 12px',
               textAlign: 'left',
@@ -713,7 +719,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             style={{
               backgroundColor: themeStyles.cardBg,
               borderRadius: '8px',
-              border: activePillar === 4 ? '2px solid #10b981' : `1px solid ${themeStyles.cardBorder}`,
+              borderLeft: activePillar === 4 ? '2px solid #10b981' : `1px solid ${themeStyles.cardBorder}`,
+              borderRight: activePillar === 4 ? '2px solid #10b981' : `1px solid ${themeStyles.cardBorder}`,
+              borderBottom: activePillar === 4 ? '2px solid #10b981' : `1px solid ${themeStyles.cardBorder}`,
               borderTop: '3px solid #10b981',
               padding: '8px 12px',
               textAlign: 'left',
@@ -818,10 +826,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             ? {
                 position: 'fixed' as const,
                 top: '52px',
-                left: 0,
+                left: '58px',
                 right: 0,
-                bottom: 0,
-                zIndex: 999,
+                bottom: '32px',
+                zIndex: 45,
                 backgroundColor: themeStyles.cardBg,
                 padding: '16px 20px',
               }
@@ -1604,7 +1612,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 style={{
                   backgroundColor: themeStyles.cardBg,
                   borderRadius: '6px',
-                  border: `1px solid ${themeStyles.cardBorder}`,
+                  borderLeft: `1px solid ${themeStyles.cardBorder}`,
+                  borderRight: `1px solid ${themeStyles.cardBorder}`,
+                  borderBottom: `1px solid ${themeStyles.cardBorder}`,
                   borderTop: '3px solid #10b981',
                   padding: '6px 12px',
                 }}
@@ -1637,7 +1647,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 style={{
                   backgroundColor: themeStyles.cardBg,
                   borderRadius: '6px',
-                  border: `1px solid ${themeStyles.cardBorder}`,
+                  borderLeft: `1px solid ${themeStyles.cardBorder}`,
+                  borderRight: `1px solid ${themeStyles.cardBorder}`,
+                  borderBottom: `1px solid ${themeStyles.cardBorder}`,
                   borderTop: '3px solid #f59e0b',
                   padding: '6px 12px',
                 }}
@@ -1670,7 +1682,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 style={{
                   backgroundColor: themeStyles.cardBg,
                   borderRadius: '6px',
-                  border: `1px solid ${themeStyles.cardBorder}`,
+                  borderLeft: `1px solid ${themeStyles.cardBorder}`,
+                  borderRight: `1px solid ${themeStyles.cardBorder}`,
+                  borderBottom: `1px solid ${themeStyles.cardBorder}`,
                   borderTop: '3px solid #2563eb',
                   padding: '6px 12px',
                 }}
@@ -1703,7 +1717,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 style={{
                   backgroundColor: themeStyles.cardBg,
                   borderRadius: '6px',
-                  border: `1px solid ${themeStyles.cardBorder}`,
+                  borderLeft: `1px solid ${themeStyles.cardBorder}`,
+                  borderRight: `1px solid ${themeStyles.cardBorder}`,
+                  borderBottom: `1px solid ${themeStyles.cardBorder}`,
                   borderTop: '3px solid #7c3aed',
                   padding: '6px 12px',
                 }}
@@ -3734,15 +3750,15 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             left: `${hoveredRule.x}px`,
             top: `${hoveredRule.y}px`,
             transform: 'translate(-50%, -100%)',
-            backgroundColor: themeStyles.tooltipBg,
-            color: '#ffffff',
+            backgroundColor: 'var(--tooltip-bg)',
+            color: 'var(--tooltip-text)',
             padding: '8px 12px',
             borderRadius: '6px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            zIndex: 1000,
+            boxShadow: 'var(--card-shadow)',
+            zIndex: 90,
             pointerEvents: 'none',
             maxWidth: '280px',
-            border: '1px solid #334155',
+            border: '1px solid var(--tooltip-border)',
             fontSize: '10px',
             fontFamily: 'var(--font-mono)',
           }}
@@ -3751,10 +3767,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             {hoveredRule.rule.antecedents.join(' + ')} &rarr;{' '}
             {hoveredRule.rule.consequents.join(' + ')}
           </div>
-          <div style={{ marginTop: '3px', color: '#f8fafc' }}>
-            Lift: <strong style={{ color: '#ea580c' }}>{hoveredRule.rule.lift.toFixed(3)}x</strong> &bull; Conf: <strong style={{ color: '#10b981' }}>{(hoveredRule.rule.confidence * 100).toFixed(1)}%</strong>
+          <div style={{ marginTop: '3px', color: 'var(--text-primary)' }}>
+            Lift: <strong style={{ color: '#ea580c' }}>{hoveredRule.rule.lift.toFixed(3)}x</strong> &bull; Conf: <strong style={{ color: 'var(--accent-emerald)' }}>{(hoveredRule.rule.confidence * 100).toFixed(1)}%</strong>
           </div>
-          <div style={{ color: '#94a3b8', fontSize: '10px', marginTop: '1px' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '10px', marginTop: '1px' }}>
             Support: {(hoveredRule.rule.support * 100).toFixed(2)}% &bull; Nhấp để soi chi tiết
           </div>
         </div>
@@ -3767,26 +3783,26 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             left: `${hoveredPoint.x}px`,
             top: `${hoveredPoint.y}px`,
             transform: 'translate(-50%, -100%)',
-            backgroundColor: themeStyles.tooltipBg,
-            color: '#ffffff',
+            backgroundColor: 'var(--tooltip-bg)',
+            color: 'var(--tooltip-text)',
             padding: '8px 12px',
             borderRadius: '6px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            zIndex: 1000,
+            boxShadow: 'var(--card-shadow)',
+            zIndex: 90,
             pointerEvents: 'none',
             maxWidth: '280px',
-            border: '1px solid #334155',
+            border: '1px solid var(--tooltip-border)',
             fontSize: '10px',
             fontFamily: 'var(--font-mono)',
           }}
         >
-          <div style={{ color: '#38bdf8', fontWeight: 800 }}>
+          <div style={{ color: 'var(--accent-silver)', fontWeight: 800 }}>
             CỤM #{hoveredPoint.point.cluster} &bull; arXiv:{hoveredPoint.point.paper_id}
           </div>
-          <div style={{ color: '#f8fafc', fontWeight: 600, marginTop: '2px' }}>
+          <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginTop: '2px' }}>
             {hoveredPoint.point.title}
           </div>
-          <div style={{ color: '#94a3b8', fontSize: '10px', marginTop: '2px' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '10px', marginTop: '2px' }}>
             Nhấp chuột để xem bài báo lân cận (k-NN)
           </div>
         </div>
@@ -3799,25 +3815,25 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             left: `${hoveredGraphNode.x}px`,
             top: `${hoveredGraphNode.y}px`,
             transform: 'translate(-50%, -100%)',
-            backgroundColor: themeStyles.tooltipBg,
-            color: '#ffffff',
+            backgroundColor: 'var(--tooltip-bg)',
+            color: 'var(--tooltip-text)',
             padding: '8px 12px',
             borderRadius: '6px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            zIndex: 1000,
+            boxShadow: 'var(--card-shadow)',
+            zIndex: 90,
             pointerEvents: 'none',
-            border: '1px solid #334155',
+            border: '1px solid var(--tooltip-border)',
             fontSize: '10px',
             fontFamily: 'var(--font-mono)',
           }}
         >
-          <div style={{ color: '#c084fc', fontWeight: 800 }}>
+          <div style={{ color: 'var(--accent-violet)', fontWeight: 800 }}>
             {hoveredGraphNode.node.label || hoveredGraphNode.node.id}
           </div>
-          <div style={{ color: '#10b981', marginTop: '2px' }}>
+          <div style={{ color: 'var(--accent-emerald)', marginTop: '2px' }}>
             PageRank: <strong>{hoveredGraphNode.node.pagerank.toFixed(6)}</strong>
           </div>
-          <div style={{ color: '#94a3b8', fontSize: '10px' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>
             {hoveredGraphNode.node.degree} đồng tác giả &bull; Nhấp để khóa Ego-Network
           </div>
         </div>
@@ -3830,15 +3846,15 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             left: `${hoveredAnomaly.x}px`,
             top: `${hoveredAnomaly.y}px`,
             transform: 'translate(-50%, -100%)',
-            backgroundColor: themeStyles.tooltipBg,
-            color: '#ffffff',
+            backgroundColor: 'var(--tooltip-bg)',
+            color: 'var(--tooltip-text)',
             padding: '8px 12px',
             borderRadius: '6px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            zIndex: 1000,
+            boxShadow: 'var(--card-shadow)',
+            zIndex: 90,
             pointerEvents: 'none',
             maxWidth: '300px',
-            border: '1px solid #334155',
+            border: '1px solid var(--tooltip-border)',
             fontSize: '10px',
             fontFamily: 'var(--font-mono)',
           }}
@@ -3846,7 +3862,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           <div style={{ color: '#ef4444', fontWeight: 800 }}>
             OUTLIER: arXiv:{hoveredAnomaly.item.paper_id} &bull; {hoveredAnomaly.item.primary_category}
           </div>
-          <div style={{ color: '#f8fafc', fontWeight: 600, marginTop: '2px' }}>
+          <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginTop: '2px' }}>
             {hoveredAnomaly.item.title}
           </div>
           <div style={{ color: '#ea580c', marginTop: '3px' }}>

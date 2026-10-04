@@ -146,9 +146,9 @@ export function PipelineFlow() {
                   fontFamily: 'var(--font-mono)',
                   padding: '2px 6px',
                   borderRadius: '4px',
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'var(--badge-bg)',
                   color: phase.zoneColor,
-                  border: `1px solid rgba(255, 255, 255, 0.08)`,
+                  border: `1px solid var(--badge-border)`,
                   letterSpacing: '0.04em'
                 }}>
                   {phase.zone}
@@ -158,7 +158,7 @@ export function PipelineFlow() {
               <div style={{
                 fontSize: '13px',
                 fontWeight: 600,
-                color: isSelected ? '#ffffff' : 'var(--text-primary)',
+                color: 'var(--text-primary)',
                 marginBottom: '8px',
                 lineHeight: 1.4
               }}>
@@ -179,7 +179,7 @@ export function PipelineFlow() {
 
       {/* Selected Phase Deep Inspection (Double-Bezel Hardware Architecture) */}
       <div style={{
-        background: 'rgba(255, 255, 255, 0.02)',
+        background: 'var(--bg-canvas)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-lg)',
         padding: '6px'
@@ -220,7 +220,7 @@ export function PipelineFlow() {
               borderRadius: '999px',
               background: 'rgba(16, 185, 129, 0.1)',
               border: '1px solid rgba(16, 185, 129, 0.25)',
-              color: '#34d399',
+              color: 'var(--accent-emerald)',
               fontSize: '11px',
               fontFamily: 'var(--font-mono)'
             }}>

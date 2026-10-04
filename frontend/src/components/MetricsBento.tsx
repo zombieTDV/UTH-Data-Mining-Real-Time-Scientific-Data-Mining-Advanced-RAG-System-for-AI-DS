@@ -149,7 +149,7 @@ export function MetricsBento() {
           {/* Progress bar */}
           <div style={{
             height: '4px',
-            background: 'rgba(255, 255, 255, 0.08)',
+            background: 'var(--track-bg)',
             borderRadius: '2px',
             marginTop: '12px',
             overflow: 'hidden'
@@ -203,11 +203,11 @@ export function MetricsBento() {
         <div style={{
           padding: '8px 12px',
           borderRadius: 'var(--radius-sm)',
-          background: 'rgba(168, 85, 247, 0.08)',
-          border: '1px solid rgba(168, 85, 247, 0.2)',
+          background: 'rgba(124, 58, 237, 0.08)',
+          border: '1px solid rgba(124, 58, 237, 0.2)',
           fontFamily: 'var(--font-mono)',
           fontSize: '12px',
-          color: '#c084fc',
+          color: 'var(--accent-violet)',
         }}>
           {'$L_{distill} = \\|z_t - \\hat{z}_s\\|^2$'}
         </div>
@@ -242,7 +242,7 @@ export function MetricsBento() {
           border: '1px solid rgba(16, 185, 129, 0.2)',
           fontFamily: 'var(--font-mono)',
           fontSize: '12px',
-          color: '#34d399',
+          color: 'var(--accent-emerald)',
           textAlign: 'right'
         }}>
           <div>~6.0 tok/s</div>

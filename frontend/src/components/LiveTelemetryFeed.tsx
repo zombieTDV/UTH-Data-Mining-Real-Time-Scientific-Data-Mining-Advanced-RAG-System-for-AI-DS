@@ -354,7 +354,7 @@ export function LiveTelemetryFeed() {
                 background: copiedId === log.id ? 'var(--bg-surface-elevated)' : 'transparent',
                 cursor: 'pointer',
                 transition: 'background 0.1s ease',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.03)'
+                borderBottom: '1px solid var(--border-subtle)'
               }}
               title="Click to copy log line"
             >

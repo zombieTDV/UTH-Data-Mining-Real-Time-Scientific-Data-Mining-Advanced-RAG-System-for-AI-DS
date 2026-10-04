@@ -318,7 +318,7 @@ const SCATTER_DATASET: ScatterPaperPoint[] = [
 
   // cs.RO (Robotics)
   {
-    id: 'arXiv:2401.04218',
+    id: 'arXiv:2401.04219',
     title: 'Adaptive Trajectory Planning for Quadrotor Swarms in Obstacles',
     category: 'cs.RO',
     words: 5310,
@@ -912,7 +912,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       {/* ============================================================== */}
       {!isFocusMode && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', flexShrink: 0 }}>
-          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, borderTop: '3px solid #f59e0b', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #f59e0b', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
               TỔNG SỐ BÀI BÁO (PAPERS)
             </div>
@@ -924,7 +924,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             </div>
           </div>
 
-          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, borderTop: '3px solid #ea580c', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #ea580c', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
               CÔNG THỨC TOÁN (LATEX)
             </div>
@@ -936,7 +936,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             </div>
           </div>
 
-          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, borderTop: '3px solid #10b981', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #10b981', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
               HTML5 FULL-TEXT ENRICHED
             </div>
@@ -948,7 +948,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             </div>
           </div>
 
-          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, borderTop: '3px solid #2563eb', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #2563eb', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
               DUNG LƯỢNG TỪ VỰNG (CORPUS)
             </div>
@@ -1061,10 +1061,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 ? {
                     position: 'fixed',
                     top: '52px',
-                    left: 0,
+                    left: '58px',
                     right: 0,
-                    bottom: 0,
-                    zIndex: 999,
+                    bottom: '32px',
+                    zIndex: 45,
                     backgroundColor: themeStyles.cardBg,
                     padding: '16px 20px',
                     gridTemplateColumns: '1fr',
@@ -1699,10 +1699,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 ? {
                     position: 'fixed',
                     top: '52px',
-                    left: 0,
+                    left: '58px',
                     right: 0,
-                    bottom: 0,
-                    zIndex: 999,
+                    bottom: '32px',
+                    zIndex: 45,
                     backgroundColor: themeStyles.cardBg,
                     padding: '16px 20px',
                   }
@@ -2211,10 +2211,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 ? {
                     position: 'fixed',
                     top: '52px',
-                    left: 0,
+                    left: '58px',
                     right: 0,
-                    bottom: 0,
-                    zIndex: 999,
+                    bottom: '32px',
+                    zIndex: 45,
                     backgroundColor: themeStyles.cardBg,
                     padding: '16px 20px',
                     gridTemplateColumns: '1fr',
@@ -2558,10 +2558,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 ? {
                     position: 'fixed' as const,
                     top: '52px',
-                    left: 0,
+                    left: '58px',
                     right: 0,
-                    bottom: 0,
-                    zIndex: 999,
+                    bottom: '32px',
+                    zIndex: 45,
                     backgroundColor: themeStyles.cardBg,
                     padding: '16px 20px',
                     gridTemplateColumns: isSidebarCollapsed ? '1fr' : '1.2fr 1fr',
@@ -2831,10 +2831,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 ? {
                     position: 'fixed' as const,
                     top: '52px',
-                    left: 0,
+                    left: '58px',
                     right: 0,
-                    bottom: 0,
-                    zIndex: 999,
+                    bottom: '32px',
+                    zIndex: 45,
                     backgroundColor: themeStyles.cardBg,
                     padding: '16px 20px',
                     gridTemplateColumns: isSidebarCollapsed ? '1fr' : '1.25fr 1fr',
@@ -3119,7 +3119,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               backgroundColor: isDark ? '#0b1120' : '#ffffff',
               borderLeft: `1px solid ${themeStyles.border}`,
               boxShadow: isDark ? '-8px 0 32px rgba(0,0,0,0.6)' : '-8px 0 30px rgba(0,0,0,0.15)',
-              zIndex: 1500,
+              zIndex: 60,
               display: 'flex',
               flexDirection: 'column',
               padding: '16px',
@@ -3298,6 +3298,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       {/* ============================================================== */}
       {/* FLOATING HOVER TOOLTIP FOR CHARTS                              */}
       {/* ============================================================== */}
+      {/* FLOATING HOVER TOOLTIPS                                        */}
+      {/* ============================================================== */}
       {hoveredScatterPoint && (
         <div
           style={{
@@ -3305,29 +3307,29 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             left: `${hoveredScatterPoint.x}px`,
             top: `${hoveredScatterPoint.y}px`,
             transform: 'translate(-50%, -100%)',
-            backgroundColor: '#0f172a',
-            color: '#ffffff',
+            backgroundColor: 'var(--tooltip-bg)',
+            color: 'var(--tooltip-text)',
             padding: '8px 12px',
             borderRadius: '8px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            zIndex: 1000,
+            boxShadow: 'var(--card-shadow)',
+            zIndex: 90,
             pointerEvents: 'none',
             maxWidth: '300px',
-            border: '1px solid #334155',
+            border: '1px solid var(--tooltip-border)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: getCategoryColor(hoveredScatterPoint.point.category) }}>
               {hoveredScatterPoint.point.id} &bull; {hoveredScatterPoint.point.category}
             </span>
-            <span style={{ fontSize: '10px', color: '#38bdf8' }}>Click để xem chi tiết</span>
+            <span style={{ fontSize: '10px', color: 'var(--accent-silver)' }}>Click để xem chi tiết</span>
           </div>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginTop: '3px', lineHeight: 1.3 }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '3px', lineHeight: 1.3 }}>
             {hoveredScatterPoint.point.title}
           </div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#cbd5e1' }}>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
             <span>Toán: <strong style={{ color: '#ea580c' }}>{hoveredScatterPoint.point.formulas} eq</strong></span>
-            <span>Độ dài: <strong style={{ color: '#38bdf8' }}>{hoveredScatterPoint.point.words.toLocaleString()} words</strong></span>
+            <span>Độ dài: <strong style={{ color: 'var(--accent-silver)' }}>{hoveredScatterPoint.point.words.toLocaleString()} words</strong></span>
           </div>
         </div>
       )}
@@ -3339,16 +3341,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             left: `${hoveredBar.x}px`,
             top: `${hoveredBar.y}px`,
             transform: 'translate(-50%, -100%)',
-            backgroundColor: '#0f172a',
-            color: '#ffffff',
+            backgroundColor: 'var(--tooltip-bg)',
+            color: 'var(--tooltip-text)',
             padding: '6px 10px',
             borderRadius: '6px',
-            boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
-            zIndex: 1000,
+            boxShadow: 'var(--card-shadow)',
+            zIndex: 90,
             pointerEvents: 'none',
             fontSize: '10px',
             fontFamily: 'var(--font-mono)',
-            border: '1px solid #334155',
+            border: '1px solid var(--tooltip-border)',
           }}
         >
           <div style={{ fontWeight: 800, color: getCategoryColor(hoveredBar.category) }}>
@@ -3370,25 +3372,25 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             left: `${hoveredTimelineYear.x}px`,
             top: `${hoveredTimelineYear.y}px`,
             transform: 'translate(-50%, -100%)',
-            backgroundColor: '#0f172a',
-            color: '#ffffff',
+            backgroundColor: 'var(--tooltip-bg)',
+            color: 'var(--tooltip-text)',
             padding: '6px 10px',
             borderRadius: '6px',
-            boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
-            zIndex: 1000,
+            boxShadow: 'var(--card-shadow)',
+            zIndex: 90,
             pointerEvents: 'none',
             fontSize: '10px',
             fontFamily: 'var(--font-mono)',
-            border: '1px solid #334155',
+            border: '1px solid var(--tooltip-border)',
           }}
         >
-          <div style={{ fontWeight: 800, color: '#38bdf8' }}>
+          <div style={{ fontWeight: 800, color: 'var(--accent-silver)' }}>
             Thời kỳ: {hoveredTimelineYear.year}
           </div>
           <div style={{ marginTop: '2px' }}>
             Bài báo xuất bản: <strong>{hoveredTimelineYear.count.toLocaleString()}</strong>
           </div>
-          <div style={{ color: '#34d399' }}>
+          <div style={{ color: 'var(--accent-emerald)' }}>
             Tỷ trọng: <strong>{hoveredTimelineYear.pct}</strong>
           </div>
         </div>
@@ -3402,20 +3404,21 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           style={{
             position: 'fixed',
             bottom: '40px',
-            right: '24px',
+            right: selectedPaperForDrawer ? '444px' : '24px',
+            transition: 'right 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             maxWidth: '380px',
-            backgroundColor: '#0f172a',
-            color: '#ffffff',
+            backgroundColor: themeStyles.cardBg,
+            color: themeStyles.textPrimary,
             borderRadius: '8px',
             border: '1px solid #ea580c',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
+            boxShadow: 'var(--card-shadow)',
             padding: '12px 14px',
-            zIndex: 1200,
+            zIndex: 70,
             fontFamily: 'var(--font-mono)',
             animation: 'fadeIn 0.2s ease-out',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #334155', paddingBottom: '6px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${themeStyles.borderSubtle}`, paddingBottom: '6px', marginBottom: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
               <span style={{ fontSize: '10px', fontWeight: 800, color: '#f97316' }}>
@@ -3428,7 +3431,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#94a3b8',
+                color: themeStyles.textMuted,
                 cursor: 'pointer',
                 fontSize: '14px',
                 lineHeight: 1,
@@ -3439,17 +3442,17 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             </button>
           </div>
 
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '4px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: themeStyles.textPrimary, marginBottom: '4px' }}>
             {activeAnomalies[0].title}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: '#cbd5e1', marginBottom: '6px' }}>
-            <span>ID: <strong style={{ color: '#38bdf8' }}>{activeAnomalies[0].paperId}</strong></span>
-            <span>Ngành: <strong style={{ color: '#a78bfa' }}>{activeAnomalies[0].category}</strong></span>
+          <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+            <span>ID: <strong style={{ color: 'var(--accent-silver)' }}>{activeAnomalies[0].paperId}</strong></span>
+            <span>Ngành: <strong style={{ color: 'var(--accent-violet)' }}>{activeAnomalies[0].category}</strong></span>
             <span>Score: <strong style={{ color: '#ef4444' }}>{activeAnomalies[0].score}</strong></span>
           </div>
 
-          <div style={{ backgroundColor: '#1e293b', borderRadius: '4px', padding: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '4px', padding: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
             {activeAnomalies[0].reasons.map((reason, idx) => (
               <div key={idx} style={{ fontSize: '10px', color: '#fb923c' }}>
                 &bull; {reason}
@@ -3469,16 +3472,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             bottom: '24px',
             left: '50%',
             transform: 'translateX(-50%)',
-            backgroundColor: '#0f172a',
-            color: '#38bdf8',
-            border: '1px solid #38bdf8',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            backgroundColor: 'var(--bg-surface)',
+            color: 'var(--accent-silver)',
+            border: '1px solid var(--accent-silver)',
+            boxShadow: 'var(--card-shadow)',
             borderRadius: '6px',
             padding: '8px 16px',
             fontSize: '11px',
             fontWeight: 700,
             fontFamily: 'var(--font-mono)',
-            zIndex: 2000,
+            zIndex: 75,
             display: 'flex',
             alignItems: 'center',
             gap: '8px',

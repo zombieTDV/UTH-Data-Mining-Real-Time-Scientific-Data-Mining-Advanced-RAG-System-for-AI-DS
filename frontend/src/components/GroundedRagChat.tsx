@@ -618,6 +618,8 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          marginRight: inspectedPaper ? '430px' : '0',
+          transition: 'margin-right 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div
@@ -834,11 +836,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             bottom: 0,
             width: '420px',
             maxWidth: '90vw',
-            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.98)',
+            backgroundColor: 'var(--bg-surface)',
             backdropFilter: 'blur(20px)',
-            borderLeft: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1'}`,
-            boxShadow: isDark ? '-8px 0 32px rgba(0, 0, 0, 0.5)' : '-8px 0 24px rgba(0, 0, 0, 0.1)',
-            zIndex: 50,
+            borderLeft: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--card-shadow)',
+            zIndex: 60,
             display: 'flex',
             flexDirection: 'column',
             animation: 'fadeInTheater 0.2s ease',
@@ -944,11 +946,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                     style={{
                       fontSize: '11.5px',
                       lineHeight: '1.6',
-                      color: isDark ? '#cbd5e1' : '#475569',
-                      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.25)' : '#f8fafc',
+                      color: 'var(--text-secondary)',
+                      backgroundColor: 'var(--bg-canvas)',
                       padding: '12px',
                       borderRadius: '8px',
-                      border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0'}`,
+                      border: '1px solid var(--border-subtle)',
                     }}
                   >
                     {inspectedPaper.abstract}
@@ -969,7 +971,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                         backgroundColor: isDark ? 'rgba(255, 87, 34, 0.08)' : '#fff7ed',
                         padding: '12px',
                         borderRadius: '8px',
-                        border: `1px solid ${isDark ? 'rgba(255, 87, 34, 0.25)' : '#ffedd5'}`,
+                        border: `1px solid ${isDark ? 'rgba(255, 87, 34, 0.25)' : '#fed7aa'}`,
                         maxHeight: '160px',
                         overflowY: 'auto',
                       }}
@@ -1045,12 +1047,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           position: 'absolute',
           bottom: '16px',
           left: 0,
-          right: 0,
+          right: inspectedPaper ? '430px' : 0,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           pointerEvents: 'none',
-          zIndex: 20,
+          zIndex: 30,
+          transition: 'right 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div
@@ -1081,29 +1084,10 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 type="button"
                 onClick={() => handleSendMessage(item.query)}
                 disabled={loading}
+                className="suggestion-chip"
                 style={{
-                  fontSize: '10.5px',
-                  fontFamily: 'var(--font-mono)',
-                  padding: '4px 10px',
-                  borderRadius: '9999px',
-                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.90)',
-                  border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
-                  color: isDark ? '#94a3b8' : '#64748b',
                   cursor: loading ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                  backdropFilter: 'blur(8px)',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.borderColor = isDark ? '#38bdf8' : '#2563eb';
-                    e.currentTarget.style.color = isDark ? '#38bdf8' : '#2563eb';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0';
-                  e.currentTarget.style.color = isDark ? '#94a3b8' : '#64748b';
+                  opacity: loading ? 0.6 : 1,
                 }}
               >
                 <span>⚡ {item.label}</span>
@@ -1115,14 +1099,12 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <form
             onSubmit={handleSubmit}
             style={{
-              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              backgroundColor: 'var(--bg-surface)',
               backdropFilter: 'blur(20px)',
-              border: `1px solid ${isDark ? '#334155' : '#cbd5e1'}`,
+              border: '1px solid var(--border-subtle)',
               borderRadius: '16px',
               padding: '10px 14px',
-              boxShadow: isDark
-                ? '0 8px 32px rgba(0, 0, 0, 0.45)'
-                : '0 8px 30px rgba(0, 0, 0, 0.10)',
+              boxShadow: 'var(--card-shadow)',
               display: 'flex',
               alignItems: 'flex-end',
               gap: '10px',

@@ -56,7 +56,7 @@ export function GeometricTelemetryGauges() {
               cy="65"
               r={radius}
               fill="none"
-              stroke="rgba(255, 255, 255, 0.12)"
+              stroke="var(--track-bg)"
               strokeWidth="10"
             />
             {/* Value Arc */}
@@ -150,7 +150,7 @@ export function GeometricTelemetryGauges() {
                     ? '#10b981'
                     : isMedium
                     ? 'rgba(16, 185, 129, 0.45)'
-                    : 'rgba(255, 255, 255, 0.1)',
+                    : 'var(--matrix-dim)',
                 }}
               />
             );

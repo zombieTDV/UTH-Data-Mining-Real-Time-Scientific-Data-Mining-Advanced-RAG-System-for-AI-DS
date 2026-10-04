@@ -88,19 +88,19 @@ export default function App() {
     };
   }, []);
 
-  // Global Keyboard Shortcuts (1-5 for tabs, T for theme)
+  // Global Keyboard Shortcuts (Alt+1..5 for tabs, Shift+T for theme)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
         return;
       }
-      if (e.key === '1') setActiveTab('schematic');
-      else if (e.key === '2') setActiveTab('eda');
-      else if (e.key === '3') setActiveTab('pillars');
-      else if (e.key === '4') setActiveTab('rag');
-      else if (e.key === '5') setActiveTab('logs');
-      else if (e.key === 't' || e.key === 'T') {
+      if (e.altKey && e.key === '1') setActiveTab('schematic');
+      else if (e.altKey && e.key === '2') setActiveTab('eda');
+      else if (e.altKey && e.key === '3') setActiveTab('pillars');
+      else if (e.altKey && e.key === '4') setActiveTab('rag');
+      else if (e.altKey && e.key === '5') setActiveTab('logs');
+      else if (e.shiftKey && (e.key === 't' || e.key === 'T')) {
         setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
       }
     };
@@ -144,7 +144,7 @@ export default function App() {
           flexDirection: 'column',
           alignItems: 'center',
           padding: '16px 0',
-          zIndex: 60,
+          zIndex: 50,
           borderRight: '1px solid var(--rail-border)',
           transition: 'background-color 0.2s ease, border-color 0.2s ease',
         }}
@@ -181,15 +181,15 @@ export default function App() {
           <button
             type="button"
             onClick={() => setActiveTab('schematic')}
-            title="[1] Lakehouse Schematic & Storage"
+            title="[Alt+1] Lakehouse Schematic & Storage"
             style={{
               width: '42px',
               height: '42px',
               borderRadius: '9px',
               backgroundColor: activeTab === 'schematic' ? 'var(--bg-rail-active)' : 'transparent',
-              color: activeTab === 'schematic' ? 'var(--rail-active-text)' : (theme === 'dark' ? '#94a3b8' : '#64748b'),
-              border: activeTab === 'schematic' ? (theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #bfdbfe') : 'none',
-              boxShadow: activeTab === 'schematic' && theme === 'light' ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+              color: activeTab === 'schematic' ? 'var(--rail-active-text)' : 'var(--text-secondary)',
+              border: activeTab === 'schematic' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+              boxShadow: activeTab === 'schematic' ? '0 2px 8px rgba(0, 0, 0, 0.12)' : 'none',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -213,15 +213,15 @@ export default function App() {
           <button
             type="button"
             onClick={() => setActiveTab('eda')}
-            title="[2] Real-Time Scientific EDA (DuckDB)"
+            title="[Alt+2] Real-Time Scientific EDA (DuckDB)"
             style={{
               width: '42px',
               height: '42px',
               borderRadius: '9px',
               backgroundColor: activeTab === 'eda' ? 'var(--bg-rail-active)' : 'transparent',
-              color: activeTab === 'eda' ? 'var(--rail-active-text)' : (theme === 'dark' ? '#94a3b8' : '#64748b'),
-              border: activeTab === 'eda' ? (theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #bfdbfe') : 'none',
-              boxShadow: activeTab === 'eda' && theme === 'light' ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+              color: activeTab === 'eda' ? 'var(--rail-active-text)' : 'var(--text-secondary)',
+              border: activeTab === 'eda' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+              boxShadow: activeTab === 'eda' ? '0 2px 8px rgba(0, 0, 0, 0.12)' : 'none',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -243,15 +243,15 @@ export default function App() {
           <button
             type="button"
             onClick={() => setActiveTab('pillars')}
-            title="[3] 4 Trụ Cột Khai Phá Dữ Liệu (4 Mining Pillars)"
+            title="[Alt+3] 4 Trụ Cột Khai Phá Dữ Liệu (4 Mining Pillars)"
             style={{
               width: '42px',
               height: '42px',
               borderRadius: '9px',
               backgroundColor: activeTab === 'pillars' ? 'var(--bg-rail-active)' : 'transparent',
-              color: activeTab === 'pillars' ? 'var(--rail-active-text)' : (theme === 'dark' ? '#94a3b8' : '#64748b'),
-              border: activeTab === 'pillars' ? (theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #bfdbfe') : 'none',
-              boxShadow: activeTab === 'pillars' && theme === 'light' ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+              color: activeTab === 'pillars' ? 'var(--rail-active-text)' : 'var(--text-secondary)',
+              border: activeTab === 'pillars' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+              boxShadow: activeTab === 'pillars' ? '0 2px 8px rgba(0, 0, 0, 0.12)' : 'none',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -274,15 +274,15 @@ export default function App() {
           <button
             type="button"
             onClick={() => setActiveTab('rag')}
-            title="[4] Grounded Scientific RAG Chat"
+            title="[Alt+4] Grounded Scientific RAG Chat"
             style={{
               width: '42px',
               height: '42px',
               borderRadius: '9px',
               backgroundColor: activeTab === 'rag' ? 'var(--bg-rail-active)' : 'transparent',
-              color: activeTab === 'rag' ? 'var(--rail-active-text)' : (theme === 'dark' ? '#94a3b8' : '#64748b'),
-              border: activeTab === 'rag' ? (theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #bfdbfe') : 'none',
-              boxShadow: activeTab === 'rag' && theme === 'light' ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+              color: activeTab === 'rag' ? 'var(--rail-active-text)' : 'var(--text-secondary)',
+              border: activeTab === 'rag' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+              boxShadow: activeTab === 'rag' ? '0 2px 8px rgba(0, 0, 0, 0.12)' : 'none',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -302,15 +302,15 @@ export default function App() {
           <button
             type="button"
             onClick={() => setActiveTab('logs')}
-            title="[5] Telemetry Logs & Core Engines"
+            title="[Alt+5] Telemetry Logs & Core Engines"
             style={{
               width: '42px',
               height: '42px',
               borderRadius: '9px',
               backgroundColor: activeTab === 'logs' ? 'var(--bg-rail-active)' : 'transparent',
-              color: activeTab === 'logs' ? 'var(--rail-active-text)' : (theme === 'dark' ? '#94a3b8' : '#64748b'),
-              border: activeTab === 'logs' ? (theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #bfdbfe') : 'none',
-              boxShadow: activeTab === 'logs' && theme === 'light' ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+              color: activeTab === 'logs' ? 'var(--rail-active-text)' : 'var(--text-secondary)',
+              border: activeTab === 'logs' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+              boxShadow: activeTab === 'logs' ? '0 2px 8px rgba(0, 0, 0, 0.12)' : 'none',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -333,14 +333,14 @@ export default function App() {
           <button
             type="button"
             onClick={toggleTheme}
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode (Shortcut: T)`}
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode (Shortcut: Shift+T)`}
             style={{
               width: '34px',
               height: '34px',
               borderRadius: '8px',
               background: 'transparent',
               border: 'none',
-              color: '#94a3b8',
+              color: 'var(--text-secondary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -406,19 +406,19 @@ export default function App() {
           style={{
             height: '52px',
             flexShrink: 0,
-            backgroundColor: theme === 'dark' ? 'rgba(14, 20, 34, 0.92)' : 'rgba(255, 255, 255, 0.88)',
-            backdropFilter: 'blur(8px)',
-            borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
+            backgroundColor: 'var(--header-bg)',
+            backdropFilter: 'blur(12px)',
+            borderBottom: '1px solid var(--header-border)',
             padding: '0 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            zIndex: 30,
+            zIndex: 40,
           }}
         >
           {/* Left: Minimal Title & Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.04em', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>
+            <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
               UTH SCIENTIFIC LAKEHOUSE &amp; MINING PIPELINE
             </span>
 
@@ -426,8 +426,8 @@ export default function App() {
               style={{
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
-                color: backendStatus === 'ONLINE' ? '#10b981' : '#ef4444',
-                backgroundColor: backendStatus === 'ONLINE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                color: backendStatus === 'ONLINE' ? 'var(--accent-emerald)' : '#ef4444',
+                backgroundColor: backendStatus === 'ONLINE' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
                 padding: '2px 7px',
                 borderRadius: '5px',
                 fontWeight: 800,
@@ -443,10 +443,10 @@ export default function App() {
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              backgroundColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+              backgroundColor: 'var(--badge-bg)',
               padding: '6px 16px',
               borderRadius: '9999px',
-              border: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
+              border: '1px solid var(--badge-border)',
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
             }}
           >
@@ -455,12 +455,12 @@ export default function App() {
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                backgroundColor: pipelineStatus === 'RUNNING' ? '#ea580c' : streamActive ? '#10b981' : '#10b981',
-                boxShadow: pipelineStatus === 'RUNNING' ? '0 0 8px #ea580c' : streamActive ? '0 0 10px #10b981' : 'none',
+                backgroundColor: pipelineStatus === 'RUNNING' ? 'var(--accent-bronze)' : 'var(--accent-emerald)',
+                boxShadow: pipelineStatus === 'RUNNING' ? '0 0 8px var(--accent-bronze)' : '0 0 8px var(--accent-emerald)',
                 animation: pipelineStatus === 'RUNNING' || streamActive ? 'stageGlowOrange 1.2s infinite' : 'none',
               }}
             />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: theme === 'dark' ? '#cbd5e1' : '#334155' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
               {pipelineStatus === 'RUNNING'
                 ? 'Pipeline Active: Harvesting arXiv batches, DuckDB Parquet & LanceDB Gold indexing...'
                 : streamActive
@@ -472,18 +472,18 @@ export default function App() {
           {/* Right: Storage & Run Pipeline Button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-              <span style={{ color: '#64748b' }}>R2 LAKE:</span>
-              <span style={{ fontWeight: 800, color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>
+              <span style={{ color: 'var(--text-muted)' }}>R2 LAKE:</span>
+              <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
                 {(storageUsedGb + (totalPapers - 10000) * 0.00056).toFixed(3)} GB
               </span>
               <span
                 style={{
-                  backgroundColor: theme === 'dark' ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
-                  color: theme === 'dark' ? '#34d399' : '#059669',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  color: 'var(--accent-emerald)',
                   padding: '1px 6px',
                   borderRadius: '4px',
                   fontWeight: 700,
-                  border: `1px solid ${theme === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'transparent'}`,
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                 }}
               >
                 {Math.min(100, +(storageUsedPct + (totalPapers - 10000) * 0.0056).toFixed(1))}%
@@ -495,7 +495,7 @@ export default function App() {
               onClick={handleTriggerPipeline}
               disabled={pipelineStatus === 'RUNNING'}
               style={{
-                backgroundColor: pipelineStatus === 'RUNNING' ? '#ea580c' : '#ff5722',
+                backgroundColor: pipelineStatus === 'RUNNING' ? 'var(--accent-bronze)' : '#ff5722',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '8px',
@@ -551,10 +551,10 @@ export default function App() {
                 <div
                   style={{
                     display: 'flex',
-                    backgroundColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+                    backgroundColor: 'var(--badge-bg)',
                     padding: '3px',
                     borderRadius: '8px',
-                    border: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
+                    border: '1px solid var(--badge-border)',
                     gap: '4px',
                   }}
                 >
@@ -567,8 +567,8 @@ export default function App() {
                       fontSize: '11px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
-                      backgroundColor: schematicViewMode === 'canvas' ? (theme === 'dark' ? '#1e293b' : '#ffffff') : 'transparent',
-                      color: schematicViewMode === 'canvas' ? (theme === 'dark' ? '#38bdf8' : '#2563eb') : (theme === 'dark' ? '#94a3b8' : '#64748b'),
+                      backgroundColor: schematicViewMode === 'canvas' ? 'var(--bg-surface)' : 'transparent',
+                      color: schematicViewMode === 'canvas' ? 'var(--accent-silver)' : 'var(--text-muted)',
                       border: 'none',
                       cursor: 'pointer',
                       boxShadow: schematicViewMode === 'canvas' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
@@ -585,8 +585,8 @@ export default function App() {
                       fontSize: '11px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
-                      backgroundColor: schematicViewMode === 'storage' ? (theme === 'dark' ? '#1e293b' : '#ffffff') : 'transparent',
-                      color: schematicViewMode === 'storage' ? (theme === 'dark' ? '#38bdf8' : '#2563eb') : (theme === 'dark' ? '#94a3b8' : '#64748b'),
+                      backgroundColor: schematicViewMode === 'storage' ? 'var(--bg-surface)' : 'transparent',
+                      color: schematicViewMode === 'storage' ? 'var(--accent-silver)' : 'var(--text-muted)',
                       border: 'none',
                       cursor: 'pointer',
                       boxShadow: schematicViewMode === 'storage' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
@@ -673,15 +673,15 @@ export default function App() {
           style={{
             height: '32px',
             flexShrink: 0,
-            backgroundColor: theme === 'dark' ? 'rgba(14, 20, 34, 0.92)' : 'rgba(255, 255, 255, 0.85)',
-            borderTop: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
+            backgroundColor: 'var(--footer-bg)',
+            borderTop: '1px solid var(--footer-border)',
             padding: '0 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             fontSize: '11px',
             fontFamily: 'var(--font-mono)',
-            color: theme === 'dark' ? '#94a3b8' : '#64748b',
+            color: 'var(--text-muted)',
           }}
         >
           <div>

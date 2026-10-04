@@ -1355,7 +1355,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             boxShadow: isDark ? '0 -10px 32px rgba(0, 0, 0, 0.55)' : '0 -10px 32px rgba(0, 0, 0, 0.12)',
             display: 'flex',
             flexDirection: 'column',
-            zIndex: 60,
+            zIndex: 45,
             animation: 'slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
@@ -2469,7 +2469,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           border: `1px solid ${themeStyles.zoomBarBorder}`,
           padding: '4px 10px',
           boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.45)' : '0 4px 16px rgba(0, 0, 0, 0.08)',
-          zIndex: 40,
+          zIndex: 20,
           transition: 'bottom 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >

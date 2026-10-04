@@ -319,7 +319,7 @@ export function GeometricPipelineDiagram() {
 
               {/* Arrow Marker */}
               <marker id="circuitArrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 1 L 8 5 L 0 9 z" fill="rgba(255,255,255,0.4)" />
+                <path d="M 0 1 L 8 5 L 0 9 z" fill="var(--text-muted)" />
               </marker>
             </defs>
 
@@ -430,7 +430,7 @@ export function GeometricPipelineDiagram() {
                     fontSize: '11.5px',
                     color: node.zoneColor,
                     fontWeight: 700,
-                    background: 'rgba(255, 255, 255, 0.06)',
+                    background: 'var(--badge-bg)',
                     padding: '3px 6px',
                     borderRadius: '4px',
                     width: '100%',

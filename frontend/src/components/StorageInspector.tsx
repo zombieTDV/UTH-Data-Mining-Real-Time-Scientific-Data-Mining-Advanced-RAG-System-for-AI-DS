@@ -126,9 +126,9 @@ export function StorageInspector() {
                     fontFamily: 'var(--font-mono)',
                     padding: '2px 7px',
                     borderRadius: '4px',
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'var(--badge-bg)',
                     color: layer.color,
-                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                    border: '1px solid var(--badge-border)'
                   }}>
                     {layer.zone}
                   </span>
