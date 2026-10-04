@@ -132,29 +132,33 @@ export default function App() {
             </svg>
           </button>
 
-          {/* Real-Time DuckDB EDA */}
+          {/* Real-Time DuckDB EDA Dashboard (PowerBI Style) */}
           <button
             type="button"
             onClick={() => setActiveTab('eda')}
-            title="Real-Time DuckDB EDA (10,000 Papers)"
+            title="EDA Analytics Dashboard (PowerBI Style)"
             style={{
-              width: '38px',
-              height: '38px',
+              width: '44px',
+              height: '44px',
               borderRadius: '9px',
-              backgroundColor: activeTab === 'eda' ? 'rgba(255, 255, 255, 0.16)' : 'transparent',
+              backgroundColor: activeTab === 'eda' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
               color: activeTab === 'eda' ? '#ffffff' : '#94a3b8',
-              border: 'none',
+              border: activeTab === 'eda' ? '1px solid rgba(255, 255, 255, 0.25)' : 'none',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
+              gap: '2px',
             }}
           >
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="16 18 22 12 16 6" />
-              <polyline points="8 6 2 12 8 18" />
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
             </svg>
+            <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>EDA</span>
           </button>
 
           {/* 4 Mining Pillars */}
@@ -435,7 +439,7 @@ export default function App() {
           )}
 
           {activeTab === 'eda' && (
-            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
               <EdaView />
             </div>
           )}
