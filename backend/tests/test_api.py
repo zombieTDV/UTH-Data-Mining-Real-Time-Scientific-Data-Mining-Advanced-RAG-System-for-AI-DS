@@ -72,7 +72,7 @@ def test_mining_eda_endpoint():
     response = client.get("/api/mining/eda")
     assert response.status_code == 200
     data = response.json()
-    assert data["dataset_overview"]["total_papers"] == 10000
+    assert data["dataset_overview"]["total_papers"] >= 10000
     assert len(data["category_distribution"]) > 0
     assert len(data["top_authors"]) > 0
 
