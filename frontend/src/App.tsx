@@ -161,31 +161,34 @@ export default function App() {
             <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>EDA</span>
           </button>
 
-          {/* 4 Mining Pillars */}
+          {/* 4 Mining Pillars - Data Modeling */}
           <button
             type="button"
             onClick={() => setActiveTab('pillars')}
-            title="4 Mining Pillars (Rules, Clusters, Graph, Outliers)"
+            title="4 Trụ cột Khai phá & Modeling Dữ liệu (4 Mining Pillars)"
             style={{
-              width: '38px',
-              height: '38px',
+              width: '44px',
+              height: '44px',
               borderRadius: '9px',
-              backgroundColor: activeTab === 'pillars' ? 'rgba(255, 255, 255, 0.16)' : 'transparent',
+              backgroundColor: activeTab === 'pillars' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
               color: activeTab === 'pillars' ? '#ffffff' : '#94a3b8',
-              border: 'none',
+              border: activeTab === 'pillars' ? '1px solid rgba(255, 255, 255, 0.25)' : 'none',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
+              gap: '2px',
             }}
           >
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <line x1="6" y1="3" x2="6" y2="15" />
               <circle cx="18" cy="6" r="3" />
               <circle cx="6" cy="18" r="3" />
               <path d="M18 9a9 9 0 0 1-9 9" />
             </svg>
+            <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>MODEL</span>
           </button>
 
           {/* Grounded RAG Chat */}
@@ -445,7 +448,7 @@ export default function App() {
           )}
 
           {activeTab === 'pillars' && (
-            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
               <MiningPillarsView />
             </div>
           )}

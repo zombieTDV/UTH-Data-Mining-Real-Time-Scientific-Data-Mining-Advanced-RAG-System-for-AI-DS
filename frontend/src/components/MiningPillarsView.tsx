@@ -1,10 +1,11 @@
-import { useState, useEffect, type FC } from 'react';
+import { useState, useEffect, useMemo, type FC, type MouseEvent } from 'react';
 import type {
   AssociationRulesResponse,
   ClustersResponse,
   GraphResponse,
   TrendsResponse,
   ScatterPointItem,
+  AssociationRuleItem,
 } from '../api/types';
 import {
   fetchAssociationRules,
@@ -18,17 +19,21 @@ export const MiningPillarsView: FC = () => {
 
   // Pillar 1 state
   const [rulesData, setRulesData] = useState<AssociationRulesResponse | null>(null);
-  const [liftThreshold, setLiftThreshold] = useState<number>(1.2);
+  const [liftThreshold, setLiftThreshold] = useState<number>(1.5);
+  const [hoveredRule, setHoveredRule] = useState<{ rule: AssociationRuleItem; x: number; y: number } | null>(null);
 
   // Pillar 2 state
   const [clustersData, setClustersData] = useState<ClustersResponse | null>(null);
-  const [hoveredPoint, setHoveredPoint] = useState<ScatterPointItem | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<{ point: ScatterPointItem; x: number; y: number } | null>(null);
+  const [selectedClusterFilter, setSelectedClusterFilter] = useState<number | 'ALL'>('ALL');
 
   // Pillar 3 state
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
+  const [hoveredGraphNode, setHoveredGraphNode] = useState<{ node: any; x: number; y: number } | null>(null);
 
   // Pillar 4 state
   const [trendsData, setTrendsData] = useState<TrendsResponse | null>(null);
+  const [hoveredAnomaly, setHoveredAnomaly] = useState<{ item: any; x: number; y: number } | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,288 +59,670 @@ export const MiningPillarsView: FC = () => {
       });
   }, []);
 
+  // Filtered Rules by Lift
+  const filteredRules = useMemo(() => {
+    if (!rulesData) return [];
+    return rulesData.rules.filter((r) => r.lift >= liftThreshold);
+  }, [rulesData, liftThreshold]);
+
+  // Filtered Scatter points by cluster
+  const filteredClusterPoints = useMemo(() => {
+    if (!clustersData) return [];
+    if (selectedClusterFilter === 'ALL') return clustersData.scatter_2d;
+    return clustersData.scatter_2d.filter((p) => p.cluster === selectedClusterFilter);
+  }, [clustersData, selectedClusterFilter]);
+
+  const clusterColors = ['#2563eb', '#0284c7', '#0d9488', '#f59e0b', '#7c3aed', '#e11d48'];
+
   if (loading) {
     return (
-      <div style={{ padding: '32px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-        [ MINING ENGINE ] LOADING 4 CORE PILLARS FROM GOLD LAKEHOUSE...
+      <div style={{ padding: '60px 24px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', backgroundColor: '#ffffff', padding: '14px 24px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" className="animate-spin">
+            <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+          </svg>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
+            [ GOLD LAKEHOUSE ] Đang tải và dựng trực quan 4 Trụ cột Khai phá &amp; Modeling...
+          </span>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: '32px', fontFamily: 'var(--font-mono)', color: '#ef4444' }}>
-        [ ERROR ] FAILED TO LOAD MINING PILLARS: {error}
+      <div style={{ padding: '40px', fontFamily: 'var(--font-mono)', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+        [ ERROR ] Không thể nạp dữ liệu 4 Trụ cột Mining: {error}
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Pillar Navigation Bar */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', paddingBottom: '40px', position: 'relative' }}>
+      {/* ============================================================== */}
+      {/* 1. TOP HEADER & 4-PILLAR SELECTOR CARDS                        */}
+      {/* ============================================================== */}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '1px',
-          background: 'var(--border-subtle)',
-          border: '1px solid var(--border-subtle)',
+          gap: '12px',
         }}
       >
+        {/* Pillar 1 Card */}
         <button
+          type="button"
           onClick={() => setActivePillar(1)}
           style={{
-            background: activePillar === 1 ? 'var(--text-primary)' : 'var(--bg-surface)',
-            color: activePillar === 1 ? 'var(--bg-canvas)' : 'var(--text-secondary)',
+            backgroundColor: '#ffffff',
+            borderRadius: '10px',
+            border: activePillar === 1 ? '2px solid #ea580c' : '1px solid #e2e8f0',
+            borderTop: '4px solid #ea580c',
             padding: '14px 16px',
-            border: 'none',
             textAlign: 'left',
             cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
+            boxShadow: activePillar === 1 ? '0 4px 14px rgba(234, 88, 12, 0.15)' : '0 2px 6px rgba(0,0,0,0.03)',
+            transition: 'all 0.15s ease',
           }}
         >
-          <div style={{ fontSize: '10px', opacity: 0.7 }}>[ PILLAR 01 ]</div>
-          <div style={{ fontSize: '12px', fontWeight: 800, marginTop: '2px' }}>ASSOCIATION RULES</div>
-          <div style={{ fontSize: '10px', opacity: 0.8, marginTop: '2px' }}>FP-Growth / Co-occurrence</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
+              TRỤ CỘT 01
+            </span>
+            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', backgroundColor: '#fff7ed', color: '#c2410c', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
+              FP-GROWTH
+            </span>
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+            LUẬT KẾT HỢP (RULES)
+          </div>
+          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+            {rulesData?.rules.length || 22} Mined Rules &bull; Max Lift 3.36x
+          </div>
         </button>
 
+        {/* Pillar 2 Card */}
         <button
+          type="button"
           onClick={() => setActivePillar(2)}
           style={{
-            background: activePillar === 2 ? 'var(--text-primary)' : 'var(--bg-surface)',
-            color: activePillar === 2 ? 'var(--bg-canvas)' : 'var(--text-secondary)',
+            backgroundColor: '#ffffff',
+            borderRadius: '10px',
+            border: activePillar === 2 ? '2px solid #2563eb' : '1px solid #e2e8f0',
+            borderTop: '4px solid #2563eb',
             padding: '14px 16px',
-            border: 'none',
             textAlign: 'left',
             cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
+            boxShadow: activePillar === 2 ? '0 4px 14px rgba(37, 99, 235, 0.15)' : '0 2px 6px rgba(0,0,0,0.03)',
+            transition: 'all 0.15s ease',
           }}
         >
-          <div style={{ fontSize: '10px', opacity: 0.7 }}>[ PILLAR 02 ]</div>
-          <div style={{ fontSize: '12px', fontWeight: 800, marginTop: '2px' }}>TOPIC CLUSTERING</div>
-          <div style={{ fontSize: '10px', opacity: 0.8, marginTop: '2px' }}>K-Means & DBSCAN (2D)</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb' }}>
+              TRỤ CỘT 02
+            </span>
+            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', backgroundColor: '#eff6ff', color: '#1d4ed8', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
+              K-MEANS 2D
+            </span>
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+            PHÂN CỤM NGỮ NGHĨA
+          </div>
+          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+            6 Cụm đề tài &bull; SVD 2D Manifold
+          </div>
         </button>
 
+        {/* Pillar 3 Card */}
         <button
+          type="button"
           onClick={() => setActivePillar(3)}
           style={{
-            background: activePillar === 3 ? 'var(--text-primary)' : 'var(--bg-surface)',
-            color: activePillar === 3 ? 'var(--bg-canvas)' : 'var(--text-secondary)',
+            backgroundColor: '#ffffff',
+            borderRadius: '10px',
+            border: activePillar === 3 ? '2px solid #7c3aed' : '1px solid #e2e8f0',
+            borderTop: '4px solid #7c3aed',
             padding: '14px 16px',
-            border: 'none',
             textAlign: 'left',
             cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
+            boxShadow: activePillar === 3 ? '0 4px 14px rgba(124, 58, 237, 0.15)' : '0 2px 6px rgba(0,0,0,0.03)',
+            transition: 'all 0.15s ease',
           }}
         >
-          <div style={{ fontSize: '10px', opacity: 0.7 }}>[ PILLAR 03 ]</div>
-          <div style={{ fontSize: '12px', fontWeight: 800, marginTop: '2px' }}>GRAPH MINING</div>
-          <div style={{ fontSize: '10px', opacity: 0.8, marginTop: '2px' }}>Co-authorship & PageRank</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed' }}>
+              TRỤ CỘT 03
+            </span>
+            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', backgroundColor: '#f5f3ff', color: '#6d28d9', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
+              LOUVAIN
+            </span>
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+            ĐỒ THỊ KHOA HỌC (GRAPH)
+          </div>
+          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+            120 Nodes &bull; 243 Edges &bull; PageRank
+          </div>
         </button>
 
+        {/* Pillar 4 Card */}
         <button
+          type="button"
           onClick={() => setActivePillar(4)}
           style={{
-            background: activePillar === 4 ? 'var(--text-primary)' : 'var(--bg-surface)',
-            color: activePillar === 4 ? 'var(--bg-canvas)' : 'var(--text-secondary)',
+            backgroundColor: '#ffffff',
+            borderRadius: '10px',
+            border: activePillar === 4 ? '2px solid #10b981' : '1px solid #e2e8f0',
+            borderTop: '4px solid #10b981',
             padding: '14px 16px',
-            border: 'none',
             textAlign: 'left',
             cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
+            boxShadow: activePillar === 4 ? '0 4px 14px rgba(16, 185, 129, 0.15)' : '0 2px 6px rgba(0,0,0,0.03)',
+            transition: 'all 0.15s ease',
           }}
         >
-          <div style={{ fontSize: '10px', opacity: 0.7 }}>[ PILLAR 04 ]</div>
-          <div style={{ fontSize: '12px', fontWeight: 800, marginTop: '2px' }}>TREND & ANOMALY</div>
-          <div style={{ fontSize: '10px', opacity: 0.8, marginTop: '2px' }}>Isolation Forest & Velocity</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
+              TRỤ CỘT 04
+            </span>
+            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', backgroundColor: '#ecfdf5', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
+              ISOLATION FOREST
+            </span>
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+            XU HƯỚNG &amp; DỊ BIỆT
+          </div>
+          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+            +5,940% Surge &bull; 30 Novelty Outliers
+          </div>
         </button>
       </div>
 
-      {/* =================================================================== */}
-      {/* PILLAR 1: ASSOCIATION RULES                                         */}
-      {/* =================================================================== */}
+      {/* ============================================================== */}
+      {/* 2. PILLAR 1: ASSOCIATION RULES & FP-GROWTH VISUAL CHARTS       */}
+      {/* ============================================================== */}
       {activePillar === 1 && rulesData && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '16px 20px', border: '1px solid var(--border-subtle)' }}>
-            <div>
-              <h3 style={{ fontSize: '14px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
-                [ PATTERN EXTRACTION // FP-GROWTH ASSOCIATION RULES ]
-              </h3>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
-                Mined across {rulesData.summary.total_transactions} paper baskets | Min Support: {rulesData.summary.min_support_used}
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
-              <span>FILTER MIN LIFT:</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* Slicer / Threshold Filter Controls */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a' }}>
+                LỌC NGƯỠNG LIFT TỐI THIỂU:
+              </span>
               <input
                 type="range"
                 min="1.0"
-                max="2.5"
+                max="3.4"
                 step="0.1"
                 value={liftThreshold}
                 onChange={(e) => setLiftThreshold(parseFloat(e.target.value))}
-                style={{ cursor: 'pointer' }}
+                style={{ accentColor: '#ea580c', cursor: 'pointer', width: '160px' }}
               />
-              <span style={{ fontWeight: 800, color: '#ef4444' }}>&ge; {liftThreshold.toFixed(1)}</span>
+              <span style={{ fontSize: '12px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#ea580c' }}>
+                &ge; {liftThreshold.toFixed(1)}x
+              </span>
+            </div>
+
+            <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+              Hiển thị: <strong>{filteredRules.length}</strong> / {rulesData.rules.length} quy tắc kết hợp mạnh
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg-canvas)', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>
-                  <th style={{ padding: '12px 16px' }}>RULE ANTECEDENTS (IF)</th>
-                  <th style={{ padding: '12px 16px' }}>CONSEQUENTS (THEN)</th>
-                  <th style={{ padding: '12px 16px' }}>SUPPORT</th>
-                  <th style={{ padding: '12px 16px' }}>CONFIDENCE</th>
-                  <th style={{ padding: '12px 16px', color: '#ef4444' }}>LIFT RATIO</th>
-                  <th style={{ padding: '12px 16px' }}>LEVERAGE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rulesData.rules
-                  .filter((r) => r.lift >= liftThreshold)
-                  .map((rule, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '10px 16px', fontWeight: 600 }}>
-                        {rule.antecedents.map((a) => a.replace('cat:', '').replace('tag:', '')).join(' + ')}
-                      </td>
-                      <td style={{ padding: '10px 16px', color: '#3b82f6', fontWeight: 700 }}>
-                        &rarr; {rule.consequents.map((c) => c.replace('cat:', '').replace('tag:', '')).join(' + ')}
-                      </td>
-                      <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>
-                        {(rule.support * 100).toFixed(2)}%
-                      </td>
-                      <td style={{ padding: '10px 16px', color: 'var(--accent-emerald)', fontWeight: 700 }}>
-                        {(rule.confidence * 100).toFixed(1)}%
-                      </td>
-                      <td style={{ padding: '10px 16px', color: '#ef4444', fontWeight: 800, fontSize: '12px' }}>
-                        {rule.lift.toFixed(3)}
-                      </td>
-                      <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>
-                        {rule.leverage.toFixed(4)}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+          {/* Row of Charts: Bubble Scatter Plot + Ranked Bar Chart */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '18px' }}>
+            {/* Visual 1.1: Rule Bubble Scatter Plot */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    BIỂU ĐỒ BONG BÓNG PHÂN TÁN (RULE BUBBLE SCATTER PLOT)
+                  </h3>
+                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                    Trục X: Support (%) &bull; Trục Y: Confidence (%) &bull; Kích thước/Màu: Tỷ lệ Lift
+                  </div>
+                </div>
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c', backgroundColor: '#fff7ed', padding: '2px 8px', borderRadius: '4px' }}>
+                  BUBBLE LIFT
+                </span>
+              </div>
+
+              {/* SVG Bubble Chart */}
+              <div style={{ width: '100%', height: '260px' }}>
+                <svg viewBox="0 0 560 260" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                  {/* Grid Lines */}
+                  {[0, 15, 30, 45, 60].map((conf) => {
+                    const y = 220 - (conf / 60) * 180;
+                    return (
+                      <g key={conf}>
+                        <line x1="45" y1={y} x2="530" y2={y} stroke="#f1f5f9" strokeWidth="1" />
+                        <text x="40" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
+                          {conf}%
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* X-axis ticks (Support 0% to 3.5%) */}
+                  {[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5].map((sup) => {
+                    const x = 50 + (sup / 3.5) * 470;
+                    return (
+                      <g key={sup}>
+                        <line x1={x} y1="40" x2={x} y2="225" stroke="#f1f5f9" strokeWidth="1" />
+                        <text x={x} y="238" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
+                          {sup}%
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  <line x1="45" y1="220" x2="530" y2="220" stroke="#cbd5e1" strokeWidth="1.5" />
+                  <line x1="45" y1="40" x2="45" y2="220" stroke="#cbd5e1" strokeWidth="1.5" />
+
+                  {/* Bubbles */}
+                  {filteredRules.map((rule, idx) => {
+                    const cx = 50 + Math.min(470, ((rule.support * 100) / 3.5) * 470);
+                    const cy = 220 - Math.min(180, ((rule.confidence * 100) / 60) * 180);
+                    const radius = Math.max(6, (rule.lift / 3.4) * 16);
+                    const isHovered = hoveredRule?.rule.lift === rule.lift && hoveredRule.rule.support === rule.support;
+
+                    return (
+                      <circle
+                        key={idx}
+                        cx={cx}
+                        cy={cy}
+                        r={isHovered ? radius + 4 : radius}
+                        fill={rule.lift > 3.0 ? '#dc2626' : rule.lift > 2.5 ? '#ea580c' : '#f59e0b'}
+                        stroke="#ffffff"
+                        strokeWidth={isHovered ? '2.5' : '1.5'}
+                        opacity={isHovered ? 1 : 0.82}
+                        style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                        onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                          setHoveredRule({
+                            rule,
+                            x: rect.left + rect.width / 2,
+                            y: rect.top - 8,
+                          });
+                        }}
+                        onMouseLeave={() => setHoveredRule(null)}
+                      />
+                    );
+                  })}
+                </svg>
+              </div>
+            </div>
+
+            {/* Visual 1.2: Horizontal Bar Chart of Top Lift Rules */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                XẾP HẠNG LUẬT KẾT HỢP THEO LIFT (BAR CHART)
+              </h3>
+              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
+                Đo lường độ liên kết vượt trội so với ngẫu nhiên
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {filteredRules.slice(0, 7).map((rule, idx) => {
+                  const maxLift = 3.3571;
+                  const barWidth = Math.max(15, (rule.lift / maxLift) * 100);
+                  const ant = rule.antecedents[0]?.replace('tag:', '').replace('cat:', '') || '';
+                  const con = rule.consequents[0]?.replace('tag:', '').replace('cat:', '') || '';
+
+                  return (
+                    <div key={idx}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>
+                        <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                          {ant} &rarr; <span style={{ color: '#2563eb' }}>{con}</span>
+                        </span>
+                        <span style={{ fontWeight: 800, color: '#ea580c' }}>
+                          {rule.lift.toFixed(2)}x
+                        </span>
+                      </div>
+
+                      <div style={{ width: '100%', height: '7px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${barWidth}%`,
+                            backgroundColor: idx === 0 ? '#dc2626' : idx === 1 ? '#ea580c' : '#f59e0b',
+                            borderRadius: '4px',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* =================================================================== */}
-      {/* PILLAR 2: TOPIC CLUSTERING & 2D SCATTER PLOT                        */}
-      {/* =================================================================== */}
+      {/* ============================================================== */}
+      {/* 3. PILLAR 2: TOPIC CLUSTERING 2D VECTOR MANIFOLD CHARTS        */}
+      {/* ============================================================== */}
       {activePillar === 2 && clustersData && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-          {/* 2D Vector Scatter Plot */}
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', padding: '20px', position: 'relative' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
-                [ 2D VECTOR MANIFOLD // TRUNCATED SVD PROJECTION ]
-              </h3>
-              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                SAMPLE: {clustersData.scatter_2d.length} EMBEDDINGS (768-D)
-              </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* Validity Scorecards Banner */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #10b981', padding: '12px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
+                SILHOUETTE SCORE
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
+                {clustersData.validity_metrics.silhouette_score}
+              </div>
+              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                Độ tách biệt cụm chuẩn hóa
+              </div>
             </div>
 
-            {/* SVG Canvas Scatter Plot */}
-            <div style={{ width: '100%', height: '360px', background: 'var(--bg-canvas)', border: '1px solid var(--border-subtle)', position: 'relative' }}>
-              <svg width="100%" height="100%" viewBox="-1.2 -1.2 2.4 2.4" style={{ overflow: 'visible' }}>
-                {/* Center Crosshairs */}
-                <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="var(--border-subtle)" strokeWidth="0.01" />
-                <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="var(--border-subtle)" strokeWidth="0.01" />
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #f59e0b', padding: '12px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
+                DAVIES-BOULDIN INDEX
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#f59e0b', marginTop: '2px' }}>
+                {clustersData.validity_metrics.davies_bouldin_index}
+              </div>
+              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                Chỉ số phân tán nội cụm
+              </div>
+            </div>
 
-                {/* Data Points */}
-                {clustersData.scatter_2d.map((pt, i) => {
-                  const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-                  const color = colors[pt.cluster % colors.length];
-                  return (
-                    <circle
-                      key={i}
-                      cx={pt.x * 2.2}
-                      cy={pt.y * 2.2}
-                      r="0.02"
-                      fill={color}
-                      opacity={hoveredPoint?.paper_id === pt.paper_id ? 1.0 : 0.75}
-                      style={{ cursor: 'pointer' }}
-                      onMouseEnter={() => setHoveredPoint(pt)}
-                      onMouseLeave={() => setHoveredPoint(null)}
-                    />
-                  );
-                })}
-              </svg>
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #2563eb', padding: '12px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
+                CALINSKI-HARABASZ INDEX
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
+                {clustersData.validity_metrics.calinski_harabasz_index}
+              </div>
+              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                Tỷ số phương sai cụm
+              </div>
+            </div>
 
-              {/* Tooltip Overlay */}
-              {hoveredPoint && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '12px',
-                    left: '12px',
-                    right: '12px',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    padding: '10px 14px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '11px',
-                    zIndex: 10,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#3b82f6', fontWeight: 700 }}>
-                    <span>PAPER: {hoveredPoint.paper_id}</span>
-                    <span>CLUSTER {hoveredPoint.cluster} [{hoveredPoint.category}]</span>
-                  </div>
-                  <div style={{ color: 'var(--text-primary)', marginTop: '2px', fontWeight: 600 }}>
-                    {hoveredPoint.title}
-                  </div>
-                </div>
-              )}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', borderTop: '4px solid #7c3aed', padding: '12px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#64748b' }}>
+                SỐ LƯỢNG CỤM (K-MEANS)
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>
+                {clustersData.cluster_profiles.length} CLUSTERS
+              </div>
+              <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                10,000 Embeddings (768-D)
+              </div>
             </div>
           </div>
 
-          {/* Cluster Validity & Profiles */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Validity Gauges */}
-            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', padding: '16px 20px', fontFamily: 'var(--font-mono)' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>[ VALIDITY // CLUSTER QUALITY ]</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '12px', textAlign: 'center' }}>
-                <div style={{ border: '1px solid var(--border-subtle)', padding: '8px 2px' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>SILHOUETTE</div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--accent-emerald)', marginTop: '2px' }}>
-                    {clustersData.validity_metrics.silhouette_score}
+          {/* Grand 2D Vector Semantic Manifold Scatter Plot */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '18px' }}>
+            {/* Visual 2.1: 2D Manifold Scatter */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    BIỂU ĐỒ CỤM NGỮ NGHĨA 2D (SEMANTIC VECTOR MANIFOLD)
+                  </h3>
+                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                    Chiếu giảm chiều Truncated SVD từ 768 chiều &bull; Rê chuột để xem tọa độ &amp; bài báo
                   </div>
                 </div>
-                <div style={{ border: '1px solid var(--border-subtle)', padding: '8px 2px' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>DAVIES-B.</div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#f59e0b', marginTop: '2px' }}>
-                    {clustersData.validity_metrics.davies_bouldin_index}
-                  </div>
+
+                {/* Cluster filter pills */}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedClusterFilter('ALL')}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: selectedClusterFilter === 'ALL' ? 800 : 600,
+                      backgroundColor: selectedClusterFilter === 'ALL' ? '#0f172a' : '#f1f5f9',
+                      color: selectedClusterFilter === 'ALL' ? '#ffffff' : '#64748b',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    All
+                  </button>
+                  {[0, 1, 2, 3, 4, 5].map((cid) => (
+                    <button
+                      key={cid}
+                      type="button"
+                      onClick={() => setSelectedClusterFilter(cid)}
+                      style={{
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: selectedClusterFilter === cid ? 800 : 600,
+                        backgroundColor: selectedClusterFilter === cid ? clusterColors[cid] : '#f1f5f9',
+                        color: selectedClusterFilter === cid ? '#ffffff' : '#64748b',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      C#{cid}
+                    </button>
+                  ))}
                 </div>
-                <div style={{ border: '1px solid var(--border-subtle)', padding: '8px 2px' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>CALINSKI-H.</div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#3b82f6', marginTop: '2px' }}>
-                    {clustersData.validity_metrics.calinski_harabasz_index}
-                  </div>
-                </div>
+              </div>
+
+              {/* SVG 2D Vector Space */}
+              <div style={{ width: '100%', height: '340px', backgroundColor: '#090d16', borderRadius: '8px', border: '1px solid #1e293b', position: 'relative', overflow: 'hidden' }}>
+                <svg viewBox="-1.2 -1.2 2.4 2.4" style={{ width: '100%', height: '100%' }}>
+                  {/* Crosshairs */}
+                  <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="#1e293b" strokeWidth="0.008" />
+                  <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="#1e293b" strokeWidth="0.008" />
+                  <circle cx="0" cy="0" r="0.5" fill="none" stroke="#1e293b" strokeWidth="0.006" strokeDasharray="0.02 0.02" />
+                  <circle cx="0" cy="0" r="1.0" fill="none" stroke="#1e293b" strokeWidth="0.006" strokeDasharray="0.02 0.02" />
+
+                  {/* Scatter points */}
+                  {filteredClusterPoints.map((pt, i) => {
+                    const color = clusterColors[pt.cluster % clusterColors.length];
+                    const isHovered = hoveredPoint?.point.paper_id === pt.paper_id;
+
+                    return (
+                      <circle
+                        key={i}
+                        cx={pt.x * 2.2}
+                        cy={pt.y * 2.2}
+                        r={isHovered ? '0.045' : '0.024'}
+                        fill={color}
+                        stroke="#ffffff"
+                        strokeWidth={isHovered ? '0.01' : '0.003'}
+                        opacity={isHovered ? 1 : 0.8}
+                        style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
+                        onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                          setHoveredPoint({
+                            point: pt,
+                            x: rect.left + rect.width / 2,
+                            y: rect.top - 8,
+                          });
+                        }}
+                        onMouseLeave={() => setHoveredPoint(null)}
+                      />
+                    );
+                  })}
+                </svg>
               </div>
             </div>
 
-            {/* Dominant Cluster Profiles */}
-            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', padding: '16px 20px', flex: 1, overflowY: 'auto', maxHeight: '250px' }}>
-              <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                [ TOPIC TAXONOMY // CLUSTERS ]
+            {/* Visual 2.2: Cluster Profiles & Size Bars */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                QUY MÔ CÁC CỤM ĐỀ TÀI (CLUSTER SIZE BREAKDOWN)
+              </h3>
+              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
+                Phân bổ 10,000 bài báo khoa học theo 6 chủ đề
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {clustersData.cluster_profiles.map((c) => (
-                  <div key={c.cluster_id} style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                      <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>CLUSTER #{c.cluster_id}</span>
-                      <span style={{ color: 'var(--text-secondary)' }}>{c.size} papers ({c.percentage}%)</span>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '330px' }}>
+                {clustersData.cluster_profiles.map((c) => {
+                  const color = clusterColors[c.cluster_id % clusterColors.length];
+                  return (
+                    <div key={c.cluster_id} style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontWeight: 800, color }}>
+                          CỤM #{c.cluster_id}
+                        </span>
+                        <span style={{ fontWeight: 800, color: '#0f172a' }}>
+                          {c.size} bài ({c.percentage}%)
+                        </span>
+                      </div>
+
+                      <div style={{ width: '100%', height: '5px', backgroundColor: '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, c.percentage * 2.5)}%`, backgroundColor: color }} />
+                      </div>
+
+                      <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '6px' }}>
+                        {c.dominant_categories.map((d) => `${d.category} (${d.count})`).join(', ')}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '10px', color: '#3b82f6', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                      {c.dominant_categories.map((d) => `${d.category} (${d.count})`).join(', ')}
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 4. PILLAR 3: CO-AUTHORSHIP GRAPH & PAGERANK CHARTS             */}
+      {/* ============================================================== */}
+      {activePillar === 3 && graphData && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* Visual 3.1: Co-authorship Network Graph & Visual Influencers */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: '18px' }}>
+            {/* SVG Network Visual */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    BIỂU ĐỒ MẠNG LƯỚI ĐỒ THỊ KHOA HỌC (CO-AUTHORSHIP NETWORK)
+                  </h3>
+                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                    Bán kính node: PageRank Centrality &bull; Màu: Louvain Community &bull; Rê chuột để xem tác giả
+                  </div>
+                </div>
+
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed', backgroundColor: '#f5f3ff', padding: '2px 8px', borderRadius: '4px' }}>
+                  {graphData.graph_export.nodes.length} NODES &bull; {graphData.graph_export.links.length} EDGES
+                </span>
+              </div>
+
+              {/* SVG Network Render */}
+              <div style={{ width: '100%', height: '340px', backgroundColor: '#090d16', borderRadius: '8px', border: '1px solid #1e293b', overflow: 'hidden' }}>
+                <svg viewBox="0 0 600 340" style={{ width: '100%', height: '100%' }}>
+                  {/* Edges */}
+                  {graphData.graph_export.links.slice(0, 140).map((link, idx) => {
+                    const srcIdx = graphData.graph_export.nodes.findIndex((n) => n.id === link.source);
+                    const tgtIdx = graphData.graph_export.nodes.findIndex((n) => n.id === link.target);
+                    if (srcIdx < 0 || tgtIdx < 0) return null;
+
+                    // Deterministic coordinates based on index and community
+                    const srcAngle = (srcIdx / graphData.graph_export.nodes.length) * Math.PI * 2;
+                    const srcR = 100 + (srcIdx % 3) * 35;
+                    const x1 = 300 + Math.cos(srcAngle) * srcR;
+                    const y1 = 170 + Math.sin(srcAngle) * (srcR * 0.75);
+
+                    const tgtAngle = (tgtIdx / graphData.graph_export.nodes.length) * Math.PI * 2;
+                    const tgtR = 100 + (tgtIdx % 3) * 35;
+                    const x2 = 300 + Math.cos(tgtAngle) * tgtR;
+                    const y2 = 170 + Math.sin(tgtAngle) * (tgtR * 0.75);
+
+                    return (
+                      <line
+                        key={idx}
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke="#334155"
+                        strokeWidth="0.8"
+                        strokeOpacity="0.4"
+                      />
+                    );
+                  })}
+
+                  {/* Nodes */}
+                  {graphData.graph_export.nodes.slice(0, 70).map((node, idx) => {
+                    const angle = (idx / 70) * Math.PI * 2;
+                    const r = 90 + (node.community % 4) * 35;
+                    const cx = 300 + Math.cos(angle) * r;
+                    const cy = 170 + Math.sin(angle) * (r * 0.75);
+                    const nodeRadius = Math.max(3.5, node.pagerank * 1200);
+                    const color = clusterColors[node.community % clusterColors.length];
+                    const isHovered = hoveredGraphNode?.node.id === node.id;
+
+                    return (
+                      <circle
+                        key={node.id}
+                        cx={cx}
+                        cy={cy}
+                        r={isHovered ? nodeRadius + 3 : nodeRadius}
+                        fill={color}
+                        stroke="#ffffff"
+                        strokeWidth={isHovered ? '2' : '0.8'}
+                        style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
+                        onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                          setHoveredGraphNode({
+                            node,
+                            x: rect.left + rect.width / 2,
+                            y: rect.top - 8,
+                          });
+                        }}
+                        onMouseLeave={() => setHoveredGraphNode(null)}
+                      />
+                    );
+                  })}
+                </svg>
+              </div>
+            </div>
+
+            {/* Visual 3.2: Top Influencers Leaderboard */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                XẾP HẠNG TẦM ẢNH HƯỞNG (PAGERANK CENTRALITY)
+              </h3>
+              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
+                Xác suất truyền tải tri thức theo mạng lưới liên kết đồng tác giả
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {graphData.top_influencers.slice(0, 8).map((inf, idx) => (
+                  <div
+                    key={inf.author}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      backgroundColor: idx < 3 ? '#f5f3ff' : '#f8fafc',
+                      border: idx < 3 ? '1px solid #ddd6fe' : '1px solid #e2e8f0',
+                      fontSize: '11px',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 800, color: idx < 3 ? '#7c3aed' : '#64748b' }}>
+                        #{idx + 1}
+                      </span>
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>{inf.author}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ color: '#059669', fontWeight: 800 }}>
+                        {inf.pagerank.toFixed(5)}
+                      </span>
+                      <span style={{ color: '#64748b', fontSize: '10px' }}>
+                        {inf.degree} deg
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -345,165 +732,225 @@ export const MiningPillarsView: FC = () => {
         </div>
       )}
 
-      {/* =================================================================== */}
-      {/* PILLAR 3: GRAPH MINING (CO-AUTHORSHIP & PAGERANK)                   */}
-      {/* =================================================================== */}
-      {activePillar === 3 && graphData && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-          {/* Top PageRank Hubs */}
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
-                [ INFLUENCE CENTRALITY // PAGERANK RANKING ]
-              </h3>
-              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                {graphData.network_summary.total_authors.toLocaleString()} AUTHORS | {graphData.network_summary.total_collaborations.toLocaleString()} EDGES
-              </span>
-            </div>
-
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
-                <thead>
-                  <tr style={{ background: 'var(--bg-canvas)', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>
-                    <th style={{ padding: '8px 12px' }}>RANK</th>
-                    <th style={{ padding: '8px 12px' }}>AUTHOR</th>
-                    <th style={{ padding: '8px 12px' }}>PAGERANK</th>
-                    <th style={{ padding: '8px 12px' }}>COLLABORATORS</th>
-                    <th style={{ padding: '8px 12px' }}>PAPERS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {graphData.top_influencers.slice(0, 12).map((inf, idx) => (
-                    <tr key={inf.author} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '8px 12px', fontWeight: 700, color: idx < 3 ? '#ef4444' : 'var(--text-secondary)' }}>
-                        #{idx + 1}
-                      </td>
-                      <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {inf.author}
-                      </td>
-                      <td style={{ padding: '8px 12px', color: 'var(--accent-emerald)', fontWeight: 800 }}>
-                        {inf.pagerank.toFixed(6)}
-                      </td>
-                      <td style={{ padding: '8px 12px', color: '#3b82f6' }}>
-                        {inf.degree} connections
-                      </td>
-                      <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>
-                        {inf.paper_count}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Communities Summary */}
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', padding: '20px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
-              [ LABS & COMMUNITIES // LOUVAIN MODULARITY ]
-            </h3>
-            <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-              FOUND {graphData.network_summary.total_communities_detected} RESEARCH LAB CLUSTERS
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {graphData.communities.map((comm) => (
-                <div key={comm.community_id} style={{ border: '1px solid var(--border-subtle)', padding: '10px 12px', fontFamily: 'var(--font-mono)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 700 }}>
-                    <span style={{ color: '#f59e0b' }}>COMMUNITY #{comm.community_id}</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>{comm.total_members} members</span>
-                  </div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-primary)', marginTop: '4px' }}>
-                    {comm.representative_authors.join(', ')}
+      {/* ============================================================== */}
+      {/* 5. PILLAR 4: TREND VELOCITY & NOVELTY OUTLIER CHARTS           */}
+      {/* ============================================================== */}
+      {activePillar === 4 && trendsData && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '18px' }}>
+            {/* Visual 4.1: Clustered Column Chart for Growth Momentum */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    BIỂU ĐỒ CỘT SO SÁNH TỐC ĐỘ TĂNG TRƯỞNG (TREND VELOCITY)
+                  </h3>
+                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                    So sánh số lượng bài báo: Quý gần nhất vs. Quý trước đó
                   </div>
                 </div>
-              ))}
+
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#059669', backgroundColor: '#ecfdf5', padding: '2px 8px', borderRadius: '4px' }}>
+                  SURGE VELOCITY
+                </span>
+              </div>
+
+              {/* Clustered Column SVG */}
+              <div style={{ width: '100%', height: '240px' }}>
+                <svg viewBox="0 0 520 240" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                  {/* Grid Lines */}
+                  {[0, 600, 1200, 1800, 2400].map((v) => {
+                    const y = 190 - (v / 2400) * 150;
+                    return (
+                      <g key={v}>
+                        <line x1="45" y1={y} x2="500" y2={y} stroke="#f1f5f9" strokeWidth="1" />
+                        <text x="40" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
+                          {v}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  <line x1="45" y1="190" x2="500" y2="190" stroke="#cbd5e1" strokeWidth="1" />
+
+                  {/* Dual Columns per category */}
+                  {trendsData.trend_velocity.slice(0, 6).map((trend, idx) => {
+                    const groupX = 65 + idx * 72;
+                    const prevH = Math.max(4, (trend.previous_quarter_papers / 2400) * 150);
+                    const recentH = Math.max(8, (trend.recent_quarter_papers / 2400) * 150);
+
+                    return (
+                      <g key={trend.category}>
+                        {/* Previous Quarter Bar */}
+                        <rect
+                          x={groupX}
+                          y={190 - prevH}
+                          width="16"
+                          height={prevH}
+                          rx="3"
+                          fill="#94a3b8"
+                        />
+
+                        {/* Recent Quarter Bar */}
+                        <rect
+                          x={groupX + 18}
+                          y={190 - recentH}
+                          width="20"
+                          height={recentH}
+                          rx="3"
+                          fill="#2563eb"
+                        />
+
+                        {/* Growth Percentage Label */}
+                        <text
+                          x={groupX + 18}
+                          y={190 - recentH - 5}
+                          textAnchor="middle"
+                          fontSize="8"
+                          fontFamily="var(--font-mono)"
+                          fontWeight="800"
+                          fill="#059669"
+                        >
+                          +{Math.round(trend.growth_rate_pct)}%
+                        </text>
+
+                        {/* Category Name */}
+                        <text
+                          x={groupX + 18}
+                          y="206"
+                          textAnchor="middle"
+                          fontSize="10"
+                          fontFamily="var(--font-mono)"
+                          fontWeight="700"
+                          fill="#0f172a"
+                        >
+                          {trend.category}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+            </div>
+
+            {/* Visual 4.2: Novelty Outlier Scatter Plot (Isolation Forest) */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '18px 20px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    BIỂU ĐỒ ĐIỂM DỊ BIỆT (NOVELTY OUTLIER SCATTER)
+                  </h3>
+                  <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                    Các công trình dị biệt tiên phong do Isolation Forest gắn cờ
+                  </div>
+                </div>
+
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#dc2626', backgroundColor: '#fee2e2', padding: '2px 8px', borderRadius: '4px' }}>
+                  {trendsData.anomalies.length} OUTLIERS
+                </span>
+              </div>
+
+              {/* Anomaly Scatter SVG */}
+              <div style={{ width: '100%', height: '240px', backgroundColor: '#090d16', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                <svg viewBox="0 0 460 240" style={{ width: '100%', height: '100%' }}>
+                  <line x1="40" y1="200" x2="430" y2="200" stroke="#334155" strokeWidth="1" />
+                  <line x1="40" y1="20" x2="40" y2="200" stroke="#334155" strokeWidth="1" />
+
+                  {/* Outlier Dots */}
+                  {trendsData.anomalies.map((anom, idx) => {
+                    const cx = 40 + Math.min(370, (anom.word_count / 42000) * 370);
+                    const cy = 200 - Math.min(170, (anom.math_count / 4000) * 170);
+                    const isHovered = hoveredAnomaly?.item.paper_id === anom.paper_id;
+
+                    return (
+                      <g key={idx}>
+                        {/* Glow ring */}
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={isHovered ? '9' : '6'}
+                          fill="rgba(239, 68, 68, 0.25)"
+                        />
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={isHovered ? '5' : '3.5'}
+                          fill="#ef4444"
+                          stroke="#ffffff"
+                          strokeWidth="1.2"
+                          style={{ cursor: 'pointer' }}
+                          onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                            const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                            setHoveredAnomaly({
+                              item: anom,
+                              x: rect.left + rect.width / 2,
+                              y: rect.top - 8,
+                            });
+                          }}
+                          onMouseLeave={() => setHoveredAnomaly(null)}
+                        />
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* =================================================================== */}
-      {/* PILLAR 4: TREND VELOCITY & ANOMALIES                                */}
-      {/* =================================================================== */}
-      {activePillar === 4 && trendsData && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          {/* Trend Velocity */}
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', padding: '20px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
-              [ RESEARCH VELOCITY // TEMPORAL GROWTH MOMENTUM ]
-            </h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {trendsData.trend_velocity.map((trend) => (
-                <div key={trend.category} style={{ border: '1px solid var(--border-subtle)', padding: '12px 14px', fontFamily: 'var(--font-mono)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      {trend.category}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        padding: '3px 8px',
-                        fontWeight: 800,
-                        background:
-                          trend.momentum === 'ACCELERATING'
-                            ? 'rgba(16, 185, 129, 0.15)'
-                            : trend.momentum === 'COOLING'
-                            ? 'rgba(239, 68, 68, 0.15)'
-                            : 'rgba(59, 130, 246, 0.15)',
-                        color:
-                          trend.momentum === 'ACCELERATING'
-                            ? 'var(--accent-emerald)'
-                            : trend.momentum === 'COOLING'
-                            ? '#ef4444'
-                            : '#3b82f6',
-                      }}
-                    >
-                      {trend.momentum} ({trend.growth_rate_pct > 0 ? `+${trend.growth_rate_pct}%` : `${trend.growth_rate_pct}%`})
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-secondary)', marginTop: '6px' }}>
-                    <span>Recent: {trend.recent_quarter_papers} papers</span>
-                    <span>Previous: {trend.previous_quarter_papers} papers</span>
-                    <span>All-time: {trend.all_time_papers}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+      {/* ============================================================== */}
+      {/* FLOATING TOOLTIPS FOR ALL 4 PILLAR CHARTS                      */}
+      {/* ============================================================== */}
+      {hoveredRule && (
+        <div style={{ position: 'fixed', left: `${hoveredRule.x}px`, top: `${hoveredRule.y}px`, transform: 'translate(-50%, -100%)', backgroundColor: '#0f172a', color: '#ffffff', padding: '10px 14px', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000, pointerEvents: 'none', maxWidth: '300px', border: '1px solid #334155', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ color: '#ea580c', fontWeight: 800 }}>
+            {hoveredRule.rule.antecedents.join(' + ')} &rarr; {hoveredRule.rule.consequents.join(' + ')}
           </div>
+          <div style={{ marginTop: '4px', color: '#f8fafc' }}>
+            Lift: <strong style={{ color: '#ea580c' }}>{hoveredRule.rule.lift.toFixed(3)}x</strong> &bull; Confidence: <strong style={{ color: '#10b981' }}>{(hoveredRule.rule.confidence * 100).toFixed(1)}%</strong>
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: '10px', marginTop: '2px' }}>
+            Support: {(hoveredRule.rule.support * 100).toFixed(2)}% &bull; Leverage: {hoveredRule.rule.leverage.toFixed(4)}
+          </div>
+        </div>
+      )}
 
-          {/* Anomaly Outliers (Isolation Forest) */}
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', padding: '20px', maxHeight: '500px', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
-                [ NOVELTY DETECTOR // ISOLATION FOREST ANOMALIES ]
-              </h3>
-              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#ef4444', fontWeight: 700 }}>
-                {trendsData.summary.total_anomalies_detected} OUTLIERS
-              </span>
-            </div>
+      {hoveredPoint && (
+        <div style={{ position: 'fixed', left: `${hoveredPoint.x}px`, top: `${hoveredPoint.y}px`, transform: 'translate(-50%, -100%)', backgroundColor: '#0f172a', color: '#ffffff', padding: '10px 14px', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000, pointerEvents: 'none', maxWidth: '300px', border: '1px solid #334155', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ color: '#38bdf8', fontWeight: 800 }}>
+            PAPER: {hoveredPoint.point.paper_id} &bull; CỤM #{hoveredPoint.point.cluster}
+          </div>
+          <div style={{ color: '#f8fafc', fontWeight: 600, marginTop: '3px' }}>
+            {hoveredPoint.point.title}
+          </div>
+        </div>
+      )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {trendsData.anomalies.slice(0, 8).map((paper) => (
-                <div key={paper.paper_id} style={{ border: '1px solid var(--border-subtle)', padding: '12px 14px', fontFamily: 'var(--font-mono)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                    <span style={{ color: '#ef4444', fontWeight: 800 }}>ID: {paper.paper_id}</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>Score: {paper.anomaly_score}</span>
-                  </div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-                    {paper.title}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
-                    {paper.outlier_reasons.map((r, i) => (
-                      <span key={i} style={{ background: 'var(--border-subtle)', padding: '2px 6px', fontSize: '10px', color: '#f59e0b' }}>
-                        {r}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+      {hoveredGraphNode && (
+        <div style={{ position: 'fixed', left: `${hoveredGraphNode.x}px`, top: `${hoveredGraphNode.y}px`, transform: 'translate(-50%, -100%)', backgroundColor: '#0f172a', color: '#ffffff', padding: '8px 12px', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000, pointerEvents: 'none', border: '1px solid #334155', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ color: '#c084fc', fontWeight: 800 }}>
+            {hoveredGraphNode.node.label || hoveredGraphNode.node.id}
+          </div>
+          <div style={{ color: '#10b981', marginTop: '2px' }}>
+            PageRank: <strong>{hoveredGraphNode.node.pagerank.toFixed(6)}</strong>
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: '10px' }}>
+            Liên kết: {hoveredGraphNode.node.degree} tác giả &bull; {hoveredGraphNode.node.paper_count} bài báo
+          </div>
+        </div>
+      )}
+
+      {hoveredAnomaly && (
+        <div style={{ position: 'fixed', left: `${hoveredAnomaly.x}px`, top: `${hoveredAnomaly.y}px`, transform: 'translate(-50%, -100%)', backgroundColor: '#0f172a', color: '#ffffff', padding: '10px 14px', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000, pointerEvents: 'none', maxWidth: '320px', border: '1px solid #334155', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ color: '#ef4444', fontWeight: 800 }}>
+            OUTLIER: arXiv:{hoveredAnomaly.item.paper_id} &bull; {hoveredAnomaly.item.primary_category}
+          </div>
+          <div style={{ color: '#f8fafc', fontWeight: 600, marginTop: '2px' }}>
+            {hoveredAnomaly.item.title}
+          </div>
+          <div style={{ color: '#ea580c', marginTop: '4px' }}>
+            {hoveredAnomaly.item.math_count} eq &bull; {hoveredAnomaly.item.word_count.toLocaleString()} words
           </div>
         </div>
       )}
