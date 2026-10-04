@@ -1086,18 +1086,18 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 minHeight: 0,
               }}
             >
-              {/* Row 1: Title + Telemetry + Viewport Controls */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                    BIỂU ĐỒ CỘT &amp; ĐƯỜNG KẾT HỢP: PHÂN BỐ BÀI BÁO &amp; CÔNG THỨC TOÁN
-                  </h3>
-                  <span className="telemetry-chip" style={{ color: '#38bdf8' }}>
-                    EPOCH: 2023-2024 (93.1%) · PEAK: 01/2024 (n=5,021)
+              {/* Row 1: Title + Viewport Controls (Two-Tier Swiss Architecture) */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '6px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)', flexShrink: 0 }}>
+                    [EDA-01]
                   </span>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    PHÂN BỐ BÀI BÁO &amp; CÔNG THỨC TOÁN
+                  </h3>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => setIsSidebarCollapsed((prev) => !prev)}
@@ -1137,10 +1137,25 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 </div>
               </div>
 
-              {/* Row 2: Subtitle + Legend + Functional Controls + Toolbar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0, flexWrap: 'wrap', gap: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
-                  <span style={{ color: themeStyles.textMuted }}>Trục trái: Số bài &bull; Trục phải: Tổng công thức</span>
+              {/* Row 2: Metadata & Interactive Control Deck */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '4px 8px',
+                borderRadius: '5px',
+                backgroundColor: 'var(--bg-canvas)',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '8px',
+                flexShrink: 0,
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', fontFamily: 'var(--font-mono)', flexWrap: 'wrap' }}>
+                  <span className="telemetry-chip" style={{ color: '#38bdf8' }}>
+                    EPOCH: 2023-2024 (93.1%) &bull; PEAK: 01/2024 (n=5,021)
+                  </span>
+                  <span style={{ color: themeStyles.textMuted }}>&bull; Trục trái: Số bài &bull; Trục phải: Eq</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ width: '8px', height: '8px', backgroundColor: '#2563eb', borderRadius: '2px' }} />
                     <span style={{ color: themeStyles.textSecondary }}>Papers</span>
@@ -1155,7 +1170,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => setShowParetoCurve((prev) => !prev)}
@@ -1387,85 +1402,102 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         ))}
 
                         {/* Dual-Axis Pareto Cumulative Curve */}
-                        {showParetoCurve && (
-                          <g>
-                            {/* 80% Pareto Reference Cutoff Line */}
-                            <line
-                              x1="60"
-                              y1={235 - 0.8 * 195}
-                              x2="860"
-                              y2={235 - 0.8 * 195}
-                              stroke="#10b981"
-                              strokeWidth="1.2"
-                              strokeDasharray="4 3"
-                              strokeOpacity="0.85"
-                            />
-                            {/* Protective plate for Pareto Cutoff */}
-                            <rect
-                              x="655"
-                              y={235 - 0.8 * 195 - 18}
-                              width="128"
-                              height="16"
-                              rx="3"
-                              fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)'}
-                              stroke="rgba(16, 185, 129, 0.4)"
-                              strokeWidth="0.8"
-                            />
-                            <text
-                              x="780"
-                              y={235 - 0.8 * 195 - 6}
-                              textAnchor="end"
-                              fontSize="10"
-                              fontFamily="var(--font-mono)"
-                              fontWeight="800"
-                              fill="#10b981"
-                            >
-                              80% PARETO CUTOFF
-                            </text>
+                        {showParetoCurve && (() => {
+                          const cutoffY = 235 - 0.8 * 195;
+                          const cutoffIdx = paretoPoints.findIndex((p) => p.cumPct >= 80);
 
-                            {/* Cumulative Curve Path */}
-                            <path
-                              d={paretoPathD}
-                              fill="none"
-                              stroke="#10b981"
-                              strokeWidth="2.5"
-                              style={{ pointerEvents: 'none' }}
-                            />
-                            {paretoPoints.map((p, idx) => (
-                              <g key={idx}>
-                                <circle
-                                  cx={p.cx}
-                                  cy={p.cy}
-                                  r="4"
-                                  fill={themeStyles.cardInner}
-                                  stroke="#10b981"
-                                  strokeWidth="2"
-                                />
-                                <rect
-                                  x={p.cx - 15}
-                                  y={p.cy - 19}
-                                  width="30"
-                                  height="14"
-                                  rx="3"
-                                  fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)'}
-                                  stroke="rgba(16, 185, 129, 0.3)"
-                                  strokeWidth="0.8"
-                                />
-                                <text
-                                  x={p.cx}
-                                  y={p.cy - 8}
-                                  textAnchor="middle"
-                                  fontSize="10"
-                                  fontFamily="var(--font-mono)"
-                                  fontWeight="800"
-                                  fill="#10b981"
-                                >
-                                  {p.cumPct.toFixed(0)}%
-                                </text>
-                              </g>
-                            ))}
-                          </g>
-                        )}
+                          return (
+                            <g>
+                              {/* 80% Pareto Reference Cutoff Line */}
+                              <line
+                                x1="60"
+                                y1={cutoffY}
+                                x2="860"
+                                y2={cutoffY}
+                                stroke="#10b981"
+                                strokeWidth="1.2"
+                                strokeDasharray="4 3"
+                                strokeOpacity="0.85"
+                              />
+                              {/* Anchored Left-Margin Reference Tag (Outside Data Flow) */}
+                              <rect
+                                x="65"
+                                y={cutoffY - 17}
+                                width="116"
+                                height="15"
+                                rx="3"
+                                fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.95)'}
+                                stroke="rgba(16, 185, 129, 0.45)"
+                                strokeWidth="0.8"
+                              />
+                              <text
+                                x="70"
+                                y={cutoffY - 6}
+                                fontSize="9"
+                                fontFamily="var(--font-mono)"
+                                fontWeight="800"
+                                fill="#10b981"
+                              >
+                                80% PARETO CUTOFF
+                              </text>
+
+                              {/* Cumulative Curve Path */}
+                              <path
+                                d={paretoPathD}
+                                fill="none"
+                                stroke="#10b981"
+                                strokeWidth="2.5"
+                                style={{ pointerEvents: 'none' }}
+                              />
+                              {paretoPoints.map((p, idx) => {
+                                const isMilestone = idx === 0 || idx === cutoffIdx || idx === paretoPoints.length - 1;
+                                const isNearCutoff = Math.abs(p.cy - cutoffY) < 24;
+                                const badgeY = isNearCutoff ? p.cy + 8 : p.cy - 19;
+                                const textY = isNearCutoff ? p.cy + 19 : p.cy - 8;
+
+                                return (
+                                  <g key={idx}>
+                                    <circle
+                                      cx={p.cx}
+                                      cy={p.cy}
+                                      r={isMilestone ? '5' : '3.5'}
+                                      fill={themeStyles.cardInner}
+                                      stroke="#10b981"
+                                      strokeWidth={isMilestone ? '2.5' : '1.8'}
+                                    >
+                                      <title>{`${p.cat.category}: ${p.cumPct.toFixed(1)}% tích lũy`}</title>
+                                    </circle>
+                                    {isMilestone && (
+                                      <g style={{ pointerEvents: 'none' }}>
+                                        <rect
+                                          x={p.cx - 16}
+                                          y={badgeY}
+                                          width="32"
+                                          height="14"
+                                          rx="3"
+                                          fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.95)'}
+                                          stroke={idx === cutoffIdx ? '#10b981' : 'rgba(16, 185, 129, 0.35)'}
+                                          strokeWidth={idx === cutoffIdx ? '1.2' : '0.8'}
+                                        />
+                                        <text
+                                          x={p.cx}
+                                          y={textY}
+                                          textAnchor="middle"
+                                          fontSize="9.5"
+                                          fontFamily="var(--font-mono)"
+                                          fontWeight="800"
+                                          fill="#10b981"
+                                        >
+                                          {p.cumPct.toFixed(0)}%
+                                        </text>
+                                      </g>
+                                    )}
+                                  </g>
+                                );
+                              })}
+                            </g>
+                          );
+                        })()}
                       </g>
                     );
                   })()}
@@ -1514,22 +1546,41 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   minHeight: 0,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
-                  <div>
-                    <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
-                      BIỂU ĐỒ ĐƯỜNG &amp; VÙNG: TĂNG TRƯỞNG THEO THỜI GIAN
+                {/* Row 1: Title & Classification (Two-Tier Swiss Architecture) */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '6px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)', flexShrink: 0 }}>
+                      [EDA-02]
+                    </span>
+                    <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      TĂNG TRƯỞNG THEO THỜI GIAN
                     </h3>
-                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                      Đỉnh điểm 5,021 bài (Tháng 1/2024)
-                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb', backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#eff6ff', padding: '2px 6px', borderRadius: '4px' }}>
-                      EXPONENTIAL
-                    </span>
+                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb', backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#eff6ff', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
+                    EXPONENTIAL
+                  </span>
+                </div>
 
-                    <ChartToolbar
+                {/* Row 2: Metadata & Controls Deck */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '4px 8px',
+                  borderRadius: '5px',
+                  backgroundColor: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-subtle)',
+                  marginBottom: '8px',
+                  flexShrink: 0,
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                }}>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                    Đỉnh điểm 5,021 bài (Tháng 1/2024) &bull; Chuỗi lũy tiến
+                  </div>
+
+                  <ChartToolbar
                       theme={theme}
                       svgRef={timelineSvgRef}
                       filename="eda-temporal-publication-growth"
@@ -1552,7 +1603,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         setTimeout(() => setFeedbackToast(null), 2500);
                       }}
                     />
-                  </div>
                 </div>
 
                 {/* SVG AREA CHART */}
@@ -1709,21 +1759,18 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 : {}),
             }}
           >
-            {/* Row 1: Title + Telemetry + Theater Mode Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
-                <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                  BIỂU ĐỒ PHÂN TÁN 2 CHIỀU (SCATTER PLOT): MẬT ĐỘ TOÁN vs. ĐỘ DÀI TỪ VỰNG
+            {/* Row 1: Title + Viewport Controls (Two-Tier Swiss Architecture) */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '6px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-bronze)', flexShrink: 0 }}>
+                  [EDA-03]
+                </span>
+                <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  MẬT ĐỘ TOÁN vs. ĐỘ DÀI TỪ VỰNG (2D SCATTER)
                 </h3>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c', backgroundColor: isDark ? 'rgba(234, 88, 12, 0.2)' : '#fff7ed', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
-                  {filteredScatterPoints.length} BÀI KHẢO SÁT
-                </span>
-                <span className="telemetry-chip" style={{ color: '#f59e0b' }}>
-                  QUADRANT I DOMINANCE: stat.ML x cs.LG · MEAN: 745 eq/p
-                </span>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                 <button
                   type="button"
                   onClick={() => setIsTheaterMode((prev) => !prev)}
@@ -1745,16 +1792,31 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               </div>
             </div>
 
-            {/* Row 2: Subtitle + Quadrant Filter Tabs + Legend + Toolbar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0, flexWrap: 'wrap', gap: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Góc phân vị:</span>
+            {/* Row 2: Metadata & Interactive Control Deck */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '4px 8px',
+              borderRadius: '5px',
+              backgroundColor: 'var(--bg-canvas)',
+              border: '1px solid var(--border-subtle)',
+              marginBottom: '8px',
+              flexShrink: 0,
+              flexWrap: 'wrap',
+              gap: '8px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span className="telemetry-chip" style={{ color: '#ea580c' }}>
+                  {filteredScatterPoints.length} BÀI KHẢO SÁT &bull; Q1: 745 eq/p
+                </span>
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Phân vị:</span>
                 {[
                   { id: 'ALL' as const, label: 'Tất cả' },
-                  { id: 'Q1' as const, label: 'Q1 Lý thuyết' },
-                  { id: 'Q2' as const, label: 'Q2 Khảo luận' },
-                  { id: 'Q3' as const, label: 'Q3 Workshop' },
-                  { id: 'Q4' as const, label: 'Q4 Thực nghiệm' },
+                  { id: 'Q1' as const, label: 'Q1 Lý thuyết (>300 eq)' },
+                  { id: 'Q2' as const, label: 'Q2 Khảo luận (>6k w)' },
+                  { id: 'Q3' as const, label: 'Q3 Ngắn' },
+                  { id: 'Q4' as const, label: 'Q4 LLMs' },
                 ].map((q) => {
                   const isQActive = selectedQuadrant === q.id;
                   return (
@@ -1878,19 +1940,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         }
                       }}
                     />
-                    {/* Protective plate for Quadrant I */}
-                    <rect
-                      x="70"
-                      y="26"
-                      width="370"
-                      height="16"
-                      rx="3"
-                      fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)'}
-                      stroke={isDark ? 'rgba(245, 158, 11, 0.4)' : '#fcd34d'}
-                      strokeWidth="1"
-                    />
-                    <text x="75" y="38" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill={isDark ? '#f59e0b' : '#b45309'} style={{ pointerEvents: 'none' }}>
-                      QUADRANT I: HEAVY THEORETICAL MATH (&gt; 300 eq &bull; &le; 6k words)
+                    {/* Background Typography Watermarks for Quadrants (Zero Clashing) */}
+                    <text x="75" y="65" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#f59e0b' : '#d97706'} opacity="0.10" style={{ pointerEvents: 'none' }}>
+                      Q1
                     </text>
 
                     {/* Quadrant II: Foundational Monographs */}
@@ -1909,19 +1961,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         }
                       }}
                     />
-                    {/* Protective plate for Quadrant II */}
-                    <rect
-                      x="480"
-                      y="26"
-                      width="375"
-                      height="16"
-                      rx="3"
-                      fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)'}
-                      stroke={isDark ? 'rgba(59, 130, 246, 0.4)' : '#93c5fd'}
-                      strokeWidth="1"
-                    />
-                    <text x="485" y="38" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill={isDark ? '#60a5fa' : '#1d4ed8'} style={{ pointerEvents: 'none' }}>
-                      QUADRANT II: FOUNDATIONAL MONOGRAPHS (&gt; 300 eq &bull; &gt; 6k words)
+                    <text x="880" y="65" textAnchor="end" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#60a5fa' : '#2563eb'} opacity="0.10" style={{ pointerEvents: 'none' }}>
+                      Q2
                     </text>
 
                     {/* Quadrant III: Short Communications */}
@@ -1940,19 +1981,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         }
                       }}
                     />
-                    {/* Protective plate for Quadrant III */}
-                    <rect
-                      x="70"
-                      y="160"
-                      width="350"
-                      height="16"
-                      rx="3"
-                      fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)'}
-                      stroke={isDark ? 'rgba(148, 163, 184, 0.4)' : '#cbd5e1'}
-                      strokeWidth="1"
-                    />
-                    <text x="75" y="172" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill={themeStyles.textSecondary} style={{ pointerEvents: 'none' }}>
-                      QUADRANT III: SHORT COMMUNICATIONS (&lt; 300 eq &bull; &le; 6k words)
+                    <text x="75" y="275" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#94a3b8' : '#64748b'} opacity="0.10" style={{ pointerEvents: 'none' }}>
+                      Q3
                     </text>
 
                     {/* Quadrant IV: Empirical Systems & LLMs */}
@@ -1971,19 +2001,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         }
                       }}
                     />
-                    {/* Protective plate for Quadrant IV */}
-                    <rect
-                      x="480"
-                      y="160"
-                      width="360"
-                      height="16"
-                      rx="3"
-                      fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)'}
-                      stroke={isDark ? 'rgba(16, 185, 129, 0.4)' : '#86efac'}
-                      strokeWidth="1"
-                    />
-                    <text x="485" y="172" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill={isDark ? '#34d399' : '#047857'} style={{ pointerEvents: 'none' }}>
-                      QUADRANT IV: EMPIRICAL SYSTEMS &amp; LLMS (&lt; 300 eq &bull; &gt; 6k words)
+                    <text x="880" y="275" textAnchor="end" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#34d399' : '#059669'} opacity="0.10" style={{ pointerEvents: 'none' }}>
+                      Q4
                     </text>
 
                 {/* Quadrant Divider Lines */}
@@ -2034,7 +2053,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       cy={cy}
                       r={isSelectedForDrawer ? '9' : isHovered ? '8' : pt.formulas > 600 ? '6.5' : '5'}
                       fill={color}
-                      stroke={isSelectedForDrawer ? '#f59e0b' : '#ffffff'}
+                      stroke={isSelectedForDrawer ? '#f59e0b' : isDark ? '#0f172a' : '#ffffff'}
                       strokeWidth={isSelectedForDrawer ? '3' : isHovered ? '2.5' : '1.2'}
                       opacity={isSelectedForDrawer ? 1 : isHovered ? 1 : 0.88}
                       style={{
@@ -2240,7 +2259,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 <div style={{ flexShrink: 0, marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
-                      CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
+                      [EDA-04] CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
                     </h3>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
                       Tỷ lệ phần trăm phân bố 10,000 bài báo
@@ -2316,18 +2335,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 minHeight: 0,
               }}
             >
-              {/* Row 1: Title + Telemetry + Controls */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
+              {/* Row 1: Primary Title + Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                    MA TRẬN GIAO THOA LIÊN NGÀNH (HEATMAP MATRIX)
+                    [EDA-05] MA TRẬN GIAO THOA LIÊN NGÀNH
                   </h3>
-                  <span className="telemetry-chip" style={{ color: '#c084fc' }}>
-                    CORE: cs.LG x stat.ML (n=542) · cs.CV x cs.RO
-                  </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => setIsSidebarCollapsed((prev) => !prev)}
@@ -2337,10 +2353,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       fontSize: '10px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 600,
-                      backgroundColor: isSidebarCollapsed ? (isDark ? 'rgba(168, 85, 247, 0.25)' : '#f3e8ff') : (isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'),
-                      color: isSidebarCollapsed ? '#c084fc' : themeStyles.textSecondary,
-                      border: `1px solid ${isSidebarCollapsed ? '#c084fc' : themeStyles.border}`,
+                      backgroundColor: isSidebarCollapsed ? (isDark ? 'rgba(59, 130, 246, 0.2)' : '#e0f2fe') : (isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'),
+                      color: isSidebarCollapsed ? '#38bdf8' : themeStyles.textSecondary,
+                      border: `1px solid ${isSidebarCollapsed ? '#38bdf8' : themeStyles.border}`,
                       cursor: 'pointer',
+                      flexShrink: 0,
                     }}
                     title={isSidebarCollapsed ? 'Mở lại biểu đồ Donut [ ► ]' : 'Thu gọn biểu đồ Donut để mở rộng Ma trận 100% [ ◄ ]'}
                   >
@@ -2359,6 +2376,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       color: isTheaterMode ? '#f59e0b' : themeStyles.textSecondary,
                       border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
                       cursor: 'pointer',
+                      flexShrink: 0,
                     }}
                     title="Phóng đại toàn màn hình 100% (Theater Mode)"
                   >
@@ -2367,13 +2385,32 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 </div>
               </div>
 
-              {/* Row 2: Subtitle + Threshold Filter + Toolbar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0, flexWrap: 'wrap', gap: '6px' }}>
-                <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  Độ đậm nhạt phản ánh số lượng bài báo lai ghép đa chủ đề &bull; Nhấp ô để phân tích
+              {/* Row 2: Metadata & Filter Sub-Deck */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '8px',
+                  flexShrink: 0,
+                  backgroundColor: themeStyles.cardSubtle,
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  border: `1px solid ${themeStyles.border}`,
+                  gap: '8px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span className="telemetry-chip" style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
+                    CORE: cs.LG x stat.ML (n=542)
+                  </span>
+                  <span style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                    Mật độ đồng xuất bản 12 cặp danh mục arXiv
+                  </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>Lọc &ge;</span>
                     <input
@@ -2383,9 +2420,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       step="50"
                       value={cooccurrenceThreshold}
                       onChange={(e) => setCooccurrenceThreshold(Number(e.target.value))}
-                      style={{ width: '70px', accentColor: '#7c3aed', cursor: 'pointer' }}
+                      style={{ width: '70px', accentColor: '#2563eb', cursor: 'pointer' }}
                     />
-                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed' }}>
+                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: isDark ? '#60a5fa' : '#2563eb' }}>
                       {cooccurrenceThreshold}
                     </span>
                   </div>
@@ -2414,34 +2451,34 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     const maxCooccur = 542;
                     const intensity = Math.min(1, pair.cooccurrence_count / maxCooccur);
                     const isTop = pair.cooccurrence_count > 300;
+                    const isSelected =
+                      selectedCooccurrencePair?.category_a === pair.category_a &&
+                      selectedCooccurrencePair?.category_b === pair.category_b;
 
                     return (
                       <div
                         key={`${pair.category_a}-${pair.category_b}`}
                         onClick={() =>
                           setSelectedCooccurrencePair(
-                            selectedCooccurrencePair?.category_a === pair.category_a &&
-                              selectedCooccurrencePair?.category_b === pair.category_b
-                              ? null
-                              : pair
+                            isSelected ? null : pair
                           )
                         }
                         style={{
-                          backgroundColor: isTop
-                            ? (isDark ? `rgba(168, 85, 247, ${0.15 + intensity * 0.45})` : `rgba(124, 58, 237, ${0.15 + intensity * 0.5})`)
-                            : (isDark ? `rgba(59, 130, 246, ${0.12 + intensity * 0.4})` : `rgba(37, 99, 235, ${0.1 + intensity * 0.4})`),
-                          border:
-                            selectedCooccurrencePair?.category_a === pair.category_a &&
-                            selectedCooccurrencePair?.category_b === pair.category_b
-                              ? '1.5px solid #a855f7'
-                              : `1px solid ${themeStyles.border}`,
-                          boxShadow:
-                            selectedCooccurrencePair?.category_a === pair.category_a &&
-                            selectedCooccurrencePair?.category_b === pair.category_b
-                              ? '0 0 10px rgba(168, 85, 247, 0.35)'
-                              : 'none',
+                          backgroundColor: isSelected
+                            ? (isDark ? 'rgba(37, 99, 235, 0.28)' : 'rgba(37, 99, 235, 0.14)')
+                            : isTop
+                            ? (isDark ? 'rgba(37, 99, 235, 0.14)' : 'rgba(37, 99, 235, 0.08)')
+                            : (isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(241, 245, 249, 0.75)'),
+                          border: isSelected
+                            ? '1.5px solid #2563eb'
+                            : isTop
+                            ? (isDark ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(37, 99, 235, 0.3)')
+                            : `1px solid ${themeStyles.border}`,
+                          boxShadow: isSelected
+                            ? '0 0 10px rgba(37, 99, 235, 0.35)'
+                            : 'none',
                           borderRadius: '6px',
-                          padding: '8px',
+                          padding: '8px 10px',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
@@ -2451,14 +2488,18 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isTop ? (isDark ? '#c084fc' : '#5b21b6') : (isDark ? '#60a5fa' : '#1e40af') }}>
+                        <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isTop ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary }}>
                           {pair.category_a} &times; {pair.category_b}
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginTop: '2px' }}>
+                        <div style={{ fontSize: '15px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginTop: '2px' }}>
                           {pair.cooccurrence_count}
                         </div>
-                        <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ fontSize: '9px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', marginTop: '1px' }}>
                           bài đồng xuất bản
+                        </div>
+                        {/* Micro Density Bar */}
+                        <div style={{ width: '100%', height: '3px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: '2px', marginTop: '6px', overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.round(intensity * 100)}%`, height: '100%', backgroundColor: isTop ? '#2563eb' : (isDark ? '#60a5fa' : '#3b82f6'), borderRadius: '2px' }} />
                         </div>
                       </div>
                     );

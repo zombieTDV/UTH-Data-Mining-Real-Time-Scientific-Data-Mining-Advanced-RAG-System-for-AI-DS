@@ -1029,7 +1029,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      BIỂU ĐỒ BONG BÓNG PHÂN TÁN (RULE BUBBLE SCATTER PLOT)
+                      [MINING-01] BIỂU ĐỒ BONG BÓNG LUẬT KẾT HỢP (RULE SCATTER)
                     </h3>
                     <div
                       style={{
@@ -1792,7 +1792,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      KHÔNG GIAN VECTOR TIỀM ẨN 2D (SEMANTIC SVD MANIFOLD)
+                      [MINING-02] KHÔNG GIAN VECTOR TIỀM ẨN 2D (SEMANTIC SVD MANIFOLD)
                     </h3>
                     <span className="telemetry-chip">
                       [K-MEANS SVD: k=6 CLUSTERS &bull; SILHOUETTE: 0.384]
@@ -2002,11 +2002,21 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               stroke="#ffffff"
                               strokeWidth={0.008 / p2PanZoom.zoom}
                             />
+                            <rect
+                              x={clusterCentroids[selectedClusterFilter].x - 0.22 / p2PanZoom.zoom}
+                              y={clusterCentroids[selectedClusterFilter].y - 0.095 / p2PanZoom.zoom}
+                              width={0.44 / p2PanZoom.zoom}
+                              height={0.065 / p2PanZoom.zoom}
+                              rx={0.015 / p2PanZoom.zoom}
+                              fill={isDark ? 'rgba(15, 23, 42, 0.90)' : 'rgba(255, 255, 255, 0.92)'}
+                              stroke={clusterColors[selectedClusterFilter % clusterColors.length]}
+                              strokeWidth={0.005 / p2PanZoom.zoom}
+                            />
                             <text
                               x={clusterCentroids[selectedClusterFilter].x}
-                              y={clusterCentroids[selectedClusterFilter].y - 0.05 / p2PanZoom.zoom}
+                              y={clusterCentroids[selectedClusterFilter].y - 0.048 / p2PanZoom.zoom}
                               textAnchor="middle"
-                              fontSize={0.06 / p2PanZoom.zoom}
+                              fontSize={0.05 / p2PanZoom.zoom}
                               fontFamily="var(--font-mono)"
                               fontWeight="800"
                               fill={clusterColors[selectedClusterFilter % clusterColors.length]}
@@ -2454,7 +2464,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      ĐỒ THỊ MẠNG LƯỚI ĐỒNG TÁC GIẢ (CO-AUTHORSHIP EGO-NETWORK)
+                      [MINING-03] ĐỒ THỊ MẠNG LƯỚI ĐỒNG TÁC GIẢ (CO-AUTHORSHIP EGO-NETWORK)
                     </h3>
                     <span className="telemetry-chip">
                       [LOUVAIN: 120 NODES &bull; 243 EDGES &bull; 6 COMMUNITIES]
@@ -3173,7 +3183,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)
+                      [MINING-04] TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)
                     </h3>
                     <span className="telemetry-chip">
                       [VELOCITY SURGE: cs.CL (+5,940%) &bull; ISOLATION FOREST: 30 OUTLIERS]
@@ -3460,7 +3470,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             margin: 0,
                           }}
                         >
-                          BẢN ĐỒ DỊ BIỆT (ISOLATION FOREST OUTLIERS)
+                          [MINING-05] BẢN ĐỒ DỊ BIỆT (ISOLATION FOREST OUTLIERS)
                         </h3>
                         <div
                           style={{
