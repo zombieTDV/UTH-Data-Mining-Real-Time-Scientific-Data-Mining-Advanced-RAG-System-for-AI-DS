@@ -1,23 +1,32 @@
 # Living Project Overview & Roadmap: UTH Scientific Data Mining & Advanced RAG
 
+| Field | Value |
+| :--- | :--- |
+| **Document Type** | Project Roadmap & Phase Index |
+| **Status** | Active Production |
+| **Owner** | Research Lead / AI Agent |
+| **Scope** | Global Repository Scope |
+| **Created** | 2026-09-06T21:05:00+07:00 |
+| **Last Updated** | 2026-10-05T13:22:00+07:00 |
+| **References** | [`README.md`](../README.md), [`docs/PURPOSE.md`](PURPOSE.md), [`docs/mining/FOUR_DATA_MINING_PILLARS.md`](mining/FOUR_DATA_MINING_PILLARS.md), [`docs/mining/PIPELINE_EXECUTION_GUIDE.md`](mining/PIPELINE_EXECUTION_GUIDE.md), [`agents/rules/MD_CONVENTION.md`](agents/rules/MD_CONVENTION.md) |
+
+---
+
 - **Motivation/Background**: Building an end-to-end real-time academic literature mining and retrieval-augmented generation (RAG) system for the AI/DS domain at University of Transport and Communications (UTH).
 - **Purpose**: Serve as the authoritative, living technical blueprint, architectural specification, and phase-by-phase roadmap for the repository.
 - **Overview Pipeline**: Real-time extraction (arXiv, OpenAlex) -> Bronze immutable storage (Cloudflare R2) -> Silver clean Parquet & citations -> Gold LanceDB vector index & 4 Data Mining pillars -> Serving layer (FastAPI backend + React 19 interactive dashboard).
 - **Detailed Plan**: §1 Project Summary & Academic Scope; §2 Medallion Lakehouse Architecture; §3 The 4 Data Mining & Modeling Pillars; §4 Engineering Phases & Roadmap (Phases 0 to 5); §5 Operational Progress & Definition of Done; §6 System Governance & Reproducibility.
-- **References**: [`README.md`](../README.md), [`docs/PURPOSE.md`](PURPOSE.md), [`docs/mining/FOUR_DATA_MINING_PILLARS.md`](mining/FOUR_DATA_MINING_PILLARS.md), [`docs/mining/PIPELINE_EXECUTION_GUIDE.md`](mining/PIPELINE_EXECUTION_GUIDE.md), [`docs/agents/rules/MD_CONVENTION.md`](agents/rules/MD_CONVENTION.md).
-- **Created**: 2026-09-06T21:05:00+07:00
-- **Last Updated**: 2026-10-04T20:58:00+07:00
 
 ---
 
 ## Table of Contents
 
-- [1. Project Summary &amp; Academic Scope](#1-project-summary--academic-scope)
+- [1. Project Summary & Academic Scope](#1-project-summary--academic-scope)
 - [2. Medallion Lakehouse Architecture](#2-medallion-lakehouse-architecture)
-- [3. The 4 Data Mining &amp; Modeling Pillars](#3-the-4-data-mining--modeling-pillars)
-- [4. Engineering Phases &amp; Roadmap (Phases 0 to 5)](#4-engineering-phases--roadmap-phases-0-to-5)
-- [5. Operational Progress &amp; Definition of Done](#5-operational-progress--definition-of-done)
-- [6. System Governance &amp; Reproducibility](#6-system-governance--reproducibility)
+- [3. The 4 Data Mining & Modeling Pillars](#3-the-4-data-mining--modeling-pillars)
+- [4. Engineering Phases & Roadmap (Phases 0 to 5)](#4-engineering-phases--roadmap-phases-0-to-5)
+- [5. Operational Progress & Definition of Done](#5-operational-progress--definition-of-done)
+- [6. System Governance & Reproducibility](#6-system-governance--reproducibility)
 
 ---
 
@@ -120,5 +129,5 @@ The system has satisfied the core requirements:
 ## 6. System Governance & Reproducibility
 
 - **Pipeline Execution**: See [`docs/mining/PIPELINE_EXECUTION_GUIDE.md`](mining/PIPELINE_EXECUTION_GUIDE.md) for complete CLI commands.
-- **Logging Standards**: All background execution adheres to [`docs/agents/rules/LOGGING_CHECKPOINT_RULES.md`](agents/rules/LOGGING_CHECKPOINT_RULES.md) (strictly plain text, timestamped, zero emojis).
+- **Logging Standards**: All background execution adheres to [`agents/rules/LOGGING_CHECKPOINT_RULES.md`](../agents/rules/LOGGING_CHECKPOINT_RULES.md) (strictly plain text, timestamped, zero emojis).
 - **Git Conventions**: Local commits follow conventional commits (e.g. `feat(mining): ...`) with zero remote pushes.

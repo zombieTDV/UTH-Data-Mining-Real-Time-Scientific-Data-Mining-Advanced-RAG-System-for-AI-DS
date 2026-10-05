@@ -1,41 +1,90 @@
+# Python & Caches
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+.ipynb_checkpoints/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+data_mining/.venv/
+lib/
+bin/
+
 # Node / TypeScript
 node_modules/
 backend/node_modules/
 frontend/node_modules/
-dist/
 backend/dist/
 frontend/dist/
 coverage/
 *.tsbuildinfo
 npm-debug.log*
 
-# Secrets
+# Secrets & Environment
 .env
 .env.*
 !.env.example
 !backend/.env.example
-
+!.env_example
 .deepeval
 
-# Local artifacts shared with other branches (exist on disk, never tracked here)
+# Medallion Lakehouse & Local Data Assets (stay local, never tracked)
 models/
 data/
-logs/
-.venv/
-data_mining/.venv/
-lib/
-bin/
+/data/
+/data/raw/
+/data/bronze/
+/data/silver/
+/data/gold/
+/data/manifests/
+/data/processed/
+/data/external/
+/data/processed/
+/data/external/
+/data/*.tar.gz
+/data/*.zip
+/data/*.pt
+/data/*.json
+/data/*.parquet
+*.tar.gz
+
+# Local Tools
 tools/
 !data_mining/tools/
-.kilo/
-.pytest_cache/
-.ruff_cache/
-__pycache__/
-*.pyc
 
-# Editor / OS / Tooling
+# Experiment outputs (track plots, results & scripts; ignore heavy weights & DBs)
+/experiments/checkpoints/*.pt
+!/experiments/checkpoints/.gitkeep
+/experiments/runs/*
+!/experiments/runs/.gitkeep
+/experiments/results/**/*.npz
+/experiments/results/**/*.pt
+/experiments/tb_logs/
+/experiments/*.db
+/experiments/*.sqlite
+
+# Logs
+logs/
+!logs/.gitkeep
+
+# IDE / OS / Tooling
 .gemini/
+.kilo/
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
+desktop.ini
+Desktop.ini

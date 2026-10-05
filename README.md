@@ -1,19 +1,23 @@
 # UTH Scientific Data Mining & Advanced RAG System for AI/DS
 
-Hệ thống Khai phá Dữ liệu Khoa học Thời gian thực và RAG Nâng cao (Real-Time Scientific Data Mining & Advanced RAG System) phục vụ nghiên cứu và tổng quan tài liệu trong miền Trí tuệ Nhân tạo & Khoa học Dữ liệu (AI/DS).
+- **Motivation/Background**: Xây dựng hệ thống khai thác dữ liệu nghiên cứu khoa học thời gian thực và truy xuất tri thức nâng cao (RAG) cho miền Trí tuệ Nhân tạo & Khoa học Dữ liệu (AI/DS) phục vụ học phần Khai phá Dữ liệu tại Trường Đại học Giao thông Vận tải TP.HCM (UTH).
+- **Purpose**: Đóng vai trò là điểm truy cập trung tâm, đặc tả kiến trúc kỹ thuật, hướng dẫn khởi chạy phân hệ khai phá dữ liệu, dịch vụ backend API và giao diện giám sát dashboard tương tác.
+- **Methodology**: Kiến trúc Medallion Lakehouse kết hợp quy trình chuẩn CRISP-DM & KDD (Thu thập arXiv/OpenAlex -> Lưu trữ Bronze bất biến -> Chuẩn hóa Silver Parquet & Đồ thị trích dẫn -> Đánh chỉ mục Gold LanceDB & 4 Trụ cột Khai phá -> Phục vụ qua FastAPI & React 19).
+- **References**: [docs/PURPOSE.md](docs/PURPOSE.md), [docs/OVERVIEW.md](docs/OVERVIEW.md), [docs/mining/FOUR_DATA_MINING_PILLARS.md](docs/mining/FOUR_DATA_MINING_PILLARS.md), [docs/mining/PIPELINE_EXECUTION_GUIDE.md](docs/mining/PIPELINE_EXECUTION_GUIDE.md), [agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md).
+- **Created**: 2026-07-25T00:00:00+07:00
+- **Last Updated**: 2026-10-05T13:22:00+07:00
 
 ---
 
 ## 1. Cấu trúc Dự án (Polyglot Monorepo Architecture)
 
-Dự án được chuẩn hóa thành kiến trúc Monorepo phân tách rõ ràng giữa phân hệ **Khai phá Dữ liệu (Python)**, **Ứng dụng Phục vụ Backend API (FastAPI)**, và **Giao diện Giám sát Dashboard (React 19 / Vite)**:
+Dự án được chuẩn hóa theo kiến trúc Monorepo phân tách rõ ràng giữa phân hệ **Khai phá Dữ liệu (Python)**, **Ứng dụng Phục vụ Backend API (FastAPI)**, **Giao diện Giám sát Dashboard (React 19 / Vite)**, và **Hệ thống Quản trị AI Governance**:
 
 ```text
-UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/
-│
+UTH-Data-Mining/
 ├── frontend/                      # [1] Phân hệ Giao diện Dashboard (React 19 / Vite / Tailwind)
 │   ├── src/
-│   │   ├── components/            # MiningPillarsView, Live Telemetry, RAG Chat
+│   │   ├── components/            # MiningPillarsView, Live Telemetry, RAG Chat, ScientificMath
 │   │   └── App.tsx                # Dashboard điều khiển & giám sát thời gian thực
 │   ├── package.json
 │   └── vite.config.ts
@@ -34,7 +38,7 @@ UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/
 │   │   ├── config/               # Cấu hình hệ thống & môi trường
 │   │   ├── ingestion/            # Thu thập arXiv OAI-PMH & cào HTML5
 │   │   ├── transformation/       # Parser HTML & Silver Parquet Writer
-│   │   ├── indexing/             # Nomic Embedder (MPS GPU) & LanceDB
+│   │   ├── indexing/             # Nomic Embedder (MPS/GPU/CPU) & LanceDB
 │   │   ├── storage/              # Cloudflare R2 & DuckDB SQL Engine
 │   │   ├── rag/                  # Scientific RAG Engine & Prompt Templates
 │   │   ├── mining/               # Master Mining Engine & 4 Analytical Pillars:
@@ -49,24 +53,44 @@ UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/
 │   ├── main.py                   # Điểm kích hoạt Ingestion Pipeline
 │   └── requirements.txt
 │
-├── data/                          # [4] Bộ nhớ đệm dữ liệu cục bộ (.gitignore)
-│   ├── raw/html/                 # 9,000+ HTML học thuật thô
+├── src/                           # [4] Thư viện pipeline trung tâm & utilities
+│   ├── indexing/                 # Chunker, Embedder, LanceDB manager
+│   ├── ingestion/                # arXiv harvester & batch collector
+│   ├── mining/                   # Core mining modules
+│   ├── pipelines/                # Pipeline orchestrator scripts
+│   ├── rag/                      # RAG engine & prompt templates
+│   ├── storage/                  # DuckDB engine & Cloudflare R2 client
+│   └── transformation/           # HTML parser & Silver Parquet writer
+│
+├── agents/                        # [5] Constitutional AI Governance (Quy chuẩn bất biến)
+│   ├── README.md                  # Hướng dẫn điều hướng governance
+│   ├── rules/                     # Tiêu chuẩn ràng buộc (AGENT_AI, MD_CONVENTION, v.v.)
+│   └── templates/                 # Biểu mẫu chuẩn (BUG, EXPERIMENT, PHASE, PROGRESS)
+│
+├── docs/                          # [6] Toàn bộ tài liệu kiến trúc, nghiên cứu & báo cáo
+│   ├── README.md                  # Mục lục tài liệu nghiên cứu
+│   ├── PURPOSE.md                 # Yêu cầu dự án & tiêu chí thành công
+│   ├── OVERVIEW.md                # Bản thiết kế kỹ thuật tổng thể & lộ trình
+│   ├── mining/                    # Tài liệu chi tiết 4 Trụ cột Khai phá Dữ liệu
+│   │   ├── FOUR_DATA_MINING_PILLARS.md    # Đặc tả kỹ thuật & công thức toán học
+│   │   └── PIPELINE_EXECUTION_GUIDE.md    # Hướng dẫn vận hành chi tiết
+│   └── shared/                    # SOPs và mẫu bàn giao (HANDOFF_TEMPLATE.md)
+│
+├── data/                          # [7] Bộ nhớ đệm dữ liệu cục bộ (.gitignore)
+│   ├── raw/                      # 9,000+ HTML học thuật thô & JSON manifest
 │   ├── silver/year=2026/         # Parquet (13,000 bài báo, 2.76M công thức toán)
 │   ├── silver/citations.parquet  # 441,445 liên kết trích dẫn (86,295 liên kết nội bộ)
 │   ├── gold/lancedb/             # LanceDB Vector Table (143,523 vectors 768-dim)
 │   └── gold/mining/              # Các artifact JSON phục vụ 4 Trụ cột Mining
 │
-├── models/                        # [5] Trọng số mô hình AI nặng (.gitignore)
+├── models/                        # [8] Trọng số mô hình AI (.gitignore)
 │   ├── nomic-embed-text-v1.5/    # Mô hình nhúng học thuật
 │   └── qwen2.5-7b-instruct-...   # Mô hình LLM cục bộ (GGUF Q4_K_M)
 │
-├── logs/                          # [6] Nhật ký thực thi theo timestamp (.gitignore)
-├── docs/                          # [7] Toàn bộ tài liệu kiến trúc & báo cáo
-│   ├── mining/                   # Tài liệu chi tiết 4 Trụ cột Khai phá Dữ liệu
-│   │   ├── FOUR_DATA_MINING_PILLARS.md    # Đặc tả kỹ thuật & công thức toán học
-│   │   └── PIPELINE_EXECUTION_GUIDE.md    # Hướng dẫn vận hành chi tiết
-│   └── agents/rules/             # Quy chuẩn phát triển & logging checkpoint
-│
+├── tests/                         # [9] Suite kiểm thử đơn vị và tích hợp hệ thống
+├── logs/                          # [10] Nhật ký thực thi theo timestamp (.gitignore)
+├── requirements.txt               # Tập tin phụ thuộc Python hợp nhất
+├── pyproject.toml                 # Cấu hình gói và build hệ thống
 └── .env                           # Biến môi trường và khóa Cloudflare R2
 ```
 
@@ -74,7 +98,26 @@ UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/
 
 ## 2. Hướng dẫn Khởi chạy Từng Phân hệ
 
-### A. Chạy Master Data Mining Engine (4 Trụ Cột Khai Phá)
+### A. Khởi tạo Môi trường Python
+
+```bash
+# Windows
+python -m venv .venv
+.\.venv\Scripts\activate
+
+# Linux / macOS
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Nâng cấp pip và cài đặt thư viện
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install -e .
+```
+
+---
+
+### B. Chạy Master Data Mining Engine (4 Trụ Cột Khai Phá)
 
 Phân hệ Khai phá Dữ liệu xử lý toàn bộ 13,000 bài báo và 86,295 liên kết trích dẫn, tạo ra các artifact trong `data/gold/mining/`:
 
@@ -105,7 +148,7 @@ PYTHONPATH=data_mining python data_mining/src/mining/mining_engine.py
 
 ---
 
-### B. Phân hệ Backend API & Serving (`backend/` - FastAPI)
+### C. Phân hệ Backend API & Serving (`backend/` - FastAPI)
 
 Máy chủ FastAPI phục vụ cả truy xuất ngữ nghĩa RAG thời gian thực lẫn 4 Trụ cột Khai phá:
 
@@ -126,7 +169,7 @@ pytest backend/tests/test_api.py -v
 
 ---
 
-### C. Phân hệ Giao diện Dashboard (`frontend/` - React 19)
+### D. Phân hệ Giao diện Dashboard (`frontend/` - React 19)
 
 Giao diện tương tác trực quan hóa biểu đồ 4 Trụ cột Mining và hội thoại RAG:
 
@@ -140,7 +183,10 @@ npm install
 # 3. Khởi chạy máy chủ giao diện (Port 5173)
 npm run dev
 
-# 4. Truy cập giao diện tại: http://localhost:5173
+# 4. Build kiểm tra sản phẩm:
+npm run build
+
+# 5. Truy cập giao diện tại: http://localhost:5173
 ```
 
 ---
@@ -168,3 +214,29 @@ npm run dev
 - **Bronze Zone (`s3://uth-scientific-lakehouse/bronze/`)**: Lưu trữ 9,022 file HTML học thuật thô và các payload JSON thu thập từ arXiv OAI-PMH với chữ ký bảo toàn SHA-256.
 - **Silver Zone (`s3://uth-scientific-lakehouse/silver/`)**: Lưu trữ 13,000 bài báo dạng bảng cột Apache Parquet nén `zstd`, chứa hơn 2.76 triệu công thức toán LaTeX và 441,445 liên kết trích dẫn khoa học.
 - **Gold Zone (`s3://uth-scientific-lakehouse/gold/`)**: Bảng vector LanceDB chứa 143,523 vector nhúng ngữ cảnh 768 chiều phục vụ tìm kiếm ngữ nghĩa, cùng 5 tệp artifact JSON phục vụ phân tích 4 Trụ cột Khai phá.
+
+---
+
+## 5. 🧪 Kiểm thử & Xác minh Hệ thống (Testing & Verification)
+
+```bash
+# 1. Kiểm tra mã nguồn với Ruff
+ruff check src tests
+
+# 2. Kiểm thử đơn vị & tích hợp pipeline
+pytest tests/ -v -m "not gpu"
+
+# 3. Kiểm thử phân hệ FastAPI backend
+pytest backend/tests/test_api.py -v
+
+# 4. Kiểm tra build frontend Dashboard
+cd frontend && npm run build
+```
+
+---
+
+## 6. 📜 Quy chuẩn Quản trị & Quy trình Làm việc (Governance & Workflow)
+
+- Tác tử AI tuân thủ nghiêm ngặt chu trình 6 bước: `AUDIT → PLAN → IMPLEMENT → VERIFY → COMMIT → MERGE` ([agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md)).
+- Hướng dẫn thiết lập chi tiết tại [docs/shared/HOW_TO_SETUP_AI_AGENT.md](docs/shared/HOW_TO_SETUP_AI_AGENT.md).
+- Quy trình checkpoint và chuyển giao tác tử tuân theo [docs/shared/HANDOFF_TEMPLATE.md](docs/shared/HANDOFF_TEMPLATE.md).
