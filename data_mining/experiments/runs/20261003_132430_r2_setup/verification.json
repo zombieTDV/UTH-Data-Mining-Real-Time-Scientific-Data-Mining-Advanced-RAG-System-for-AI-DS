@@ -1,0 +1,35 @@
+{
+  "verified_at": "2026-10-03T13:29:22.920174+07:00",
+  "verified_silver": [
+    {
+      "key": "silver/papers/year=2026/papers.parquet",
+      "sha256": "e57296bc3c06e4203459d8243ba36a48ca7fa175ab32a5f9c709fc82d44e8913",
+      "rows": 10000,
+      "bytes": 242974764
+    }
+  ],
+  "silver_summary": {
+    "rows": 10000,
+    "unique_papers": 10000
+  },
+  "checkpoint": {
+    "page_num": 0,
+    "page_offset": 3,
+    "total_ingested": 3,
+    "config": {
+      "from_date": "2024-01-01",
+      "categories": [
+        "cs.AI",
+        "cs.CL",
+        "cs.CV",
+        "cs.LG",
+        "stat.ML"
+      ]
+    },
+    "exhausted": false
+  },
+  "bronze_sample": {
+    "key": "bronze/arxiv/oai/raw/f84edab1203bec972295b3275dc80265d9b24ef2bad191b42785580e3c36f31b.xml",
+    "sha256": "f84edab1203bec972295b3275dc80265d9b24ef2bad191b42785580e3c36f31b"
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "created_at": "2026-10-02T22:18:40.219207+07:00",
+  "checks": [
+    {
+      "command": [
+        "venv/bin/python",
+        "-m",
+        "pytest",
+        "tests",
+        "-q"
+      ],
+      "returncode": 0,
+      "stdout": "s..........................                                              [100%]\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "src",
+        "tests"
+      ],
+      "returncode": 0,
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "venv/bin/python",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "returncode": 0,
+      "stdout": "No broken requirements found.\n",
+      "stderr": "WARNING: The directory '/Users/voanhnhat-ticoder-coder/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.\n"
+    },
+    {
+      "command": [
+        "venv/bin/python",
+        "-c",
+        "import src; print(\"Package import OK\")"
+      ],
+      "returncode": 0,
+      "stdout": "Package import OK\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "venv/bin/python",
+        "-m",
+        "src.pipelines.doctor"
+      ],
+      "returncode": 0,
+      "stdout": "{\n  \"python_supported\": true,\n  \"dependency_duckdb\": true,\n  \"dependency_pyarrow\": true,\n  \"dependency_pandas\": true,\n  \"dependency_boto3\": true,\n  \"dependency_httpx\": true,\n  \"dependency_feedparser\": true,\n  \"dependency_lancedb\": true,\n  \"dependency_torch\": true,\n  \"dependency_transformers\": true,\n  \"r2_configured\": false,\n  \"embedding_model_present\": false,\n  \"silver_present\": true\n}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "venv/bin/python",
+        "-m",
+        "src.pipelines.run_demo"
+      ],
+      "returncode": 0,
+      "stdout": "Demo report: /Users/voanhnhat-ticoder-coder/Documents/DATA_MINING/UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/experiments/runs/20261002_151838_055491_demo/report.json\n",
+      "stderr": "[2026-10-02T15:18:38Z WARN  lance::dataset::write::insert] No existing dataset at /Users/voanhnhat-ticoder-coder/Documents/DATA_MINING/UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/experiments/runs/20261002_151838_055491_demo/gold/scientific_papers_gold.lance, it will be created\n"
+    },
+    {
+      "command": [
+        "venv/bin/python",
+        "-m",
+        "src.pipelines.run_ingest",
+        "--help"
+      ],
+      "returncode": 0,
+      "stdout": "usage: run_ingest.py [-h] [--category CATEGORY] [--limit LIMIT] [--local]\n                     [--metadata-only]\n\nIngest arXiv AI/DS preprints (Metadata + HTML) into Cloudflare R2 Bronze\nLakehouse.\n\noptions:\n  -h, --help           show this help message and exit\n  --category CATEGORY  Chuyên mục arXiv cụ thể (ví dụ: cs.AI, cs.LG). Mặc định\n                       cào tất cả categories trong .env.\n  --limit LIMIT        Số lượng bài báo tối đa cần cào cho mỗi chuyên mục (mặc\n                       định: 3).\n  --local              Store Bronze on disk instead of R2\n  --metadata-only      Skip full-text HTML downloads\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "venv/bin/python",
+        "-m",
+        "src.pipelines.run_transform",
+        "--help"
+      ],
+      "returncode": 0,
+      "stdout": "===========================================================================\n⚙️  BẮT ĐẦU PIPELINE CHUYỂN ĐỔI TẦNG SILVER (BRONZE -> SILVER PARQUET)\n===========================================================================\nusage: run_transform.py [-h] [--local]\n\nCLI Entry point for Silver Transformation Pipeline (Bronze -> Silver Parquet).\nReads raw JSON metadata and HTML from Cloudflare R2 Bronze layer, extracts\nacademic sections and LaTeX math, generates Parquet files, and uploads them to\nthe R2 Silver Lakehouse layer. Usage: python -m src.pipelines.run_transform\n\noptions:\n  -h, --help  show this help message and exit\n  --local     Read Bronze from local object store\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "venv/bin/python",
+        "-m",
+        "src.pipelines.run_batch_ingest",
+        "--help"
+      ],
+      "returncode": 0,
+      "stdout": "usage: run_batch_ingest.py [-h] [--target TARGET] [--batch-size BATCH_SIZE]\n                           [--delay DELAY] [--from-date FROM_DATE]\n                           [--reset-checkpoint] [--local]\n\nPhase 1: Scale up to 10,000+ arXiv preprints into Bronze & Silver Lakehouse.\n\noptions:\n  -h, --help            show this help message and exit\n  --target TARGET       Tong so bai bao muc tieu can thu thap (mac dinh:\n                        10,000 bai).\n  --batch-size BATCH_SIZE\n                        So ban ghi moi batch ghi Silver; OAI tu quyet dinh\n                        page size.\n  --delay DELAY         Thoi gian nghi (giay) giua cac trang OAI-PMH (mac\n                        dinh: 10.0s).\n  --from-date FROM_DATE\n                        Ngay metadata duoc cap nhat (OAI datestamp), khong\n                        phai ngay xuat ban.\n  --reset-checkpoint    Bo qua checkpoint cu va bat dau cao moi.\n  --local               Persist Bronze and Silver without R2\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "venv/bin/python",
+        "-m",
+        "src.pipelines.run_indexing",
+        "--help"
+      ],
+      "returncode": 0,
+      "stdout": "===========================================================================\n🏆 BẮT ĐẦU PIPELINE XÂY DỰNG TẦNG GOLD (LANCEDB VECTOR LAKEHOUSE)\n===========================================================================\nusage: run_indexing.py [-h] [--local] [--batch-size BATCH_SIZE]\n\nCLI Entry point for Gold Indexing Pipeline (Silver Parquet -> LanceDB Gold\nVector Lakehouse). Reads structured papers from the Silver layer, splits into\ndomain-aware section chunks, generates 768-dim embeddings via local Nomic-\nembed-text-v1.5, stores in LanceDB, and syncs to Cloudflare R2 Gold Zone.\nUsage: python -m src.pipelines.run_indexing\n\noptions:\n  -h, --help            show this help message and exit\n  --local               Keep Gold on disk without syncing to R2\n  --batch-size BATCH_SIZE\n",
+      "stderr": ""
+    }
+  ],
+  "real_silver_papers": [
+    {
+      "paper_id": "2610.00010",
+      "title": "Heavy-Tailed Memory Traces in Long-Horizon Language Agents",
+      "primary_category": "cs.AI",
+      "total_sections": 0,
+      "total_math_count": 0,
+      "total_words": 211
+    },
+    {
+      "paper_id": "1709.09051",
+      "title": "A polynomial time algebraic solution to exact marginal inference in Markov Random Field models",
+      "primary_category": "math.OC",
+      "total_sections": 0,
+      "total_math_count": 0,
+      "total_words": 179
+    }
+  ],
+  "runtime": {
+    "python": "3.10.11",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "dependencies": {
+      "duckdb": "1.5.6",
+      "pandas": "2.3.3",
+      "pyarrow": "25.0.1",
+      "lancedb": "0.39.0",
+      "boto3": "1.43.106",
+      "pytest": "9.1.1",
+      "ruff": "0.16.10"
+    }
+  },
+  "live_batch_command": "venv/bin/python -u -m src.pipelines.run_batch_ingest --local --target 1 --batch-size 1 --from-date 2026-10-01 --delay 10",
+  "live_batch_log": "logs/batch_ingest_20261002_224531.log",
+  "updated_at": "2026-10-02T22:47:23+07:00"
+}
