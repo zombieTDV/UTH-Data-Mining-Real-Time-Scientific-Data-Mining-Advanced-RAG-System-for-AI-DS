@@ -12,7 +12,9 @@ import type {
   ChatResponse,
 } from './types';
 
-const BASE_URL = ''; // Relative path leverages Vite proxy to http://127.0.0.1:8000
+const BASE_URL =
+  (import.meta.env.VITE_API_URL as string) ||
+  (typeof window !== 'undefined' && window.location.port === '5173' ? 'http://localhost:8000' : '');
 
 export async function fetchHealth(): Promise<{ status: string; lancedb_ready: boolean; parquet_ready: boolean }> {
   const res = await fetch(`${BASE_URL}/health`);
