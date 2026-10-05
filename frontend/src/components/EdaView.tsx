@@ -756,7 +756,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               }}
               title="Kích hoạt thử nghiệm phát hiện bài báo dị biệt đa biến (Z-Score > 3.5)"
             >
-              <span>⚡</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
               <span>OUTLIER TEST</span>
             </button>
 
@@ -1132,7 +1134,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Phóng đại toàn màn hình 100% (Theater Mode)"
                   >
-                    {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {isTheaterMode ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="4 14 10 14 10 20" />
+                          <polyline points="20 10 14 10 14 4" />
+                          <line x1="14" y1="10" x2="21" y2="3" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      ) : (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      )}
+                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1187,7 +1206,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Bật / tắt đường cong tích lũy Pareto 80/20"
                   >
-                    📈 80% Pareto
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                        <polyline points="17 6 23 6 23 12" />
+                      </svg>
+                      <span>80% Pareto</span>
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -1787,7 +1812,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   }}
                   title="Phóng đại toàn màn hình 100% (Theater Mode)"
                 >
-                  {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    {isTheaterMode ? (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="4 14 10 14 10 20" />
+                        <polyline points="20 10 14 10 14 4" />
+                        <line x1="14" y1="10" x2="21" y2="3" />
+                        <line x1="3" y1="21" x2="10" y2="14" />
+                      </svg>
+                    ) : (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 3 21 3 21 9" />
+                        <polyline points="9 21 3 21 3 15" />
+                        <line x1="21" y1="3" x2="14" y2="10" />
+                        <line x1="3" y1="21" x2="10" y2="14" />
+                      </svg>
+                    )}
+                    <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -2380,7 +2422,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Phóng đại toàn màn hình 100% (Theater Mode)"
                   >
-                    {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {isTheaterMode ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="4 14 10 14 10 20" />
+                          <polyline points="20 10 14 10 14 4" />
+                          <line x1="14" y1="10" x2="21" y2="3" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      ) : (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      )}
+                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2551,7 +2610,14 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           cursor: 'pointer',
                         }}
                       >
-                        🎯 Lọc Scatter theo {selectedCooccurrencePair.category_a}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="6" />
+                            <circle cx="12" cy="12" r="2" />
+                          </svg>
+                          <span>Lọc Scatter theo {selectedCooccurrencePair.category_a}</span>
+                        </span>
                       </button>
                       {onNavigateToRag && (
                         <button
@@ -2573,7 +2639,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                             cursor: 'pointer',
                           }}
                         >
-                          💬 Hỏi RAG về giao thoa này
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                            <span>Hỏi RAG về giao thoa này</span>
+                          </span>
                         </button>
                       )}
                     </div>
@@ -2670,7 +2741,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Phóng đại toàn màn hình 100% (Theater Mode)"
                   >
-                    {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {isTheaterMode ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="4 14 10 14 10 20" />
+                          <polyline points="20 10 14 10 14 4" />
+                          <line x1="14" y1="10" x2="21" y2="3" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      ) : (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      )}
+                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2773,7 +2861,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Sao chép đoạn mã LaTeX Table vào clipboard để dán vào bài báo Overleaf"
                   >
-                    <span>📋</span>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
                     <span>COPY LATEX</span>
                   </button>
                 </div>
@@ -2943,7 +3034,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Phóng đại toàn màn hình 100% (Theater Mode)"
                   >
-                    {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {isTheaterMode ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="4 14 10 14 10 20" />
+                          <polyline points="20 10 14 10 14 4" />
+                          <line x1="14" y1="10" x2="21" y2="3" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      ) : (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      )}
+                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -3278,7 +3386,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
                 }}
               >
-                <span>💬</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
                 <span>HỎI BÀI BÁO NÀY TRONG RAG CHAT</span>
               </button>
 
@@ -3304,7 +3414,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     gap: '4px',
                   }}
                 >
-                  <span>↗</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="7" y1="17" x2="17" y2="7" />
+                    <polyline points="7 7 17 7 17 17" />
+                  </svg>
                   <span>ĐỌC AR5IV</span>
                 </a>
 
@@ -3327,7 +3440,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     gap: '4px',
                   }}
                 >
-                  <span>📑</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
                   <span>COPY BIBTEX</span>
                 </button>
               </div>
