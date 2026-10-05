@@ -72,8 +72,9 @@ tools/
 /experiments/*.sqlite
 
 # Logs
-logs/
+/logs/
 !logs/.gitkeep
+!frontend/src/components/logs/
 
 # IDE / OS / Tooling
 .gemini/
