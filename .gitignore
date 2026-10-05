@@ -1,4 +1,4 @@
-# Python
+# Python & Caches
 __pycache__/
 *.py[cod]
 *.so
@@ -6,13 +6,48 @@ __pycache__/
 dist/
 build/
 .eggs/
-.kilo
+.pytest_cache/
+.ruff_cache/
+*.pyc
+.ipynb_checkpoints/
 
-# Data — raw/processed/external data stays local
+# Virtual Environments
+.venv/
+venv/
+env/
+data_mining/.venv/
+lib/
+bin/
+
+# Node / TypeScript
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+backend/dist/
+frontend/dist/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+
+# Secrets & Environment
+.env
+.env.*
+!.env.example
+!backend/.env.example
+!.env_example
+.deepeval
+
+# Medallion Lakehouse & Local Data Assets (stay local, never tracked)
+models/
+data/
+/data/
 /data/raw/
+/data/bronze/
 /data/silver/
 /data/gold/
 /data/manifests/
+/data/processed/
+/data/external/
 /data/processed/
 /data/external/
 /data/*.tar.gz
@@ -29,40 +64,25 @@ build/
 !/experiments/checkpoints/.gitkeep
 /experiments/runs/*
 !/experiments/runs/.gitkeep
-# Regenerable binary arrays (feature/probability caches) — scripts rebuild them
 /experiments/results/**/*.npz
-# Regenerable model weights (meta-model state dicts) — scripts rebuild them
 /experiments/results/**/*.pt
 /experiments/tb_logs/
 /experiments/*.db
 /experiments/*.sqlite
 
-# Virtual environment
-.venv/
-venv/
-env/
+# Logs
+logs/
+!logs/.gitkeep
 
-# IDE / editor
+# IDE / OS / Tooling
+.gemini/
+.kilo/
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
 Thumbs.db
 desktop.ini
 Desktop.ini
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Logs
-logs/
-!logs/.gitkeep
-
-# Environment
-.env
-.env.*
-*.tar.gz

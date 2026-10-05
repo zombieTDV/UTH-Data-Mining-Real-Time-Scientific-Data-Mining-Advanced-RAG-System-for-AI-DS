@@ -1,141 +1,104 @@
-# UTH Data Mining: AI/ML/Data Science Paper Mining & Analysis
+# UTH Scientific Data Mining & Advanced RAG System for AI/DS
 
-- **Motivation/Background**: This repository hosts the coursework and research pipeline for the UTH Data Mining curriculum, ported from deep learning and machine learning engineering templates into an end-to-end data mining architecture.
-- **Purpose**: Serve as the central entry point, architecture map, collection strategy, and execution manual for crawling, preparing, and analyzing scientific literature in AI, Machine Learning, and Data Science.
-- **Overview Pipeline**: Adheres to CRISP-DM and KDD methodologies spanning automated paper harvesting/crawling, immutable raw storage, 6-dimension data quality audits, feature engineering, and exploratory data mining.
-- **Detailed Plan**: §1 Project Topic & Scope; §2 Architecture Overview; §3 Repository Structure; §4 Installation & Setup; §5 Testing; §6 Governance & Rules.
-- **References**: [agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md), [agents/rules/MD_CONVENTION.md](agents/rules/MD_CONVENTION.md), [docs/references/ML_PIPELINE_REFERENCE_v4.md](docs/references/ML_PIPELINE_REFERENCE_v4.md).
+- **Motivation/Background**: Xây dựng hệ thống khai thác dữ liệu nghiên cứu khoa học thời gian thực và truy xuất tri thức nâng cao (RAG) cho miền Trí tuệ Nhân tạo & Khoa học Dữ liệu (AI/DS) phục vụ học phần Khai phá Dữ liệu tại Trường Đại học Giao thông Vận tải TP.HCM (UTH).
+- **Purpose**: Đóng vai trò là điểm truy cập trung tâm, đặc tả kiến trúc kỹ thuật, hướng dẫn khởi chạy phân hệ khai phá dữ liệu, dịch vụ backend API và giao diện giám sát dashboard tương tác.
+- **Methodology**: Kiến trúc Medallion Lakehouse kết hợp quy trình chuẩn CRISP-DM & KDD (Thu thập arXiv/OpenAlex -> Lưu trữ Bronze bất biến -> Chuẩn hóa Silver Parquet & Đồ thị trích dẫn -> Đánh chỉ mục Gold LanceDB & 4 Trụ cột Khai phá -> Phục vụ qua FastAPI & React 19).
+- **References**: [docs/PURPOSE.md](docs/PURPOSE.md), [docs/OVERVIEW.md](docs/OVERVIEW.md), [docs/mining/FOUR_DATA_MINING_PILLARS.md](docs/mining/FOUR_DATA_MINING_PILLARS.md), [docs/mining/PIPELINE_EXECUTION_GUIDE.md](docs/mining/PIPELINE_EXECUTION_GUIDE.md), [agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md).
 - **Created**: 2026-07-25T00:00:00+07:00
-- **Last Updated**: 2026-09-30T12:10:47+07:00
+- **Last Updated**: 2026-10-05T13:22:00+07:00
 
 ---
 
-## 🎯 Project Topic & Scope: AI/ML/Data Science Paper Mining
+## 1. Cấu trúc Dự án (Polyglot Monorepo Architecture)
 
-This project focuses on **crawling, harvesting, and mining scientific paper data** across the domains of Artificial Intelligence (AI), Machine Learning (ML), and Data Science:
-
-- **Data Acquisition & Harvesting:**
-  - Automated crawling and ingestion of academic paper metadata, titles, abstracts, author networks, publication timestamps, and category tags from open scientific preprint archives and scholarly APIs (e.g. arXiv, OpenAlex, Semantic Scholar).
-  - Enforcing the **Immutable Raw Invariant**: All crawled payloads are vaulted directly into `data/raw/` with cryptographic SHA-256 provenance manifests before any processing.
-- **Downstream Data Mining & Analysis (In Progress / Open Scope):**
-  - Following the [Data Mining Pipeline Reference (v4.0)](docs/references/ML_PIPELINE_REFERENCE_v4.md), collected literature will be audited for quality, preprocessed, and analyzed.
-  - The precise downstream analytic tasks remain open and flexible—ranging from topic modeling (LDA/BERTopic), keyword co-occurrence and association rule mining, author/citation network graph mining, to temporal research trend discovery.
-  - Detailed task formulations and experiment specifications will be formalized incrementally in `docs/phases/` and `docs/experiments/`.
-
-## 🏗️ Architecture Overview
-
-Layered deep learning pipeline; each layer is a maintained `src/` package:
-
-```mermaid
-flowchart LR
-    subgraph DATA["Data Layer (src/data)"]
-        A1["transforms.py"] --> A2["dataloader.py"]
-    end
-
-    subgraph MODEL["Model Layer (src/models)"]
-        B1["build_model.py"]
-    end
-
-    subgraph TRAIN["Training Layer (src/training) — scripts only"]
-        C1["<task>_train.py (CLI entry point)"]
-        C2["train_model.py (loop, full-state checkpoints, resume)"]
-        C3["run_logger.py (real-time progress, logs, JSONL)"]
-    end
-
-    subgraph EVAL["Evaluation Layer (src/eval)"]
-        D1["evaluate_model.py"]
-    end
-
-    subgraph EXP["Experiment Layer (src/experiments)"]
-        E1["experiment runners + analysis"]
-    end
-
-    subgraph OUT["Artifacts (experiments/)"]
-        F1["runs/<ts>_<run>/ checkpoints + logs + metrics"]
-        F2["results/ (JSON, NPZ) + plots/"]
-    end
-
-    subgraph NB["Analysis (notebooks/) — demos & viz only"]
-        G1["<analysis>.ipynb"]
-    end
-
-    A2 --> B1 --> C1 --> C2 --> C3
-    C1 -->|"best/last checkpoints"| F1
-    C2 -->|"history JSONL + config"| F1
-    E1 -->|"loads checkpoints"| F1
-    E1 -->|"artifacts"| F2
-    D1 -->|"test metrics"| F2
-    NB -->|"reads artifacts"| F1
-    NB -->|"reads artifacts"| F2
-    NB -->|"references"| GOV["agents/ (constitutional rules)"]
-```
-
-Key engineering guarantees:
-- **Script-Only Training:** All training loops live in `src/training/*.py` or `src/experiments/*.py`. Notebooks never train.
-- **Full-State Resumability:** Runs persist model, optimizer, scheduler, RNG state, config, and metrics per [agents/rules/LOGGING_CHECKPOINT_RULES.md](agents/rules/LOGGING_CHECKPOINT_RULES.md).
-- **5W1H Empirical Context:** Every reported metric carries full 5W1H context per [agents/rules/RESULTS_REPORTING.md](agents/rules/RESULTS_REPORTING.md).
-- **Strict Separation of Governance vs Memory:** Immutable constitutional rules live in [`agents/`](agents/), while evolving research notes, phase specifications, and experiment logs live in [`docs/`](docs/).
-
----
-
-## 📁 Repository Structure
-
-The template supports both **Single-Track** (default monolithic layout shown below) and **Multi-Track / Feature-Modular** layouts (for multi-lab coursework or modular research tracks). See [agents/rules/CREATE_FOLDER_STRUCTURE_TEMPLATE.md](agents/rules/CREATE_FOLDER_STRUCTURE_TEMPLATE.md) for full principles and placement rules.
+Dự án được chuẩn hóa theo kiến trúc Monorepo phân tách rõ ràng giữa phân hệ **Khai phá Dữ liệu (Python)**, **Ứng dụng Phục vụ Backend API (FastAPI)**, **Giao diện Giám sát Dashboard (React 19 / Vite)**, và **Hệ thống Quản trị AI Governance**:
 
 ```text
-Uth-Data-Mining/
-├── agents/                    # Constitutional AI Governance (Immutable rules & templates)
-│   ├── README.md              # Governance navigation guide
-│   ├── rules/                 # Binding standards (AGENT_AI, FOLDER_STRUCTURE, MD, etc.)
-│   └── templates/             # Reusable skeletons (BUG, AUDIT, EXP, PHASE, PROGRESS)
+UTH-Data-Mining/
+├── frontend/                      # [1] Phân hệ Giao diện Dashboard (React 19 / Vite / Tailwind)
+│   ├── src/
+│   │   ├── components/            # MiningPillarsView, Live Telemetry, RAG Chat, ScientificMath
+│   │   └── App.tsx                # Dashboard điều khiển & giám sát thời gian thực
+│   ├── package.json
+│   └── vite.config.ts
 │
-├── docs/                      # Evolving Project Research & Memory (Global)
-│   ├── README.md              # Master research index
-│   ├── PURPOSE.md             # Project brief & locked success criteria
-│   ├── OVERVIEW.md            # Living roadmap indexing all tracks/phases
-│   ├── shared/                # Universal SOPs (HOW_TO_SETUP_AI_AGENT, HANDOFF_TEMPLATE)
-│   ├── phases/                # Pipeline phase technical specifications
-│   ├── progress/              # Live phase status tracking (*_STATUS.md)
-│   ├── experiments/           # Experiment plans and comparative writeups
-│   ├── bugs/                  # Resolved and active bug reports
-│   └── references/            # Reusable technical guides (Git, Optuna, etc.)
+├── backend/                       # [2] Phân hệ Backend API & Serving (Python / FastAPI)
+│   ├── app/
+│   │   ├── api/endpoints/        # Endpoints: search, chat, papers, storage, mining
+│   │   ├── core/config.py        # Cấu hình Pydantic đọc từ file .env
+│   │   ├── schemas/              # Pydantic Schemas (Request/Response)
+│   │   ├── services/             # Retrieval, RAG, Storage, Mining services
+│   │   └── main.py               # Điểm khởi chạy FastAPI, CORS, SSE, Swagger
+│   ├── tests/                    # Integration TestClient test suite (12/12 passing)
+│   ├── requirements.txt
+│   └── README.md
 │
-├── configs/                   # Configuration files (YAML)
-│   └── config.yaml.example    # Configuration skeleton
+├── data_mining/                   # [3] Phân hệ Data Mining & Lakehouse (Python)
+│   ├── src/
+│   │   ├── config/               # Cấu hình hệ thống & môi trường
+│   │   ├── ingestion/            # Thu thập arXiv OAI-PMH & cào HTML5
+│   │   ├── transformation/       # Parser HTML & Silver Parquet Writer
+│   │   ├── indexing/             # Nomic Embedder (MPS/GPU/CPU) & LanceDB
+│   │   ├── storage/              # Cloudflare R2 & DuckDB SQL Engine
+│   │   ├── rag/                  # Scientific RAG Engine & Prompt Templates
+│   │   ├── mining/               # Master Mining Engine & 4 Analytical Pillars:
+│   │   │   ├── association_rules.py     # Pillar 1: FP-Growth Rule Mining
+│   │   │   ├── cluster_analysis.py      # Pillar 2: K-Means & DBSCAN Semantic Clustering
+│   │   │   ├── graph_mining.py          # Pillar 3: Directed Citation Graph & PageRank
+│   │   │   ├── trend_anomaly_mining.py  # Pillar 4: Isolation Forest & Trend Velocity
+│   │   │   └── mining_engine.py         # Master Sequential Orchestrator
+│   │   └── pipelines/            # Master Pipeline (Bronze -> Silver -> Gold)
+│   ├── tests/                    # Integration & connection tests
+│   ├── tools/                    # Công cụ kiểm tra storage (check_storage.py)
+│   ├── main.py                   # Điểm kích hoạt Ingestion Pipeline
+│   └── requirements.txt
 │
-├── data/                      # Dataset assets (ignored in git)
-│   ├── raw/                   # Immutable raw inputs (never written by scripts)
-│   └── processed/             # Cleaned splits and extracted features
+├── src/                           # [4] Thư viện pipeline trung tâm & utilities
+│   ├── indexing/                 # Chunker, Embedder, LanceDB manager
+│   ├── ingestion/                # arXiv harvester & batch collector
+│   ├── mining/                   # Core mining modules
+│   ├── pipelines/                # Pipeline orchestrator scripts
+│   ├── rag/                      # RAG engine & prompt templates
+│   ├── storage/                  # DuckDB engine & Cloudflare R2 client
+│   └── transformation/           # HTML parser & Silver Parquet writer
 │
-├── src/                       # Maintained Python packages (or partitioned into tracks/)
-│   ├── data/                  # Loading, transforms, dataloaders
-│   ├── models/                # Neural network architectures
-│   ├── training/              # Script-only training entry points
-│   ├── eval/                  # Evaluation metrics & benchmark tables
-│   ├── experiments/           # One-shot experiment runners
-│   └── utils/                 # Logging, checkpoints, telemetry
+├── agents/                        # [5] Constitutional AI Governance (Quy chuẩn bất biến)
+│   ├── README.md                  # Hướng dẫn điều hướng governance
+│   ├── rules/                     # Tiêu chuẩn ràng buộc (AGENT_AI, MD_CONVENTION, v.v.)
+│   └── templates/                 # Biểu mẫu chuẩn (BUG, EXPERIMENT, PHASE, PROGRESS)
 │
-├── notebooks/                 # Exploratory analysis & demo notebooks (NEVER train)
+├── docs/                          # [6] Toàn bộ tài liệu kiến trúc, nghiên cứu & báo cáo
+│   ├── README.md                  # Mục lục tài liệu nghiên cứu
+│   ├── PURPOSE.md                 # Yêu cầu dự án & tiêu chí thành công
+│   ├── OVERVIEW.md                # Bản thiết kế kỹ thuật tổng thể & lộ trình
+│   ├── mining/                    # Tài liệu chi tiết 4 Trụ cột Khai phá Dữ liệu
+│   │   ├── FOUR_DATA_MINING_PILLARS.md    # Đặc tả kỹ thuật & công thức toán học
+│   │   └── PIPELINE_EXECUTION_GUIDE.md    # Hướng dẫn vận hành chi tiết
+│   └── shared/                    # SOPs và mẫu bàn giao (HANDOFF_TEMPLATE.md)
 │
-├── experiments/               # Experiment runtime outputs (runs/ & results/ gitignored)
-│   ├── runs/<ts>_<run>/       # checkpoints/ logs/ metrics/ tensorboard/
-│   └── results/               # Consolidated metrics & export plots
+├── data/                          # [7] Bộ nhớ đệm dữ liệu cục bộ (.gitignore)
+│   ├── raw/                      # 9,000+ HTML học thuật thô & JSON manifest
+│   ├── silver/year=2026/         # Parquet (13,000 bài báo, 2.76M công thức toán)
+│   ├── silver/citations.parquet  # 441,445 liên kết trích dẫn (86,295 liên kết nội bộ)
+│   ├── gold/lancedb/             # LanceDB Vector Table (143,523 vectors 768-dim)
+│   └── gold/mining/              # Các artifact JSON phục vụ 4 Trụ cột Mining
 │
-├── requirements/              # Multi-tier dependency specs (base.txt, dev.txt)
-├── requirements.txt           # Unified dependency proxy (-r requirements/dev.txt)
-├── pyproject.toml             # Build system & package discovery config
-└── tests/                     # Unit and integration test suite
+├── models/                        # [8] Trọng số mô hình AI (.gitignore)
+│   ├── nomic-embed-text-v1.5/    # Mô hình nhúng học thuật
+│   └── qwen2.5-7b-instruct-...   # Mô hình LLM cục bộ (GGUF Q4_K_M)
+│
+├── tests/                         # [9] Suite kiểm thử đơn vị và tích hợp hệ thống
+├── logs/                          # [10] Nhật ký thực thi theo timestamp (.gitignore)
+├── requirements.txt               # Tập tin phụ thuộc Python hợp nhất
+├── pyproject.toml                 # Cấu hình gói và build hệ thống
+└── .env                           # Biến môi trường và khóa Cloudflare R2
 ```
-
-> [!TIP]
-> **Multi-Track / Feature-Modular Projects:** When work naturally divides into distinct labs, features, or research questions, code, tests, configs, and experiment specs can be **colocated** within that unit (e.g. `tracks/<name>/` or `labs/<name>/`), while keeping `/agents`, global roadmap (`docs/OVERVIEW.md`), and base dependencies centralized.
-
 
 ---
 
-## ⚙️ Installation & Setup
+## 2. Hướng dẫn Khởi chạy Từng Phân hệ
 
-### 1. Environment Creation
+### A. Khởi tạo Môi trường Python
 
 ```bash
 # Windows
@@ -145,39 +108,135 @@ python -m venv .venv
 # Linux / macOS
 python3 -m venv .venv
 source .venv/bin/activate
-```
 
-### 2. Dependency Installation
-
-```bash
-# Upgrade pip
+# Nâng cấp pip và cài đặt thư viện
 python -m pip install --upgrade pip
-
-# Standard / CPU Installation
 pip install -r requirements.txt
 pip install -e .
-
-# Optional: NVIDIA GPU Workstations (CUDA 13.0 wheels)
-# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
-# pip install -r requirements.txt
-# pip install -e .
 ```
 
 ---
 
-## 🧪 Testing & Verification
+### B. Chạy Master Data Mining Engine (4 Trụ Cột Khai Phá)
 
-Run the test battery:
+Phân hệ Khai phá Dữ liệu xử lý toàn bộ 13,000 bài báo và 86,295 liên kết trích dẫn, tạo ra các artifact trong `data/gold/mining/`:
+
+#### Trên Windows (PowerShell):
+```powershell
+# 1. Kích hoạt môi trường ảo
+.\.venv\Scripts\Activate.ps1
+
+# 2. Khai báo PYTHONPATH
+$env:PYTHONPATH = "data_mining"
+
+# 3. Chạy toàn bộ 4 Trụ cột Khai phá & Modeling
+.\.venv\Scripts\python.exe data_mining/src/mining/mining_engine.py
+```
+
+#### Trên Linux / macOS (Bash):
 ```bash
-pytest tests/ -v -m "not gpu"
-ruff check src tests
-python -c "import src; print('Package import verified!')"
+# 1. Kích hoạt môi trường ảo
+source .venv/bin/activate
+
+# 2. Khai báo PYTHONPATH và chạy engine
+PYTHONPATH=data_mining python data_mining/src/mining/mining_engine.py
+```
+
+> **Xem tài liệu chi tiết**:
+> - Đặc tả thuật toán & toán học: [`docs/mining/FOUR_DATA_MINING_PILLARS.md`](docs/mining/FOUR_DATA_MINING_PILLARS.md)
+> - Hướng dẫn vận hành & cờ dòng lệnh CLI: [`docs/mining/PIPELINE_EXECUTION_GUIDE.md`](docs/mining/PIPELINE_EXECUTION_GUIDE.md)
+
+---
+
+### C. Phân hệ Backend API & Serving (`backend/` - FastAPI)
+
+Máy chủ FastAPI phục vụ cả truy xuất ngữ nghĩa RAG thời gian thực lẫn 4 Trụ cột Khai phá:
+
+```bash
+# 1. Kích hoạt môi trường ảo
+source .venv/bin/activate  # Trên Windows: .\.venv\Scripts\Activate.ps1
+
+# 2. Khởi chạy máy chủ FastAPI (Port 8000)
+python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# 3. Chạy toàn bộ kiểm thử tự động (12/12 passing)
+pytest backend/tests/test_api.py -v
+
+# 4. Xem tài liệu API tương tác:
+# - Swagger UI: http://localhost:8000/docs
+# - ReDoc:      http://localhost:8000/redoc
 ```
 
 ---
 
-## 📜 Governance & Workflow
+### D. Phân hệ Giao diện Dashboard (`frontend/` - React 19)
 
-- AI agents adhere to the 6-stage lifecycle: `AUDIT → PLAN → IMPLEMENT → VERIFY → COMMIT → MERGE` ([agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md)).
-- Setup procedures are codified in [docs/shared/HOW_TO_SETUP_AI_AGENT.md](docs/shared/HOW_TO_SETUP_AI_AGENT.md).
-- Inter-agent checkpoints follow [docs/shared/HANDOFF_TEMPLATE.md](docs/shared/HANDOFF_TEMPLATE.md).
+Giao diện tương tác trực quan hóa biểu đồ 4 Trụ cột Mining và hội thoại RAG:
+
+```bash
+# 1. Chuyển vào thư mục frontend
+cd frontend
+
+# 2. Cài đặt thư viện phụ thuộc
+npm install
+
+# 3. Khởi chạy máy chủ giao diện (Port 5173)
+npm run dev
+
+# 4. Build kiểm tra sản phẩm:
+npm run build
+
+# 5. Truy cập giao diện tại: http://localhost:5173
+```
+
+---
+
+## 3. Tổng quan 4 Trụ Cột Khai Phá & Modeling (Data Mining Pillars)
+
+1. **Trụ cột 1: Khai phá Tập mục Phổ biến & Luật Kết hợp (FP-Growth)**
+   - Khai phá các quy luật kết hợp giữa các phân ngành arXiv (`cs.CL`, `cs.AI`, `cs.CV`) và 25+ khái niệm công nghệ AI/DS.
+   - Xử lý 11,404 giao dịch (độ bao phủ 87.7% toàn tập dữ liệu), loại trừ luật đối xứng trùng lặp, phát hiện các luật có Lift cao (e.g. `tag:large-language-models` $\to$ `cat:cs.CL`, Lift: 3.45x).
+2. **Trụ cột 2: Phân cụm Ngữ nghĩa & Phân tích Mật độ (Semantic Clustering)**
+   - Phân cụm trên vector đại diện từng bài báo (L2-normalized) kết hợp chiếu tọa độ 2D bằng PCA đã khử kỳ vọng (Centered PCA).
+   - Đánh giá chất lượng phân cụm: Silhouette Score = 0.0629, Davies-Bouldin Index = 3.98, Calinski-Harabasz Index = 84.1.
+   - Thuật toán DBSCAN phát hiện 4 vùng chủ đề lõi đậm đặc và 53.5% bài báo ngoại biên.
+3. **Trụ cột 3: Khai phá Mạng lưới Khoa học & Đồ thị Trích dẫn (Citation Graph Mining)**
+   - Đồ thị trích dẫn có hướng gồm 8,892 bài báo và 86,295 liên kết trích dẫn nội bộ.
+   - Thuật toán PageRank có hướng ($\alpha=0.85$) phát hiện các công trình mang tính cột mốc học thuật (*Attention Is All You Need*, *ELMo*, v.v.) và phân chia 92 cộng đồng nghiên cứu chuyên sâu.
+4. **Trụ cột 4: Vận tốc Xu hướng & Phát hiện Điểm dị biệt Cấu trúc (Trend & Anomalies)**
+   - Mô hình Isolation Forest với hàm co dãn $\log(1+x)$ phát hiện 30 công trình dị biệt về cấu trúc (luận văn dày dặn, mật độ công thức toán cực cao, nhóm hợp tác quy mô lớn).
+   - Phân tích vận tốc xu hướng chuẩn hóa theo tỷ trọng thị trường ($\Delta \text{Share}$), phân loại khách quan 3 nhóm động lượng: `SURGING` (Tăng trưởng nóng), `STABLE` (Ổn định), `DECLINING` (Thu hẹp tỷ trọng).
+
+---
+
+## 4. Kiến trúc Dữ liệu Medallion Lakehouse
+
+- **Bronze Zone (`s3://uth-scientific-lakehouse/bronze/`)**: Lưu trữ 9,022 file HTML học thuật thô và các payload JSON thu thập từ arXiv OAI-PMH với chữ ký bảo toàn SHA-256.
+- **Silver Zone (`s3://uth-scientific-lakehouse/silver/`)**: Lưu trữ 13,000 bài báo dạng bảng cột Apache Parquet nén `zstd`, chứa hơn 2.76 triệu công thức toán LaTeX và 441,445 liên kết trích dẫn khoa học.
+- **Gold Zone (`s3://uth-scientific-lakehouse/gold/`)**: Bảng vector LanceDB chứa 143,523 vector nhúng ngữ cảnh 768 chiều phục vụ tìm kiếm ngữ nghĩa, cùng 5 tệp artifact JSON phục vụ phân tích 4 Trụ cột Khai phá.
+
+---
+
+## 5. 🧪 Kiểm thử & Xác minh Hệ thống (Testing & Verification)
+
+```bash
+# 1. Kiểm tra mã nguồn với Ruff
+ruff check src tests
+
+# 2. Kiểm thử đơn vị & tích hợp pipeline
+pytest tests/ -v -m "not gpu"
+
+# 3. Kiểm thử phân hệ FastAPI backend
+pytest backend/tests/test_api.py -v
+
+# 4. Kiểm tra build frontend Dashboard
+cd frontend && npm run build
+```
+
+---
+
+## 6. 📜 Quy chuẩn Quản trị & Quy trình Làm việc (Governance & Workflow)
+
+- Tác tử AI tuân thủ nghiêm ngặt chu trình 6 bước: `AUDIT → PLAN → IMPLEMENT → VERIFY → COMMIT → MERGE` ([agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md)).
+- Hướng dẫn thiết lập chi tiết tại [docs/shared/HOW_TO_SETUP_AI_AGENT.md](docs/shared/HOW_TO_SETUP_AI_AGENT.md).
+- Quy trình checkpoint và chuyển giao tác tử tuân theo [docs/shared/HANDOFF_TEMPLATE.md](docs/shared/HANDOFF_TEMPLATE.md).
