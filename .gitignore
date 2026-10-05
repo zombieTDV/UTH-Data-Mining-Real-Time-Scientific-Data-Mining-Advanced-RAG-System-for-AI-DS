@@ -55,11 +55,9 @@ data/
 /data/*.pt
 /data/*.json
 /data/*.parquet
-*.tar.gz
 
-# Local Tools
-tools/
-!data_mining/tools/
+# Downloaded Pre-trained Models
+/models/
 
 # Experiment outputs (track plots, results & scripts; ignore heavy weights & DBs)
 /experiments/checkpoints/*.pt
