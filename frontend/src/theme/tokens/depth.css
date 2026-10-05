@@ -1,0 +1,44 @@
+:root {
+  --depth-xs: 1px;
+  --depth-sm: 4px;
+  --depth-md: 12px;
+  --depth-lg: 28px;
+  --depth-xl: 56px;
+
+  --shadow-3d-1: 0 2px 4px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.14);
+  --shadow-3d-2: 0 4px 8px rgba(0, 0, 0, 0.18), 0 12px 32px rgba(0, 0, 0, 0.2);
+  --shadow-3d-3: 0 8px 16px rgba(0, 0, 0, 0.2), 0 28px 64px rgba(0, 0, 0, 0.26);
+  --shadow-3d-4: 0 16px 32px rgba(0, 0, 0, 0.24), 0 48px 100px rgba(0, 0, 0, 0.32);
+
+  --shadow-glow-silver: 0 0 32px rgba(96, 165, 250, 0.2);
+  --shadow-glow-bronze: 0 0 32px rgba(245, 158, 11, 0.2);
+  --shadow-glow-gold: 0 0 32px rgba(251, 191, 36, 0.2);
+  --shadow-glow-emerald: 0 0 32px rgba(16, 185, 129, 0.2);
+  --shadow-glow-violet: 0 0 32px rgba(192, 132, 252, 0.2);
+
+  --shadow-lifted: 0 2px 4px rgba(0, 0, 0, 0.12), 0 18px 40px rgba(0, 0, 0, 0.28);
+  --shadow-pressed: inset 0 2px 6px rgba(0, 0, 0, 0.28);
+
+  --perspective-near: 600px;
+  --perspective-mid: 900px;
+  --perspective-far: 1200px;
+
+  --rotate-max: 8deg;
+  --translate-z-hover: 16px;
+}
+
+[data-theme="light"] {
+  --shadow-3d-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-3d-2: 0 2px 6px rgba(15, 23, 42, 0.07), 0 10px 24px rgba(15, 23, 42, 0.08);
+  --shadow-3d-3: 0 4px 12px rgba(15, 23, 42, 0.08), 0 22px 48px rgba(15, 23, 42, 0.1);
+  --shadow-3d-4: 0 8px 24px rgba(15, 23, 42, 0.1), 0 40px 80px rgba(15, 23, 42, 0.12);
+
+  --shadow-glow-silver: 0 0 28px rgba(37, 99, 235, 0.16);
+  --shadow-glow-bronze: 0 0 28px rgba(234, 88, 12, 0.16);
+  --shadow-glow-gold: 0 0 28px rgba(217, 119, 6, 0.16);
+  --shadow-glow-emerald: 0 0 28px rgba(5, 150, 105, 0.16);
+  --shadow-glow-violet: 0 0 28px rgba(124, 58, 237, 0.16);
+
+  --shadow-lifted: 0 2px 6px rgba(15, 23, 42, 0.08), 0 14px 32px rgba(15, 23, 42, 0.12);
+  --shadow-pressed: inset 0 2px 6px rgba(15, 23, 42, 0.1);
+}

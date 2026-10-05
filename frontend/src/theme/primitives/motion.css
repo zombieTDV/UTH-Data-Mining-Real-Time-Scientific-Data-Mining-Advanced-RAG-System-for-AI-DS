@@ -1,0 +1,118 @@
+@keyframes glassEnter {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: perspective(1200px) translateY(24px) translateZ(-40px) rotateX(8deg);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: perspective(1200px) translateY(0) translateZ(0) rotateX(0deg);
+  }
+}
+
+@keyframes glassFloat {
+  0%,
+  100% {
+    transform: translateY(0) translateZ(0);
+  }
+  50% {
+    transform: translateY(calc(-1 * var(--float-distance))) translateZ(4px);
+  }
+}
+
+@keyframes glassSheenSweep {
+  0% {
+    transform: translateX(-120%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(320%) rotate(25deg);
+  }
+}
+
+@keyframes glassPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes glassOrbit {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.anim-enter {
+  animation: glassEnter var(--dur-entrance) var(--ease-out-expo) both;
+}
+
+.anim-float {
+  animation: glassFloat var(--float-duration) var(--ease-in-out-cubic) infinite;
+}
+
+.anim-sheen {
+  animation: glassSheenSweep var(--sheen-duration) var(--ease-out-quart) forwards;
+}
+
+.anim-pulse {
+  animation: glassPulse var(--pulse-duration) var(--ease-in-out-cubic) infinite;
+}
+
+.anim-orbit {
+  animation: glassOrbit var(--orbit-duration) linear infinite;
+}
+
+.transition-base {
+  transition: transform var(--dur-base) var(--ease-out-expo),
+    box-shadow var(--dur-base) var(--ease-out-expo),
+    background-color var(--dur-base) var(--ease-out-expo),
+    border-color var(--dur-base) var(--ease-out-expo);
+}
+
+.transition-slow {
+  transition: transform var(--dur-slow) var(--ease-spring),
+    box-shadow var(--dur-slow) var(--ease-spring),
+    opacity var(--dur-slow) var(--ease-out-expo);
+}
+
+.stagger > * {
+  animation: glassEnter var(--dur-entrance) var(--ease-out-expo) both;
+}
+
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: var(--stagger-step); }
+.stagger > *:nth-child(3) { animation-delay: calc(var(--stagger-step) * 2); }
+.stagger > *:nth-child(4) { animation-delay: calc(var(--stagger-step) * 3); }
+.stagger > *:nth-child(5) { animation-delay: calc(var(--stagger-step) * 4); }
+.stagger > *:nth-child(6) { animation-delay: calc(var(--stagger-step) * 5); }
+.stagger > *:nth-child(n + 7) { animation-delay: calc(var(--stagger-step) * 6); }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-enter,
+  .stagger > * {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .anim-float,
+  .anim-pulse,
+  .anim-orbit {
+    animation: none;
+  }
+
+  .anim-sheen {
+    animation: none;
+    opacity: 0;
+  }
+}
