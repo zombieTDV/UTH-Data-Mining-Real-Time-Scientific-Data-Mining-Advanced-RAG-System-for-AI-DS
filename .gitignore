@@ -15,6 +15,8 @@ npm-debug.log*
 !.env.example
 !backend/.env.example
 
+.deepeval
+
 # Local artifacts shared with other branches (exist on disk, never tracked here)
 models/
 data/

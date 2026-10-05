@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type FC, type MouseEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
 import type {
   AssociationRulesResponse,
   ClustersResponse,
@@ -14,6 +14,180 @@ import {
   fetchTrends,
 } from '../api/client';
 
+// ============================================================================
+// REUSABLE PAN & ZOOM HOOK & ON-CANVAS CONTROLS
+// ============================================================================
+interface PanZoomState {
+  zoom: number;
+  pan: { x: number; y: number };
+  isDragging: boolean;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  handleMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
+  handleMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
+  handleMouseUp: () => void;
+  handleMouseLeave: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  reset: () => void;
+}
+
+function useSvgPanZoom(minZoom = 0.5, maxZoom = 5.0): PanZoomState {
+  const [zoom, setZoom] = useState<number>(1.0);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 0.88;
+      setZoom((prev) => {
+        const next = Math.min(Math.max(prev * factor, minZoom), maxZoom);
+        return parseFloat(next.toFixed(2));
+      });
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [minZoom, maxZoom]);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button, input, select')) return;
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    panStartRef.current = { ...pan };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    setPan({
+      x: panStartRef.current.x + dx,
+      y: panStartRef.current.y + dy,
+    });
+  };
+
+  const handleMouseUp = () => setIsDragging(false);
+  const handleMouseLeave = () => setIsDragging(false);
+
+  const zoomIn = () => setZoom((z) => Math.min(parseFloat((z * 1.2).toFixed(2)), maxZoom));
+  const zoomOut = () => setZoom((z) => Math.max(parseFloat((z * 0.83).toFixed(2)), minZoom));
+  const reset = () => {
+    setZoom(1.0);
+    setPan({ x: 0, y: 0 });
+  };
+
+  return {
+    zoom,
+    pan,
+    isDragging,
+    containerRef,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleMouseLeave,
+    zoomIn,
+    zoomOut,
+    reset,
+  };
+}
+
+const PanZoomControls: FC<{
+  zoom: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onReset: () => void;
+  label?: string;
+}> = ({ zoom, onZoomIn, onZoomOut, onReset, label = 'VIEW' }) => (
+  <div
+    style={{
+      position: 'absolute',
+      top: '12px',
+      right: '12px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      backgroundColor: 'rgba(15, 23, 42, 0.88)',
+      backdropFilter: 'blur(8px)',
+      borderRadius: '8px',
+      border: '1px solid #334155',
+      padding: '3px 8px',
+      zIndex: 20,
+      userSelect: 'none',
+    }}
+  >
+    <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#94a3b8', marginRight: '2px', fontWeight: 700 }}>
+      {label}
+    </span>
+    <button
+      type="button"
+      onClick={onZoomOut}
+      title="Thu nhỏ (Lăn chuột xuống)"
+      style={{
+        width: '22px',
+        height: '22px',
+        backgroundColor: '#1e293b',
+        border: '1px solid #334155',
+        borderRadius: '4px',
+        color: '#f8fafc',
+        fontSize: '13px',
+        fontWeight: 700,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      -
+    </button>
+    <button
+      type="button"
+      onClick={onReset}
+      title="Đặt lại khung nhìn (100%)"
+      style={{
+        backgroundColor: 'transparent',
+        border: 'none',
+        color: '#38bdf8',
+        fontSize: '10px',
+        fontFamily: 'var(--font-mono)',
+        fontWeight: 800,
+        padding: '2px 4px',
+        cursor: 'pointer',
+      }}
+    >
+      {Math.round(zoom * 100)}%
+    </button>
+    <button
+      type="button"
+      onClick={onZoomIn}
+      title="Phóng to (Lăn chuột lên)"
+      style={{
+        width: '22px',
+        height: '22px',
+        backgroundColor: '#1e293b',
+        border: '1px solid #334155',
+        borderRadius: '4px',
+        color: '#f8fafc',
+        fontSize: '13px',
+        fontWeight: 700,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      +
+    </button>
+  </div>
+);
+
 export const MiningPillarsView: FC = () => {
   const [activePillar, setActivePillar] = useState<1 | 2 | 3 | 4>(1);
 
@@ -26,10 +200,12 @@ export const MiningPillarsView: FC = () => {
   const [clustersData, setClustersData] = useState<ClustersResponse | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<{ point: ScatterPointItem; x: number; y: number } | null>(null);
   const [selectedClusterFilter, setSelectedClusterFilter] = useState<number | 'ALL'>('ALL');
+  const clusterPanZoom = useSvgPanZoom(0.5, 5.0);
 
   // Pillar 3 state
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
   const [hoveredGraphNode, setHoveredGraphNode] = useState<{ node: any; x: number; y: number } | null>(null);
+  const graphPanZoom = useSvgPanZoom(0.5, 5.0);
 
   // Pillar 4 state
   const [trendsData, setTrendsData] = useState<TrendsResponse | null>(null);
@@ -64,6 +240,18 @@ export const MiningPillarsView: FC = () => {
     if (!rulesData) return [];
     return rulesData.rules.filter((r) => r.lift >= liftThreshold);
   }, [rulesData, liftThreshold]);
+
+  // Dynamic Lift and Support bounds across mined corpus
+  const maxLiftInCorpus = useMemo(() => {
+    if (!rulesData?.rules?.length) return 3.5;
+    return Math.max(...rulesData.rules.map((r) => r.lift));
+  }, [rulesData]);
+
+  const maxSupportInRules = useMemo(() => {
+    if (!rulesData?.rules?.length) return 0.04;
+    const maxSup = Math.max(...rulesData.rules.map((r) => r.support));
+    return Math.max(0.04, Math.ceil(maxSup * 100) / 100);
+  }, [rulesData]);
 
   // Filtered Scatter points by cluster
   const filteredClusterPoints = useMemo(() => {
@@ -137,7 +325,7 @@ export const MiningPillarsView: FC = () => {
             LUẬT KẾT HỢP (RULES)
           </div>
           <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-            {rulesData?.rules.length || 22} Mined Rules &bull; Max Lift 3.36x
+            {rulesData?.rules.length || 0} Mined Rules &bull; Max Lift {maxLiftInCorpus.toFixed(1)}x
           </div>
         </button>
 
@@ -252,8 +440,8 @@ export const MiningPillarsView: FC = () => {
               <input
                 type="range"
                 min="1.0"
-                max="3.4"
-                step="0.1"
+                max={Math.max(10, Math.ceil(maxLiftInCorpus))}
+                step="0.5"
                 value={liftThreshold}
                 onChange={(e) => setLiftThreshold(parseFloat(e.target.value))}
                 style={{ accentColor: '#ea580c', cursor: 'pointer', width: '160px' }}
@@ -278,7 +466,7 @@ export const MiningPillarsView: FC = () => {
                     BIỂU ĐỒ BONG BÓNG PHÂN TÁN (RULE BUBBLE SCATTER PLOT)
                   </h3>
                   <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                    Trục X: Support (%) &bull; Trục Y: Confidence (%) &bull; Kích thước/Màu: Tỷ lệ Lift
+                    Trục X: Support (%) &bull; Trục Y: Confidence (0–100%) &bull; Kích thước/Màu: Tỷ lệ Lift
                   </div>
                 </div>
                 <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c', backgroundColor: '#fff7ed', padding: '2px 8px', borderRadius: '4px' }}>
@@ -288,10 +476,10 @@ export const MiningPillarsView: FC = () => {
 
               {/* SVG Bubble Chart */}
               <div style={{ width: '100%', height: '260px' }}>
-                <svg viewBox="0 0 560 260" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                  {/* Grid Lines */}
-                  {[0, 15, 30, 45, 60].map((conf) => {
-                    const y = 220 - (conf / 60) * 180;
+                <svg viewBox="0 0 560 260" style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+                  {/* Grid Lines for Confidence 0% to 100% */}
+                  {[0, 20, 40, 60, 80, 100].map((conf) => {
+                    const y = 220 - (conf / 100) * 180;
                     return (
                       <g key={conf}>
                         <line x1="45" y1={y} x2="530" y2={y} stroke="#f1f5f9" strokeWidth="1" />
@@ -302,9 +490,9 @@ export const MiningPillarsView: FC = () => {
                     );
                   })}
 
-                  {/* X-axis ticks (Support 0% to 3.5%) */}
-                  {[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5].map((sup) => {
-                    const x = 50 + (sup / 3.5) * 470;
+                  {/* X-axis ticks (Support 0% to maxSupportInRules) */}
+                  {[1.0, 2.0, 3.0, 4.0].map((sup) => {
+                    const x = 50 + (sup / (maxSupportInRules * 100)) * 470;
                     return (
                       <g key={sup}>
                         <line x1={x} y1="40" x2={x} y2="225" stroke="#f1f5f9" strokeWidth="1" />
@@ -318,20 +506,30 @@ export const MiningPillarsView: FC = () => {
                   <line x1="45" y1="220" x2="530" y2="220" stroke="#cbd5e1" strokeWidth="1.5" />
                   <line x1="45" y1="40" x2="45" y2="220" stroke="#cbd5e1" strokeWidth="1.5" />
 
-                  {/* Bubbles */}
+                  {/* Bubbles with calibrated log radius bounded strictly between 6px and 20px */}
                   {filteredRules.map((rule, idx) => {
-                    const cx = 50 + Math.min(470, ((rule.support * 100) / 3.5) * 470);
-                    const cy = 220 - Math.min(180, ((rule.confidence * 100) / 60) * 180);
-                    const radius = Math.max(6, (rule.lift / 3.4) * 16);
+                    const cx = 50 + Math.min(470, ((rule.support * 100) / (maxSupportInRules * 100)) * 470);
+                    const cy = 220 - Math.min(180, (rule.confidence) * 180);
+                    const normLift = Math.log(Math.max(1, rule.lift)) / Math.log(Math.max(2, maxLiftInCorpus));
+                    const radius = 6 + Math.max(0, Math.min(1, normLift)) * 14;
                     const isHovered = hoveredRule?.rule.lift === rule.lift && hoveredRule.rule.support === rule.support;
+
+                    const fillColor =
+                      rule.lift >= maxLiftInCorpus * 0.7
+                        ? '#dc2626'
+                        : rule.lift >= maxLiftInCorpus * 0.3
+                        ? '#ea580c'
+                        : rule.lift >= 3.0
+                        ? '#f59e0b'
+                        : '#3b82f6';
 
                     return (
                       <circle
                         key={idx}
                         cx={cx}
                         cy={cy}
-                        r={isHovered ? radius + 4 : radius}
-                        fill={rule.lift > 3.0 ? '#dc2626' : rule.lift > 2.5 ? '#ea580c' : '#f59e0b'}
+                        r={isHovered ? radius + 3 : radius}
+                        fill={fillColor}
                         stroke="#ffffff"
                         strokeWidth={isHovered ? '2.5' : '1.5'}
                         opacity={isHovered ? 1 : 0.82}
@@ -363,8 +561,7 @@ export const MiningPillarsView: FC = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {filteredRules.slice(0, 7).map((rule, idx) => {
-                  const maxLift = 3.3571;
-                  const barWidth = Math.max(15, (rule.lift / maxLift) * 100);
+                  const barWidth = Math.min(100, Math.max(12, (rule.lift / maxLiftInCorpus) * 100));
                   const ant = rule.antecedents[0]?.replace('tag:', '').replace('cat:', '') || '';
                   const con = rule.consequents[0]?.replace('tag:', '').replace('cat:', '') || '';
 
@@ -511,43 +708,98 @@ export const MiningPillarsView: FC = () => {
               </div>
 
               {/* SVG 2D Vector Space */}
-              <div style={{ width: '100%', height: '340px', backgroundColor: '#090d16', borderRadius: '8px', border: '1px solid #1e293b', position: 'relative', overflow: 'hidden' }}>
-                <svg viewBox="-1.2 -1.2 2.4 2.4" style={{ width: '100%', height: '100%' }}>
-                  {/* Crosshairs */}
-                  <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="#1e293b" strokeWidth="0.008" />
-                  <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="#1e293b" strokeWidth="0.008" />
-                  <circle cx="0" cy="0" r="0.5" fill="none" stroke="#1e293b" strokeWidth="0.006" strokeDasharray="0.02 0.02" />
-                  <circle cx="0" cy="0" r="1.0" fill="none" stroke="#1e293b" strokeWidth="0.006" strokeDasharray="0.02 0.02" />
+              <div
+                ref={clusterPanZoom.containerRef}
+                onMouseDown={clusterPanZoom.handleMouseDown}
+                onMouseMove={clusterPanZoom.handleMouseMove}
+                onMouseUp={clusterPanZoom.handleMouseUp}
+                onMouseLeave={clusterPanZoom.handleMouseLeave}
+                style={{
+                  width: '100%',
+                  height: '340px',
+                  backgroundColor: '#090d16',
+                  borderRadius: '8px',
+                  border: '1px solid #1e293b',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: clusterPanZoom.isDragging ? 'grabbing' : 'grab',
+                  userSelect: 'none',
+                }}
+              >
+                <PanZoomControls
+                  zoom={clusterPanZoom.zoom}
+                  onZoomIn={clusterPanZoom.zoomIn}
+                  onZoomOut={clusterPanZoom.zoomOut}
+                  onReset={clusterPanZoom.reset}
+                  label="2D MANIFOLD"
+                />
 
-                  {/* Scatter points */}
-                  {filteredClusterPoints.map((pt, i) => {
-                    const color = clusterColors[pt.cluster % clusterColors.length];
-                    const isHovered = hoveredPoint?.point.paper_id === pt.paper_id;
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    left: '12px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    color: '#64748b',
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                    border: '1px solid rgba(51, 65, 85, 0.5)',
+                  }}
+                >
+                  ✥ Kéo chuột để di chuyển &bull; Lăn chuột để phóng to/thu nhỏ
+                </div>
 
-                    return (
-                      <circle
-                        key={i}
-                        cx={pt.x * 2.2}
-                        cy={pt.y * 2.2}
-                        r={isHovered ? '0.045' : '0.024'}
-                        fill={color}
-                        stroke="#ffffff"
-                        strokeWidth={isHovered ? '0.01' : '0.003'}
-                        opacity={isHovered ? 1 : 0.8}
-                        style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
-                        onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                          setHoveredPoint({
-                            point: pt,
-                            x: rect.left + rect.width / 2,
-                            y: rect.top - 8,
-                          });
-                        }}
-                        onMouseLeave={() => setHoveredPoint(null)}
-                      />
-                    );
-                  })}
-                </svg>
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    transform: `translate(${clusterPanZoom.pan.x}px, ${clusterPanZoom.pan.y}px) scale(${clusterPanZoom.zoom})`,
+                    transformOrigin: 'center center',
+                    transition: clusterPanZoom.isDragging ? 'none' : 'transform 0.15s ease-out',
+                  }}
+                >
+                  <svg viewBox="-1.2 -1.2 2.4 2.4" style={{ width: '100%', height: '100%', display: 'block' }}>
+                    {/* Crosshairs */}
+                    <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="#1e293b" strokeWidth="0.008" />
+                    <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="#1e293b" strokeWidth="0.008" />
+                    <circle cx="0" cy="0" r="0.5" fill="none" stroke="#1e293b" strokeWidth="0.006" strokeDasharray="0.02 0.02" />
+                    <circle cx="0" cy="0" r="1.0" fill="none" stroke="#1e293b" strokeWidth="0.006" strokeDasharray="0.02 0.02" />
+
+                    {/* Scatter points */}
+                    {filteredClusterPoints.map((pt, i) => {
+                      const color = clusterColors[pt.cluster % clusterColors.length];
+                      const isHovered = hoveredPoint?.point.paper_id === pt.paper_id;
+
+                      return (
+                        <circle
+                          key={i}
+                          cx={pt.x * 2.2}
+                          cy={pt.y * 2.2}
+                          r={isHovered ? '0.045' : '0.024'}
+                          fill={color}
+                          stroke="#ffffff"
+                          strokeWidth={isHovered ? '0.01' : '0.003'}
+                          opacity={isHovered ? 1 : 0.8}
+                          style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
+                          onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                            if (clusterPanZoom.isDragging) return;
+                            const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                            setHoveredPoint({
+                              point: pt,
+                              x: rect.left + rect.width / 2,
+                              y: rect.top - 8,
+                            });
+                          }}
+                          onMouseLeave={() => setHoveredPoint(null)}
+                        />
+                      );
+                    })}
+                  </svg>
+                </div>
               </div>
             </div>
 
@@ -615,72 +867,127 @@ export const MiningPillarsView: FC = () => {
               </div>
 
               {/* SVG Network Render */}
-              <div style={{ width: '100%', height: '340px', backgroundColor: '#090d16', borderRadius: '8px', border: '1px solid #1e293b', overflow: 'hidden' }}>
-                <svg viewBox="0 0 600 340" style={{ width: '100%', height: '100%' }}>
-                  {/* Edges */}
-                  {graphData.graph_export.links.slice(0, 140).map((link, idx) => {
-                    const srcIdx = graphData.graph_export.nodes.findIndex((n) => n.id === link.source);
-                    const tgtIdx = graphData.graph_export.nodes.findIndex((n) => n.id === link.target);
-                    if (srcIdx < 0 || tgtIdx < 0) return null;
+              <div
+                ref={graphPanZoom.containerRef}
+                onMouseDown={graphPanZoom.handleMouseDown}
+                onMouseMove={graphPanZoom.handleMouseMove}
+                onMouseUp={graphPanZoom.handleMouseUp}
+                onMouseLeave={graphPanZoom.handleMouseLeave}
+                style={{
+                  width: '100%',
+                  height: '340px',
+                  backgroundColor: '#090d16',
+                  borderRadius: '8px',
+                  border: '1px solid #1e293b',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: graphPanZoom.isDragging ? 'grabbing' : 'grab',
+                  userSelect: 'none',
+                }}
+              >
+                <PanZoomControls
+                  zoom={graphPanZoom.zoom}
+                  onZoomIn={graphPanZoom.zoomIn}
+                  onZoomOut={graphPanZoom.zoomOut}
+                  onReset={graphPanZoom.reset}
+                  label="GRAPH NETWORK"
+                />
 
-                    // Deterministic coordinates based on index and community
-                    const srcAngle = (srcIdx / graphData.graph_export.nodes.length) * Math.PI * 2;
-                    const srcR = 100 + (srcIdx % 3) * 35;
-                    const x1 = 300 + Math.cos(srcAngle) * srcR;
-                    const y1 = 170 + Math.sin(srcAngle) * (srcR * 0.75);
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    left: '12px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    color: '#64748b',
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                    border: '1px solid rgba(51, 65, 85, 0.5)',
+                  }}
+                >
+                  ✥ Kéo chuột để di chuyển &bull; Lăn chuột để phóng to/thu nhỏ
+                </div>
 
-                    const tgtAngle = (tgtIdx / graphData.graph_export.nodes.length) * Math.PI * 2;
-                    const tgtR = 100 + (tgtIdx % 3) * 35;
-                    const x2 = 300 + Math.cos(tgtAngle) * tgtR;
-                    const y2 = 170 + Math.sin(tgtAngle) * (tgtR * 0.75);
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    transform: `translate(${graphPanZoom.pan.x}px, ${graphPanZoom.pan.y}px) scale(${graphPanZoom.zoom})`,
+                    transformOrigin: 'center center',
+                    transition: graphPanZoom.isDragging ? 'none' : 'transform 0.15s ease-out',
+                  }}
+                >
+                  <svg viewBox="0 0 600 340" style={{ width: '100%', height: '100%', display: 'block' }}>
+                    {/* Edges */}
+                    {graphData.graph_export.links.slice(0, 140).map((link, idx) => {
+                      const srcIdx = graphData.graph_export.nodes.findIndex((n) => n.id === link.source);
+                      const tgtIdx = graphData.graph_export.nodes.findIndex((n) => n.id === link.target);
+                      if (srcIdx < 0 || tgtIdx < 0) return null;
 
-                    return (
-                      <line
-                        key={idx}
-                        x1={x1}
-                        y1={y1}
-                        x2={x2}
-                        y2={y2}
-                        stroke="#334155"
-                        strokeWidth="0.8"
-                        strokeOpacity="0.4"
-                      />
-                    );
-                  })}
+                      // Deterministic coordinates based on index and community
+                      const srcAngle = (srcIdx / graphData.graph_export.nodes.length) * Math.PI * 2;
+                      const srcR = 100 + (srcIdx % 3) * 35;
+                      const x1 = 300 + Math.cos(srcAngle) * srcR;
+                      const y1 = 170 + Math.sin(srcAngle) * (srcR * 0.75);
 
-                  {/* Nodes */}
-                  {graphData.graph_export.nodes.slice(0, 70).map((node, idx) => {
-                    const angle = (idx / 70) * Math.PI * 2;
-                    const r = 90 + (node.community % 4) * 35;
-                    const cx = 300 + Math.cos(angle) * r;
-                    const cy = 170 + Math.sin(angle) * (r * 0.75);
-                    const nodeRadius = Math.max(3.5, node.pagerank * 1200);
-                    const color = clusterColors[node.community % clusterColors.length];
-                    const isHovered = hoveredGraphNode?.node.id === node.id;
+                      const tgtAngle = (tgtIdx / graphData.graph_export.nodes.length) * Math.PI * 2;
+                      const tgtR = 100 + (tgtIdx % 3) * 35;
+                      const x2 = 300 + Math.cos(tgtAngle) * tgtR;
+                      const y2 = 170 + Math.sin(tgtAngle) * (tgtR * 0.75);
 
-                    return (
-                      <circle
-                        key={node.id}
-                        cx={cx}
-                        cy={cy}
-                        r={isHovered ? nodeRadius + 3 : nodeRadius}
-                        fill={color}
-                        stroke="#ffffff"
-                        strokeWidth={isHovered ? '2' : '0.8'}
-                        style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
-                        onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                          setHoveredGraphNode({
-                            node,
-                            x: rect.left + rect.width / 2,
-                            y: rect.top - 8,
-                          });
-                        }}
-                        onMouseLeave={() => setHoveredGraphNode(null)}
-                      />
-                    );
-                  })}
-                </svg>
+                      return (
+                        <line
+                          key={idx}
+                          x1={x1}
+                          y1={y1}
+                          x2={x2}
+                          y2={y2}
+                          stroke="#334155"
+                          strokeWidth="0.8"
+                          strokeOpacity="0.4"
+                        />
+                      );
+                    })}
+
+                    {/* Nodes */}
+                    {graphData.graph_export.nodes.slice(0, 70).map((node, idx) => {
+                      const angle = (idx / 70) * Math.PI * 2;
+                      const r = 90 + (node.community % 4) * 35;
+                      const cx = 300 + Math.cos(angle) * r;
+                      const cy = 170 + Math.sin(angle) * (r * 0.75);
+                      const nodeRadius = Math.max(3.5, node.pagerank * 1200);
+                      const color = clusterColors[node.community % clusterColors.length];
+                      const isHovered = hoveredGraphNode?.node.id === node.id;
+
+                      return (
+                        <circle
+                          key={node.id}
+                          cx={cx}
+                          cy={cy}
+                          r={isHovered ? nodeRadius + 3 : nodeRadius}
+                          fill={color}
+                          stroke="#ffffff"
+                          strokeWidth={isHovered ? '2' : '0.8'}
+                          style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
+                          onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                            if (graphPanZoom.isDragging) return;
+                            const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                            setHoveredGraphNode({
+                              node,
+                              x: rect.left + rect.width / 2,
+                              y: rect.top - 8,
+                            });
+                          }}
+                          onMouseLeave={() => setHoveredGraphNode(null)}
+                        />
+                      );
+                    })}
+                  </svg>
+                </div>
               </div>
             </div>
 
