@@ -48,8 +48,6 @@ data/
 /data/manifests/
 /data/processed/
 /data/external/
-/data/processed/
-/data/external/
 /data/*.tar.gz
 /data/*.zip
 /data/*.pt
