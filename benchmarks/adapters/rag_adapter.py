@@ -34,9 +34,16 @@ def run_rag_test_case(
         temperature=temperature,
     )
 
-    t0 = time.time()
-    response = rag_service.answer_query(req)
-    elapsed = time.time() - t0
+    try:
+        t0 = time.time()
+        response = rag_service.answer_query(req)
+        elapsed = time.time() - t0
+    except Exception as e:
+        logger.error("[ADAPTER ERROR] Query '%s' failed: %s. Retrying once in 2s...", query[:40], str(e))
+        time.sleep(2.0)
+        t0 = time.time()
+        response = rag_service.answer_query(req)
+        elapsed = time.time() - t0
 
     retrieval_context = response.retrieval_context or []
     if not retrieval_context and response.context_chunks_used > 0:

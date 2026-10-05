@@ -138,18 +138,54 @@ def run_single_benchmark_suite(
     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     logger.info("Executing benchmark for %d goldens (top_k=%d, judge=%s)...", len(goldens), top_k, judge_mode)
 
-    # 1. Run live queries through RAG pipeline to generate test cases
-    test_cases = build_test_cases_from_goldens(
-        goldens=goldens,
-        top_k=top_k,
-        temperature=temperature,
-    )
+    os.environ["DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE"] = "600"
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Run live queries through RAG pipeline to generate test cases (or load cached)
+    cache_file = out_dir / f"cached_test_cases_k{top_k}_{len(goldens)}.json"
+    if cache_file.exists():
+        logger.info("Found cached test cases at %s. Loading...", cache_file)
+        with open(cache_file, "r", encoding="utf-8") as f:
+            cached_data = json.load(f)
+        from deepeval.test_case import LLMTestCase
+        test_cases = [
+            LLMTestCase(
+                input=tc["input"],
+                actual_output=tc["actual_output"],
+                expected_output=tc.get("expected_output"),
+                retrieval_context=tc.get("retrieval_context", []),
+            )
+            for tc in cached_data
+        ]
+    else:
+        test_cases = build_test_cases_from_goldens(
+            goldens=goldens,
+            top_k=top_k,
+            temperature=temperature,
+        )
+        # Cache generated test cases so retrieval/generation work is never lost
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump(
+                [
+                    {
+                        "input": tc.input,
+                        "actual_output": tc.actual_output,
+                        "expected_output": tc.expected_output,
+                        "retrieval_context": tc.retrieval_context,
+                    }
+                    for tc in test_cases
+                ],
+                f,
+                indent=2,
+            )
+        logger.info("Cached %d generated test cases to %s", len(test_cases), cache_file)
 
     # 2. Build DeepEval metrics with the configured judge
     is_local = (judge_mode == "local")
     metrics = build_rag_benchmark_metrics(judge_mode=judge_mode, async_mode=(not is_local))
 
-    # 3. Configure evaluation runners
+    # 3. Configure evaluation runners (synchronous for local GPU to avoid queue starvation)
     async_config = AsyncConfig(run_async=(not is_local), max_concurrent=(2 if is_local else 10))
     error_config = ErrorConfig(ignore_errors=True)
 
@@ -202,6 +238,7 @@ def run_single_benchmark_suite(
                 "input": getattr(tr, "input", ""),
                 "actual_output": getattr(tr, "actual_output", ""),
                 "expected_output": getattr(tr, "expected_output", ""),
+                "retrieval_context": getattr(tr, "retrieval_context", []),
                 "success": getattr(tr, "success", False),
                 "metrics": [
                     {

@@ -71,9 +71,9 @@ class CustomDeepEvalJudge(DeepEvalBaseLLM):
         else:  # "local" (default)
             base_url = getattr(settings, "DEEPEVAL_LOCAL_URL", "http://localhost:9001/v1") or os.getenv("DEEPEVAL_LOCAL_URL", "http://localhost:9001/v1")
             self.model_name = getattr(settings, "DEEPEVAL_LOCAL_MODEL", "qwen2.5-7b-instruct") or os.getenv("DEEPEVAL_LOCAL_MODEL", "qwen2.5-7b-instruct")
-            self.client = OpenAI(base_url=base_url, api_key="local-no-key-required", timeout=120.0)
-            self.async_client = AsyncOpenAI(base_url=base_url, api_key="local-no-key-required", timeout=120.0)
-            logger.info("[JUDGE] Initialized Local Qwen Judge (%s at %s)", self.model_name, base_url)
+            self.client = OpenAI(base_url=base_url, api_key="local-no-key-required", timeout=300.0)
+            self.async_client = AsyncOpenAI(base_url=base_url, api_key="local-no-key-required", timeout=300.0)
+            logger.info("[JUDGE] Initialized Local Qwen Judge (%s at %s, timeout=300s)", self.model_name, base_url)
 
         super().__init__(model_name=self.model_name)
 
