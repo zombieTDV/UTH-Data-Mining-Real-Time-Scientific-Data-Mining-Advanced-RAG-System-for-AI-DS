@@ -115,3 +115,10 @@ Benchmark test cases live in `benchmarks/datasets/rag_goldens.json`. To add a ne
   "expected_context_keywords": ["speculative decoding", "draft model", "target model", "verification", "latency"]
 }
 ```
+
+---
+
+## 5. Benchmark Evaluation Reports
+
+- [Scientific RAG Evaluation Report: 21-Sample Benchmark Comparison](file:///C:/document/Study%20documents/Uth-Data-Mining/docs/benchmarks/RAG_EVALUATION_REPORT_21_SAMPLES.md) — Comprehensive comparative analysis between the baseline (dense-only) retrieval pipeline and the upgraded architecture (Cross-Encoder reranking, lexical BM25 matching, Reciprocal Rank Fusion, and strict prompt guardrails), achieving a **+35.0% Contextual Precision gain** and **100% Contextual Recall**.
+
