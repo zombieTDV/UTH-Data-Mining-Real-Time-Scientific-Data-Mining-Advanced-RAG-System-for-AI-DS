@@ -149,45 +149,49 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
       }}
     >
       {/* Zoom & Pan Controls */}
-      {onZoomIn && onZoomOut && (
+      {(onZoomIn || onZoomOut || onResetZoom) && (
         <div
           style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}
           title="Cuộn chuột / Trackpad để phóng to • Kéo để di chuyển góc nhìn (Drag to Pan)"
         >
-          <button
-            type="button"
-            onClick={onZoomOut}
-            style={btnStyle}
-            title="Thu nhỏ đồ thị (Zoom Out)"
-          >
-            -
-          </button>
-          {zoomLevel !== undefined && onResetZoom && (
+          {onResetZoom && (
             <button
               type="button"
               onClick={onResetZoom}
               style={{
                 ...btnStyle,
-                padding: '2px 6px',
+                padding: '2px 7px',
                 fontSize: '10px',
                 fontWeight: 700,
-                color: (hasPannedOrZoomed || zoomLevel !== 1) ? (isDark ? '#38bdf8' : '#2563eb') : btnStyle.color,
-                backgroundColor: (hasPannedOrZoomed || zoomLevel !== 1) ? (isDark ? 'rgba(56, 189, 248, 0.16)' : '#e0f2fe') : btnStyle.backgroundColor,
-                border: (hasPannedOrZoomed || zoomLevel !== 1) ? `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#93c5fd'}` : btnStyle.border,
+                color: (hasPannedOrZoomed || (zoomLevel !== undefined && zoomLevel !== 1)) ? (isDark ? '#38bdf8' : '#2563eb') : btnStyle.color,
+                backgroundColor: (hasPannedOrZoomed || (zoomLevel !== undefined && zoomLevel !== 1)) ? (isDark ? 'rgba(56, 189, 248, 0.16)' : '#e0f2fe') : btnStyle.backgroundColor,
+                border: (hasPannedOrZoomed || (zoomLevel !== undefined && zoomLevel !== 1)) ? `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#93c5fd'}` : btnStyle.border,
               }}
               title="Đặt lại góc nhìn và tỷ lệ ban đầu 100% (Reset Pan & Zoom)"
             >
-              ↺ {Math.round(zoomLevel * 100)}%
+              ↺ Reset {zoomLevel !== undefined ? `(${Math.round(zoomLevel * 100)}%)` : ''}
             </button>
           )}
-          <button
-            type="button"
-            onClick={onZoomIn}
-            style={btnStyle}
-            title="Phóng to đồ thị (Zoom In)"
-          >
-            +
-          </button>
+          {onZoomOut && (
+            <button
+              type="button"
+              onClick={onZoomOut}
+              style={btnStyle}
+              title="Thu nhỏ đồ thị (Zoom Out)"
+            >
+              -
+            </button>
+          )}
+          {onZoomIn && (
+            <button
+              type="button"
+              onClick={onZoomIn}
+              style={btnStyle}
+              title="Phóng to đồ thị (Zoom In)"
+            >
+              +
+            </button>
+          )}
         </div>
       )}
 

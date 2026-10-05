@@ -216,6 +216,18 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     });
   }, [rulesData, liftThreshold, antecedentFilter]);
 
+  // Dynamic Lift and Support bounds across mined corpus
+  const maxLiftInCorpus = useMemo(() => {
+    if (!rulesData?.rules?.length) return 3.5;
+    return Math.max(...rulesData.rules.map((r) => r.lift));
+  }, [rulesData]);
+
+  const maxSupportInCorpus = useMemo(() => {
+    if (!rulesData?.rules?.length) return 0.10;
+    const maxSup = Math.max(...rulesData.rules.map((r) => r.support));
+    return Math.max(0.04, Math.ceil(maxSup * 100) / 100);
+  }, [rulesData]);
+
   // Filtered Scatter points by cluster
   const filteredClusterPoints = useMemo(() => {
     if (!clustersData) return [];
@@ -682,7 +694,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               LUẬT KẾT HỢP (RULES)
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              {rulesData?.rules.length || 22} Rules &bull; Max Lift 3.36x
+              {rulesData?.rules.length || 0} Rules &bull; Max Lift {maxLiftInCorpus.toFixed(1)}x
             </div>
           </button>
 
@@ -941,8 +953,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   <input
                     type="range"
                     min="1.0"
-                    max="3.4"
-                    step="0.1"
+                    max={Math.max(10, Math.ceil(maxLiftInCorpus))}
+                    step="0.5"
                     value={liftThreshold}
                     onChange={(e) => setLiftThreshold(parseFloat(e.target.value))}
                     style={{ accentColor: '#ea580c', cursor: 'pointer', width: '130px' }}
@@ -1155,14 +1167,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     viewBox={p1PanZoom.viewBox}
                     style={{ width: '100%', height: '100%', overflow: 'visible' }}
                   >
-                        {/* Golden Frontier Shaded Box */}
+                        {/* Golden Frontier Shaded Box (Conf >= 35%) */}
                         {showBaselines && (
                           <g>
                             <rect
-                              x="240"
-                              y="35"
-                              width="460"
-                              height="85"
+                              x="120"
+                              y="50"
+                              width="580"
+                              height="117"
                               fill="rgba(16, 185, 129, 0.05)"
                               stroke="rgba(16, 185, 129, 0.25)"
                               strokeDasharray="4 4"
@@ -1170,8 +1182,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             />
                             {/* Layer Badge Plate anchored safely at top margin */}
                             <rect
-                              x="242"
-                              y="16"
+                              x="125"
+                              y="30"
                               width="310"
                               height="16"
                               rx="3"
@@ -1180,8 +1192,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               strokeWidth="1"
                             />
                             <text
-                              x="248"
-                              y="28"
+                              x="131"
+                              y="42"
                               fontSize="10"
                               fontFamily="var(--font-mono)"
                               fontWeight="800"
@@ -1192,9 +1204,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           </g>
                         )}
 
-                        {/* Grid Lines */}
-                        {[0, 15, 30, 45, 60].map((conf) => {
-                          const y = 230 - (conf / 60) * 180;
+                        {/* Grid Lines (Full 0% to 100% Confidence) */}
+                        {[0, 20, 40, 60, 80, 100].map((conf) => {
+                          const y = 230 - (conf / 100) * 180;
                           return (
                             <g key={conf}>
                               <line
@@ -1219,11 +1231,12 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           );
                         })}
 
-                        {/* X-axis ticks (Support 0% to 3.5%) */}
-                        {[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5].map((sup) => {
-                          const x = 55 + (sup / 3.5) * 645;
+                        {/* X-axis ticks (Support 0% to maxSupportInCorpus) */}
+                        {[0.2, 0.4, 0.6, 0.8, 1.0].map((frac) => {
+                          const supPct = +(maxSupportInCorpus * 100 * frac).toFixed(1);
+                          const x = 55 + frac * 645;
                           return (
-                            <g key={sup}>
+                            <g key={frac}>
                               <line
                                 x1={x}
                                 y1="35"
@@ -1240,7 +1253,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 fontFamily="var(--font-mono)"
                                 fill={themeStyles.textMuted}
                               >
-                                {sup}%
+                                {supPct}%
                               </text>
                             </g>
                           );
@@ -1304,15 +1317,25 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                     {/* Bubbles */}
                     {filteredRules.map((rule, idx) => {
-                      const cx = 55 + Math.min(645, ((rule.support * 100) / 3.5) * 645);
-                      const cy = 230 - Math.min(180, ((rule.confidence * 100) / 60) * 180);
-                      const radius = Math.max(6, (rule.lift / 3.4) * 18);
+                      const cx = 55 + Math.min(645, Math.max(0, (rule.support / maxSupportInCorpus) * 645));
+                      const cy = 230 - Math.min(180, Math.max(0, rule.confidence * 180));
+                      const normLift = Math.log(Math.max(1, rule.lift)) / Math.log(Math.max(2, maxLiftInCorpus));
+                      const radius = 6 + Math.max(0, Math.min(1, normLift)) * 14;
                       const isHovered =
                         hoveredRule?.rule.lift === rule.lift &&
                         hoveredRule.rule.support === rule.support;
                       const isSelected =
                         inspectedRule?.lift === rule.lift &&
                         inspectedRule?.support === rule.support;
+
+                      const fillColor =
+                        rule.lift >= maxLiftInCorpus * 0.7
+                          ? '#dc2626'
+                          : rule.lift >= maxLiftInCorpus * 0.3
+                          ? '#ea580c'
+                          : rule.lift >= 2.5
+                          ? '#f59e0b'
+                          : '#3b82f6';
 
                       return (
                         <g key={idx}>
@@ -1332,13 +1355,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             cx={cx}
                             cy={cy}
                             r={isSelected ? radius + 4 : isHovered ? radius + 2 : radius}
-                            fill={
-                              rule.lift > 3.0
-                                ? '#dc2626'
-                                : rule.lift > 2.5
-                                ? '#ea580c'
-                                : '#f59e0b'
-                            }
+                            fill={fillColor}
                             fillOpacity={isSelected ? 0.95 : isHovered ? 0.9 : 0.72}
                             stroke={isSelected ? '#38bdf8' : isDark ? '#0f172a' : '#ffffff'}
                             strokeWidth={isSelected ? '2.5' : '1.5'}
@@ -1572,8 +1589,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       }}
                     >
                       {filteredRules.map((rule, idx) => {
-                        const maxLift = 3.3571;
-                        const barWidth = Math.max(15, (rule.lift / maxLift) * 100);
+                        const barWidth = Math.min(100, Math.max(12, (rule.lift / maxLiftInCorpus) * 100));
                         const isSelected =
                           inspectedRule?.lift === rule.lift &&
                           inspectedRule?.support === rule.support;
@@ -1807,7 +1823,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  10,000 bài báo &bull; 768-D Embeddings
+                  13,000 bài báo &bull; 768-D Embeddings
                 </div>
               </div>
             </div>

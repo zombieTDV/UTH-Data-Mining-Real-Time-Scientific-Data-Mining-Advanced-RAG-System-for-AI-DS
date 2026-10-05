@@ -27,10 +27,10 @@ export const PIPELINE_PHASES: PipelinePhase[] = [
     zoneColor: 'var(--accent-bronze)',
     status: 'COMPLETED',
     inputs: ['arXiv OAI-PMH Endpoints', 'ar5iv HTML5 Repository'],
-    outputs: ['9,022 Raw HTML5 Files', '12 OAI Batch JSONs (20.8MB)'],
+    outputs: ['11,763 Raw HTML5 Files', '16 OAI Batch JSONs (26.4MB)'],
     tools: ['HTTPX Async', 'Cloudflare R2 S3 API', 'SHA-256 Hasher'],
     metrics: {
-      processed: '10,000 Papers Harvested',
+      processed: '13,000 Papers Harvested',
       rate: '6.0s Rate-Limit Delay',
       latency: '2.84 GB Transferred'
     },
@@ -47,11 +47,11 @@ export const PIPELINE_PHASES: PipelinePhase[] = [
     outputs: ['Apache Parquet (year=2026)', 'DuckDB Canonical View'],
     tools: ['BeautifulSoup4 & lxml', 'Apache Arrow', 'DuckDB Engine'],
     metrics: {
-      processed: '8,989 Papers Full-Section Enriched',
-      rate: '2,224,198 LaTeX Formulas Extracted',
+      processed: '11,763 Papers Full-Section Enriched',
+      rate: '2,765,395 LaTeX Formulas Extracted',
       latency: '231.7 MB Columnar Storage'
     },
-    details: 'Parses academic structures into canonical sections (Abstract, Intro, Methods, Results, Discussion). Cleans and preserves 2.22M mathematical equations in pristine LaTeX syntax.'
+    details: 'Parses academic structures into canonical sections (Abstract, Intro, Methods, Results, Discussion). Cleans and preserves 2.77M mathematical equations in pristine LaTeX syntax.'
   },
   {
     id: 'phase-3',
@@ -85,7 +85,7 @@ export const PIPELINE_PHASES: PipelinePhase[] = [
       rate: '6.0 tokens/s Metal GPU Generation',
       latency: 'Zero Hallucination Refusal Gate'
     },
-    details: 'Runs high-precision cosine semantic search over 143k vectors, formats academic system prompts with anti-hallucination guardrails, and produces streaming answers with verified section citations.'
+    details: 'Runs high-precision cosine semantic search over 143.5k vectors, formats academic system prompts with anti-hallucination guardrails, and produces streaming answers with verified section citations.'
   }
 ];
 

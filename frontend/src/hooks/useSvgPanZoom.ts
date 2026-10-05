@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, type MouseEvent, type WheelEvent, type TouchEvent } from 'react';
+import { useState, useRef, useCallback, useEffect, type MouseEvent, type WheelEvent, type TouchEvent } from 'react';
 
 export interface UseSvgPanZoomOptions {
   nominalWidth: number;
@@ -24,7 +24,7 @@ export interface UseSvgPanZoomReturn {
   resetView: () => void;
   didDrag: () => boolean;
   containerProps: {
-    ref: React.RefObject<HTMLDivElement | null>;
+    ref: (node: HTMLDivElement | null) => void;
     onWheel: (e: WheelEvent<HTMLDivElement>) => void;
     onMouseDown: (e: MouseEvent<HTMLDivElement>) => void;
     onMouseMove: (e: MouseEvent<HTMLDivElement>) => void;
@@ -50,12 +50,18 @@ export function useSvgPanZoom({
   const [zoom, setZoom] = useState<number>(initialZoom);
   const [pan, setPan] = useState<{ x: number; y: number }>(initialPan);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | null>(null);
   const totalDragDistRef = useRef<number>(0);
   const touchStartDistRef = useRef<number | null>(null);
   const touchStartZoomRef = useRef<number>(1);
+
+  const containerCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    setContainerNode(node);
+  }, []);
 
   // Compute viewBox parameters
   const currentW = nominalWidth / zoom;
@@ -257,6 +263,20 @@ export function useSvgPanZoom({
     touchStartDistRef.current = null;
   }, []);
 
+  // Attach native non-passive wheel listener to prevent outer page scrolling while zooming
+  useEffect(() => {
+    if (!containerNode) return;
+    const onNativeWheel = (e: globalThis.WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleWheel(e as unknown as WheelEvent<HTMLDivElement>);
+    };
+    containerNode.addEventListener('wheel', onNativeWheel, { passive: false });
+    return () => {
+      containerNode.removeEventListener('wheel', onNativeWheel);
+    };
+  }, [containerNode, handleWheel]);
+
   return {
     zoom,
     pan,
@@ -271,7 +291,7 @@ export function useSvgPanZoom({
     resetView,
     didDrag,
     containerProps: {
-      ref: containerRef,
+      ref: containerCallbackRef,
       onWheel: handleWheel,
       onMouseDown: handleMouseDown,
       onMouseMove: handleMouseMove,
@@ -284,6 +304,7 @@ export function useSvgPanZoom({
       style: {
         cursor: isDragging ? 'grabbing' : zoom > 1 ? 'grab' : 'default',
         userSelect: isDragging ? 'none' : 'auto',
+        overscrollBehavior: 'contain',
       },
     },
   };
