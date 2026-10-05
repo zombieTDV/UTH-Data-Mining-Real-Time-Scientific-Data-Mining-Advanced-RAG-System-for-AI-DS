@@ -107,6 +107,19 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   const p4VelocityPanZoom = useSvgPanZoom({ nominalWidth: 520, nominalHeight: 220, minZoom: 0.5, maxZoom: 3.5 });
   const p4AnomalyPanZoom = useSvgPanZoom({ nominalWidth: 460, nominalHeight: 210, minZoom: 0.5, maxZoom: 3.5 });
 
+  const maxVelocityPapers = useMemo(() => {
+    if (!trendsData?.trend_velocity || trendsData.trend_velocity.length === 0) return 800;
+    const maxVal = Math.max(
+      ...trendsData.trend_velocity.slice(0, 6).flatMap((t) => [t.recent_quarter_papers, t.previous_quarter_papers])
+    );
+    return Math.max(200, Math.ceil(maxVal / 100) * 100);
+  }, [trendsData]);
+
+  const topSurging = useMemo(() => {
+    if (!trendsData?.trend_velocity || trendsData.trend_velocity.length === 0) return null;
+    return [...trendsData.trend_velocity].sort((a, b) => b.growth_rate_pct - a.growth_rate_pct)[0];
+  }, [trendsData]);
+
   // Data Loading
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -3315,7 +3328,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       [MINING-04] TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)
                     </h3>
                     <span className="telemetry-chip">
-                      [VELOCITY SURGE: cs.CL (+5,940%) &bull; ISOLATION FOREST: 30 OUTLIERS]
+                      [VELOCITY SURGE: {topSurging ? `${topSurging.category} (+${Math.round(topSurging.growth_rate_pct)}%)` : 'cs.AI (+199%)'} &bull; ISOLATION FOREST: {trendsData.anomalies.length} OUTLIERS]
                     </span>
                   </div>
 
@@ -3424,8 +3437,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     style={{ width: '100%', height: '100%' }}
                   >
                     {/* Grid Lines */}
-                    {[0, 600, 1200, 1800, 2400].map((v) => {
-                      const y = 180 - (v / 2400) * 105;
+                    {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+                      const v = Math.round(ratio * maxVelocityPapers);
+                      const y = 180 - ratio * 125;
                       return (
                         <g key={v}>
                           <line
@@ -3462,9 +3476,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     {/* Clustered Bars */}
                     {trendsData.trend_velocity.slice(0, 6).map((trend, idx) => {
                       const groupX = 65 + idx * 72;
-                      const prevH = Math.max(4, (trend.previous_quarter_papers / 2400) * 105);
-                      const recentH = Math.max(8, (trend.recent_quarter_papers / 2400) * 105);
-                      const isHighSurge = trend.growth_rate_pct > 2000;
+                      const prevH = Math.max(4, (trend.previous_quarter_papers / maxVelocityPapers) * 125);
+                      const recentH = Math.max(8, (trend.recent_quarter_papers / maxVelocityPapers) * 125);
+                      const isHighSurge = trend.growth_rate_pct > 50 || trend.momentum === 'SURGING';
 
                       return (
                         <g key={trend.category}>
@@ -3693,18 +3707,44 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               </g>
                             )}
 
+                        {/* X-Axis Grid & Labels (Words: 0 to 80k) */}
+                        {[0, 20000, 40000, 60000, 80000].map((w) => {
+                          const x = 45 + (w / 80000) * 375;
+                          return (
+                            <g key={w}>
+                              <line x1={x} y1="22" x2={x} y2="188" stroke={themeStyles.gridLine} strokeDasharray="2 3" strokeWidth="1" />
+                              <text x={x} y="199" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                                {w > 0 ? `${w / 1000}k` : '0'}
+                              </text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Y-Axis Grid & Labels (Math Formulas: 0 to 6k) */}
+                        {[0, 1500, 3000, 4500, 6000].map((m) => {
+                          const y = 188 - (m / 6000) * 160;
+                          return (
+                            <g key={m}>
+                              <line x1="45" y1={y} x2="425" y2={y} stroke={themeStyles.gridLine} strokeDasharray="2 3" strokeWidth="1" />
+                              <text x="40" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                                {m > 0 ? `${(m / 1000).toFixed(1)}k` : '0'}
+                              </text>
+                            </g>
+                          );
+                        })}
+
                         <line
-                          x1="40"
+                          x1="45"
                           y1="188"
-                          x2="430"
+                          x2="425"
                           y2="188"
                           stroke={themeStyles.axisLine}
                           strokeWidth="1.2"
                         />
                         <line
-                          x1="40"
-                          y1="10"
-                          x2="40"
+                          x1="45"
+                          y1="22"
+                          x2="45"
                           y2="188"
                           stroke={themeStyles.axisLine}
                           strokeWidth="1.2"
@@ -3712,8 +3752,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                         {/* Outlier Dots */}
                         {trendsData.anomalies.map((anom, idx) => {
-                          const cx = 48 + Math.min(365, (anom.word_count / 42000) * 365);
-                          const cy = 182 - Math.min(145, (anom.math_count / 4000) * 145);
+                          const cx = 45 + Math.min(375, (anom.word_count / 80000) * 375);
+                          const cy = 188 - Math.min(160, (anom.math_count / 6000) * 160);
                           const isHovered = hoveredAnomaly?.item.paper_id === anom.paper_id;
                           const isSelected = inspectedAnomaly?.paper_id === anom.paper_id;
 

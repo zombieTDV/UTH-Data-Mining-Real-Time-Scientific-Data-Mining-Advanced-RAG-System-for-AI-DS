@@ -178,7 +178,7 @@ export interface TrendVelocityItem {
   recent_quarter_papers: number;
   previous_quarter_papers: number;
   growth_rate_pct: number;
-  momentum: 'ACCELERATING' | 'STEADY' | 'COOLING';
+  momentum: 'ACCELERATING' | 'STEADY' | 'COOLING' | 'SURGING' | 'DECLINING' | 'STABLE';
   all_time_papers: number;
 }
 
