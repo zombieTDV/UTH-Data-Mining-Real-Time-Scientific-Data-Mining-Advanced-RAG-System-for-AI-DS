@@ -623,6 +623,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   }
 
   const { dataset_overview, top_authors, category_cooccurrence, math_and_content_stats } = data;
+  const overview = dataset_overview;
 
   return (
     <div
@@ -812,7 +813,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               cursor: 'pointer',
             }}
           >
-            TẤT CẢ (10,000)
+            TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
           </button>
 
           {categoryList.slice(0, 8).map((cat) => {
@@ -889,19 +890,19 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>1. RAW INGEST:</span>
-              <strong style={{ color: themeStyles.textPrimary }}>10,000 papers</strong>
+              <strong style={{ color: themeStyles.textPrimary }}>{overview.total_papers?.toLocaleString() || '13,000'} papers</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. HTML5 FULL-TEXT:</span>
-              <strong style={{ color: '#059669' }}>9,015 (90.2%)</strong>
+              <strong style={{ color: '#059669' }}>{overview.enriched_html_papers?.toLocaleString() || '11,763'} ({((overview.enrichment_ratio || 0.9048) * 100).toFixed(1)}%)</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>3. LATEX MATH:</span>
-              <strong style={{ color: '#ea580c' }}>2.22M formulas</strong>
+              <strong style={{ color: '#ea580c' }}>{overview.total_math_formulas ? `${(overview.total_math_formulas / 1000000).toFixed(2)}M` : '2.77M'} formulas</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>4. DEEP CORPUS:</span>
-              <strong style={{ color: '#2563eb' }}>47.78M words</strong>
+              <strong style={{ color: '#2563eb' }}>{overview.total_words ? `${(overview.total_words / 1000000).toFixed(2)}M` : '60.98M'} words</strong>
             </div>
           </div>
         )}
@@ -1356,7 +1357,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     let runningCount = 0;
                     const paretoPoints = categoryList.slice(0, 8).map((cat, i) => {
                       runningCount += cat.count;
-                      const cumPct = (runningCount / 10000) * 100;
+                      const cumPct = (runningCount / (overview.total_papers || 13000)) * 100;
                       const cx = 90 + i * 95 + 23;
                       const cy = 235 - (cumPct / 100) * 195;
                       return { cx, cy, cumPct, cat };
@@ -2262,7 +2263,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       [EDA-04] CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
                     </h3>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                      Tỷ lệ phần trăm phân bố 10,000 bài báo
+                      Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'} bài báo
                     </div>
                   </div>
 
@@ -2294,7 +2295,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       <circle cx="50" cy="50" r="38" fill="none" stroke="#ea580c" strokeWidth="16" strokeDasharray="7.6 231" strokeDashoffset="-176.7" />
 
                       <text x="50" y="48" textAnchor="middle" fontSize="12" fontFamily="var(--font-mono)" fontWeight="800" fill={themeStyles.textPrimary}>
-                        10,000
+                        {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'}
                       </text>
                       <text x="50" y="60" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textMuted}>
                         PAPERS
@@ -3398,7 +3399,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             {hoveredBar.category}
           </div>
           <div style={{ marginTop: '2px' }}>
-            Số bài: <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / 10000) * 100).toFixed(1)}%)
+            Số bài: <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / (overview.total_papers || 13000)) * 100).toFixed(1)}%)
           </div>
           <div style={{ color: '#ea580c' }}>
             Công thức: <strong>{hoveredBar.math.toLocaleString()}</strong> (avg {(hoveredBar.math / hoveredBar.count).toFixed(1)}/paper)

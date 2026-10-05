@@ -14,6 +14,7 @@ import {
   subscribeIngestionStream,
   triggerMiningPipeline,
   fetchStorageStats,
+  fetchEdaSummary,
 } from './api/client';
 
 export type AppTab = 'schematic' | 'eda' | 'pillars' | 'rag' | 'logs';
@@ -27,14 +28,16 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<'ONLINE' | 'OFFLINE'>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter
-  const [totalPapers, setTotalPapers] = useState<number>(10000);
+  // Real-time Streaming State for Lakehouse Counter (Live Ground Truth: 13,000 papers, 2.77M formulas, 143.5k vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(13000);
+  const [totalFormulas, setTotalFormulas] = useState<number>(2765395);
+  const [totalVectors, setTotalVectors] = useState<number>(143523);
   const [streamActive, setStreamActive] = useState<boolean>(false);
   const [streamSpeed, setStreamSpeed] = useState<number>(0);
 
   // Cloudflare R2 Storage stats
-  const [storageUsedGb, setStorageUsedGb] = useState<number>(5.524);
-  const [storageUsedPct, setStorageUsedPct] = useState<number>(55.2);
+  const [storageUsedGb, setStorageUsedGb] = useState<number>(5.688);
+  const [storageUsedPct, setStorageUsedPct] = useState<number>(56.9);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 
@@ -43,16 +46,28 @@ export default function App() {
     localStorage.setItem('uth-theme', theme);
   }, [theme]);
 
-  // Check health, load storage stats, and subscribe to SSE telemetry
+  // Check health, load live EDA and storage stats, and subscribe to SSE telemetry
   useEffect(() => {
     fetchHealth()
       .then(() => setBackendStatus('ONLINE'))
       .catch(() => setBackendStatus('OFFLINE'));
 
+    fetchEdaSummary()
+      .then((eda) => {
+        if (eda?.dataset_overview?.total_papers) {
+          setTotalPapers(eda.dataset_overview.total_papers);
+        }
+        if (eda?.dataset_overview?.total_math_formulas) {
+          setTotalFormulas(eda.dataset_overview.total_math_formulas);
+        }
+      })
+      .catch(() => {});
+
     fetchStorageStats()
       .then((data) => {
         if (data?.total_size_gb) setStorageUsedGb(data.total_size_gb);
         if (data?.used_percentage) setStorageUsedPct(data.used_percentage);
+        if (data?.zones?.goldChunkCount) setTotalVectors(data.zones.goldChunkCount);
       })
       .catch(() => {});
 
@@ -69,12 +84,12 @@ export default function App() {
     const unsubStream = subscribeIngestionStream((event) => {
       if (event.type === 'PAPER_INGESTED') {
         setStreamActive(true);
-        setTotalPapers(event.total_corpus || 10000);
+        setTotalPapers(event.total_corpus || 13000);
         setStreamSpeed(event.speed_ppm || 0);
       } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
         if (event.status === 'STREAMING') {
           setStreamActive(true);
-          setTotalPapers(event.total_corpus || 10000);
+          setTotalPapers(event.total_corpus || 13000);
           setStreamSpeed(event.speed_ppm || 0);
         } else if (event.status === 'PAUSED' || event.status === 'COMPLETED') {
           setStreamActive(false);
@@ -464,8 +479,8 @@ export default function App() {
               {pipelineStatus === 'RUNNING'
                 ? 'Pipeline Active: Harvesting arXiv batches, DuckDB Parquet & LanceDB Gold indexing...'
                 : streamActive
-                ? `Real-Time CDC Stream Active: ${totalPapers.toLocaleString()} papers synced (+${totalPapers - 10000} new) · ${streamSpeed} papers/min`
-                : `Lakehouse Standby: ${totalPapers.toLocaleString()} papers, 2.22M formulas, 143k LanceDB vectors synced.`}
+                ? `Real-Time CDC Stream Active: ${totalPapers.toLocaleString()} papers synced (+${Math.max(0, totalPapers - 13000)} new) · ${streamSpeed} papers/min`
+                : `Lakehouse Standby: ${totalPapers.toLocaleString()} papers, ${(totalFormulas / 1000000).toFixed(2)}M formulas, ${Math.round(totalVectors / 1000)}k LanceDB vectors synced.`}
             </span>
           </div>
 
@@ -474,7 +489,7 @@ export default function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
               <span style={{ color: 'var(--text-muted)' }}>R2 LAKE:</span>
               <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
-                {(storageUsedGb + (totalPapers - 10000) * 0.00056).toFixed(3)} GB
+                {(storageUsedGb + Math.max(0, totalPapers - 13000) * 0.00056).toFixed(3)} GB
               </span>
               <span
                 style={{
@@ -486,7 +501,7 @@ export default function App() {
                   border: '1px solid rgba(16, 185, 129, 0.3)',
                 }}
               >
-                {Math.min(100, +(storageUsedPct + (totalPapers - 10000) * 0.0056).toFixed(1))}%
+                {Math.min(100, +(storageUsedPct + Math.max(0, totalPapers - 13000) * 0.0056).toFixed(1))}%
               </span>
             </div>
 
@@ -690,9 +705,9 @@ export default function App() {
           <div style={{ display: 'flex', gap: '16px' }}>
             <span>{totalPapers.toLocaleString()} PAPERS</span>
             <span>&bull;</span>
-            <span>{(143523 + (totalPapers - 10000) * 14).toLocaleString()} VECTORS</span>
+            <span>{(totalVectors + Math.max(0, totalPapers - 13000) * 14).toLocaleString()} VECTORS</span>
             <span>&bull;</span>
-            <span>{(2.22 + (totalPapers - 10000) * 0.00022).toFixed(2)}M FORMULAS</span>
+            <span>{(totalFormulas / 1000000).toFixed(2)}M FORMULAS</span>
           </div>
         </footer>
       </div>

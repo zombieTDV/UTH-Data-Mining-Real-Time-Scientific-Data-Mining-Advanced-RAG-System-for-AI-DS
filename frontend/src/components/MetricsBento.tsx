@@ -40,7 +40,7 @@ export function MetricsBento() {
             </span>
           </div>
           <div style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-            10,000
+            13,000
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px' }}>
             AI/DS Scientific Papers Indexed
@@ -57,8 +57,8 @@ export function MetricsBento() {
           fontFamily: 'var(--font-mono)',
           color: 'var(--text-muted)'
         }}>
-          <span>ar5iv HTML5: 9,022</span>
-          <span>OAI Batches: 12</span>
+          <span>ar5iv HTML5: 11,763</span>
+          <span>OAI Batches: 16</span>
         </div>
       </div>
 
@@ -135,12 +135,12 @@ export function MetricsBento() {
               Cloudflare R2 Bucket
             </span>
             <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#f59e0b' }}>
-              55.24% of Free Tier
+              56.88% of Free Tier
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
             <span style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              5.524
+              5.688
             </span>
             <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontWeight: 500 }}>
               / 10.0 GB
@@ -155,7 +155,7 @@ export function MetricsBento() {
             overflow: 'hidden'
           }}>
             <div style={{
-              width: '55.24%',
+              width: '56.88%',
               height: '100%',
               background: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
               borderRadius: '2px'
