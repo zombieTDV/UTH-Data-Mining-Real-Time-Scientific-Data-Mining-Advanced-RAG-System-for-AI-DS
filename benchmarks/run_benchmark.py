@@ -142,44 +142,68 @@ def run_single_benchmark_suite(
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Run live queries through RAG pipeline to generate test cases (or load cached)
-    cache_file = out_dir / f"cached_test_cases_k{top_k}_{len(goldens)}.json"
-    if cache_file.exists():
-        logger.info("Found cached test cases at %s. Loading...", cache_file)
-        with open(cache_file, "r", encoding="utf-8") as f:
-            cached_data = json.load(f)
-        from deepeval.test_case import LLMTestCase
-        test_cases = [
-            LLMTestCase(
-                input=tc["input"],
-                actual_output=tc["actual_output"],
-                expected_output=tc.get("expected_output"),
-                retrieval_context=tc.get("retrieval_context", []),
-            )
-            for tc in cached_data
-        ]
+    # 1. Master test cases cache keyed by query
+    from deepeval.test_case import LLMTestCase
+    from benchmarks.adapters.rag_adapter import run_rag_test_case
+
+    master_cache_file = out_dir / f"cached_test_cases_k{top_k}_master.json"
+    cached_map: Dict[str, Dict[str, Any]] = {}
+
+    # Seed master cache if it exists, or check other cached files
+    if master_cache_file.exists():
+        try:
+            with open(master_cache_file, "r", encoding="utf-8") as f:
+                for item in json.load(f):
+                    cached_map[item["input"].strip()] = item
+        except Exception as e:
+            logger.warning("Could not read %s: %s", master_cache_file, str(e))
     else:
-        test_cases = build_test_cases_from_goldens(
-            goldens=goldens,
-            top_k=top_k,
-            temperature=temperature,
-        )
-        # Cache generated test cases so retrieval/generation work is never lost
-        with open(cache_file, "w", encoding="utf-8") as f:
-            json.dump(
-                [
-                    {
-                        "input": tc.input,
-                        "actual_output": tc.actual_output,
-                        "expected_output": tc.expected_output,
-                        "retrieval_context": tc.retrieval_context,
-                    }
-                    for tc in test_cases
-                ],
-                f,
-                indent=2,
+        # Check if k5_10 or other cache files exist to bootstrap
+        for seed_path in out_dir.glob(f"cached_test_cases_k{top_k}_*.json"):
+            try:
+                with open(seed_path, "r", encoding="utf-8") as f:
+                    for item in json.load(f):
+                        cached_map[item["input"].strip()] = item
+            except Exception:
+                pass
+
+    test_cases: List[LLMTestCase] = []
+    newly_generated = 0
+
+    for idx, g in enumerate(goldens, start=1):
+        q = g["query"].strip()
+        if q in cached_map:
+            cached_item = cached_map[q]
+            test_cases.append(
+                LLMTestCase(
+                    input=cached_item["input"],
+                    actual_output=cached_item["actual_output"],
+                    expected_output=cached_item.get("expected_output"),
+                    retrieval_context=cached_item.get("retrieval_context", []),
+                )
             )
-        logger.info("Cached %d generated test cases to %s", len(test_cases), cache_file)
+            logger.info("[CACHE HIT] Golden %d/%d (ID: %s) loaded from cache.", idx, len(goldens), g.get("id"))
+        else:
+            logger.info("[CACHE MISS] Generating Golden %d/%d (ID: %s)...", idx, len(goldens), g.get("id"))
+            tc = run_rag_test_case(
+                golden_item=g,
+                top_k=top_k,
+                category=None,
+                temperature=temperature,
+            )
+            test_cases.append(tc)
+            cached_map[q] = {
+                "input": tc.input,
+                "actual_output": tc.actual_output,
+                "expected_output": tc.expected_output,
+                "retrieval_context": tc.retrieval_context,
+            }
+            newly_generated += 1
+            # Save incrementally after every generation
+            with open(master_cache_file, "w", encoding="utf-8") as f:
+                json.dump(list(cached_map.values()), f, indent=2)
+
+    logger.info("Total test cases ready: %d (Cached: %d, Newly generated: %d)", len(test_cases), len(test_cases) - newly_generated, newly_generated)
 
     # 2. Build DeepEval metrics with the configured judge
     is_local = (judge_mode == "local")
