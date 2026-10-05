@@ -6,7 +6,7 @@ class ChatRequest(BaseModel):
     query: str = Field(..., examples=["What is the role of sampling z_t in conditional diffusion distillation?"])
     top_k: int = Field(5, ge=1, le=20)
     category: Optional[str] = Field(None)
-    temperature: float = Field(0.7, ge=0.0, le=1.0)
+    temperature: float = Field(0.1, ge=0.0, le=1.0)
 
 
 class ChatResponse(BaseModel):

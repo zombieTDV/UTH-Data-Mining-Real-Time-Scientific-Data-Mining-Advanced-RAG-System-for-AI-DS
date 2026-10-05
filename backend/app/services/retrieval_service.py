@@ -103,6 +103,58 @@ class RetrievalService:
                         expanded.append(c)
         return expanded[:3]
 
+    def _compute_lexical_score(self, query: str, text: str, title: Optional[str] = None, section: Optional[str] = None) -> float:
+        """In-memory lexical scoring focusing on exact scientific acronyms, identifiers, and keyword matches."""
+        if not text:
+            return 0.0
+
+        q_lower = query.lower()
+        t_lower = text.lower()
+        title_lower = (title or "").lower()
+        sec_lower = (section or "").lower()
+
+        score = 0.0
+
+        # 1. Exact phrase match bonus
+        if len(q_lower) > 5 and q_lower in t_lower:
+            score += 5.0
+        if title_lower and len(q_lower) > 5 and q_lower in title_lower:
+            score += 8.0
+
+        # 2. Extract technical terms and acronyms (e.g. DPO, LoRA, RoPE, GQA, r=16)
+        words = re.findall(r"\b[A-Za-z0-9_-]{2,}\b", query)
+        stopwords = {"what", "is", "the", "of", "in", "and", "for", "to", "a", "an", "how", "does", "by", "with", "on", "from"}
+        meaningful_terms = [w for w in words if w.lower() not in stopwords]
+
+        if not meaningful_terms:
+            return 0.0
+
+        matched_terms = 0
+        for term in meaningful_terms:
+            t_term_lower = term.lower()
+            is_acronym = term.isupper() and len(term) >= 2
+
+            # Check in body text
+            if t_term_lower in t_lower:
+                matched_terms += 1
+                score += 3.0 if is_acronym else 1.0
+
+            # Check in title (2x bonus)
+            if title_lower and t_term_lower in title_lower:
+                score += 4.0 if is_acronym else 2.0
+
+            # Check in section title
+            if sec_lower and t_term_lower in sec_lower:
+                score += 1.5
+
+        # Term coverage ratio
+        coverage = matched_terms / len(meaningful_terms)
+        score += coverage * 3.0
+
+        # Normalize score into bounded range [0.0, 1.0]
+        norm_lexical = min(1.0, score / max(1.0, len(meaningful_terms) * 5.0))
+        return norm_lexical
+
     def _init_db(self):
         try:
             logger.info("[RETRIEVAL] Connecting to LanceDB at: %s", settings.LANCEDB_URI)
@@ -135,7 +187,7 @@ class RetrievalService:
             mode = (req.mode or "vector").lower()
             rule_expansions = self._expand_rules(req.query, req.category)
 
-            # Retrieve candidate pool for authority reranking
+            # Retrieve candidate pool for authority reranking and fusion
             candidate_limit = max(k * 2, 10)
 
             # Execute search on LanceDB
@@ -195,7 +247,36 @@ class RetrievalService:
                     )
                 )
 
-            # Re-rank candidates by boosted score and slice to top-k
+            # Apply Reciprocal Rank Fusion (RRF) when mode is 'hybrid'
+            if mode == "hybrid" and candidates:
+                # Rank indices by dense score
+                dense_ranked = sorted(range(len(candidates)), key=lambda i: candidates[i].score or 0.0, reverse=True)
+                dense_rank_map = {idx: rank + 1 for rank, idx in enumerate(dense_ranked)}
+
+                # Rank indices by lexical matching score
+                lexical_scores = [
+                    self._compute_lexical_score(req.query, c.text, c.title, c.section_title)
+                    for c in candidates
+                ]
+                lexical_ranked = sorted(range(len(candidates)), key=lambda i: lexical_scores[i], reverse=True)
+                lexical_rank_map = {idx: rank + 1 for rank, idx in enumerate(lexical_ranked)}
+
+                # Combine via RRF (k=60)
+                for i, c in enumerate(candidates):
+                    r_dense = dense_rank_map[i]
+                    r_lex = lexical_rank_map[i]
+                    rrf_score = (1.0 / (60.0 + r_dense)) + (1.0 / (60.0 + r_lex))
+
+                    # Scale RRF score into [0.70, 0.95] range
+                    max_rrf = 2.0 / 61.0
+                    scaled_rrf = 0.70 + (rrf_score / max_rrf) * 0.25
+
+                    # Re-apply normalized PageRank boost
+                    norm_pr = c.authority_score or 0.0
+                    fused_boosted = scaled_rrf * (1.0 + 0.25 * norm_pr) if norm_pr > 0 else scaled_rrf
+                    c.score = round(fused_boosted, 4)
+
+            # Re-rank candidates by final score and slice to top-k
             candidates.sort(key=lambda c: c.score or 0.0, reverse=True)
             return candidates[:k]
         except Exception as e:

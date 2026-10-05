@@ -8,9 +8,11 @@ Integrates LanceDB Gold Lakehouse retrieval with local/remote LLM inference.
 import time
 import logging
 from typing import AsyncIterator, List, Tuple
+from backend.app.core.config import settings
 from backend.app.schemas.chat import ChatRequest, ChatResponse
 from backend.app.schemas.search import ChunkDto, SearchRequest
 from backend.app.services.retrieval_service import retrieval_service
+from backend.app.services.reranker_service import reranker_service
 from backend.app.services.llm_client import llm_client
 
 logger = logging.getLogger("rag_service")
@@ -18,17 +20,25 @@ logger = logging.getLogger("rag_service")
 
 class RagService:
     def _build_prompt_and_context(self, req: ChatRequest) -> Tuple[List[dict], List[ChunkDto], List[str]]:
-        """Retrieves chunks from LanceDB and constructs grounded academic prompts."""
-        # 1. Retrieve top-k chunks from LanceDB
+        """Retrieves candidates from LanceDB, reranks with cross-encoder, and constructs strictly grounded academic prompts."""
+        # 1. Retrieve wider candidate pool from LanceDB (Hybrid mode)
+        candidate_k = settings.RERANKER_CANDIDATE_K if settings.RERANKER_ENABLED else (req.top_k or 5)
         search_req = SearchRequest(
             query=req.query,
-            top_k=req.top_k or 5,
+            top_k=candidate_k,
             category=req.category,
-            mode="vector",
+            mode="hybrid",
         )
-        chunks = retrieval_service.search(search_req)
+        candidates = retrieval_service.search(search_req)
 
-        # 2. Extract citations and format context
+        # 2. Cross-Encoder reranking (bge-reranker-base)
+        if settings.RERANKER_ENABLED and candidates:
+            final_k = req.top_k or settings.RERANKER_TOP_K
+            chunks = reranker_service.rerank(req.query, candidates, top_k=final_k)
+        else:
+            chunks = candidates[: (req.top_k or 5)]
+
+        # 3. Extract citations and format context
         citations: List[str] = []
         context_parts: List[str] = []
 
@@ -43,7 +53,7 @@ class RagService:
                 f"{c.text}\n"
             )
 
-        # 3. Check for graph authority nodes and rule expansions
+        # 4. Check for graph authority nodes and rule expansions
         top_auth_chunk = next((c for c in chunks if c.authority_score and c.authority_author), None)
         authority_note = ""
         if top_auth_chunk:
@@ -53,16 +63,16 @@ class RagService:
                 "Highlight this authoritative foundation when synthesizing comparative insights."
             )
 
-        # 4. Construct System and User messages
+        # 5. Construct System and User messages with strict negative constraints
         system_prompt = (
-            "You are an expert scientific researcher and academic AI assistant specializing in Machine Learning and Computer Science.\n"
-            "Your task is to answer the user question accurately, thoroughly, and comprehensively based strictly on the retrieved scientific literature below.\n\n"
-            "Rules:\n"
-            "1. Ground your answer in the provided paper excerpts.\n"
-            "2. Always cite specific papers using [Paper: {paper_id}] when discussing methods, formulas, or results.\n"
-            "3. If multiple papers discuss related concepts, synthesize and compare their approaches.\n"
-            "4. If the retrieved literature does not contain sufficient details to address the question, clearly state the limitation.\n"
-            f"5. Maintain an objective, formal academic tone.{authority_note}"
+            "You are a strictly grounded scientific research assistant specializing in Machine Learning and Computer Science.\n"
+            "Your mission is to provide rigorous, truthful, and accurate technical answers based EXCLUSIVELY on the retrieved scientific literature excerpts below.\n\n"
+            "CRITICAL OPERATIONAL RULES:\n"
+            "1. STRICT FACTUAL GROUNDING: Rely SOLELY and EXCLUSIVELY on facts explicitly stated in the provided paper excerpts. DO NOT extrapolate, assume, or utilize pre-trained parametric memory for empirical values, hyperparameter settings, author claims, or ablation results.\n"
+            "2. MISSING INFORMATION PROTOCOL: If the provided excerpts do not explicitly contain the necessary information to address any part of the user's question, you MUST explicitly state: \"The provided literature does not contain sufficient details regarding [specific aspect].\" NEVER invent, approximate, or extrapolate missing facts.\n"
+            "3. MANDATORY CITATIONS: Every substantive technical claim, architectural detail, and performance metric must cite the exact paper using `[Paper: {paper_id}]`.\n"
+            "4. DIRECT & CONCISE: Answer directly, concisely, and formally without introductory conversational pleasantries, filler, or unrequested tangential background.\n"
+            f"5. OBJECTIVE SYNTHESIS: When multiple papers discuss related concepts, compare their approaches objectively.{authority_note}"
         )
 
         context_text = "\n".join(context_parts)
