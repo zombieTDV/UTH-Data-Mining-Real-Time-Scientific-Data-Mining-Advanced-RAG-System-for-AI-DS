@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#0F172A"/>
+
+    <g id="kicker" data-pptx-bounds="80 55 1120 40">
+        <rect x="80" y="55" width="460" height="32" rx="6" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+        <text x="96" y="76" font-size="12" font-weight="700" fill="#0EA5E9">TRƯỜNG ĐH GIAO THÔNG VẬN TẢI TP.HCM (UTH)</text>
+        <text x="560" y="76" font-size="12" font-weight="700" fill="#64748B">•  KHOA CÔNG NGHỆ THÔNG TIN</text>
+    </g>
+
+    <g id="title-block" data-pptx-bounds="80 135 1120 145">
+        <text x="80" y="165" font-size="32" font-weight="700" fill="#F8FAFC">Khai Thác Dữ Liệu Nghiên Cứu Khoa Học</text>
+        <text x="80" y="210" font-size="32" font-weight="700" fill="#F8FAFC">Thời Gian Thực &amp; Hệ Thống Grounded RAG</text>
+        <text x="80" y="250" font-size="16" fill="#64748B">Xây dựng nền tảng Medallion Lakehouse, 4 Trụ cột Khai phá &amp; Trợ lý AI có bảo chứng tri thức</text>
+    </g>
+
+    <g id="card-instructor" data-pptx-bounds="80 310 350 240">
+        <rect x="80" y="310" width="350" height="240" rx="12" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+        <text x="110" y="350" font-size="11" font-weight="700" fill="#0EA5E9">GIẢNG VIÊN HƯỚNG DẪN</text>
+        <text x="110" y="395" font-size="24" font-weight="700" fill="#F8FAFC">TS. Trần Thế Vinh</text>
+        <text x="110" y="435" font-size="13" fill="#64748B">Bộ môn Khoa học Dữ liệu &amp; AI</text>
+        <text x="110" y="465" font-size="12" fill="#64748B">Học phần: Khai phá Dữ liệu (Data Mining)</text>
+        <rect x="110" y="495" width="130" height="24" rx="4" fill="#0369A1"/>
+        <text x="120" y="511" font-size="11" font-weight="700" fill="#FFFFFF">KHOA CNTT - UTH</text>
+    </g>
+
+    <g id="card-student" data-pptx-bounds="465 310 350 240">
+        <rect x="465" y="310" width="350" height="240" rx="12" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+        <text x="495" y="350" font-size="11" font-weight="700" fill="#10B981">SINH VIÊN BẢO VỆ ĐỒ ÁN</text>
+        <text x="495" y="395" font-size="22" font-weight="700" fill="#F8FAFC">Nhóm Nghiên Cứu</text>
+        <text x="495" y="435" font-size="13" fill="#64748B">Chuyên ngành: Khoa học Dữ liệu &amp; AI</text>
+        <text x="495" y="465" font-size="12" fill="#64748B">Báo cáo Đồ án Cuối kỳ &amp; Thuyết trình</text>
+        <rect x="495" y="495" width="140" height="24" rx="4" fill="#047857"/>
+        <text x="505" y="511" font-size="11" font-weight="700" fill="#FFFFFF">ACADEMIC YEAR 2026</text>
+    </g>
+
+    <g id="card-scale" data-pptx-bounds="850 310 350 240">
+        <rect x="850" y="310" width="350" height="240" rx="12" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+        <text x="880" y="350" font-size="11" font-weight="700" fill="#F97316">QUY MÔ DỮ LIỆU &amp; CÔNG NGHỆ</text>
+        <text x="880" y="395" font-size="22" font-weight="700" fill="#F8FAFC">13,000+ Papers</text>
+        <text x="880" y="435" font-size="13" fill="#64748B">143,523 Vectors • 2.76M Công thức</text>
+        <text x="880" y="465" font-size="12" fill="#64748B">DuckDB • LanceDB • Qwen2.5-7B Metal</text>
+        <rect x="880" y="495" width="120" height="24" rx="4" fill="#C2410C"/>
+        <text x="890" y="511" font-size="11" font-weight="700" fill="#FFFFFF">100% REAL DATA</text>
+    </g>
+
+    <g id="cover-footer" data-pptx-bounds="80 630 1120 40">
+        <text x="80" y="655" font-size="11" fill="#64748B">Báo cáo Nghiệm thu Đề tài Khai phá Dữ liệu Khoa học • Thành phố Hồ Chí Minh, 2026</text>
+    </g>
+
+</svg>

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#F8FAFC"/>
+
+    <g id="header" data-pptx-bounds="80 50 1120 70">
+        <text x="80" y="65" font-size="12" font-weight="700" fill="#2563EB">3. KỸ THUẬT TIỀN XỬ LÝ</text>
+        <text x="80" y="98" font-size="26" font-weight="700" fill="#0F172A">Quy Trình Thu Thập, Trích Xuất Công Thức &amp; Chuẩn Hóa</text>
+    </g>
+
+    <g id="ingestion-box" data-pptx-bounds="80 140 530 510">
+        <rect x="80" y="140" width="530" height="510" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="110" y="185" font-size="18" font-weight="700" fill="#2563EB">1. Pipeline Thu Thập Đa Nguồn</text>
+        
+        <rect x="110" y="215" width="470" height="60" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="130" y="238" font-size="12" font-weight="700" fill="#0F172A">arXiv OAI-PMH API</text>
+        <text x="130" y="255" font-size="11.5" font-weight="normal" fill="#64748B">Lấy metadata chính thống, tiêu đề, tác giả, phân loại</text>
+        <text x="130" y="275" font-size="11.5" font-weight="normal" fill="#64748B">chuyên mục và abstract.</text>
+
+        <rect x="110" y="290" width="470" height="60" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="130" y="313" font-size="12" font-weight="700" fill="#0F172A">ar5iv Full-Text HTML Harvester</text>
+        <text x="130" y="330" font-size="11.5" font-weight="normal" fill="#64748B">Tải 9,022 bài báo HTML đầy đủ, bảo toàn cấu trúc phân</text>
+        <text x="130" y="350" font-size="11.5" font-weight="normal" fill="#64748B">đoạn và thẻ công thức.</text>
+
+        <rect x="110" y="365" width="470" height="60" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="130" y="388" font-size="12" font-weight="700" fill="#0F172A">OpenAlex Semantic Cross-Check</text>
+        <text x="130" y="405" font-size="11.5" font-weight="normal" fill="#64748B">Bổ sung chỉ số trích dẫn toàn cầu, tổ chức công tác</text>
+        <text x="130" y="425" font-size="11.5" font-weight="normal" fill="#64748B">(institutions) và số lượt trích dẫn.</text>
+
+        <rect x="110" y="440" width="470" height="60" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="130" y="463" font-size="12" font-weight="700" fill="#0F172A">Cloudflare R2 Object Storage</text>
+        <text x="130" y="480" font-size="11.5" font-weight="normal" fill="#64748B">Kho lưu trữ bất biến (Bronze Vault) với 0đ chi phí</text>
+        <text x="130" y="500" font-size="11.5" font-weight="normal" fill="#64748B">băng thông tải ra.</text>
+    </g>
+
+    <g id="silver-box" data-pptx-bounds="670 140 530 510">
+        <rect x="670" y="140" width="530" height="510" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="700" y="185" font-size="18" font-weight="700" fill="#10B981">2. Chuẩn Hóa Silver &amp; Trích Xuất Toán Học</text>
+
+        <rect x="700" y="215" width="470" height="70" rx="8" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1"/>
+        <text x="720" y="240" font-size="13" font-weight="700" fill="#065F46">Bóc tách 2,760,000 Công thức Toán học</text>
+        <text x="720" y="260" font-size="11.5" font-weight="normal" fill="#64748B">Phân tích khối $...$ và $$...$$ sang chuỗi chuẩn LaTeX</text>
+        <text x="720" y="280" font-size="11.5" font-weight="normal" fill="#64748B">&amp; MathML, hỗ trợ hiển thị trực quan KaTeX trên Web</text>
+        <text x="720" y="300" font-size="11.5" font-weight="normal" fill="#64748B">Dashboard.</text>
+
+        <rect x="700" y="300" width="470" height="70" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="720" y="325" font-size="12" font-weight="700" fill="#0F172A">Trích xuất 441,445 Liên kết Trích dẫn</text>
+        <text x="720" y="345" font-size="11.5" font-weight="normal" fill="#64748B">Phân tích toàn bộ mục References, bóc tách 86,295 liên</text>
+        <text x="720" y="365" font-size="11.5" font-weight="normal" fill="#64748B">kết nội bộ phục vụ xây dựng mạng đồ thị tri thức.</text>
+
+        <rect x="700" y="385" width="470" height="70" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="720" y="410" font-size="12" font-weight="700" fill="#0F172A">Tối ưu Hóa Lưu Trữ Dạng Cột (Parquet)</text>
+        <text x="720" y="430" font-size="11.5" font-weight="normal" fill="#64748B">Nén theo cột với Snappy/ZSTD, tiết kiệm 70% dung lượng</text>
+        <text x="720" y="450" font-size="11.5" font-weight="normal" fill="#64748B">đĩa và hỗ trợ Predicate Pushdown trong DuckDB.</text>
+
+        <rect x="700" y="470" width="470" height="70" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="720" y="495" font-size="12" font-weight="700" fill="#0F172A">Kiểm Tra Toàn Vẹn &amp; Tái Lập (Reproducibility)</text>
+        <text x="720" y="515" font-size="11.5" font-weight="normal" fill="#64748B">Mọi bước biến đổi dữ liệu đều có metadata logging và</text>
+        <text x="720" y="535" font-size="11.5" font-weight="normal" fill="#64748B">audit trail theo đúng quy chuẩn quản trị dữ liệu khoa</text>
+        <text x="720" y="555" font-size="11.5" font-weight="normal" fill="#64748B">học.</text>
+    </g>
+
+</svg>

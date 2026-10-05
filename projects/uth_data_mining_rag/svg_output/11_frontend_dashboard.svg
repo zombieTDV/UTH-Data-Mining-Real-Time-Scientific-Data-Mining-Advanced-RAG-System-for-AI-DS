@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#F8FAFC"/>
+
+    <g id="header" data-pptx-bounds="80 50 1120 70">
+        <text x="80" y="65" font-size="12" font-weight="700" fill="#2563EB">7. GIAO DIỆN &amp; TRẢI NGHIỆM NGƯỜI DÙNG</text>
+        <text x="80" y="98" font-size="26" font-weight="700" fill="#0F172A">Giao Diện Dashboard Tương Tác &amp; Trực Quan Hóa Học Thuật</text>
+    </g>
+
+    <g id="ui-1" data-pptx-bounds="80 140 530 235">
+        <rect x="80" y="140" width="530" height="235" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="110" y="180" font-size="16" font-weight="700" fill="#2563EB">1. Interactive Workflow Canvas</text>
+        <text x="110" y="210" font-size="12" fill="#64748B">• Trực quan hóa toàn bộ đường ống ELT từ Bronze đến Gold.</text>
+        <text x="110" y="235" font-size="12" fill="#64748B">• Nút chạy kiểm thử trực tiếp: DuckDB In-Memory scan, LanceDB ANN search.</text>
+        <text x="110" y="260" font-size="12" fill="#64748B">• Terminal Audit Logs tích hợp ngay trên màn hình.</text>
+        <text x="110" y="285" font-size="12" fill="#64748B">• Biểu tượng chuẩn SVG vector học thuật, sắc nét và chuyên nghiệp.</text>
+    </g>
+
+    <g id="ui-2" data-pptx-bounds="670 140 530 235">
+        <rect x="670" y="140" width="530" height="235" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="700" y="180" font-size="16" font-weight="700" fill="#10B981">2. Scientific Math &amp; KaTeX</text>
+        <text x="700" y="210" font-size="12" fill="#64748B">• Hiển thị công thức toán học phân giải cao với KaTeX.</text>
+        <text x="700" y="235" font-size="12" fill="#64748B">• Hỗ trợ sao chép mã nguồn LaTeX công thức chỉ với 1 cú click.</text>
+        <text x="700" y="260" font-size="12" fill="#64748B">• Xuất trích dẫn học thuật chuẩn BibTeX cho mọi bài báo.</text>
+        <text x="700" y="285" font-size="12" fill="#64748B">• Chế độ Theater Mode phóng to toàn màn hình cho biểu đồ phức tạp.</text>
+    </g>
+
+    <g id="ui-3" data-pptx-bounds="80 395 530 235">
+        <rect x="80" y="395" width="530" height="235" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="110" y="435" font-size="16" font-weight="700" fill="#F97316">3. Bảng Phân Tích 4 Trụ Cột Khai Phá</text>
+        <text x="110" y="465" font-size="12" fill="#64748B">• Scatter Plot 2D tương tác phân bố cụm KMeans và ranh giới DBSCAN.</text>
+        <text x="110" y="490" font-size="12" fill="#64748B">• Đồ thị mạng lưới đồng tác giả hỗ trợ bố cục Lực hút và Vòng tròn.</text>
+        <text x="110" y="515" font-size="12" fill="#64748B">• Ma trận quy tắc vàng FP-Growth với bộ lọc Support, Confidence, Lift.</text>
+        <text x="110" y="540" font-size="12" fill="#64748B">• Biểu đồ phân tích dị biệt Isolation Forest và phân loại xu hướng.</text>
+    </g>
+
+    <g id="ui-4" data-pptx-bounds="670 395 530 235">
+        <rect x="670" y="395" width="530" height="235" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="700" y="435" font-size="16" font-weight="700" fill="#0EA5E9">4. Trợ Lý RAG Thông Minh &amp; Dossier Drawer</text>
+        <text x="700" y="465" font-size="12" fill="#64748B">• Chatbot hỏi đáp ngữ cảnh tức thì với SSE token streaming.</text>
+        <text x="700" y="490" font-size="12" fill="#64748B">• Hiệu ứng phản hồi tinh gọn 1 dòng (Single-line reasoning status).</text>
+        <text x="700" y="515" font-size="12" fill="#64748B">• Bảng đo lường vi mô (Telemetry): Điểm tương đồng, độ trễ, số chunk.</text>
+        <text x="700" y="540" font-size="12" fill="#64748B">• Hỗ trợ Dark Mode và Light Mode chuyển đổi mượt mà.</text>
+    </g>
+
+</svg>

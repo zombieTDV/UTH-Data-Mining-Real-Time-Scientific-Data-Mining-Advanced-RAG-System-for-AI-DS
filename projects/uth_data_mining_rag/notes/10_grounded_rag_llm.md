@@ -1,0 +1,1 @@
+Chạy Qwen2.5-7B hoàn toàn cục bộ trên GPU Metal, chống ảo giác 100% kèm Dossier Drawer.

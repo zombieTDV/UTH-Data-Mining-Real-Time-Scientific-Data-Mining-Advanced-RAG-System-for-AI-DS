@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#F8FAFC"/>
+
+    <g id="header" data-pptx-bounds="80 50 1120 70">
+        <text x="80" y="65" font-size="12" font-weight="700" fill="#2563EB">6. GENERATIVE AI &amp; BẢO CHỨNG TRI THỨC</text>
+        <text x="80" y="98" font-size="26" font-weight="700" fill="#0F172A">Hệ Thống Grounded RAG: Qwen2.5-7B trên Apple Metal GPU</text>
+    </g>
+
+    <g id="flow-steps" data-pptx-bounds="80 140 1120 95">
+        <rect x="80" y="140" width="260" height="95" rx="8" fill="#1E293B"/>
+        <text x="96" y="168" font-size="13" font-weight="700" fill="#0EA5E9">1. User Query</text>
+        <text x="96" y="192" font-size="11" fill="#F8FAFC">Tiếp nhận câu hỏi học thuật</text>
+        <text x="96" y="210" font-size="11" fill="#64748B">từ giao diện người dùng.</text>
+
+        <rect x="365" y="140" width="260" height="95" rx="8" fill="#1E293B"/>
+        <text x="381" y="168" font-size="13" font-weight="700" fill="#10B981">2. LanceDB ANN Retrieval</text>
+        <text x="381" y="192" font-size="11" fill="#F8FAFC">Truy xuất top 5 chunk liên quan</text>
+        <text x="381" y="210" font-size="11" fill="#64748B">kèm metadata &amp; công thức LaTeX.</text>
+
+        <rect x="650" y="140" width="260" height="95" rx="8" fill="#1E293B"/>
+        <text x="666" y="168" font-size="13" font-weight="700" fill="#F97316">3. Context Assembly</text>
+        <text x="666" y="192" font-size="11" fill="#F8FAFC">Ghép ngữ cảnh với prompt</text>
+        <text x="666" y="210" font-size="11" fill="#64748B">quy định chống ảo giác nghiêm ngặt.</text>
+
+        <rect x="935" y="140" width="265" height="95" rx="8" fill="#1E293B"/>
+        <text x="951" y="168" font-size="13" font-weight="700" fill="#0EA5E9">4. Qwen2.5-7B Metal</text>
+        <text x="951" y="192" font-size="11" fill="#F8FAFC">Sinh câu trả lời có trích dẫn</text>
+        <text x="951" y="210" font-size="11" fill="#64748B">[Paper: ID, Section: Title].</text>
+    </g>
+
+    <g id="left-llm" data-pptx-bounds="80 260 530 390">
+        <rect x="80" y="260" width="530" height="390" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="110" y="300" font-size="17" font-weight="700" fill="#2563EB">Cấu Hình Mô Hình &amp; Tối Ưu Hóa Metal GPU</text>
+        <text x="110" y="340" font-size="13" font-weight="700" fill="#0F172A">• Qwen2.5-7B-Instruct (GGUF Q4_K_M):</text>
+        <text x="125" y="362" font-size="11.5" font-weight="normal" fill="#64748B">Mô hình SOTA mã nguồn mở hàng đầu về khả năng hiểu tài</text>
+        <text x="125" y="382" font-size="11.5" font-weight="normal" fill="#64748B">liệu kỹ thuật và lập luận toán học trong phân khúc 7B</text>
+        <text x="125" y="402" font-size="11.5" font-weight="normal" fill="#64748B">tham số.</text>
+        <text x="110" y="415" font-size="13" font-weight="700" fill="#0F172A">• Offload 33/33 Layers lên GPU Metal (MPS):</text>
+        <text x="125" y="435" font-size="11.5" font-weight="normal" fill="#64748B">Chạy trực tiếp trên Apple Silicon, mở rộng context lên</text>
+        <text x="125" y="455" font-size="11.5" font-weight="normal" fill="#64748B">8,192 tokens, đạt tốc độ sinh văn bản ~38 tokens/giây</text>
+        <text x="125" y="475" font-size="11.5" font-weight="normal" fill="#64748B">mà không tốn phí API đám mây.</text>
+        <text x="110" y="490" font-size="13" font-weight="700" fill="#0F172A">• Warmup ngay khi khởi động Server:</text>
+        <text x="125" y="510" font-size="11.5" font-weight="normal" fill="#64748B">Nạp sẵn trọng số vào VRAM ngay khi bật FastAPI, triệt</text>
+        <text x="125" y="530" font-size="11.5" font-weight="normal" fill="#64748B">tiêu độ trễ chờ đợi (cold-start) trong lần truy vấn đầu</text>
+        <text x="125" y="550" font-size="11.5" font-weight="normal" fill="#64748B">tiên.</text>
+    </g>
+
+    <g id="right-grounding" data-pptx-bounds="670 260 530 390">
+        <rect x="670" y="260" width="530" height="390" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="700" y="300" font-size="17" font-weight="700" fill="#10B981">Bảo Chứng Trích Dẫn &amp; Dossier Drawer</text>
+        <text x="700" y="340" font-size="13" font-weight="700" fill="#0F172A">• Cơ chế Strict Grounding:</text>
+        <text x="715" y="362" font-size="11.5" font-weight="normal" fill="#64748B">Mô hình bị ràng buộc chặt chẽ, chỉ được phép trả lời</text>
+        <text x="715" y="382" font-size="11.5" font-weight="normal" fill="#64748B">dựa trên các đoạn văn bản trích xuất từ Lakehouse, loại</text>
+        <text x="715" y="402" font-size="11.5" font-weight="normal" fill="#64748B">bỏ hoàn toàn hiện tượng ảo giác.</text>
+        <rect x="700" y="415" width="470" height="70" rx="8" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1"/>
+        <text x="716" y="441" font-size="13" font-weight="700" fill="#065F46">Tương tác Dossier Drawer (Ngăn kéo Bài báo)</text>
+        <text x="716" y="463" font-size="11.5" font-weight="normal" fill="#64748B">Khi người dùng click vào trích dẫn trên Web, ngăn kéo</text>
+        <text x="716" y="483" font-size="11.5" font-weight="normal" fill="#64748B">trượt ra hiển thị toàn văn abstract, tác giả, chuyên</text>
+        <text x="716" y="503" font-size="11.5" font-weight="normal" fill="#64748B">mục và liên kết gốc.</text>
+        <text x="700" y="515" font-size="13" font-weight="700" fill="#0F172A">• Trải nghiệm phản hồi tinh gọn (Single-Line Status):</text>
+        <text x="715" y="537" font-size="11.5" font-weight="normal" fill="#64748B">Hiển thị 3 chấm nhảy kèm trạng thái đơn dòng tinh tế</text>
+        <text x="715" y="557" font-size="11.5" font-weight="normal" fill="#64748B">trước khi stream từng token câu trả lời về màn hình</text>
+        <text x="715" y="577" font-size="11.5" font-weight="normal" fill="#64748B">người dùng.</text>
+    </g>
+
+</svg>

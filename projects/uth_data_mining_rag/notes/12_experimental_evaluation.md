@@ -1,0 +1,1 @@
+Số liệu thực tế 100%: DuckDB 18ms, LanceDB 15ms, Qwen2.5-7B 38 tok/s, 100% trích dẫn thật.

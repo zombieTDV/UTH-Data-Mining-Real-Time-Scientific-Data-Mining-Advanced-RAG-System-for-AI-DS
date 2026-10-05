@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#F8FAFC"/>
+
+    <g id="header" data-pptx-bounds="80 50 1120 70">
+        <text x="80" y="65" font-size="12" font-weight="700" fill="#2563EB">4. CÁC TRỤ CỘT KHAI PHÁ DỮ LIỆU</text>
+        <text x="80" y="98" font-size="26" font-weight="700" fill="#0F172A">Trụ Cột 1: Khai Phá Tập Phổ Biến &amp; Luật Kết Hợp (FP-Growth)</text>
+    </g>
+
+    <g id="left-specs" data-pptx-bounds="80 140 530 510">
+        <rect x="80" y="140" width="530" height="510" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="110" y="185" font-size="18" font-weight="700" fill="#2563EB">Mô Hình Giao Dịch &amp; Thuật Toán FP-Growth</text>
+        <text x="110" y="225" font-size="13" font-weight="700" fill="#0F172A">• Không gian giao dịch (11,404 Transactions):</text>
+        <text x="125" y="245" font-size="11.5" font-weight="normal" fill="#64748B">Mỗi bài báo = Chuyên mục arXiv (cs.CV, cs.CL,</text>
+        <text x="125" y="265" font-size="11.5" font-weight="normal" fill="#64748B">cs.AI...) + 25 khái niệm kỹ thuật cốt lõi. Đạt 87.7% độ</text>
+        <text x="125" y="285" font-size="11.5" font-weight="normal" fill="#64748B">phủ toàn bộ kho dữ liệu.</text>
+        <text x="110" y="300" font-size="13" font-weight="700" fill="#0F172A">• Tại sao chọn FP-Growth thay vì Apriori?</text>
+        <text x="125" y="320" font-size="11.5" font-weight="normal" fill="#64748B">Thuật toán FP-Growth nén dữ liệu vào cây FP-Tree và</text>
+        <text x="125" y="340" font-size="11.5" font-weight="normal" fill="#64748B">chỉ quét cơ sở dữ liệu đúng 2 lần, triệt tiêu bài toán</text>
+        <text x="125" y="360" font-size="11.5" font-weight="normal" fill="#64748B">bùng nổ tổ hợp ứng viên O(2^k).</text>
+        <text x="110" y="375" font-size="13" font-weight="700" fill="#0F172A">• Ngưỡng lọc học thuật (Thresholds):</text>
+        <text x="125" y="395" font-size="11.5" font-weight="normal" fill="#64748B">Min Support = 0.015 (1.5%) • Min Confidence = 0.25</text>
+        <text x="125" y="415" font-size="11.5" font-weight="normal" fill="#64748B">(25%) • Min Lift = 1.25x (bảo đảm luật có ý nghĩa thống</text>
+        <text x="125" y="435" font-size="11.5" font-weight="normal" fill="#64748B">kê vượt trội).</text>
+        <text x="110" y="450" font-size="13" font-weight="700" fill="#0F172A">• Khử trùng lặp đối xứng (Symmetric Deduplication):</text>
+        <text x="125" y="470" font-size="11.5" font-weight="normal" fill="#64748B">Tự động lọc các cặp luật tương đương để giữ lại luật</text>
+        <text x="125" y="490" font-size="11.5" font-weight="normal" fill="#64748B">có ý nghĩa nguyên nhân - kết quả và giá trị định hướng</text>
+        <text x="125" y="510" font-size="11.5" font-weight="normal" fill="#64748B">cao nhất cho nhà nghiên cứu.</text>
+    </g>
+
+    <g id="right-rules" data-pptx-bounds="670 140 530 510">
+        <rect x="670" y="140" width="530" height="510" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="700" y="185" font-size="18" font-weight="700" fill="#F97316">Các Quy Tắc Vàng Khai Phá Được (Golden Rules)</text>
+
+        <rect x="700" y="215" width="470" height="85" rx="8" fill="#FFFBEB" stroke="#FDE68A" stroke-width="1"/>
+        <text x="716" y="241" font-size="14" font-weight="700" fill="#92400E">Diffusion Distillation  ➔  cs.CV</text>
+        <text x="716" y="263" font-size="11.5" font-weight="700" fill="#2563EB">Support: 3.8%  •  Confidence: 68.2%  •  Lift: 3.12x</text>
+        <text x="716" y="283" font-size="11" fill="#64748B">Kỹ thuật chưng cất mô hình khuếch tán gắn liền mật thiết với thị giác máy tính.</text>
+
+        <rect x="700" y="315" width="470" height="85" rx="8" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1"/>
+        <text x="716" y="341" font-size="14" font-weight="700" fill="#166534">LoRA &amp; Parameter-Efficient  ➔  cs.CL</text>
+        <text x="716" y="363" font-size="11.5" font-weight="700" fill="#2563EB">Support: 4.2%  •  Confidence: 61.5%  •  Lift: 2.85x</text>
+        <text x="716" y="383" font-size="11" fill="#64748B">Thích ứng tham số bậc thấp LoRA chiếm ưu thế áp đảo trong xử lý ngôn ngữ tự nhiên.</text>
+
+        <rect x="700" y="415" width="470" height="85" rx="8" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+        <text x="716" y="441" font-size="14" font-weight="700" fill="#1E40AF">Graph Neural Networks  ➔  cs.AI</text>
+        <text x="716" y="463" font-size="11.5" font-weight="700" fill="#2563EB">Support: 5.1%  •  Confidence: 54.3%  •  Lift: 2.41x</text>
+        <text x="716" y="483" font-size="11" fill="#64748B">Mạng nơ-ron đồ thị là cầu nối mạnh nhất giữa cấu trúc dữ liệu rời rạc và biểu diễn AI.</text>
+
+        <text x="700" y="535" font-size="11" fill="#64748B">* Lift &gt; 2.0x chứng minh quy tắc có ý nghĩa tương quan thực sự, không phải ngẫu nhiên.</text>
+    </g>
+
+</svg>

@@ -1,0 +1,1 @@
+Kiến trúc Medallion Lakehouse chuẩn công nghiệp: phân tách Compute (DuckDB) và Storage (Cloudflare R2, Parquet, LanceDB).

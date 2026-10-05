@@ -1,0 +1,1 @@
+143k vector 768-D trong LanceDB, tìm kiếm dưới 15ms, phân đoạn Hierarchical Chunking chuẩn.
