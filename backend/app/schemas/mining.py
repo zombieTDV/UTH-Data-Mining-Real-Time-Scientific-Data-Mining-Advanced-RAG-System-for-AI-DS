@@ -70,6 +70,8 @@ class ClusterProfileItem(BaseModel):
     percentage: float
     dominant_categories: List[Dict[str, Any]]
     sample_titles: List[str]
+    topic_label: Optional[str] = None
+    topic_subtitle: Optional[str] = None
 
 
 class ScatterPointItem(BaseModel):

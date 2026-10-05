@@ -43,7 +43,17 @@ class RagService:
                 f"{c.text}\n"
             )
 
-        # 3. Construct System and User messages
+        # 3. Check for graph authority nodes and rule expansions
+        top_auth_chunk = next((c for c in chunks if c.authority_score and c.authority_author), None)
+        authority_note = ""
+        if top_auth_chunk:
+            authority_note = (
+                f"\n6. Graph PageRank Authority: Paper [Paper: {top_auth_chunk.paper_id}] is authored by high-impact "
+                f"citation network influencer '{top_auth_chunk.authority_author}' (Normalized PageRank: {top_auth_chunk.authority_score:.2f}). "
+                "Highlight this authoritative foundation when synthesizing comparative insights."
+            )
+
+        # 4. Construct System and User messages
         system_prompt = (
             "You are an expert scientific researcher and academic AI assistant specializing in Machine Learning and Computer Science.\n"
             "Your task is to answer the user question accurately, thoroughly, and comprehensively based strictly on the retrieved scientific literature below.\n\n"
@@ -52,7 +62,7 @@ class RagService:
             "2. Always cite specific papers using [Paper: {paper_id}] when discussing methods, formulas, or results.\n"
             "3. If multiple papers discuss related concepts, synthesize and compare their approaches.\n"
             "4. If the retrieved literature does not contain sufficient details to address the question, clearly state the limitation.\n"
-            "5. Maintain an objective, formal academic tone."
+            f"5. Maintain an objective, formal academic tone.{authority_note}"
         )
 
         context_text = "\n".join(context_parts)
@@ -106,6 +116,7 @@ class RagService:
 
         elapsed = round(time.time() - t0, 2)
         top_score = f"{chunks[0].score:.4f}" if chunks[0].score else "0.8500"
+        top_auth = next((c for c in chunks if c.authority_author), None)
 
         return ChatResponse(
             query=req.query,
@@ -114,6 +125,9 @@ class RagService:
             similarity_score=top_score,
             generation_time=f"{elapsed}s",
             context_chunks_used=len(chunks),
+            authority_boosted=bool(top_auth),
+            top_influencer_author=top_auth.authority_author if top_auth else None,
+            rule_expansions=chunks[0].rule_expansions if (chunks and chunks[0].rule_expansions) else None,
         )
 
     async def answer_query_stream(self, req: ChatRequest) -> AsyncIterator[str]:

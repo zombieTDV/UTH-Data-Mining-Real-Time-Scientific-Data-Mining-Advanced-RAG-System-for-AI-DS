@@ -19,6 +19,9 @@ interface ChatMessage {
   context_chunks_used?: number;
   timestamp: string;
   isStreaming?: boolean;
+  authority_boosted?: boolean;
+  top_influencer_author?: string;
+  rule_expansions?: string[];
 }
 
 interface InspectedPaperData {
@@ -226,6 +229,9 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                         generation_time: res.generation_time ?? '0.01s',
                         context_chunks_used: res.context_chunks_used ?? 5,
                         isStreaming: false,
+                        authority_boosted: res.authority_boosted,
+                        top_influencer_author: res.top_influencer_author,
+                        rule_expansions: res.rule_expansions,
                       }
                     : m
                 )
@@ -269,6 +275,9 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           generation_time: res.generation_time ?? '0.01s',
           context_chunks_used: res.context_chunks_used ?? 5,
           timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          authority_boosted: res.authority_boosted,
+          top_influencer_author: res.top_influencer_author,
+          rule_expansions: res.rule_expansions,
         };
         setMessages((prev) => [...prev, assistantMsg]);
       } catch {
@@ -742,6 +751,50 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       <span>Latency: <strong style={{ color: isDark ? '#f59e0b' : '#d97706' }}>{msg.generation_time || '0.01s'}</strong></span>
                       <span>·</span>
                       <span>Context: {msg.context_chunks_used || 5} Chunks</span>
+
+                      {msg.authority_boosted && (
+                        <>
+                          <span>·</span>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              color: '#f59e0b',
+                              fontWeight: 700,
+                              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid rgba(245, 158, 11, 0.3)',
+                            }}
+                            title={`Tác giả bài báo nằm trong Top PageRank Citation Graph: ${msg.top_influencer_author || 'High-Impact Influencer'}`}
+                          >
+                            ★ Graph PageRank Boost {msg.top_influencer_author ? `(${msg.top_influencer_author.split('(')[0].trim()})` : ''}
+                          </span>
+                        </>
+                      )}
+
+                      {msg.rule_expansions && msg.rule_expansions.length > 0 && (
+                        <>
+                          <span>·</span>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              color: '#8b5cf6',
+                              fontWeight: 600,
+                              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : '#f3e8ff',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid rgba(139, 92, 246, 0.3)',
+                            }}
+                            title={`Mở rộng từ khóa dựa trên luật kết hợp FP-Growth: ${msg.rule_expansions.join(', ')}`}
+                          >
+                            ☍ Rules: {msg.rule_expansions.join(', ')}
+                          </span>
+                        </>
+                      )}
 
                       <button
                         type="button"

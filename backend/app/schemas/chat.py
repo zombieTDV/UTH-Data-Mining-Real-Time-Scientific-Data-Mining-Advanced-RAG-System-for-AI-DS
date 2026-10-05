@@ -16,3 +16,6 @@ class ChatResponse(BaseModel):
     similarity_score: str
     generation_time: str
     context_chunks_used: int
+    authority_boosted: Optional[bool] = None
+    top_influencer_author: Optional[str] = None
+    rule_expansions: Optional[List[str]] = None

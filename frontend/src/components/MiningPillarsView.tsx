@@ -22,34 +22,40 @@ export interface MiningPillarsViewProps {
 }
 
 // Decoded Semantic Topic Profiles for K-Means Clusters
-const CLUSTER_TOPIC_MAP: Record<number, { title: string; subtitle: string; domain: string }> = {
+const CLUSTER_TOPIC_MAP: Record<number, { title: string; shortTitle: string; subtitle: string; domain: string }> = {
   0: {
     title: 'Large Language Models & In-Context Reasoning',
+    shortTitle: 'LLM & Reasoning',
     subtitle: 'Mô hình ngôn ngữ lớn, chuỗi suy luận CoT và tối ưu hóa Prompt',
     domain: 'cs.CL, cs.AI',
   },
   1: {
     title: 'Diffusion Models & High-Resolution Image Synthesis',
+    shortTitle: 'Diffusion & GenAI',
     subtitle: 'Mô hình khuếch tán xác suất, tổng hợp ảnh và sinh ảnh điều kiện',
     domain: 'cs.CV',
   },
   2: {
     title: 'PAC-Bayes, SGLD Generalization & Optimization',
+    shortTitle: 'PAC-Bayes Theory',
     subtitle: 'Lý thuyết học máy thống kê, biên tổng quát hóa và hội tụ thuật toán',
     domain: 'stat.ML, cs.LG',
   },
   3: {
     title: 'Reinforcement Learning & Autonomous Robotics',
+    shortTitle: 'RL & Robotics',
     subtitle: 'Học tăng cường sâu, điều khiển robot tự hành và mô phỏng động lực',
     domain: 'cs.RO',
   },
   4: {
     title: 'Graph Neural Networks & Symbolic Knowledge Graphs',
+    shortTitle: 'GNN & Graphs',
     subtitle: 'Mạng nơ-ron đồ thị, biểu diễn tri thức và suy luận quan hệ',
     domain: 'cs.AI, cs.LG',
   },
   5: {
     title: 'Zero-Shot Vision-Language Multimodal Transformers',
+    shortTitle: 'Multimodal VL',
     subtitle: 'Căn chỉnh đa phương thức thị giác - ngôn ngữ, Contrastive Learning',
     domain: 'cs.CV, cs.CL',
   },
@@ -1962,41 +1968,60 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         type="button"
                         onClick={() => setSelectedClusterFilter('ALL')}
                         style={{
-                          padding: '2px 6px',
-                          borderRadius: '3px',
+                          padding: '3px 8px',
+                          borderRadius: '4px',
                           fontSize: '10px',
                           fontFamily: 'var(--font-mono)',
                           fontWeight: selectedClusterFilter === 'ALL' ? 800 : 600,
                           backgroundColor:
-                            selectedClusterFilter === 'ALL' ? '#0f172a' : themeStyles.tagBg,
-                          color: selectedClusterFilter === 'ALL' ? '#ffffff' : themeStyles.textSecondary,
+                            selectedClusterFilter === 'ALL' ? (isDark ? '#38bdf8' : '#0284c7') : themeStyles.tagBg,
+                          color: selectedClusterFilter === 'ALL' ? (isDark ? '#0f172a' : '#ffffff') : themeStyles.textSecondary,
                           border: 'none',
                           cursor: 'pointer',
+                          transition: 'all 0.15s ease',
                         }}
                       >
-                        All
+                        Tất cả (All)
                       </button>
-                      {[0, 1, 2, 3, 4, 5].map((cid) => (
-                        <button
-                          key={cid}
-                          type="button"
-                          onClick={() => setSelectedClusterFilter(cid)}
-                          style={{
-                            padding: '2px 5px',
-                            borderRadius: '3px',
-                            fontSize: '10px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: selectedClusterFilter === cid ? 800 : 600,
-                            backgroundColor:
-                              selectedClusterFilter === cid ? clusterColors[cid] : themeStyles.tagBg,
-                            color: selectedClusterFilter === cid ? '#ffffff' : themeStyles.textSecondary,
-                            border: 'none',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          C#{cid}
-                        </button>
-                      ))}
+                      {[0, 1, 2, 3, 4, 5].map((cid) => {
+                        const isSel = selectedClusterFilter === cid;
+                        const short = CLUSTER_TOPIC_MAP[cid]?.shortTitle || `C#${cid}`;
+                        return (
+                          <button
+                            key={cid}
+                            type="button"
+                            onClick={() => setSelectedClusterFilter(cid)}
+                            title={`Lọc xem riêng Cụm #${cid}: ${CLUSTER_TOPIC_MAP[cid]?.title}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: isSel ? 800 : 600,
+                              backgroundColor: isSel ? clusterColors[cid] : themeStyles.tagBg,
+                              color: isSel ? '#ffffff' : themeStyles.textSecondary,
+                              border: `1px solid ${isSel ? clusterColors[cid] : 'transparent'}`,
+                              cursor: 'pointer',
+                              boxShadow: isSel ? `0 2px 8px ${clusterColors[cid]}40` : 'none',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                backgroundColor: isSel ? '#ffffff' : clusterColors[cid],
+                              }}
+                            />
+                            <span>C#{cid}: {short}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -2114,27 +2139,36 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               stroke="#ffffff"
                               strokeWidth={0.008 / p2PanZoom.zoom}
                             />
-                            <rect
-                              x={clusterCentroids[selectedClusterFilter].x - 0.22 / p2PanZoom.zoom}
-                              y={clusterCentroids[selectedClusterFilter].y - 0.095 / p2PanZoom.zoom}
-                              width={0.44 / p2PanZoom.zoom}
-                              height={0.065 / p2PanZoom.zoom}
-                              rx={0.015 / p2PanZoom.zoom}
-                              fill={isDark ? 'rgba(15, 23, 42, 0.90)' : 'rgba(255, 255, 255, 0.92)'}
-                              stroke={clusterColors[selectedClusterFilter % clusterColors.length]}
-                              strokeWidth={0.005 / p2PanZoom.zoom}
-                            />
-                            <text
-                              x={clusterCentroids[selectedClusterFilter].x}
-                              y={clusterCentroids[selectedClusterFilter].y - 0.048 / p2PanZoom.zoom}
-                              textAnchor="middle"
-                              fontSize={0.05 / p2PanZoom.zoom}
-                              fontFamily="var(--font-mono)"
-                              fontWeight="800"
-                              fill={clusterColors[selectedClusterFilter % clusterColors.length]}
-                            >
-                              TÂM CỤM #{selectedClusterFilter}
-                            </text>
+                            {(() => {
+                              const shortTopic = CLUSTER_TOPIC_MAP[selectedClusterFilter]?.shortTitle || `C#${selectedClusterFilter}`;
+                              const labelText = `TÂM CỤM #${selectedClusterFilter}: ${shortTopic}`;
+                              const pillWidth = 0.58 / p2PanZoom.zoom;
+                              return (
+                                <>
+                                  <rect
+                                    x={clusterCentroids[selectedClusterFilter].x - pillWidth / 2}
+                                    y={clusterCentroids[selectedClusterFilter].y - 0.095 / p2PanZoom.zoom}
+                                    width={pillWidth}
+                                    height={0.065 / p2PanZoom.zoom}
+                                    rx={0.015 / p2PanZoom.zoom}
+                                    fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)'}
+                                    stroke={clusterColors[selectedClusterFilter % clusterColors.length]}
+                                    strokeWidth={0.006 / p2PanZoom.zoom}
+                                  />
+                                  <text
+                                    x={clusterCentroids[selectedClusterFilter].x}
+                                    y={clusterCentroids[selectedClusterFilter].y - 0.048 / p2PanZoom.zoom}
+                                    textAnchor="middle"
+                                    fontSize={0.044 / p2PanZoom.zoom}
+                                    fontFamily="var(--font-mono)"
+                                    fontWeight="800"
+                                    fill={clusterColors[selectedClusterFilter % clusterColors.length]}
+                                  >
+                                    {labelText}
+                                  </text>
+                                </>
+                              );
+                            })()}
                           </g>
                         )}
 

@@ -92,6 +92,8 @@ export interface ClusterProfileItem {
   percentage: number;
   dominant_categories: Array<{ category: string; count: number }>;
   sample_titles: string[];
+  topic_label?: string;
+  topic_subtitle?: string;
 }
 
 export interface ScatterPointItem {
@@ -220,4 +222,7 @@ export interface ChatResponse {
   similarity_score: string;
   generation_time: string;
   context_chunks_used: number;
+  authority_boosted?: boolean;
+  top_influencer_author?: string;
+  rule_expansions?: string[];
 }
