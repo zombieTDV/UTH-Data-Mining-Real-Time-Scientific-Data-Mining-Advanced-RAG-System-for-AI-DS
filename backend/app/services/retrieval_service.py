@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple
 import lancedb
 from backend.app.core.config import settings
 from backend.app.schemas.search import ChunkDto, SearchRequest
+from backend.app.services.embedder_service import embedder_service
 
 logger = logging.getLogger("retrieval_service")
 
@@ -131,12 +132,23 @@ class RetrievalService:
 
         try:
             k = req.top_k or 5
-            mode = (req.mode or "fts").lower()
+            mode = (req.mode or "vector").lower()
             rule_expansions = self._expand_rules(req.query, req.category)
 
             # Retrieve candidate pool for authority reranking
             candidate_limit = max(k * 2, 10)
-            query_builder = self.table.search(req.query)
+
+            # Execute search on LanceDB
+            if mode in ("vector", "dense", "hybrid"):
+                query_vector = embedder_service.embed_query(req.query)
+                if query_vector is not None:
+                    query_builder = self.table.search(query_vector).metric("cosine")
+                else:
+                    logger.warning("[RETRIEVAL] Dense embedding unavailable, falling back to text search.")
+                    query_builder = self.table.search(req.query)
+            else:
+                query_builder = self.table.search(req.query)
+
             if req.category:
                 query_builder = query_builder.where(f"primary_category = '{req.category}'")
 
@@ -152,7 +164,14 @@ class RetrievalService:
                 else:
                     authors_list = [str(raw_authors)] if raw_authors else []
 
-                base_score = float(r.get("_score", 0.85)) if "_score" in r else 0.85
+                # Calculate base similarity score
+                if "_distance" in r:
+                    base_score = max(0.0, round(1.0 - float(r["_distance"]), 4))
+                elif "_score" in r:
+                    base_score = float(r["_score"])
+                else:
+                    base_score = 0.85
+
                 norm_pr, auth_author = self._match_authority(authors_list)
                 # Boost score by up to 25% based on normalized PageRank
                 boosted_score = base_score * (1.0 + 0.25 * norm_pr) if norm_pr > 0 else base_score
@@ -179,9 +198,6 @@ class RetrievalService:
             # Re-rank candidates by boosted score and slice to top-k
             candidates.sort(key=lambda c: c.score or 0.0, reverse=True)
             return candidates[:k]
-        except Exception as e:
-            logger.error("[RETRIEVAL] Search execution failed: %s", str(e))
-            return []
         except Exception as e:
             logger.error("[RETRIEVAL] Search execution failed: %s", str(e))
             return []

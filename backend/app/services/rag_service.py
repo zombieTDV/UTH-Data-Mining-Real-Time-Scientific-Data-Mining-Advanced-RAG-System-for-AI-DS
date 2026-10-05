@@ -24,7 +24,7 @@ class RagService:
             query=req.query,
             top_k=req.top_k or 5,
             category=req.category,
-            mode="fts",
+            mode="vector",
         )
         chunks = retrieval_service.search(search_req)
 
@@ -94,6 +94,7 @@ class RagService:
                 similarity_score="0.0000",
                 generation_time=f"{elapsed}s",
                 context_chunks_used=0,
+                retrieval_context=[],
             )
 
         # Generate answer with real LLM
@@ -128,6 +129,7 @@ class RagService:
             authority_boosted=bool(top_auth),
             top_influencer_author=top_auth.authority_author if top_auth else None,
             rule_expansions=chunks[0].rule_expansions if (chunks and chunks[0].rule_expansions) else None,
+            retrieval_context=[c.text for c in chunks],
         )
 
     async def answer_query_stream(self, req: ChatRequest) -> AsyncIterator[str]:

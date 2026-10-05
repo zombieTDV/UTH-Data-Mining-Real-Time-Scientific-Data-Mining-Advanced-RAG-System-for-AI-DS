@@ -1,0 +1,212 @@
+[
+  {
+    "id": "gold-001",
+    "category": "cs.LG",
+    "query": "How does classifier-free guidance work in conditional diffusion models?",
+    "expected_output": "Classifier-free guidance trains conditional diffusion models by randomly replacing the conditioning label with a null or empty token with probability p_uncond during training. During sampling, the model evaluates both conditional and unconditional score estimates and linearly combines them using guidance weight w: score = (1 + w) * s(x, c) - w * s(x, null). This enhances sample quality and fidelity without requiring a separate classifier model.",
+    "expected_context_keywords": ["classifier-free guidance", "diffusion", "unconditional score", "guidance weight", "sampling"]
+  },
+  {
+    "id": "gold-002",
+    "category": "cs.CL",
+    "query": "What is FlashAttention and how does it reduce memory access overhead in Transformers?",
+    "expected_output": "FlashAttention is an IO-aware exact attention algorithm that minimizes memory traffic between high-bandwidth GPU memory (HBM) and fast on-chip SRAM. It avoids materializing the quadratic N x N attention matrix by tiling inputs into blocks and incrementally computing softmax normalization using an online softmax technique, reducing memory access while maintaining identical mathematical output.",
+    "expected_context_keywords": ["FlashAttention", "IO-aware", "SRAM", "HBM", "tiling", "online softmax", "GPU"]
+  },
+  {
+    "id": "gold-003",
+    "category": "cs.AI",
+    "query": "Explain the key advantages of Direct Preference Optimization (DPO) over RLHF with PPO.",
+    "expected_output": "Direct Preference Optimization (DPO) implicitly models the reward function directly through the language model policy. Unlike traditional RLHF with PPO, DPO does not require training a separate reward model or sampling actions during reinforcement learning loops. It solves the constrained optimization problem in closed form with a simple binary cross-entropy loss, making training significantly more stable, computationally efficient, and easier to scale.",
+    "expected_context_keywords": ["Direct Preference Optimization", "DPO", "RLHF", "reward model", "PPO", "binary cross-entropy", "policy"]
+  },
+  {
+    "id": "gold-004",
+    "category": "cs.CV",
+    "query": "How does contrastive language-image pre-training (CLIP) align vision and text representations?",
+    "expected_output": "CLIP aligns visual and textual modalities by using dual encoders (a vision transformer or ResNet for images and a Transformer for text) jointly trained on pairs of images and corresponding captions. It maximizes the cosine similarity between matched image-text embeddings across a batch while minimizing similarity for unmatched pairs using a symmetric InfoNCE cross-entropy loss, enabling robust zero-shot classification.",
+    "expected_context_keywords": ["CLIP", "contrastive learning", "dual encoders", "cosine similarity", "InfoNCE", "zero-shot"]
+  },
+  {
+    "id": "gold-005",
+    "category": "cs.LG",
+    "query": "What is Low-Rank Adaptation (LoRA) and how does it enable parameter-efficient fine-tuning?",
+    "expected_output": "Low-Rank Adaptation (LoRA) freezes the pre-trained model weights W_0 and injects trainable rank-decomposition matrices A and B into the Transformer layers, such that the weight update is parameterized as delta_W = B * A, where B in R^(d x r) and A in R^(r x k) with rank r << min(d, k). This drastically reduces the number of trainable parameters and memory footprint during fine-tuning while retaining performance comparable to full fine-tuning.",
+    "expected_context_keywords": ["LoRA", "low-rank", "adaptation", "rank decomposition", "frozen weights", "parameter-efficient"]
+  },
+  {
+    "id": "gold-006",
+    "category": "cs.AI",
+    "query": "How do Mixture of Experts (MoE) architectures achieve high capacity without proportional compute costs?",
+    "expected_output": "Mixture of Experts (MoE) architectures replace dense feed-forward network layers with multiple specialized expert sub-networks and a parametric gating or router network. For each input token, the router computes routing probabilities and activates only a sparse subset (e.g., top-1 or top-2 experts). As a result, the total parameter capacity scales dramatically while the floating-point operations (FLOPs) per token remain bounded.",
+    "expected_context_keywords": ["Mixture of Experts", "MoE", "gating network", "router", "sparse activation", "FLOPs", "top-k"]
+  },
+  {
+    "id": "gold-007",
+    "category": "stat.ML",
+    "query": "What is the reparameterization trick in Variational Autoencoders (VAEs)?",
+    "expected_output": "The reparameterization trick allows gradients to backpropagate through stochastic latent nodes in Variational Autoencoders. Instead of sampling directly from the distribution q(z|x) = N(mu, sigma^2), which prevents gradient flow, the latent variable is rewritten as a deterministic transformation z = mu + sigma * epsilon, where epsilon is an auxiliary noise variable sampled from N(0, I). This isolates the randomness and enables backpropagation via standard automatic differentiation.",
+    "expected_context_keywords": ["reparameterization trick", "Variational Autoencoder", "VAE", "backpropagation", "auxiliary noise", "latent space"]
+  },
+  {
+    "id": "gold-008",
+    "category": "cs.CL",
+    "query": "How does Rotary Position Embedding (RoPE) encode relative position in Transformers?",
+    "expected_output": "Rotary Position Embedding (RoPE) encodes relative position by rotating the query and key representations in the complex plane using orthogonal rotation matrices proportional to token position. When the inner product between query and key is computed, the absolute position cancels out, leaving only the relative distance (m - n) between tokens. This naturally endows the attention mechanism with relative positional decay and enables length extrapolation.",
+    "expected_context_keywords": ["Rotary Position Embedding", "RoPE", "rotation matrix", "relative position", "query", "key", "inner product"]
+  },
+  {
+    "id": "gold-009",
+    "category": "cs.LG",
+    "query": "What is the purpose of noise scheduling in Denoising Diffusion Probabilistic Models (DDPM)?",
+    "expected_output": "In DDPM, the noise schedule beta_1, ..., beta_T controls the variance of Gaussian noise added at each step of the forward diffusion process. A well-designed schedule (such as linear or cosine) ensures that data is gradually perturbed into an isotropic Gaussian distribution by step T, preserving intermediate semantic structure so the reverse neural network can accurately learn to estimate the added noise at each step.",
+    "expected_context_keywords": ["noise schedule", "DDPM", "diffusion", "Gaussian noise", "forward process", "variance"]
+  },
+  {
+    "id": "gold-010",
+    "category": "cs.AI",
+    "query": "What mechanism does Tree of Thoughts (ToT) introduce beyond Chain-of-Thought prompting?",
+    "expected_output": "Tree of Thoughts (ToT) generalizes Chain-of-Thought prompting by enabling language models to explore coherent intermediate reasoning units ('thoughts') structured as a tree. It allows the model to evaluate the promise of different thought paths via self-evaluation, and incorporates systematic search algorithms such as breadth-first search (BFS) or depth-first search (DFS) with backtracking to solve complex multi-step reasoning problems.",
+    "expected_context_keywords": ["Tree of Thoughts", "ToT", "Chain-of-Thought", "search", "backtracking", "BFS", "DFS", "self-evaluation"]
+  },
+  {
+    "id": "gold-011",
+    "category": "cs.CL",
+    "query": "How does Grouped-Query Attention (GQA) interpolate between Multi-Head Attention (MHA) and Multi-Query Attention (MQA)?",
+    "expected_output": "Grouped-Query Attention (GQA) divides query heads into G groups, with each group sharing a single key and value head. When G equals the number of query heads, GQA reduces to standard Multi-Head Attention (MHA); when G=1, it reduces to Multi-Query Attention (MQA). This enables intermediate trade-offs between decoding memory bandwidth savings (from smaller KV caches) and representation capacity.",
+    "expected_context_keywords": ["Grouped-Query Attention", "GQA", "MHA", "MQA", "key-value heads", "KV cache", "memory bandwidth"]
+  },
+  {
+    "id": "gold-012",
+    "category": "cs.LG",
+    "query": "What innovations make QLoRA capable of fine-tuning large language models on a single consumer GPU?",
+    "expected_output": "QLoRA introduces three main techniques: 4-bit NormalFloat (NF4), an information-theoretically optimal quantile quantization data type for normally distributed weights; Double Quantization (DQ), which quantizes quantization constants to save memory; and Paged Optimizers to manage memory spikes during gradient updates, enabling 65B model fine-tuning with 16-bit LoRA performance on a single GPU.",
+    "expected_context_keywords": ["QLoRA", "NormalFloat", "NF4", "Double Quantization", "Paged Optimizers", "4-bit", "fine-tuning"]
+  },
+  {
+    "id": "gold-013",
+    "category": "cs.AI",
+    "query": "How does Constitutional AI train harmless AI assistants without human feedback on harmful prompts?",
+    "expected_output": "Constitutional AI replaces human feedback with model-generated critiques and revisions guided by a constitution of explicit principles. During supervised learning, the model critiques its own harmful responses and rewrites them. In reinforcement learning from AI feedback (RLAIF), an evaluator model selects preferred responses based on constitutional principles, training a harmless assistant with minimal human exposure to toxic content.",
+    "expected_context_keywords": ["Constitutional AI", "RLAIF", "critique", "revision", "principles", "harmless", "self-improvement"]
+  },
+  {
+    "id": "gold-014",
+    "category": "cs.CV",
+    "query": "How do Masked Autoencoders (MAE) perform self-supervised visual representation learning?",
+    "expected_output": "Masked Autoencoders (MAE) mask a high proportion (e.g. 75%) of random image patches and feed only visible patches through an asymmetric Vision Transformer encoder. A lightweight decoder then reconstructs missing pixel values from latent representations and mask tokens using mean squared error loss, encouraging the encoder to learn deep holistic visual representations.",
+    "expected_context_keywords": ["Masked Autoencoders", "MAE", "vision transformer", "asymmetric", "pixel reconstruction", "self-supervised"]
+  },
+  {
+    "id": "gold-015",
+    "category": "stat.ML",
+    "query": "What statistical property does Conformal Prediction guarantee for machine learning models?",
+    "expected_output": "Conformal Prediction guarantees finite-sample, distribution-free marginal coverage for predictive sets or intervals under the assumption of exchangeability. Given significance level alpha, the prediction region contains the true ground truth label with probability at least 1 - alpha, regardless of the underlying data distribution or model architecture.",
+    "expected_context_keywords": ["Conformal Prediction", "coverage guarantee", "distribution-free", "finite-sample", "exchangeability", "prediction interval"]
+  },
+  {
+    "id": "gold-016",
+    "category": "cs.CL",
+    "query": "How does Speculative Decoding achieve speedup without changing the target model's output distribution?",
+    "expected_output": "Speculative Decoding uses a smaller, faster draft model to propose K candidate tokens in parallel, which the larger target model evaluates in a single forward pass. A speculative sampling rejection criteria accepts or rejects candidate tokens such that the final output distribution precisely equals the target model's original distribution, achieving 2x to 3x latency speedups.",
+    "expected_context_keywords": ["Speculative Decoding", "draft model", "target model", "parallel verification", "speculative sampling", "latency"]
+  },
+  {
+    "id": "gold-017",
+    "category": "cs.LG",
+    "query": "How does Score-based Generative Modeling with Stochastic Differential Equations (SDEs) generalize diffusion models?",
+    "expected_output": "Score-based SDE formulations model data perturbation over continuous time using an Ito SDE (e.g., Variance Preserving or Variance Exploding). By estimating the score function (gradient of the log marginal probability density) with a time-dependent neural network, generation is cast as reverse-time SDE integration or deterministic probability flow ODE solving, unifying discrete diffusion steps into a continuous framework.",
+    "expected_context_keywords": ["Score-based", "SDE", "Stochastic Differential Equations", "reverse-time", "probability flow ODE", "score matching"]
+  },
+  {
+    "id": "gold-018",
+    "category": "cs.AI",
+    "query": "Why does Chain-of-Thought (CoT) prompting improve multi-step reasoning in Large Language Models?",
+    "expected_output": "Chain-of-Thought prompting encourages models to decompose complex multi-step problems into intermediate reasoning steps before arriving at a final answer. By allocating additional computation and token capacity to intermediate reasoning states, it mitigates error compounding and allows transformers to solve problems that cannot be answered in a single autoregressive step.",
+    "expected_context_keywords": ["Chain-of-Thought", "CoT", "multi-step reasoning", "intermediate steps", "decomposition", "arithmetic reasoning"]
+  },
+  {
+    "id": "gold-019",
+    "category": "cs.CV",
+    "query": "What is the key advantage of Latent Diffusion Models (LDM) over pixel-space diffusion models?",
+    "expected_output": "Latent Diffusion Models (LDM) apply the diffusion and denoising process in a lower-dimensional latent space learned by an autoencoder (such as a VQ-VAE or VAE) rather than raw pixel space. This separates perceptual compression from semantic synthesis, reducing computational and memory requirements by orders of magnitude while preserving high visual fidelity.",
+    "expected_context_keywords": ["Latent Diffusion Models", "LDM", "autoencoder", "pixel space", "latent space", "perceptual compression"]
+  },
+  {
+    "id": "gold-020",
+    "category": "stat.ML",
+    "query": "How does Stein Variational Gradient Descent (SVGD) sample from target probability distributions?",
+    "expected_output": "Stein Variational Gradient Descent (SVGD) deterministically transports a collection of particles to match a target distribution by iteratively minimizing the Kullback-Leibler (KL) divergence via functional gradient descent in a reproducing kernel Hilbert space (RKHS). It combines score driving forces with repulsive kernel forces that prevent particle collapse.",
+    "expected_context_keywords": ["Stein Variational Gradient Descent", "SVGD", "particles", "RKHS", "repulsive force", "KL divergence"]
+  },
+  {
+    "id": "gold-021",
+    "category": "cs.CL",
+    "query": "How can In-Context Learning (ICL) be interpreted from an optimization perspective?",
+    "expected_output": "From an optimization perspective, In-Context Learning can be viewed as implicit fine-tuning or meta-gradients computed during the forward pass. Attention activations between demonstration examples and query tokens implicitly implement gradient descent steps in weight activation space without explicit parameter updates.",
+    "expected_context_keywords": ["In-Context Learning", "ICL", "meta-optimization", "implicit gradient descent", "forward pass", "demonstrations"]
+  },
+  {
+    "id": "gold-022",
+    "category": "cs.LG",
+    "query": "What trade-off is involved in Gradient Checkpointing (Activation Recomputation) during neural network training?",
+    "expected_output": "Gradient checkpointing trades additional computational time (typically ~20-30% extra forward pass operations) for substantial memory reduction. Instead of storing all intermediate activation tensors for the backward pass, it saves activations only at designated checkpoint layers and recomputes missing activations dynamically during backpropagation.",
+    "expected_context_keywords": ["Gradient Checkpointing", "activation recomputation", "memory reduction", "backward pass", "forward recomputation"]
+  },
+  {
+    "id": "gold-023",
+    "category": "cs.AI",
+    "query": "How does the Self-Instruct framework bootstrap instruction-following data from language models?",
+    "expected_output": "Self-Instruct starts with a small seed set of human-written instructions and prompts a pretrained language model to generate new task instructions, input instances, and outputs. It filters candidates based on heuristic quality and diversity metrics before adding valid pairs back to the instruction pool, automating dataset creation with minimal manual labor.",
+    "expected_context_keywords": ["Self-Instruct", "instruction tuning", "synthetic data", "seed tasks", "filtering", "bootstrap"]
+  },
+  {
+    "id": "gold-024",
+    "category": "cs.CV",
+    "query": "How do Vision Transformers (ViT) process 2D images as sequences of tokens?",
+    "expected_output": "Vision Transformers divide an image of size H x W into non-overlapping patches of size P x P, flatten each patch into a 1D vector of length P^2 * C, and linearly project them to embedding dimension D. Learnable 1D position embeddings and an extra class token are added before feeding the sequence into standard Transformer encoder layers.",
+    "expected_context_keywords": ["Vision Transformer", "ViT", "patch projection", "position embedding", "class token", "sequence of tokens"]
+  },
+  {
+    "id": "gold-025",
+    "category": "stat.ML",
+    "query": "Why is entropic regularization used in optimal transport (Sinkhorn algorithm)?",
+    "expected_output": "Entropic regularization adds an entropy penalty H(P) to the Kantorovich optimal transport objective, transforming an expensive linear programming problem into a strictly convex optimization problem. This enables fast, GPU-parallelizable matrix scaling iterations via the Sinkhorn-Knopp algorithm with O(n^2) complexity.",
+    "expected_context_keywords": ["Sinkhorn", "optimal transport", "entropic regularization", "Kantorovich", "matrix scaling", "convex optimization"]
+  },
+  {
+    "id": "gold-026",
+    "category": "cs.CL",
+    "query": "What is the role of Attention Sinks in maintaining stability in streaming language models (StreamingLLM)?",
+    "expected_output": "Attention Sinks refer to the phenomenon where initial tokens (first few tokens in a prompt) consistently receive disproportionately large attention weights regardless of semantic meaning, acting as numerical anchors for the softmax distribution. Retaining initial sink tokens alongside a sliding window of recent tokens prevents perplexity explosion during infinite-length generation.",
+    "expected_context_keywords": ["Attention Sinks", "StreamingLLM", "softmax anchor", "sliding window", "initial tokens", "perplexity"]
+  },
+  {
+    "id": "gold-027",
+    "category": "cs.LG",
+    "query": "How does the temperature parameter in InfoNCE loss affect contrastive representation learning?",
+    "expected_output": "The temperature parameter tau scales the sharpness of the softmax distribution over similarity scores in InfoNCE. Lower temperatures penalize hard negative examples more aggressively, pushing representations into more uniform distributions on the unit hypersphere, while excessively low temperatures can cause training instability.",
+    "expected_context_keywords": ["InfoNCE", "temperature parameter", "hard negatives", "contrastive learning", "hypersphere", "uniformity"]
+  },
+  {
+    "id": "gold-028",
+    "category": "cs.AI",
+    "query": "How does the ReAct framework synergize reasoning and acting in language agents?",
+    "expected_output": "ReAct interleaves reasoning trace generation ('Thought') with task-specific actions ('Act') and environment observations ('Obs'). Reasoning traces help the model induce, track, and update action plans, while external tool execution grounds thoughts in real-world observations and prevents hallucination.",
+    "expected_context_keywords": ["ReAct", "Reasoning and Acting", "Thought", "Action", "Observation", "agent", "tool use"]
+  },
+  {
+    "id": "gold-029",
+    "category": "cs.CV",
+    "query": "How does positional encoding in Neural Radiance Fields (NeRF) enable high-frequency scene representation?",
+    "expected_output": "Coordinate-based MLPs suffer from spectral bias, struggling to learn high-frequency spatial variations. NeRF maps low-dimensional 3D coordinates (x, y, z) and viewing angles into a higher-dimensional Fourier feature space using sinusoidal functions gamma(p) = [sin(2^0 pi p), cos(2^0 pi p), ..., sin(2^(L-1) pi p), cos(2^(L-1) pi p)], enabling the network to represent sharp edges, geometry, and specular highlights.",
+    "expected_context_keywords": ["NeRF", "positional encoding", "Fourier features", "spectral bias", "high-frequency", "radiance field"]
+  },
+  {
+    "id": "gold-030",
+    "category": "stat.ML",
+    "query": "What is the relationship between Diffusion Models and Schrödinger Bridges?",
+    "expected_output": "Diffusion models can be viewed as an approximation of the Schrödinger Bridge problem, which seeks the most likely stochastic process matching two boundary probability distributions under entropy regularization. While standard diffusion assumes forward drift towards an isotropic Gaussian, Schrödinger Bridges solve bidirectional optimal transport between arbitrary data distributions with finite time horizons.",
+    "expected_context_keywords": ["Schrödinger Bridge", "diffusion", "optimal transport", "boundary distributions", "stochastic process", "entropy regularization"]
+  }
+]

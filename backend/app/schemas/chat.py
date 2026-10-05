@@ -19,3 +19,4 @@ class ChatResponse(BaseModel):
     authority_boosted: Optional[bool] = None
     top_influencer_author: Optional[str] = None
     rule_expansions: Optional[List[str]] = None
+    retrieval_context: Optional[List[str]] = None
