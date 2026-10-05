@@ -13,6 +13,8 @@ from backend.app.core.config import settings
 from backend.app.api.endpoints import health
 from backend.app.api.router import api_router
 
+from backend.app.services.llm_client import llm_client
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -28,9 +30,15 @@ async def lifespan(app: FastAPI):
     logger.info("[STARTUP] Interactive OpenAPI Docs: http://localhost:%d/docs", settings.PORT)
     logger.info("[STARTUP] Parquet Path: %s (Exists: %s)", settings.SILVER_PARQUET, settings.SILVER_PARQUET.exists())
     logger.info("[STARTUP] LanceDB URI: %s", settings.LANCEDB_URI)
+    logger.info("[STARTUP] Context Window: %d tokens", settings.LLM_CONTEXT_WINDOW)
+
+    # Preload LLM model into Apple Silicon Metal GPU memory immediately on startup
+    llm_client.preload()
+
     logger.info("================================================================================")
     yield
     logger.info("[SHUTDOWN] Stopping FastAPI Backend.")
+    llm_client.close()
 
 
 app = FastAPI(

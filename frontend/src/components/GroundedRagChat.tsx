@@ -127,21 +127,19 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           chunkText: first.text || '',
         });
       }
-    } catch {
-      // Graceful fallback metadata for known paper IDs
-      if (paperId.includes('2310.01407')) {
-        setInspectedPaper({
-          paperId: '2310.01407',
-          title: 'CoDi: Conditional Diffusion Distillation for Few-Step Latent Generation',
-          authors: ['Hao Chen', 'Yang Liu', 'Wei Wang et al.'],
-          category: 'cs.CV',
-          abstract: 'We present CoDi, an efficient distillation method for conditional continuous-time diffusion models that guarantees convergence along teacher probability flow trajectories with minimal discretization error.',
-          sectionTitle: 'Section 3: Methodology and Intermediate Latent Sampling',
-          score: '0.8842',
-          chunkText: 'Sampling the intermediate latent variable z_t at timestep t along the teacher probability flow ODE ensures that the distilled student network aligns with the teacher trajectory under condition c, preserving cross-attention alignment.',
-        });
-      }
+    } catch (err) {
+      setInspectedPaper({
+        paperId,
+        title: `Paper ID: ${paperId}`,
+        authors: ['Tác giả nghiên cứu khoa học'],
+        category: 'cs.AI',
+        abstract: 'Không thể truy xuất chi tiết abstract cho bản ghi này từ Lakehouse.',
+        sectionTitle: sectionTitle || 'Toàn văn tài liệu',
+        score: '0.8500',
+        chunkText: 'Nội dung chunk chưa khả dụng hoặc đang cập nhật.',
+      });
     } finally {
+
       setIsDossierLoading(false);
     }
   };
@@ -194,8 +192,8 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         () => {
           // Extract citations from accumulated text
           const citeMatches = Array.from(
-            accumulated.matchAll(/\[Paper:\s*([^,\]]+),\s*Section:\s*([^\]]+)\]/g)
-          ).map((m) => `Paper: ${m[1].trim()}, Section: ${m[2].trim()}`);
+            accumulated.matchAll(/\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]/g)
+          ).map((m) => m[2] ? `Paper: ${m[1].trim()}, Section: ${m[2].trim()}` : `Paper: ${m[1].trim()}`);
 
           setMessages((prev) =>
             prev.map((m) =>
@@ -203,11 +201,12 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 ? {
                     ...m,
                     isStreaming: false,
-                    citations: citeMatches.length > 0 ? Array.from(new Set(citeMatches)) : ['Paper: 2310.01407, Section: 3 Methodology'],
+                    citations: Array.from(new Set(citeMatches)),
                   }
                 : m
             )
           );
+
           setLoading(false);
           setTimeout(() => textareaRef.current?.focus(), 50);
         },
@@ -231,17 +230,17 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 )
               );
             })
-            .catch(() => {
+            .catch((err) => {
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMsgId
                     ? {
                         ...m,
-                        text: `**Grounded Research Synthesis:**\n\nFor the scientific inquiry: *"${query}"*, the LanceDB Gold vector index retrieved relevant context chunks across the academic corpus.\n\nThe empirical findings confirm parameter efficiency, latent manifold alignment, and strict convergence according to established mathematical theorems.`,
-                        citations: ['Paper: 2310.01407, Section: 3 Methodology'],
-                        similarity_score: '0.8510',
-                        generation_time: '0.01s',
-                        context_chunks_used: 5,
+                        text: `⚠️ **Unable to complete RAG query:** ${err?.message || 'Could not connect to the backend service'}. Please verify that the FastAPI backend is running on port 8000.`,
+                        citations: [],
+                        similarity_score: '0.0000',
+                        generation_time: '0.00s',
+                        context_chunks_used: 0,
                         isStreaming: false,
                       }
                     : m
@@ -271,15 +270,15 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
         };
         setMessages((prev) => [...prev, assistantMsg]);
-      } catch {
+      } catch (err: any) {
         const fallbackMsg: ChatMessage = {
           id: `ast-${Date.now()}`,
           sender: 'assistant',
-          text: `**Grounded Research Synthesis:**\n\nFor the inquiry: *"${query}"*, the LanceDB Gold vector index retrieved relevant context chunks across the corpus.\n\nThe findings confirm empirical validation in academic literature, emphasizing parameter efficiency, gradient consistency, and strict alignment with scientific benchmarks.`,
-          citations: ['Paper: 2310.01407, Section: 3 Methodology'],
-          similarity_score: '0.8164',
-          generation_time: '0.01s',
-          context_chunks_used: 5,
+          text: `⚠️ **Unable to complete RAG query:** ${err?.message || 'Could not connect to the backend service'}. Please verify that the FastAPI backend is running on port 8000.`,
+          citations: [],
+          similarity_score: '0.0000',
+          generation_time: '0.00s',
+          context_chunks_used: 0,
           timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
         };
         setMessages((prev) => [...prev, fallbackMsg]);
@@ -313,16 +312,16 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   };
 
   const renderInlineContent = (rawText: string): React.ReactNode[] => {
-    const tokenRegex = /(\[Paper:\s*[^,\]]+,\s*Section:\s*[^\]]+\]|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
+    const tokenRegex = /(\[Paper:\s*[^,\]]+(?:,\s*Section:\s*[^\]]+)?\]|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
     const parts = rawText.split(tokenRegex);
 
     return parts.map((part, idx) => {
       if (!part) return null;
 
-      const citeMatch = part.match(/^\[Paper:\s*([^,\]]+),\s*Section:\s*([^\]]+)\]$/);
+      const citeMatch = part.match(/^\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]$/);
       if (citeMatch) {
         const paperId = citeMatch[1].trim();
-        const section = citeMatch[2].trim();
+        const section = citeMatch[2]?.trim() || 'Methodology';
         return (
           <button
             key={`cite-${idx}`}
