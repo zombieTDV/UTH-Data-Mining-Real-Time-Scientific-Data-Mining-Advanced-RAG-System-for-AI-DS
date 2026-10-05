@@ -252,7 +252,7 @@ export const EdaView: FC = () => {
                 </span>
               </div>
               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                10,000 bài báo Parquet &bull; 2.22M công thức toán LaTeX &bull; 143k vectors LanceDB
+                {dataset_overview.total_papers.toLocaleString()} bài báo Parquet &bull; {(dataset_overview.total_math_formulas / 1000000).toFixed(2)}M công thức toán LaTeX &bull; 143k vectors LanceDB
               </div>
             </div>
           </div>
@@ -311,7 +311,7 @@ export const EdaView: FC = () => {
               transition: 'all 0.15s ease',
             }}
           >
-            TẤT CẢ (10,000)
+            TẤT CẢ ({dataset_overview.total_papers.toLocaleString()})
           </button>
 
           {categoryList.slice(0, 8).map((cat) => {
@@ -902,7 +902,7 @@ export const EdaView: FC = () => {
             CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
           </h3>
           <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
-            Tỷ lệ phần trăm phân bố 10,000 bài báo
+            Tỷ lệ phần trăm phân bố {dataset_overview.total_papers.toLocaleString()} bài báo
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', height: '170px' }}>
@@ -919,7 +919,7 @@ export const EdaView: FC = () => {
 
                 {/* Center Hole Info */}
                 <text x="50" y="48" textAnchor="middle" fontSize="11" fontFamily="var(--font-mono)" fontWeight="800" fill="#0f172a">
-                  10,000
+                  {dataset_overview.total_papers.toLocaleString()}
                 </text>
                 <text x="50" y="58" textAnchor="middle" fontSize="7" fontFamily="var(--font-mono)" fontWeight="700" fill="#64748b">
                   PAPERS

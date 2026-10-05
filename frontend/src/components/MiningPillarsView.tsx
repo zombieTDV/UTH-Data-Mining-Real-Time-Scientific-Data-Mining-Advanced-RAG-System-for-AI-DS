@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type FC, type MouseEvent } from 'react';
 import type {
   AssociationRulesResponse,
   ClustersResponse,
@@ -21,13 +21,11 @@ interface PanZoomState {
   zoom: number;
   pan: { x: number; y: number };
   isDragging: boolean;
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: (node: HTMLDivElement | null) => void;
   handleMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
   handleMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
   handleMouseUp: () => void;
   handleMouseLeave: () => void;
-  zoomIn: () => void;
-  zoomOut: () => void;
   reset: () => void;
 }
 
@@ -35,26 +33,35 @@ function useSvgPanZoom(minZoom = 0.5, maxZoom = 5.0): PanZoomState {
   const [zoom, setZoom] = useState<number>(1.0);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const nodeRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const onWheel = (e: WheelEvent) => {
+  const onWheelNative = useCallback(
+    (e: WheelEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       const factor = e.deltaY < 0 ? 1.12 : 0.88;
       setZoom((prev) => {
         const next = Math.min(Math.max(prev * factor, minZoom), maxZoom);
         return parseFloat(next.toFixed(2));
       });
-    };
+    },
+    [minZoom, maxZoom]
+  );
 
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [minZoom, maxZoom]);
+  const containerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (nodeRef.current) {
+        nodeRef.current.removeEventListener('wheel', onWheelNative);
+      }
+      if (node) {
+        node.addEventListener('wheel', onWheelNative, { passive: false });
+      }
+      nodeRef.current = node;
+    },
+    [onWheelNative]
+  );
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -77,8 +84,6 @@ function useSvgPanZoom(minZoom = 0.5, maxZoom = 5.0): PanZoomState {
   const handleMouseUp = () => setIsDragging(false);
   const handleMouseLeave = () => setIsDragging(false);
 
-  const zoomIn = () => setZoom((z) => Math.min(parseFloat((z * 1.2).toFixed(2)), maxZoom));
-  const zoomOut = () => setZoom((z) => Math.max(parseFloat((z * 0.83).toFixed(2)), minZoom));
   const reset = () => {
     setZoom(1.0);
     setPan({ x: 0, y: 0 });
@@ -93,19 +98,15 @@ function useSvgPanZoom(minZoom = 0.5, maxZoom = 5.0): PanZoomState {
     handleMouseMove,
     handleMouseUp,
     handleMouseLeave,
-    zoomIn,
-    zoomOut,
     reset,
   };
 }
 
 const PanZoomControls: FC<{
   zoom: number;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
   onReset: () => void;
   label?: string;
-}> = ({ zoom, onZoomIn, onZoomOut, onReset, label = 'VIEW' }) => (
+}> = ({ zoom, onReset, label = 'VIEW' }) => (
   <div
     style={{
       position: 'absolute',
@@ -113,77 +114,53 @@ const PanZoomControls: FC<{
       right: '12px',
       display: 'flex',
       alignItems: 'center',
-      gap: '6px',
-      backgroundColor: 'rgba(15, 23, 42, 0.88)',
+      gap: '8px',
+      backgroundColor: 'rgba(15, 23, 42, 0.90)',
       backdropFilter: 'blur(8px)',
       borderRadius: '8px',
       border: '1px solid #334155',
-      padding: '3px 8px',
+      padding: '4px 10px',
       zIndex: 20,
       userSelect: 'none',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
     }}
   >
-    <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#94a3b8', marginRight: '2px', fontWeight: 700 }}>
-      {label}
+    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#94a3b8', fontWeight: 700 }}>
+      {label} &bull; <strong style={{ color: '#f8fafc' }}>{Math.round(zoom * 100)}%</strong>
     </span>
     <button
       type="button"
-      onClick={onZoomOut}
-      title="Thu nhỏ (Lăn chuột xuống)"
-      style={{
-        width: '22px',
-        height: '22px',
-        backgroundColor: '#1e293b',
-        border: '1px solid #334155',
-        borderRadius: '4px',
-        color: '#f8fafc',
-        fontSize: '13px',
-        fontWeight: 700,
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      -
-    </button>
-    <button
-      type="button"
       onClick={onReset}
-      title="Đặt lại khung nhìn (100%)"
+      title="Đặt lại khung nhìn về mặc định 100% (Reset View)"
       style={{
-        backgroundColor: 'transparent',
-        border: 'none',
+        backgroundColor: '#1e293b',
+        border: '1px solid #475569',
+        borderRadius: '5px',
         color: '#38bdf8',
         fontSize: '10px',
         fontFamily: 'var(--font-mono)',
         fontWeight: 800,
-        padding: '2px 4px',
+        padding: '3px 9px',
         cursor: 'pointer',
-      }}
-    >
-      {Math.round(zoom * 100)}%
-    </button>
-    <button
-      type="button"
-      onClick={onZoomIn}
-      title="Phóng to (Lăn chuột lên)"
-      style={{
-        width: '22px',
-        height: '22px',
-        backgroundColor: '#1e293b',
-        border: '1px solid #334155',
-        borderRadius: '4px',
-        color: '#f8fafc',
-        fontSize: '13px',
-        fontWeight: 700,
-        cursor: 'pointer',
-        display: 'flex',
+        display: 'inline-flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: '4px',
+        transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = '#334155';
+        e.currentTarget.style.color = '#7dd3fc';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = '#1e293b';
+        e.currentTarget.style.color = '#38bdf8';
       }}
     >
-      +
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+      </svg>
+      RESET
     </button>
   </div>
 );
@@ -210,6 +187,8 @@ export const MiningPillarsView: FC = () => {
   // Pillar 4 state
   const [trendsData, setTrendsData] = useState<TrendsResponse | null>(null);
   const [hoveredAnomaly, setHoveredAnomaly] = useState<{ item: any; x: number; y: number } | null>(null);
+  const velocityPanZoom = useSvgPanZoom(0.5, 5.0);
+  const anomalyPanZoom = useSvgPanZoom(0.5, 5.0);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -646,7 +625,7 @@ export const MiningPillarsView: FC = () => {
                 {clustersData.cluster_profiles.length} CLUSTERS
               </div>
               <div style={{ fontSize: '10px', color: '#64748b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                10,000 Embeddings (768-D)
+                {(clustersData.scatter_2d?.length || 10000).toLocaleString()} Embeddings (768-D)
               </div>
             </div>
           </div>
@@ -728,8 +707,6 @@ export const MiningPillarsView: FC = () => {
               >
                 <PanZoomControls
                   zoom={clusterPanZoom.zoom}
-                  onZoomIn={clusterPanZoom.zoomIn}
-                  onZoomOut={clusterPanZoom.zoomOut}
                   onReset={clusterPanZoom.reset}
                   label="2D MANIFOLD"
                 />
@@ -809,7 +786,7 @@ export const MiningPillarsView: FC = () => {
                 QUY MÔ CÁC CỤM ĐỀ TÀI (CLUSTER SIZE BREAKDOWN)
               </h3>
               <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
-                Phân bổ 10,000 bài báo khoa học theo 6 chủ đề
+                Phân bổ {clustersData.cluster_profiles.reduce((acc, c) => acc + c.size, 0).toLocaleString()} bài báo khoa học theo {clustersData.cluster_profiles.length} chủ đề
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '330px' }}>
@@ -887,8 +864,6 @@ export const MiningPillarsView: FC = () => {
               >
                 <PanZoomControls
                   zoom={graphPanZoom.zoom}
-                  onZoomIn={graphPanZoom.zoomIn}
-                  onZoomOut={graphPanZoom.zoomOut}
                   onReset={graphPanZoom.reset}
                   label="GRAPH NETWORK"
                 />
@@ -1062,81 +1037,133 @@ export const MiningPillarsView: FC = () => {
                 </span>
               </div>
 
-              {/* Clustered Column SVG */}
-              <div style={{ width: '100%', height: '240px' }}>
-                <svg viewBox="0 0 520 240" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                  {/* Grid Lines */}
-                  {[0, 600, 1200, 1800, 2400].map((v) => {
-                    const y = 190 - (v / 2400) * 150;
-                    return (
-                      <g key={v}>
-                        <line x1="45" y1={y} x2="500" y2={y} stroke="#f1f5f9" strokeWidth="1" />
-                        <text x="40" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
-                          {v}
-                        </text>
-                      </g>
-                    );
-                  })}
+              {/* Clustered Column SVG with Pan & Zoom */}
+              <div
+                ref={velocityPanZoom.containerRef}
+                onMouseDown={velocityPanZoom.handleMouseDown}
+                onMouseMove={velocityPanZoom.handleMouseMove}
+                onMouseUp={velocityPanZoom.handleMouseUp}
+                onMouseLeave={velocityPanZoom.handleMouseLeave}
+                style={{
+                  width: '100%',
+                  height: '240px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: velocityPanZoom.isDragging ? 'grabbing' : 'grab',
+                  userSelect: 'none',
+                }}
+              >
+                <PanZoomControls
+                  zoom={velocityPanZoom.zoom}
+                  onReset={velocityPanZoom.reset}
+                  label="VELOCITY"
+                />
 
-                  <line x1="45" y1="190" x2="500" y2="190" stroke="#cbd5e1" strokeWidth="1" />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    left: '12px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    color: '#64748b',
+                    backgroundColor: 'rgba(255, 255, 255, 0.90)',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                    border: '1px solid rgba(226, 232, 240, 0.9)',
+                  }}
+                >
+                  ✥ Kéo chuột để di chuyển &bull; Lăn chuột để phóng to/thu nhỏ
+                </div>
 
-                  {/* Dual Columns per category */}
-                  {trendsData.trend_velocity.slice(0, 6).map((trend, idx) => {
-                    const groupX = 65 + idx * 72;
-                    const prevH = Math.max(4, (trend.previous_quarter_papers / 2400) * 150);
-                    const recentH = Math.max(8, (trend.recent_quarter_papers / 2400) * 150);
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    transform: `translate(${velocityPanZoom.pan.x}px, ${velocityPanZoom.pan.y}px) scale(${velocityPanZoom.zoom})`,
+                    transformOrigin: 'center center',
+                    transition: velocityPanZoom.isDragging ? 'none' : 'transform 0.15s ease-out',
+                  }}
+                >
+                  <svg viewBox="0 0 520 240" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                    {/* Grid Lines */}
+                    {[0, 600, 1200, 1800, 2400].map((v) => {
+                      const y = 190 - (v / 2400) * 150;
+                      return (
+                        <g key={v}>
+                          <line x1="45" y1={y} x2="500" y2={y} stroke="#f1f5f9" strokeWidth="1" />
+                          <text x="40" y={y + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill="#94a3b8">
+                            {v}
+                          </text>
+                        </g>
+                      );
+                    })}
 
-                    return (
-                      <g key={trend.category}>
-                        {/* Previous Quarter Bar */}
-                        <rect
-                          x={groupX}
-                          y={190 - prevH}
-                          width="16"
-                          height={prevH}
-                          rx="3"
-                          fill="#94a3b8"
-                        />
+                    <line x1="45" y1="190" x2="500" y2="190" stroke="#cbd5e1" strokeWidth="1" />
 
-                        {/* Recent Quarter Bar */}
-                        <rect
-                          x={groupX + 18}
-                          y={190 - recentH}
-                          width="20"
-                          height={recentH}
-                          rx="3"
-                          fill="#2563eb"
-                        />
+                    {/* Dual Columns per category */}
+                    {trendsData.trend_velocity.slice(0, 6).map((trend, idx) => {
+                      const groupX = 65 + idx * 72;
+                      const prevH = Math.max(4, (trend.previous_quarter_papers / 2400) * 150);
+                      const recentH = Math.max(8, (trend.recent_quarter_papers / 2400) * 150);
 
-                        {/* Growth Percentage Label */}
-                        <text
-                          x={groupX + 18}
-                          y={190 - recentH - 5}
-                          textAnchor="middle"
-                          fontSize="8"
-                          fontFamily="var(--font-mono)"
-                          fontWeight="800"
-                          fill="#059669"
-                        >
-                          +{Math.round(trend.growth_rate_pct)}%
-                        </text>
+                      return (
+                        <g key={trend.category}>
+                          {/* Previous Quarter Bar */}
+                          <rect
+                            x={groupX}
+                            y={190 - prevH}
+                            width="16"
+                            height={prevH}
+                            rx="3"
+                            fill="#94a3b8"
+                          />
 
-                        {/* Category Name */}
-                        <text
-                          x={groupX + 18}
-                          y="206"
-                          textAnchor="middle"
-                          fontSize="10"
-                          fontFamily="var(--font-mono)"
-                          fontWeight="700"
-                          fill="#0f172a"
-                        >
-                          {trend.category}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </svg>
+                          {/* Recent Quarter Bar */}
+                          <rect
+                            x={groupX + 18}
+                            y={190 - recentH}
+                            width="20"
+                            height={recentH}
+                            rx="3"
+                            fill="#2563eb"
+                          />
+
+                          {/* Growth Percentage Label */}
+                          <text
+                            x={groupX + 18}
+                            y={190 - recentH - 5}
+                            textAnchor="middle"
+                            fontSize="8"
+                            fontFamily="var(--font-mono)"
+                            fontWeight="800"
+                            fill="#059669"
+                          >
+                            +{Math.round(trend.growth_rate_pct)}%
+                          </text>
+
+                          {/* Category Name */}
+                          <text
+                            x={groupX + 18}
+                            y="206"
+                            textAnchor="middle"
+                            fontSize="10"
+                            fontFamily="var(--font-mono)"
+                            fontWeight="700"
+                            fill="#0f172a"
+                          >
+                            {trend.category}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
               </div>
             </div>
 
@@ -1157,49 +1184,102 @@ export const MiningPillarsView: FC = () => {
                 </span>
               </div>
 
-              {/* Anomaly Scatter SVG */}
-              <div style={{ width: '100%', height: '240px', backgroundColor: '#090d16', borderRadius: '8px', border: '1px solid #1e293b' }}>
-                <svg viewBox="0 0 460 240" style={{ width: '100%', height: '100%' }}>
-                  <line x1="40" y1="200" x2="430" y2="200" stroke="#334155" strokeWidth="1" />
-                  <line x1="40" y1="20" x2="40" y2="200" stroke="#334155" strokeWidth="1" />
+              {/* Anomaly Scatter SVG with Pan & Zoom */}
+              <div
+                ref={anomalyPanZoom.containerRef}
+                onMouseDown={anomalyPanZoom.handleMouseDown}
+                onMouseMove={anomalyPanZoom.handleMouseMove}
+                onMouseUp={anomalyPanZoom.handleMouseUp}
+                onMouseLeave={anomalyPanZoom.handleMouseLeave}
+                style={{
+                  width: '100%',
+                  height: '240px',
+                  backgroundColor: '#090d16',
+                  borderRadius: '8px',
+                  border: '1px solid #1e293b',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: anomalyPanZoom.isDragging ? 'grabbing' : 'grab',
+                  userSelect: 'none',
+                }}
+              >
+                <PanZoomControls
+                  zoom={anomalyPanZoom.zoom}
+                  onReset={anomalyPanZoom.reset}
+                  label="OUTLIERS"
+                />
 
-                  {/* Outlier Dots */}
-                  {trendsData.anomalies.map((anom, idx) => {
-                    const cx = 40 + Math.min(370, (anom.word_count / 42000) * 370);
-                    const cy = 200 - Math.min(170, (anom.math_count / 4000) * 170);
-                    const isHovered = hoveredAnomaly?.item.paper_id === anom.paper_id;
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    left: '12px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    color: '#64748b',
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                    border: '1px solid rgba(51, 65, 85, 0.5)',
+                  }}
+                >
+                  ✥ Kéo chuột để di chuyển &bull; Lăn chuột để phóng to/thu nhỏ
+                </div>
 
-                    return (
-                      <g key={idx}>
-                        {/* Glow ring */}
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={isHovered ? '9' : '6'}
-                          fill="rgba(239, 68, 68, 0.25)"
-                        />
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={isHovered ? '5' : '3.5'}
-                          fill="#ef4444"
-                          stroke="#ffffff"
-                          strokeWidth="1.2"
-                          style={{ cursor: 'pointer' }}
-                          onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                            const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                            setHoveredAnomaly({
-                              item: anom,
-                              x: rect.left + rect.width / 2,
-                              y: rect.top - 8,
-                            });
-                          }}
-                          onMouseLeave={() => setHoveredAnomaly(null)}
-                        />
-                      </g>
-                    );
-                  })}
-                </svg>
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    transform: `translate(${anomalyPanZoom.pan.x}px, ${anomalyPanZoom.pan.y}px) scale(${anomalyPanZoom.zoom})`,
+                    transformOrigin: 'center center',
+                    transition: anomalyPanZoom.isDragging ? 'none' : 'transform 0.15s ease-out',
+                  }}
+                >
+                  <svg viewBox="0 0 460 240" style={{ width: '100%', height: '100%' }}>
+                    <line x1="40" y1="200" x2="430" y2="200" stroke="#334155" strokeWidth="1" />
+                    <line x1="40" y1="20" x2="40" y2="200" stroke="#334155" strokeWidth="1" />
+
+                    {/* Outlier Dots */}
+                    {trendsData.anomalies.map((anom, idx) => {
+                      const cx = 40 + Math.min(370, (anom.word_count / 42000) * 370);
+                      const cy = 200 - Math.min(170, (anom.math_count / 4000) * 170);
+                      const isHovered = hoveredAnomaly?.item.paper_id === anom.paper_id;
+
+                      return (
+                        <g key={idx}>
+                          {/* Glow ring */}
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isHovered ? '9' : '6'}
+                            fill="rgba(239, 68, 68, 0.25)"
+                          />
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isHovered ? '5' : '3.5'}
+                            fill="#ef4444"
+                            stroke="#ffffff"
+                            strokeWidth="1.2"
+                            style={{ cursor: 'pointer' }}
+                            onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                              if (anomalyPanZoom.isDragging) return;
+                              const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                              setHoveredAnomaly({
+                                item: anom,
+                                x: rect.left + rect.width / 2,
+                                y: rect.top - 8,
+                              });
+                            }}
+                            onMouseLeave={() => setHoveredAnomaly(null)}
+                          />
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
               </div>
             </div>
           </div>

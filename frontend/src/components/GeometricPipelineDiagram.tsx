@@ -26,7 +26,7 @@ export const SCHEMATIC_NODES: DiagramNode[] = [
     toolName: 'arXiv Harvester',
     toolCategory: 'Source Stream',
     metricLabel: 'TOTAL HARVESTED',
-    metricValue: '10,000 Papers',
+    metricValue: '13,000 Papers',
     secondaryMetric: 'cs.AI, cs.LG, cs.CV, cs.CL, stat.ML',
     status: 'SYNCED',
     iconType: 'arxiv',
@@ -41,8 +41,8 @@ export const SCHEMATIC_NODES: DiagramNode[] = [
     toolName: 'Cloudflare R2',
     toolCategory: 'Immutable Raw Store',
     metricLabel: 'RAW STORED',
-    metricValue: '2.841 GB',
-    secondaryMetric: '9,022 HTML5 + 12 Batches',
+    metricValue: '5.688 GB',
+    secondaryMetric: '11,763 HTML5 + Batches',
     status: 'ONLINE',
     iconType: 'r2',
     specList: ['S3 Compatible API', 'Zero Egress Fees', 'SHA-256 Checksummed']
@@ -56,8 +56,8 @@ export const SCHEMATIC_NODES: DiagramNode[] = [
     toolName: 'DuckDB Engine',
     toolCategory: 'In-Process OLAP',
     metricLabel: 'LATEX EXTRACTED',
-    metricValue: '2,224,198',
-    secondaryMetric: '8,989 Full-Section Enriched',
+    metricValue: '2,765,395',
+    secondaryMetric: '11,763 Full-Section Enriched',
     status: 'ACTIVE',
     iconType: 'duckdb',
     specList: ['Vectorized SIMD Execution', 'Zero-Copy Apache Arrow', 'Math Tag Normalizer']
@@ -142,21 +142,21 @@ export const SCHEMATIC_NODES: DiagramNode[] = [
 export function GeometricPipelineDiagram() {
   const [activeNodeId, setActiveNodeId] = useState<string>('node-harvest');
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [statusText, setStatusText] = useState<string>('PIPELINE READY · 10,000 PAPERS / 143k VECTORS ONLINE');
+  const [statusText, setStatusText] = useState<string>('PIPELINE READY · 13,000 PAPERS / 143k VECTORS ONLINE');
 
   const handleRunPipeline = () => {
     setIsRunning(true);
     setStatusText('RUNNING: Dispatching Medallion Pipeline (MPS Metal accelerated)...');
     setTimeout(() => {
       setIsRunning(false);
-      setStatusText('SUCCESS: 10,000 papers processed · 143,523 LanceDB vectors synced');
+      setStatusText('SUCCESS: 13,000 papers processed · 143,523 LanceDB vectors synced');
     }, 1100);
   };
 
   const handleResetPipeline = () => {
     setStatusText('BUFFER PURGED: Staging cache reset');
     setTimeout(() => {
-      setStatusText('PIPELINE READY · 10,000 PAPERS / 143k VECTORS ONLINE');
+      setStatusText('PIPELINE READY · 13,000 PAPERS / 143k VECTORS ONLINE');
     }, 1500);
   };
 

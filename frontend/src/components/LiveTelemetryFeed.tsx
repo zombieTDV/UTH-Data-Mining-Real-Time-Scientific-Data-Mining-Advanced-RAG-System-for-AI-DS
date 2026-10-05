@@ -84,21 +84,21 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-03 05:14:20',
     level: 'SUCCESS',
     tag: 'SILVER/WRITE',
-    message: '8,989 HTML5 papers enriched with full sections and 2,224,198 LaTeX formulas written to data/silver/year=2026/papers.parquet'
+    message: '11,763 HTML5 papers enriched with full sections and 2,765,395 LaTeX formulas written to data/silver/year=2026/papers.parquet'
   },
   {
     id: 'l-12',
     time: '2026-10-03 04:52:10',
     level: 'INFO',
     tag: 'SILVER/DUCKDB',
-    message: 'DuckDB engine registered view over Silver Parquet partition (Row count: 10,000, 231.73 MB)'
+    message: 'DuckDB engine registered view over Silver Parquet partition (Row count: 13,000, 231.73 MB)'
   },
   {
     id: 'l-13',
     time: '2026-10-03 04:30:11',
     level: 'INFO',
     tag: 'SILVER/PARQUET',
-    message: 'PyArrow serialized columnar table: 10,000 rows with SNAPPY compression (Compression Ratio: 3.82:1)'
+    message: 'PyArrow serialized columnar table: 13,000 rows with SNAPPY compression (Compression Ratio: 3.82:1)'
   },
   {
     id: 'l-14',
@@ -119,7 +119,7 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-03 03:10:00',
     level: 'SUCCESS',
     tag: 'BRONZE/HARVEST',
-    message: '10,000 metadata records harvested from arXiv OAI-PMH across categories: cs.AI, cs.LG, cs.CV, cs.CL, stat.ML'
+    message: '13,000 metadata records harvested from arXiv OAI-PMH across categories: cs.AI, cs.LG, cs.CV, cs.CL, stat.ML'
   },
   {
     id: 'l-17',

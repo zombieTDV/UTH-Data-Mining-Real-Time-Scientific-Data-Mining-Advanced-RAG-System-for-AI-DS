@@ -17,7 +17,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
     sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nI am connected in real-time to your academic Lakehouse holding **10,000 harvested papers**, **2.22M formulas**, and **143,523 LanceDB vector embeddings** (Nomic v1.5 768-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
+    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nI am connected in real-time to your academic Lakehouse holding **13,000 harvested papers**, **2.77M formulas**, and **143,523 LanceDB vector embeddings** (Nomic v1.5 768-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
     timestamp: '12:00:00',
   },
   {
@@ -186,7 +186,7 @@ export const GroundedRagChat: FC = () => {
           <span style={{ color: '#cbd5e1' }}>|</span>
 
           <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
-            10,000 Papers · 143k LanceDB Vectors (Nomic 768-D)
+            13,000 Papers · 143k LanceDB Vectors (Nomic 768-D)
           </span>
 
           <span style={{ color: '#cbd5e1' }}>|</span>
@@ -544,7 +544,7 @@ export const GroundedRagChat: FC = () => {
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder="Ask any scientific inquiry across 10,000 papers..."
+                placeholder="Ask any scientific inquiry across 13,000 papers..."
                 style={{
                   width: '100%',
                   border: 'none',

@@ -18,7 +18,7 @@ export const LAYERS: LakehouseLayer[] = [
     name: 'Raw arXiv HTML5 Papers',
     storageType: 'Cloudflare R2 Object Store',
     format: 'W3C HTML5 (.html)',
-    itemsCount: '9,022 files',
+    itemsCount: '11,763 files',
     sizeBytes: '2.821 GB',
     r2Location: 's3://uth-scientific-lakehouse/bronze/html/year=2026/',
     color: 'var(--accent-bronze)',
@@ -40,11 +40,11 @@ export const LAYERS: LakehouseLayer[] = [
     name: 'Curated Canonical Papers',
     storageType: 'Local Disk & Cloudflare R2',
     format: 'Apache Parquet (Snappy)',
-    itemsCount: '10,000 papers (8,989 enriched)',
+    itemsCount: '13,000 papers (11,763 enriched)',
     sizeBytes: '231.73 MB',
     r2Location: 's3://uth-scientific-lakehouse/silver/year=2026/papers.parquet',
     color: 'var(--accent-silver)',
-    description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.22M extracted LaTeX formulas.'
+    description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.77M extracted LaTeX formulas.'
   },
   {
     zone: 'GOLD',

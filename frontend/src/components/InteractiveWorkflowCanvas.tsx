@@ -43,7 +43,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '10,000 Papers Harvested',
+      primaryMetric: '13,000 Papers Harvested',
       secondaryMetric: 'cs.AI, cs.LG, cs.CV, cs.CL, stat.ML',
       latency: '6.0s Rate-Limit Delay',
       throughput: '100% Validated DOI / arXiv ID',
@@ -75,15 +75,15 @@ Payload: {
     badgeColor: '#e11d48',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '2.841 GB Raw Storage',
-      secondaryMetric: '9,022 HTML5 + 12 Batches',
+      primaryMetric: '5.688 GB Lakehouse Storage',
+      secondaryMetric: '11,763 HTML5 + 13k Parquet',
       latency: '< 45ms S3 HeadObject',
       throughput: 'Zero Egress Fees (Cloudflare Global Edge)',
     },
     features: [
       'Global low-latency S3-compatible cloud object store with 0 egress costs',
       'Strict partitioning scheme: raw/html/year=2026/{paper_id}.html',
-      'Stores 9,022 raw HTML5 files and 12 bulk OAI JSON batch checkpoints',
+      'Stores 11,763 raw HTML5 files and bulk OAI JSON batch checkpoints',
       'Dual automated MD5 and SHA-256 integrity verification on upload',
     ],
     samplePreviewTitle: 'Cloudflare R2 Bucket Key Hierarchy',
@@ -91,7 +91,7 @@ Payload: {
 ├── bronze/
 │   ├── raw_html/year=2026/
 │   │   ├── 2602.01234.html (320 KB)
-│   │   └── ... (9,022 objects · 2.82 GB)
+│   │   └── ... (11,763 objects · 5.68 GB)
 │   └── oai_batches/
 │       └── batch_0001.json ... batch_0012.json (20.8 MB)
 └── gold/
@@ -106,8 +106,8 @@ Payload: {
     badgeColor: '#f59e0b',
     status: 'ACTIVE',
     telemetrySummary: {
-      primaryMetric: '2,224,198 LaTeX Formulas',
-      secondaryMetric: '8,989 Full-Section Enriched Papers',
+      primaryMetric: '2,765,395 LaTeX Formulas',
+      secondaryMetric: '11,763 Full-Section Enriched Papers',
       latency: '0.042s Execution Benchmark',
       throughput: 'Zero-Copy Apache Arrow Columnar Memory',
     },
@@ -140,7 +140,7 @@ ORDER BY paper_count DESC;
     status: 'SYNCED',
     telemetrySummary: {
       primaryMetric: '231.73 MB Parquet Size',
-      secondaryMetric: '10,000 Curated Rows (year=2026)',
+      secondaryMetric: '13,000 Curated Rows (year=2026)',
       latency: '10x Storage Compression Ratio',
       throughput: 'Column Projection & Predicate Pushdown',
     },
@@ -254,7 +254,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     'cs.CL',
     'stat.ML',
   ]);
-  const [harvestLimit, setHarvestLimit] = useState<number>(10000);
+  const [harvestLimit, setHarvestLimit] = useState<number>(13000);
   const [harvestDelay, setHarvestDelay] = useState<number>(6.0);
   const [harvestFormats, setHarvestFormats] = useState<string[]>(['HTML5', 'OAI-XML']);
   const [isHarvesting, setIsHarvesting] = useState<boolean>(false);
@@ -266,7 +266,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     { id: 3, time: '12:00:05', level: 'SUCCESS', tag: 'OLAP', msg: 'DuckDB in-process vector OLAP engine online (Apache Arrow SIMD zero-copy).' },
     { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 143,523 embeddings (dim=384, metric=cosine).' },
     { id: 5, time: '12:00:09', level: 'INFO', tag: 'RAG', msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate armed with Metal GPU offload.' },
-    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 10,000 papers, 2.22M formulas, 143k LanceDB vectors synced.' },
+    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 13,000 papers, 2.77M formulas, 143k LanceDB vectors synced.' },
   ]);
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -355,8 +355,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   // Simulation state for realistic data streaming animation
   const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
-  const [papersHarvested, setPapersHarvested] = useState<number>(10000);
-  const [formulasExtracted, setFormulasExtracted] = useState<number>(2224198);
+  const [papersHarvested, setPapersHarvested] = useState<number>(13000);
+  const [formulasExtracted, setFormulasExtracted] = useState<number>(2765395);
   const [vectorsIndexed, setVectorsIndexed] = useState<number>(143523);
 
   // Real-time Streaming CDC State
@@ -379,7 +379,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         setIsStreaming(true);
         setStreamSessionCount(event.session_ingested || 0);
         setStreamSpeed(event.speed_ppm || 0);
-        setPapersHarvested(event.total_corpus || 10000);
+        setPapersHarvested(event.total_corpus || 13000);
 
         setLogs((prev) => [
           ...prev,
@@ -453,8 +453,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t2 = setTimeout(() => {
       setSimulationStage('duckdb');
-      setPapersHarvested(10000);
-      setFormulasExtracted(920000);
+      setPapersHarvested(13000);
+      setFormulasExtracted(1200000);
       setLogs((prev) => [
         ...prev,
         { id: Date.now() + 2, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'EXEC', tag: 'DUCKDB-SIMD', msg: 'DuckDB SIMD vector parsing LaTeX equations into Apache Arrow columnar memory.' },
@@ -463,11 +463,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t3 = setTimeout(() => {
       setSimulationStage('parallel');
-      setFormulasExtracted(2224198);
-      setVectorsIndexed(68000);
+      setFormulasExtracted(2765395);
+      setVectorsIndexed(80000);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2.22M formulas, 68k vectors indexed.' },
+        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2.77M formulas, 143k vectors indexed.' },
       ]);
     }, 4000);
 
@@ -476,7 +476,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       setVectorsIndexed(143523);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 10,000 papers, 143k vectors online.' },
+        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 13,000 papers, 143k vectors online.' },
       ]);
     }, 6000);
 
@@ -554,7 +554,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'DUCKDB', msg: `Vectorized SIMD query executed in 0.041s over 10,000 Arrow columnar rows.` },
+        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'DUCKDB', msg: `Vectorized SIMD query executed in 0.041s over 13,000 Arrow columnar rows.` },
       ]);
     }, 350);
   };
@@ -799,10 +799,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #f1f5f9' }}>
               <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
-                2.841 GB Stored
+                5.688 GB Stored
               </div>
               <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
-                9,022 HTML5 + 12 Batches
+                11,763 HTML5 + 12 Batches
               </div>
             </div>
 
@@ -1995,7 +1995,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       </div>
                       <div style={{ backgroundColor: '#0f172a', color: '#f8fafc', padding: '12px', borderRadius: '8px', fontFamily: 'var(--font-mono)', fontSize: '11px', lineHeight: 1.6 }}>
                         <div>s3://uth-scientific-lakehouse/</div>
-                        <div style={{ color: '#e11d48' }}>├── bronze/raw_html/year=2026/ (9,022 HTML5 objects · 2.82 GB)</div>
+                        <div style={{ color: '#e11d48' }}>├── bronze/raw_html/year=2026/ (11,763 HTML5 objects · 5.68 GB)</div>
                         <div style={{ color: '#f59e0b' }}>├── bronze/oai_batches/ (12 JSON batch records · 20.8 MB)</div>
                         <div style={{ color: '#10b981' }}>└── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters)</div>
                       </div>
@@ -2023,7 +2023,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           const now = new Date().toLocaleTimeString('en-US', { hour12: false });
                           setLogs((prev) => [
                             ...prev,
-                            { id: Date.now(), time: now, level: 'SUCCESS', tag: 'MD5-CHECK', msg: 'Cloudflare R2 Bucket audit: 9,022 objects validated with 100% SHA-256 match.' },
+                            { id: Date.now(), time: now, level: 'SUCCESS', tag: 'MD5-CHECK', msg: 'Cloudflare R2 Bucket audit: 11,763 objects validated with 100% SHA-256 match.' },
                           ]);
                           setBottomTab('logs');
                         }}

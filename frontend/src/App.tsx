@@ -3,7 +3,14 @@ import { InteractiveWorkflowCanvas } from './components/InteractiveWorkflowCanva
 import { EdaView } from './components/EdaView';
 import { MiningPillarsView } from './components/MiningPillarsView';
 import { GroundedRagChat } from './components/GroundedRagChat';
-import { fetchHealth, subscribeTelemetry, subscribeIngestionStream, triggerMiningPipeline } from './api/client';
+import {
+  fetchHealth,
+  subscribeTelemetry,
+  subscribeIngestionStream,
+  triggerMiningPipeline,
+  fetchEdaSummary,
+  fetchStorageStats,
+} from './api/client';
 
 export type AppTab = 'schematic' | 'eda' | 'pillars' | 'rag';
 
@@ -16,7 +23,11 @@ export default function App() {
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
   // Real-time Streaming State for Lakehouse Counter
-  const [totalPapers, setTotalPapers] = useState<number>(10000);
+  const [totalPapers, setTotalPapers] = useState<number>(13000);
+  const [totalFormulas, setTotalFormulas] = useState<number>(2765395);
+  const [totalVectors, setTotalVectors] = useState<number>(143523);
+  const [lakehouseGb, setLakehouseGb] = useState<number>(5.688);
+  const [lakehouseUsedPct, setLakehouseUsedPct] = useState<number>(56.9);
   const [streamActive, setStreamActive] = useState<boolean>(false);
   const [streamSpeed, setStreamSpeed] = useState<number>(0);
 
@@ -25,11 +36,29 @@ export default function App() {
     localStorage.setItem('uth-theme', theme);
   }, [theme]);
 
-  // Check health and subscribe to SSE telemetry
+  // Check health, fetch live lakehouse metrics, and subscribe to SSE telemetry
   useEffect(() => {
     fetchHealth()
       .then(() => setBackendStatus('ONLINE'))
       .catch(() => setBackendStatus('OFFLINE'));
+
+    fetchEdaSummary()
+      .then((data) => {
+        if (data?.dataset_overview) {
+          setTotalPapers(data.dataset_overview.total_papers);
+          setTotalFormulas(data.dataset_overview.total_math_formulas);
+        }
+      })
+      .catch(() => {});
+
+    fetchStorageStats()
+      .then((stats) => {
+        if (stats) {
+          setLakehouseGb(stats.total_size_gb);
+          setLakehouseUsedPct(stats.used_percentage);
+        }
+      })
+      .catch(() => {});
 
     const unsubscribe = subscribeTelemetry(
       (data) => {
@@ -44,12 +73,16 @@ export default function App() {
     const unsubStream = subscribeIngestionStream((event) => {
       if (event.type === 'PAPER_INGESTED') {
         setStreamActive(true);
-        setTotalPapers(event.total_corpus || 10000);
+        if (event.total_corpus) {
+          setTotalPapers(event.total_corpus);
+          setTotalVectors((prev) => prev + (event.vectors_synced || 14));
+          setTotalFormulas((prev) => prev + (event.math_count || 212));
+        }
         setStreamSpeed(event.speed_ppm || 0);
       } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
         if (event.status === 'STREAMING') {
           setStreamActive(true);
-          setTotalPapers(event.total_corpus || 10000);
+          if (event.total_corpus) setTotalPapers(event.total_corpus);
           setStreamSpeed(event.speed_ppm || 0);
         } else if (event.status === 'PAUSED' || event.status === 'COMPLETED') {
           setStreamActive(false);
@@ -380,8 +413,8 @@ export default function App() {
               {pipelineStatus === 'RUNNING'
                 ? 'Pipeline Active: Ingesting papers, DuckDB parsing & LanceDB indexing...'
                 : streamActive
-                ? `Real-Time CDC Stream Active: ${totalPapers.toLocaleString()} papers synced (+${totalPapers - 10000} new 2025/2026) · ${streamSpeed} papers/min`
-                : `Lakehouse Standby: ${totalPapers.toLocaleString()} papers, 2.22M formulas, 143k LanceDB vectors synced.`}
+                ? `Real-Time CDC Stream Active: ${totalPapers.toLocaleString()} papers synced (+${Math.max(0, totalPapers - 13000)} new 2025/2026) · ${streamSpeed} papers/min`
+                : `Lakehouse Standby: ${totalPapers.toLocaleString()} papers, ${(totalFormulas / 1000000).toFixed(2)}M formulas, ${Math.round(totalVectors / 1000)}k LanceDB vectors synced.`}
             </span>
           </div>
 
@@ -390,10 +423,10 @@ export default function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
               <span style={{ color: '#64748b' }}>R2 LAKE:</span>
               <span style={{ fontWeight: 800, color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>
-                {(5.688 + (totalPapers - 10000) * 0.00056).toFixed(3)} GB
+                {(lakehouseGb + Math.max(0, totalPapers - 13000) * 0.00056).toFixed(3)} GB
               </span>
               <span style={{ backgroundColor: '#ecfdf5', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                {Math.min(100, +(56.9 + (totalPapers - 10000) * 0.0056).toFixed(1))}%
+                {Math.min(100, +(lakehouseUsedPct + Math.max(0, totalPapers - 13000) * 0.0056).toFixed(1))}%
               </span>
             </div>
 
@@ -501,9 +534,9 @@ export default function App() {
           <div style={{ display: 'flex', gap: '16px' }}>
             <span>{totalPapers.toLocaleString()} PAPERS</span>
             <span>&bull;</span>
-            <span>{(143523 + (totalPapers - 10000) * 14).toLocaleString()} VECTORS</span>
+            <span>{totalVectors.toLocaleString()} VECTORS</span>
             <span>&bull;</span>
-            <span>{(2.22 + (totalPapers - 10000) * 0.00022).toFixed(2)}M FORMULAS</span>
+            <span>{(totalFormulas / 1000000).toFixed(2)}M FORMULAS</span>
           </div>
         </footer>
       </div>
