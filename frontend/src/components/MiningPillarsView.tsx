@@ -623,7 +623,24 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               }}
               title="Phóng đại toàn màn hình 100% (Phím T)"
             >
-              {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát (T)'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              {isTheaterMode ? (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="4 14 10 14 10 20" />
+                  <polyline points="20 10 14 10 14 4" />
+                  <line x1="14" y1="10" x2="21" y2="3" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              ) : (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              )}
+              <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát (T)'}</span>
+            </span>
             </button>
             <button
               type="button"
@@ -880,7 +897,21 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             }}
             title="Phóng đại toàn màn hình 100% (Phím T)"
           >
-            <span style={{ fontSize: '14px' }}>{isTheaterMode ? '⤡' : '⛶'}</span>
+            {isTheaterMode ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="4 14 10 14 10 20" />
+                <polyline points="20 10 14 10 14 4" />
+                <line x1="14" y1="10" x2="21" y2="3" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 3 21 3 21 9" />
+                <polyline points="9 21 3 21 3 15" />
+                <line x1="21" y1="3" x2="14" y2="10" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            )}
             <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
           </button>
         </div>
@@ -1035,7 +1066,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   }}
                   title="Sao chép đoạn mã LaTeX Table vào clipboard"
                 >
-                  📋 Copy LaTeX
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    <span>Copy LaTeX</span>
+                  </span>
                 </button>
 
                 <button
@@ -1546,7 +1583,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             gap: '6px',
                           }}
                         >
-                          <span>🔍</span>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          </svg>
                           <span>Tra cứu đề tài này trong RAG Chat</span>
                         </button>
                       )}
@@ -1897,7 +1937,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       }}
                       title="Sao chép bảng kết quả phân cụm định dạng LaTeX cho bài báo"
                     >
-                      📋 Copy LaTeX
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                      <span>Copy LaTeX</span>
                     </button>
 
                     <button
@@ -2373,7 +2417,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             gap: '6px',
                           }}
                         >
-                          <span>🔬</span>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 18h8" />
+                            <path d="M3 22h18" />
+                            <path d="M14 22a7 7 0 1 0-14 0" />
+                            <path d="M9 14h2" />
+                            <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2z" />
+                            <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
+                          </svg>
                           <span>Phân tích bài báo này với RAG Chat</span>
                         </button>
                       )}
@@ -2578,7 +2629,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       type="text"
                       value={searchAuthorQuery}
                       onChange={(e) => setSearchAuthorQuery(e.target.value)}
-                      placeholder="🔍 Tìm tác giả..."
+                      placeholder="Tìm tác giả..."
                       style={{
                         padding: '2px 6px',
                         borderRadius: '4px',
@@ -2630,7 +2681,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         }}
                         title="Bố cục vòng tròn tọa độ"
                       >
-                        🌐 Circular
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="2" y1="12" x2="22" y2="12" />
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                          </svg>
+                          <span>Circular</span>
+                        </span>
                       </button>
                       <button
                         type="button"
@@ -2648,7 +2706,12 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         }}
                         title="Bố cục lực đàn hồi cụm cộng đồng Louvain"
                       >
-                        ⚡ Force
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                          </svg>
+                          <span>Force</span>
+                        </span>
                       </button>
                     </div>
 
@@ -3147,7 +3210,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginTop: '6px',
                           }}
                         >
-                          <span>📚</span>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                          </svg>
                           <span>Tra cứu công trình của tác giả trong RAG</span>
                         </button>
                       )}
@@ -3341,7 +3407,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       }}
                       title="Sao chép bảng kết quả dị biệt định dạng LaTeX cho bài báo"
                     >
-                      📋 Copy LaTeX
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                      <span>Copy LaTeX</span>
                     </button>
 
                     {/* Sidebar Toggle Button */}
@@ -3509,7 +3579,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               fontWeight="800"
                               fill={isHighSurge ? '#10b981' : '#38bdf8'}
                             >
-                              {isHighSurge ? '⚡ +' : '+'}{Math.round(trend.growth_rate_pct)}%
+                              +{Math.round(trend.growth_rate_pct)}%
                             </text>
                           </g>
 
@@ -3867,7 +3937,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             gap: '6px',
                           }}
                         >
-                          <span>🔬</span>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 18h8" />
+                            <path d="M3 22h18" />
+                            <path d="M14 22a7 7 0 1 0-14 0" />
+                            <path d="M9 14h2" />
+                            <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2z" />
+                            <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
+                          </svg>
                           <span>Phân tích bài báo dị biệt này với RAG</span>
                         </button>
                       )}

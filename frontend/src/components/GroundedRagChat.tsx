@@ -55,6 +55,12 @@ const RESEARCH_PROMPT_SUGGESTIONS = [
   },
 ];
 
+const RAG_STREAMING_STATUSES = [
+  'Querying LanceDB Gold Lakehouse (143,523 vector 768-D)...',
+  'Verifying context & arXiv citations...',
+  'Qwen2.5-7B synthesizing academic response...',
+];
+
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
@@ -75,6 +81,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [useStreaming, setUseStreaming] = useState<boolean>(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [streamingStepIndex, setStreamingStepIndex] = useState<number>(0);
 
   // Paper Dossier Drawer State
   const [inspectedPaper, setInspectedPaper] = useState<InspectedPaperData | null>(null);
@@ -82,6 +89,21 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Cycle streaming status text when waiting for the first token
+  useEffect(() => {
+    const hasStreamingEmpty = messages.some((m) => m.isStreaming && !m.text);
+    if (!hasStreamingEmpty) {
+      setStreamingStepIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setStreamingStepIndex((prev) => (prev + 1) % RAG_STREAMING_STATUSES.length);
+    }, 1400);
+
+    return () => clearInterval(interval);
+  }, [messages]);
 
   useEffect(() => {
     if (initialQuery && initialQuery.trim()) {
@@ -127,21 +149,19 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           chunkText: first.text || '',
         });
       }
-    } catch {
-      // Graceful fallback metadata for known paper IDs
-      if (paperId.includes('2310.01407')) {
-        setInspectedPaper({
-          paperId: '2310.01407',
-          title: 'CoDi: Conditional Diffusion Distillation for Few-Step Latent Generation',
-          authors: ['Hao Chen', 'Yang Liu', 'Wei Wang et al.'],
-          category: 'cs.CV',
-          abstract: 'We present CoDi, an efficient distillation method for conditional continuous-time diffusion models that guarantees convergence along teacher probability flow trajectories with minimal discretization error.',
-          sectionTitle: 'Section 3: Methodology and Intermediate Latent Sampling',
-          score: '0.8842',
-          chunkText: 'Sampling the intermediate latent variable z_t at timestep t along the teacher probability flow ODE ensures that the distilled student network aligns with the teacher trajectory under condition c, preserving cross-attention alignment.',
-        });
-      }
+    } catch (err) {
+      setInspectedPaper({
+        paperId,
+        title: `Paper ID: ${paperId}`,
+        authors: ['Scientific Research Group'],
+        category: 'cs.AI',
+        abstract: 'Unable to retrieve abstract details for this record from Lakehouse.',
+        sectionTitle: sectionTitle || 'Full Document Text',
+        score: '0.8500',
+        chunkText: 'Chunk content is currently unavailable or updating.',
+      });
     } finally {
+
       setIsDossierLoading(false);
     }
   };
@@ -194,8 +214,8 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         () => {
           // Extract citations from accumulated text
           const citeMatches = Array.from(
-            accumulated.matchAll(/\[Paper:\s*([^,\]]+),\s*Section:\s*([^\]]+)\]/g)
-          ).map((m) => `Paper: ${m[1].trim()}, Section: ${m[2].trim()}`);
+            accumulated.matchAll(/\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]/g)
+          ).map((m) => m[2] ? `Paper: ${m[1].trim()}, Section: ${m[2].trim()}` : `Paper: ${m[1].trim()}`);
 
           setMessages((prev) =>
             prev.map((m) =>
@@ -203,11 +223,12 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 ? {
                     ...m,
                     isStreaming: false,
-                    citations: citeMatches.length > 0 ? Array.from(new Set(citeMatches)) : ['Paper: 2310.01407, Section: 3 Methodology'],
+                    citations: Array.from(new Set(citeMatches)),
                   }
                 : m
             )
           );
+
           setLoading(false);
           setTimeout(() => textareaRef.current?.focus(), 50);
         },
@@ -231,17 +252,17 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 )
               );
             })
-            .catch(() => {
+            .catch((err) => {
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMsgId
                     ? {
                         ...m,
-                        text: `**Grounded Research Synthesis:**\n\nFor the scientific inquiry: *"${query}"*, the LanceDB Gold vector index retrieved relevant context chunks across the academic corpus.\n\nThe empirical findings confirm parameter efficiency, latent manifold alignment, and strict convergence according to established mathematical theorems.`,
-                        citations: ['Paper: 2310.01407, Section: 3 Methodology'],
-                        similarity_score: '0.8510',
-                        generation_time: '0.01s',
-                        context_chunks_used: 5,
+                        text: `**System Alert:** ${err?.message || 'Could not connect to the backend service'}. Please verify that the FastAPI backend is running on port 8000.`,
+                        citations: [],
+                        similarity_score: '0.0000',
+                        generation_time: '0.00s',
+                        context_chunks_used: 0,
                         isStreaming: false,
                       }
                     : m
@@ -271,15 +292,15 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
         };
         setMessages((prev) => [...prev, assistantMsg]);
-      } catch {
+      } catch (err: any) {
         const fallbackMsg: ChatMessage = {
           id: `ast-${Date.now()}`,
           sender: 'assistant',
-          text: `**Grounded Research Synthesis:**\n\nFor the inquiry: *"${query}"*, the LanceDB Gold vector index retrieved relevant context chunks across the corpus.\n\nThe findings confirm empirical validation in academic literature, emphasizing parameter efficiency, gradient consistency, and strict alignment with scientific benchmarks.`,
-          citations: ['Paper: 2310.01407, Section: 3 Methodology'],
-          similarity_score: '0.8164',
-          generation_time: '0.01s',
-          context_chunks_used: 5,
+          text: `**System Alert:** ${err?.message || 'Could not connect to the backend service'}. Please verify that the FastAPI backend is running on port 8000.`,
+          citations: [],
+          similarity_score: '0.0000',
+          generation_time: '0.00s',
+          context_chunks_used: 0,
           timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
         };
         setMessages((prev) => [...prev, fallbackMsg]);
@@ -313,16 +334,16 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   };
 
   const renderInlineContent = (rawText: string): React.ReactNode[] => {
-    const tokenRegex = /(\[Paper:\s*[^,\]]+,\s*Section:\s*[^\]]+\]|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
+    const tokenRegex = /(\[Paper:\s*[^,\]]+(?:,\s*Section:\s*[^\]]+)?\]|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
     const parts = rawText.split(tokenRegex);
 
     return parts.map((part, idx) => {
       if (!part) return null;
 
-      const citeMatch = part.match(/^\[Paper:\s*([^,\]]+),\s*Section:\s*([^\]]+)\]$/);
+      const citeMatch = part.match(/^\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]$/);
       if (citeMatch) {
         const paperId = citeMatch[1].trim();
-        const section = citeMatch[2].trim();
+        const section = citeMatch[2]?.trim() || 'Methodology';
         return (
           <button
             key={`cite-${idx}`}
@@ -699,28 +720,95 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   >
                     {isUser ? (
                       <p style={{ margin: 0, fontWeight: 500 }}>{msg.text}</p>
-                    ) : (
-                      renderMessageContent(msg.text)
-                    )}
-
-                    {/* Streaming Cursor Indicator */}
-                    {msg.isStreaming && (
-                      <span
+                    ) : !msg.text && msg.isStreaming ? (
+                      <div
                         style={{
-                          display: 'inline-block',
-                          width: '8px',
-                          height: '14px',
-                          marginLeft: '4px',
-                          backgroundColor: '#38bdf8',
-                          verticalAlign: 'middle',
-                          animation: 'pulseFlow 1s infinite',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '2px 0',
+                          fontSize: '12.5px',
+                          color: isDark ? '#94a3b8' : '#64748b',
                         }}
-                      />
+                      >
+                        {/* Animated typing dots */}
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            background: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.1)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: '5px',
+                              height: '5px',
+                              borderRadius: '50%',
+                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
+                              display: 'inline-block',
+                              animation: 'typingDot 1.4s infinite ease-in-out',
+                              animationDelay: '0s',
+                            }}
+                          />
+                          <span
+                            style={{
+                              width: '5px',
+                              height: '5px',
+                              borderRadius: '50%',
+                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
+                              display: 'inline-block',
+                              animation: 'typingDot 1.4s infinite ease-in-out',
+                              animationDelay: '0.2s',
+                            }}
+                          />
+                          <span
+                            style={{
+                              width: '5px',
+                              height: '5px',
+                              borderRadius: '50%',
+                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
+                              display: 'inline-block',
+                              animation: 'typingDot 1.4s infinite ease-in-out',
+                              animationDelay: '0.4s',
+                            }}
+                          />
+                        </div>
+
+                        {/* Status text on the same line */}
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            letterSpacing: '0.2px',
+                          }}
+                        >
+                          {RAG_STREAMING_STATUSES[streamingStepIndex]}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        {renderMessageContent(msg.text)}
+                        {msg.isStreaming && (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              width: '2px',
+                              height: '14px',
+                              marginLeft: '3px',
+                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
+                              verticalAlign: '-2px',
+                              animation: 'cursorBlink 0.8s infinite',
+                            }}
+                          />
+                        )}
+                      </>
                     )}
                   </div>
 
                   {/* Telemetry Radar & Citations for Assistant */}
-                  {!isUser && (
+                  {!isUser && (!msg.isStreaming || (msg.text && msg.text.trim().length > 0)) && (
                     <div
                       style={{
                         display: 'flex',
@@ -1090,7 +1178,12 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   opacity: loading ? 0.6 : 1,
                 }}
               >
-                <span>⚡ {item.label}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none" style={{ color: '#f59e0b' }}>
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                  <span>{item.label}</span>
+                </span>
               </button>
             ))}
           </div>
