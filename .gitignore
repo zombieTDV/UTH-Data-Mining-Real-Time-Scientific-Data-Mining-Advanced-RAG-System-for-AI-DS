@@ -75,6 +75,7 @@ tools/
 /logs/
 !logs/.gitkeep
 !frontend/src/components/logs/
+data_mining/logs/
 
 # IDE / OS / Tooling
 .gemini/
