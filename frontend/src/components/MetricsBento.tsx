@@ -40,7 +40,7 @@ export function MetricsBento() {
             </span>
           </div>
           <div style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-            13,000
+            10,000
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px' }}>
             AI/DS Scientific Papers Indexed
@@ -57,7 +57,7 @@ export function MetricsBento() {
           fontFamily: 'var(--font-mono)',
           color: 'var(--text-muted)'
         }}>
-          <span>ar5iv HTML5: 11,763</span>
+          <span>ar5iv HTML5: 9,022</span>
           <span>OAI Batches: 12</span>
         </div>
       </div>
@@ -135,12 +135,12 @@ export function MetricsBento() {
               Cloudflare R2 Bucket
             </span>
             <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#f59e0b' }}>
-              56.88% of Free Tier
+              55.24% of Free Tier
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
             <span style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              5.688
+              5.524
             </span>
             <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontWeight: 500 }}>
               / 10.0 GB
@@ -149,13 +149,13 @@ export function MetricsBento() {
           {/* Progress bar */}
           <div style={{
             height: '4px',
-            background: 'rgba(255, 255, 255, 0.08)',
+            background: 'var(--track-bg)',
             borderRadius: '2px',
             marginTop: '12px',
             overflow: 'hidden'
           }}>
             <div style={{
-              width: '56.88%',
+              width: '55.24%',
               height: '100%',
               background: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
               borderRadius: '2px'
@@ -173,7 +173,7 @@ export function MetricsBento() {
           fontFamily: 'var(--font-mono)',
           color: 'var(--text-muted)'
         }}>
-          <span>Remaining: 4.312 GB</span>
+          <span>Remaining: 4.476 GB</span>
           <span>Zero Egress Fees</span>
         </div>
       </div>
@@ -194,7 +194,7 @@ export function MetricsBento() {
             Mathematical Extraction Engine
           </div>
           <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            2,765,395 Formulas
+            2,224,198 Formulas
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Cleaned and normalized into pure LaTeX syntax across Silver & Gold
@@ -203,11 +203,11 @@ export function MetricsBento() {
         <div style={{
           padding: '8px 12px',
           borderRadius: 'var(--radius-sm)',
-          background: 'rgba(168, 85, 247, 0.08)',
-          border: '1px solid rgba(168, 85, 247, 0.2)',
+          background: 'rgba(124, 58, 237, 0.08)',
+          border: '1px solid rgba(124, 58, 237, 0.2)',
           fontFamily: 'var(--font-mono)',
           fontSize: '12px',
-          color: '#c084fc',
+          color: 'var(--accent-violet)',
         }}>
           {'$L_{distill} = \\|z_t - \\hat{z}_s\\|^2$'}
         </div>
@@ -242,7 +242,7 @@ export function MetricsBento() {
           border: '1px solid rgba(16, 185, 129, 0.2)',
           fontFamily: 'var(--font-mono)',
           fontSize: '12px',
-          color: '#34d399',
+          color: 'var(--accent-emerald)',
           textAlign: 'right'
         }}>
           <div>~6.0 tok/s</div>

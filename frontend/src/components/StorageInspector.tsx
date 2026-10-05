@@ -18,7 +18,7 @@ export const LAYERS: LakehouseLayer[] = [
     name: 'Raw arXiv HTML5 Papers',
     storageType: 'Cloudflare R2 Object Store',
     format: 'W3C HTML5 (.html)',
-    itemsCount: '11,763 files',
+    itemsCount: '9,022 files',
     sizeBytes: '2.821 GB',
     r2Location: 's3://uth-scientific-lakehouse/bronze/html/year=2026/',
     color: 'var(--accent-bronze)',
@@ -40,11 +40,11 @@ export const LAYERS: LakehouseLayer[] = [
     name: 'Curated Canonical Papers',
     storageType: 'Local Disk & Cloudflare R2',
     format: 'Apache Parquet (Snappy)',
-    itemsCount: '13,000 papers (11,763 enriched)',
+    itemsCount: '10,000 papers (8,989 enriched)',
     sizeBytes: '231.73 MB',
     r2Location: 's3://uth-scientific-lakehouse/silver/year=2026/papers.parquet',
     color: 'var(--accent-silver)',
-    description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.77M extracted LaTeX formulas.'
+    description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.22M extracted LaTeX formulas.'
   },
   {
     zone: 'GOLD',
@@ -126,9 +126,9 @@ export function StorageInspector() {
                     fontFamily: 'var(--font-mono)',
                     padding: '2px 7px',
                     borderRadius: '4px',
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'var(--badge-bg)',
                     color: layer.color,
-                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                    border: '1px solid var(--badge-border)'
                   }}>
                     {layer.zone}
                   </span>

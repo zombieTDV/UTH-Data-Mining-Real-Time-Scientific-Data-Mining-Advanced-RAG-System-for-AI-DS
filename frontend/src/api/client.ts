@@ -154,3 +154,67 @@ export function subscribeIngestionStream(
   };
 }
 
+export async function fetchPaper(paperId: string): Promise<any[]> {
+  const res = await fetch(`${BASE_URL}/api/papers/${encodeURIComponent(paperId)}`);
+  if (!res.ok) throw new Error(`Paper fetch failed: ${res.statusText}`);
+  return res.json();
+}
+
+export function streamChatQuery(
+  query: string,
+  onToken: (token: string) => void,
+  onDone: () => void,
+  onError?: (err: any) => void,
+  category?: string
+): () => void {
+  const controller = new AbortController();
+  fetch(`${BASE_URL}/api/chat/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, category, top_k: 5 }),
+    signal: controller.signal,
+  })
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`Streaming failed: ${response.statusText}`);
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No readable stream available');
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const dataStr = trimmed.slice(6).trim();
+            if (dataStr === '[DONE]') {
+              onDone();
+              return;
+            }
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.token) {
+                onToken(parsed.token);
+              }
+            } catch {
+              onToken(dataStr);
+            }
+          }
+        }
+      }
+      onDone();
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError' && onError) {
+        onError(err);
+      }
+    });
+
+  return () => controller.abort();
+}
+

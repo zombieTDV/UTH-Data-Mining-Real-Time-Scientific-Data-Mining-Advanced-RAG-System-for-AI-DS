@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { subscribeTelemetry, subscribeIngestionStream } from '../api/client';
 
 export interface LogLine {
   id: string;
@@ -84,21 +85,21 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-03 05:14:20',
     level: 'SUCCESS',
     tag: 'SILVER/WRITE',
-    message: '11,763 HTML5 papers enriched with full sections and 2,765,395 LaTeX formulas written to data/silver/year=2026/papers.parquet'
+    message: '8,989 HTML5 papers enriched with full sections and 2,224,198 LaTeX formulas written to data/silver/year=2026/papers.parquet'
   },
   {
     id: 'l-12',
     time: '2026-10-03 04:52:10',
     level: 'INFO',
     tag: 'SILVER/DUCKDB',
-    message: 'DuckDB engine registered view over Silver Parquet partition (Row count: 13,000, 231.73 MB)'
+    message: 'DuckDB engine registered view over Silver Parquet partition (Row count: 10,000, 231.73 MB)'
   },
   {
     id: 'l-13',
     time: '2026-10-03 04:30:11',
     level: 'INFO',
     tag: 'SILVER/PARQUET',
-    message: 'PyArrow serialized columnar table: 13,000 rows with SNAPPY compression (Compression Ratio: 3.82:1)'
+    message: 'PyArrow serialized columnar table: 10,000 rows with SNAPPY compression (Compression Ratio: 3.82:1)'
   },
   {
     id: 'l-14',
@@ -119,7 +120,7 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-03 03:10:00',
     level: 'SUCCESS',
     tag: 'BRONZE/HARVEST',
-    message: '13,000 metadata records harvested from arXiv OAI-PMH across categories: cs.AI, cs.LG, cs.CV, cs.CL, stat.ML'
+    message: '10,000 metadata records harvested from arXiv OAI-PMH across categories: cs.AI, cs.LG, cs.CV, cs.CL, stat.ML'
   },
   {
     id: 'l-17',
@@ -159,11 +160,45 @@ export const PIPELINE_LOGS: LogLine[] = [
 ];
 
 export function LiveTelemetryFeed() {
+  const [logs, setLogs] = useState<LogLine[]>(PIPELINE_LOGS);
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const filteredLogs = PIPELINE_LOGS.filter((l) => {
+  useEffect(() => {
+    const unsub = subscribeTelemetry((data) => {
+      if (data && (data.event || data.message || data.status)) {
+        const newLog: LogLine = {
+          id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          level: (data.level || (data.status === 'ONLINE' ? 'SUCCESS' : 'INFO')) as any,
+          tag: data.tag || 'TELEMETRY/SSE',
+          message: data.message || `System event: ${JSON.stringify(data)}`,
+        };
+        setLogs((prev) => [newLog, ...prev.slice(0, 99)]);
+      }
+    });
+
+    const unsubStream = subscribeIngestionStream((event) => {
+      if (event && event.type) {
+        const newLog: LogLine = {
+          id: `stream-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          level: event.type === 'PAPER_INGESTED' ? 'SUCCESS' : 'INFO',
+          tag: 'INGESTION/CDC',
+          message: event.title ? `[${event.paper_id}] ${event.title} (${event.category})` : `CDC Stream: ${event.type}`,
+        };
+        setLogs((prev) => [newLog, ...prev.slice(0, 99)]);
+      }
+    });
+
+    return () => {
+      unsub();
+      unsubStream();
+    };
+  }, []);
+
+  const filteredLogs = logs.filter((l) => {
     if (filterLevel !== 'ALL' && l.level !== filterLevel) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -319,7 +354,7 @@ export function LiveTelemetryFeed() {
                 background: copiedId === log.id ? 'var(--bg-surface-elevated)' : 'transparent',
                 cursor: 'pointer',
                 transition: 'background 0.1s ease',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.03)'
+                borderBottom: '1px solid var(--border-subtle)'
               }}
               title="Click to copy log line"
             >
