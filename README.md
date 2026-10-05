@@ -3,9 +3,9 @@
 - **Motivation/Background**: Xây dựng hệ thống khai thác dữ liệu nghiên cứu khoa học thời gian thực và truy xuất tri thức nâng cao (RAG) cho miền Trí tuệ Nhân tạo & Khoa học Dữ liệu (AI/DS) phục vụ học phần Khai phá Dữ liệu tại Trường Đại học Giao thông Vận tải TP.HCM (UTH).
 - **Purpose**: Đóng vai trò là điểm truy cập trung tâm, đặc tả kiến trúc kỹ thuật, hướng dẫn khởi chạy phân hệ khai phá dữ liệu, dịch vụ backend API và giao diện giám sát dashboard tương tác.
 - **Methodology**: Kiến trúc Medallion Lakehouse kết hợp quy trình chuẩn CRISP-DM & KDD (Thu thập arXiv/OpenAlex -> Lưu trữ Bronze bất biến -> Chuẩn hóa Silver Parquet & Đồ thị trích dẫn -> Đánh chỉ mục Gold LanceDB & 4 Trụ cột Khai phá -> Phục vụ qua FastAPI & React 19).
-- **References**: [docs/PURPOSE.md](docs/PURPOSE.md), [docs/OVERVIEW.md](docs/OVERVIEW.md), [docs/mining/FOUR_DATA_MINING_PILLARS.md](docs/mining/FOUR_DATA_MINING_PILLARS.md), [docs/mining/PIPELINE_EXECUTION_GUIDE.md](docs/mining/PIPELINE_EXECUTION_GUIDE.md), [agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md).
+- **References**: [docs/PURPOSE.md](docs/PURPOSE.md), [docs/OVERVIEW.md](docs/OVERVIEW.md), [docs/presentation/data_mining_defense_presentation.html](docs/presentation/data_mining_defense_presentation.html), [docs/mining/FOUR_DATA_MINING_PILLARS.md](docs/mining/FOUR_DATA_MINING_PILLARS.md), [docs/mining/PIPELINE_EXECUTION_GUIDE.md](docs/mining/PIPELINE_EXECUTION_GUIDE.md), [agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md).
 - **Created**: 2026-07-25T00:00:00+07:00
-- **Last Updated**: 2026-10-05T13:22:00+07:00
+- **Last Updated**: 2026-10-06T07:00:00+07:00
 
 ---
 
@@ -240,7 +240,39 @@ Hệ thống RAG được đánh giá tự động bằng bộ kiểm thử [Dee
 
 ---
 
-## 6. 🧪 Kiểm thử & Xác minh Hệ thống (Testing & Verification)
+## 6. 📑 Báo Cáo & Slide Thuyết Trình Hội Đồng (Executive Defense Deck)
+
+Báo cáo thuyết trình bảo vệ đồ án được biên soạn dưới dạng **Standalone HTML Slide Deck** chuẩn học thuật (Scientific Editorial / arXiv Print style), tích hợp trực tiếp dữ liệu thực nghiệm từ Lakehouse Gold và kết quả DeepEval:
+
+- **Tệp trình chiếu chính**: [`docs/presentation/data_mining_defense_presentation.html`](docs/presentation/data_mining_defense_presentation.html) *(Mở trực tiếp trên bất kỳ trình duyệt web nào, không cần máy chủ phục vụ)*
+- **Kịch bản biên dịch lại**:
+  ```powershell
+  .\.venv\Scripts\python.exe scripts/build_presentation_report.py
+  ```
+- **Cấu trúc 16 Slide Bảo vệ (Plot-First)**:
+  - **Slide 1**: Bìa học thuật & Thông tin đề tài Hội đồng.
+  - **Slide 2**: Kiến trúc Medallion Lakehouse 3 tầng & DuckDB Zero-copy OLAP Flow.
+  - **Slide 3 - 5**: Khám phá dữ liệu (EDA) — Phân bố chuyên ngành, 2.76M công thức toán, Bùng nổ GenAI 2024, và Ma trận đồng xuất bản liên ngành.
+  - **Slide 6 - 7**: Trụ cột 1 — FP-Growth Mining (30 luật kết hợp) & Phân định luật kỹ thuật (`cs.SY <=> eess.SY`) vs. luật thực chất (`{cs.AI, cs.CV} => {cs.LG}`).
+  - **Slide 8 - 9**: Trụ cột 2 — Không gian phân cụm 2D TruncatedSVD (6 trường phái) & Biện giải học thuật về Silhouette Score 0.063 do ranh giới liên ngành mờ.
+  - **Slide 10 - 11**: Trụ cột 3 — Đồ thị trích dẫn 8,892 đỉnh, 86,295 cạnh, 92 cộng đồng Louvain & PageRank định lượng uy tín cho RAG Retrieval.
+  - **Slide 12 - 13**: Trụ cột 4 — Share-Normalized Momentum (+123% cs.CV) & Isolation Forest P99 phát hiện 260 bài báo dị biệt cấu trúc.
+  - **Slide 14**: Cầu nối Data Mining $\to$ RAG Architecture (PageRank weighting, FP-Growth keyword expansion, LaTeX preservation).
+  - **Slide 15**: Kết quả đối đầu DeepEval 21 mẫu thử (+35% Contextual Precision, 100% Contextual Recall).
+  - **Slide 16**: Phản biện học thuật — 3 Hạn chế trung thực & Lộ trình hoàn thiện 3 bước.
+
+- **Phím Tắt Điều Khiển Khi Thuyết Trình**:
+  - `→` / `Space` / `PageDown`: Tiến 1 slide.
+  - `←` / `PageUp`: Lùi 1 slide.
+  - `N`: **Bật/Tắt Ghi chú Thuyết minh tiếng Việt (Speaker Notes Drawer)** chứa gợi ý diễn giải chi tiết cho từng slide.
+  - `O`: **Bật/Tắt Bản đồ Tổng quan 16 Slide (Overview Modal Grid)** cho phép chuyển nhanh giữa các phần khi hội đồng hỏi.
+  - `F`: Chế độ Toàn màn hình (Fullscreen).
+  - `Esc`: Đóng Drawer ghi chú / Modal tổng quan.
+  - `Ctrl + P`: In hoặc xuất PDF chuẩn A4 Landscape (tự động phân trang 1 slide/trang, ẩn thanh điều hướng).
+
+---
+
+## 7. 🧪 Kiểm thử & Xác minh Hệ thống (Testing & Verification)
 
 ```bash
 # 1. Kiểm tra mã nguồn với Ruff
@@ -258,7 +290,7 @@ cd frontend && npm run build
 
 ---
 
-## 7. 📜 Quy chuẩn Quản trị & Quy trình Làm việc (Governance & Workflow)
+## 8. 📜 Quy chuẩn Quản trị & Quy trình Làm việc (Governance & Workflow)
 
 - Tác tử AI tuân thủ nghiêm ngặt chu trình 6 bước: `AUDIT → PLAN → IMPLEMENT → VERIFY → COMMIT → MERGE` ([agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md)).
 - Hướng dẫn thiết lập chi tiết tại [docs/shared/HOW_TO_SETUP_AI_AGENT.md](docs/shared/HOW_TO_SETUP_AI_AGENT.md).
