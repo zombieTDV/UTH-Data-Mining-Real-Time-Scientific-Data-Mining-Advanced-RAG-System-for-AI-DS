@@ -287,17 +287,48 @@ class RetrievalService:
         if not self.is_ready():
             return []
         try:
-            rows = self.table.search().where(f"paper_id = '{paper_id}'").limit(20).to_pandas()
+            # Query chunks from LanceDB
+            clean_pid = paper_id.replace("arXiv:", "").strip()
+            rows = self.table.search().where(f"paper_id = '{clean_pid}'").limit(20).to_pandas()
+            
+            # Fetch paper metadata from Silver Parquet if available
+            paper_meta = {}
+            if settings.SILVER_PARQUET.exists():
+                try:
+                    import pyarrow.parquet as pq
+                    import pyarrow.compute as pc
+                    table = pq.read_table(
+                        settings.SILVER_PARQUET,
+                        columns=["paper_id", "title", "abstract", "authors", "primary_category", "year", "doi"]
+                    )
+                    filtered = table.filter(pc.equal(table["paper_id"], clean_pid))
+                    if filtered.num_rows > 0:
+                        paper_meta = filtered.to_pylist()[0]
+                except Exception as meta_err:
+                    logger.debug("[RETRIEVAL] Could not read metadata from parquet: %s", meta_err)
+
             results = []
             for _, r in rows.iterrows():
+                raw_authors = paper_meta.get("authors") or r.get("authors") or []
+                if hasattr(raw_authors, "tolist"):
+                    authors_list = [str(a) for a in raw_authors.tolist()]
+                elif isinstance(raw_authors, list):
+                    authors_list = [str(a) for a in raw_authors]
+                else:
+                    authors_list = [str(raw_authors)] if raw_authors else []
+
                 results.append(
                     ChunkDto(
                         chunk_id=str(r.get("chunk_id", "")),
-                        paper_id=str(r.get("paper_id", "")),
-                        title=str(r.get("title", "")),
+                        paper_id=clean_pid,
+                        title=str(paper_meta.get("title") or r.get("title", "")),
                         text=str(r.get("text", "")),
-                        primary_category=str(r.get("primary_category", "")),
+                        abstract=str(paper_meta.get("abstract")) if paper_meta.get("abstract") else None,
+                        authors=authors_list,
+                        year=int(paper_meta.get("year", 2026)) if paper_meta.get("year") else 2026,
+                        primary_category=str(paper_meta.get("primary_category") or r.get("primary_category", "")),
                         section_title=str(r.get("section_title", "")),
+                        doi=str(paper_meta.get("doi")) if paper_meta.get("doi") else None,
                         source=f"{settings.LANCEDB_URI}/{settings.LANCEDB_TABLE}",
                     )
                 )
@@ -305,6 +336,7 @@ class RetrievalService:
         except Exception as e:
             logger.error("[RETRIEVAL] Error fetching paper %s: %s", paper_id, str(e))
             return []
+
 
 
 retrieval_service = RetrievalService()

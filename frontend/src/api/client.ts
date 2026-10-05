@@ -56,7 +56,49 @@ export async function fetchStorageStats(): Promise<StorageStatsResponse> {
   return res.json();
 }
 
+export async function executeDuckDbQuery(sql: string): Promise<{
+  columns: string[];
+  rows: Record<string, any>[];
+  row_count: number;
+  execution_time_ms: number;
+}> {
+  const res = await fetch(`${BASE_URL}/api/storage/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sql }),
+  });
+  if (!res.ok) throw new Error(`DuckDB query failed: ${res.statusText}`);
+  return res.json();
+}
+
+export async function searchLakehouse(
+  query: string,
+  top_k: number = 5,
+  category?: string
+): Promise<{
+  query: string;
+  mode: string;
+  total_results: number;
+  results: Array<{
+    chunk_id: string;
+    paper_id: string;
+    title: string;
+    text: string;
+    primary_category?: string;
+    score?: number;
+  }>;
+}> {
+  const res = await fetch(`${BASE_URL}/api/search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, top_k, category, mode: 'fts' }),
+  });
+  if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
+  return res.json();
+}
+
 export async function sendChatQuery(query: string, category?: string): Promise<ChatResponse> {
+
   const res = await fetch(`${BASE_URL}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

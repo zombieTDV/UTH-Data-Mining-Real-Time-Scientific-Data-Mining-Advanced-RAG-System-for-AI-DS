@@ -136,3 +136,24 @@ def test_streaming_ingestion_endpoints():
     assert res_stop.status_code == 200
     assert res_stop.json()["status"] in ["STOPPED", "NOT_RUNNING"]
 
+
+def test_duckdb_query_endpoint():
+    sql = "SELECT primary_category, count(*) as count FROM papers GROUP BY 1 LIMIT 3"
+    res = client.post("/api/storage/query", json={"sql": sql})
+    assert res.status_code == 200
+    data = res.json()
+    assert "columns" in data
+    assert "rows" in data
+    assert data["row_count"] > 0
+    assert "execution_time_ms" in data
+
+
+def test_get_paper_endpoint():
+    res = client.get("/api/papers/2402.10350")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) > 0
+    assert data[0]["paper_id"] == "2402.10350"
+    assert "title" in data[0]
+
+

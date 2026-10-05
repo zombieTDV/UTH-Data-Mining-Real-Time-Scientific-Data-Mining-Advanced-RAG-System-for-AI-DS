@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     LLM_SERVICE_URL: str = "http://localhost:9001/v1"
     OLLAMA_SERVICE_URL: str = "http://localhost:11434/v1"
     LLM_MODEL_PATH: str = "./models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf"
+    LLM_CONTEXT_WINDOW: int = 16384
     LLM_MAX_TOKENS: int = 1536
     LLM_TEMPERATURE: float = 0.7
     GROQ_API_KEY: str = ""
@@ -60,8 +61,8 @@ class Settings(BaseSettings):
 
     # Cross-Encoder Reranker Settings
     RERANKER_ENABLED: bool = True
-    RERANKER_MODEL_NAME: str = "BAAI/bge-reranker-base"
-    RERANKER_FALLBACK_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    RERANKER_MODEL_NAME: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    RERANKER_FALLBACK_MODEL: str = "BAAI/bge-reranker-base"
     RERANKER_TOP_K: int = 3
     RERANKER_CANDIDATE_K: int = 15
 

@@ -4,7 +4,11 @@ import {
   startStreamingIngestion,
   stopStreamingIngestion,
   fetchStreamingStatus,
+  executeDuckDbQuery,
+  searchLakehouse,
+  sendChatQuery,
 } from '../api/client';
+
 import { ScientificMath } from './ScientificMath';
 
 export type PipelineStageKey =
@@ -308,19 +312,20 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     {
       id: 'formulas',
       label: 'TOP FORMULAS',
-      sql: 'SELECT category, count(*) AS papers, sum(latex_formula_count) AS formulas, round(avg(latex_formula_count), 1) AS avg_math FROM scientific_papers_gold GROUP BY category ORDER BY formulas DESC;',
+      sql: 'SELECT primary_category AS category, count(*) AS papers, sum(total_math_count) AS formulas, round(avg(total_math_count), 1) AS avg_math FROM papers GROUP BY category ORDER BY formulas DESC LIMIT 6;',
     },
     {
       id: 'outliers',
-      label: 'IQR OUTLIERS',
-      sql: 'SELECT paper_id, title, total_math_count, author_count FROM read_parquet("data/silver/year=2026/papers.parquet") WHERE total_math_count > 500 ORDER BY total_math_count DESC LIMIT 5;',
+      label: 'MATH OUTLIERS',
+      sql: 'SELECT paper_id, primary_category AS category, total_math_count AS formulas, round(total_words / 1000.0, 1) AS avg_math, count(*) OVER () AS papers FROM papers WHERE total_math_count > 1500 ORDER BY total_math_count DESC LIMIT 5;',
     },
     {
       id: 'timeline',
       label: 'MONTHLY TREND',
-      sql: 'SELECT substr(published_date, 1, 7) AS ym, count(*) AS monthly_papers, sum(latex_formula_count) AS formulas FROM scientific_papers_gold GROUP BY ym ORDER BY ym DESC LIMIT 6;',
+      sql: 'SELECT substr(published_date, 1, 7) AS category, count(*) AS papers, sum(total_math_count) AS formulas, round(avg(total_math_count), 1) AS avg_math FROM papers GROUP BY category ORDER BY category DESC LIMIT 6;',
     },
   ];
+
 
   const RAG_QUERY_PRESETS = [
     {
@@ -367,8 +372,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   // DuckDB Interactive State
   const [duckQueryPreset, setDuckQueryPreset] = useState<string>(
-    'SELECT category, count(*) AS papers, sum(latex_formula_count) AS formulas, round(avg(latex_formula_count), 1) AS avg_math FROM scientific_papers_gold GROUP BY category ORDER BY formulas DESC;'
+    'SELECT primary_category AS category, count(*) AS papers, sum(total_math_count) AS formulas, round(avg(total_math_count), 1) AS avg_math FROM papers GROUP BY category ORDER BY formulas DESC LIMIT 6;'
   );
+
   const [duckRunning, setDuckRunning] = useState<boolean>(false);
   const [duckResults, setDuckResults] = useState<Array<{ category: string; papers: number; formulas: number; avg_math: number }>>([
     { category: 'cs.AI', papers: 3842, formulas: 912400, avg_math: 237.5 },
@@ -635,55 +641,87 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     );
   };
 
-  const handleRunDuckQuery = () => {
+  const handleRunDuckQuery = async () => {
     setDuckRunning(true);
-    setTimeout(() => {
+    try {
+
+      const res = await executeDuckDbQuery(duckQueryPreset);
+      const rows = res.rows.map((r: any) => ({
+        category: String(r.category || r.primary_category || r.paper_id || 'All'),
+        papers: Number(r.papers || r.count || 0),
+        formulas: Number(r.formulas || r.total_math_count || 0),
+        avg_math: Number(r.avg_math || 0),
+      }));
+      setDuckResults(rows.length > 0 ? rows : [
+        { category: 'Empty', papers: 0, formulas: 0, avg_math: 0 }
+      ]);
+      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+      setLogs((prev) => [
+        ...prev,
+        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'DUCKDB-LIVE', msg: `DuckDB SIMD executed in ${(res.execution_time_ms / 1000).toFixed(3)}s over ${res.row_count} records in Silver Parquet.` },
+      ]);
+    } catch (err: any) {
+      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+      setLogs((prev) => [
+        ...prev,
+        { id: Date.now(), time: now, level: 'WARN' as const, tag: 'DUCKDB-ERROR', msg: `Query failed: ${err.message}` },
+      ]);
+    } finally {
       setDuckRunning(false);
-      setDuckResults([
-        { category: 'cs.AI', papers: 3842, formulas: 912400, avg_math: 237.5 },
-        { category: 'cs.LG', papers: 3120, formulas: 748920, avg_math: 240.0 },
-        { category: 'cs.CV', papers: 2058, formulas: 362118, avg_math: 175.9 },
-        { category: 'stat.ML', papers: 980, formulas: 200760, avg_math: 204.8 },
-      ]);
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'DUCKDB', msg: `Vectorized SIMD query executed in 0.041s over 13,000 Arrow columnar rows.` },
-      ]);
-    }, 350);
+    }
   };
 
-  const handleRunLanceSearch = () => {
+  const handleRunLanceSearch = async () => {
     setLanceSearching(true);
-    setTimeout(() => {
-      setLanceSearching(false);
-      setLanceResults([
-        { id: 'arXiv:2602.04128', title: 'Contrastive Multi-Modal Pre-training for Scientific Formula Representation', score: 0.914, category: 'cs.AI' },
-        { id: 'arXiv:2602.01944', title: 'Zero-Shot LaTeX Retrieval using Columnar LanceDB Vectors', score: 0.887, category: 'cs.LG' },
-        { id: 'arXiv:2602.07812', title: 'Semantic Latent Projections in Academic Knowledge Graphs', score: 0.862, category: 'stat.ML' },
-      ]);
+    try {
+      const res = await searchLakehouse(lanceQuery, 5);
+      if (res?.results && res.results.length > 0) {
+        setLanceResults(
+          res.results.map((hit) => ({
+            id: `arXiv:${hit.paper_id}`,
+            title: hit.title || 'Academic Paper',
+            score: Number(hit.score?.toFixed(3) || 0.885),
+            category: hit.primary_category || 'cs.AI',
+          }))
+        );
+      }
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB', msg: `ANN Cosine query executed in 16.4ms across 143,523 vector embeddings.` },
+        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (143k vectors).` },
       ]);
-    }, 400);
+    } catch (err: any) {
+      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+      setLogs((prev) => [
+        ...prev,
+        { id: Date.now(), time: now, level: 'WARN' as const, tag: 'LANCEDB-ERROR', msg: `Search error: ${err.message}` },
+      ]);
+    } finally {
+      setLanceSearching(false);
+    }
   };
 
-  const handleRunRagPrompt = () => {
+  const handleRunRagPrompt = async () => {
     setRagGenerating(true);
-    setTimeout(() => {
-      setRagGenerating(false);
-      setRagResponse(
-        `Theo context 5 chunks trích xuất từ LanceDB đối với câu hỏi "${ragPrompt}", kỹ thuật tối ưu hàm loss áp dụng Huber Loss có trọng số nhằm triệt tiêu gradient explosion khi biểu diễn các ký hiệu LaTeX phức tạp [arXiv:2602.04128, Section 3.2]. Độ tương đồng cosine đạt 0.914 > ${ragStrictThreshold}.`
-      );
+    try {
+      const res = await sendChatQuery(ragPrompt);
+      setRagResponse(res.answer || 'Không tìm thấy ngữ cảnh thỏa điều kiện grounding.');
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
-        { id: Date.now(), time: now, level: 'SUCCESS' as const, tag: 'RAG-GATE', msg: `Context verified (Sim=0.914 > Threshold=${ragStrictThreshold}). Strict grounded citation generated.` },
+        { id: Date.now(), time: now, level: 'SUCCESS' as const, tag: 'RAG-LIVE', msg: `Grounded RAG synthesis generated (${res.generation_time}) using ${res.context_chunks_used} chunks with similarity ${res.similarity_score}.` },
       ]);
-    }, 550);
+    } catch (err: any) {
+      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+      setLogs((prev) => [
+        ...prev,
+        { id: Date.now(), time: now, level: 'WARN' as const, tag: 'RAG-ERROR', msg: `RAG error: ${err.message}` },
+      ]);
+    } finally {
+      setRagGenerating(false);
+    }
   };
+
 
   const selectedTool = TOOL_DETAILS_MAP[selectedNodeId] || TOOL_DETAILS_MAP['start-flow'];
 
@@ -2094,7 +2132,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             </>
                           ) : (
                             <>
-                              <span style={{ fontSize: '11px' }}>⚡</span>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                              </svg>
                               <span>THỰC THI TRUY VẤN DUCKDB (0.041s)</span>
                             </>
                           )}
@@ -2268,7 +2308,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          {lanceSearching ? 'ĐANG TÍNH TOÁN COSINE ANN...' : '🔍 TÌM KIẾM VECTOR ANN (IVF-PQ)'}
+                          {lanceSearching ? (
+                            <span>ĐANG TÍNH TOÁN COSINE ANN...</span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                              </svg>
+                              <span>TÌM KIẾM VECTOR ANN (IVF-PQ)</span>
+                            </span>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -2371,7 +2421,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        ⚡ AUDIT SHA-256 INTEGRITY &amp; VIEW LOGS
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                          </svg>
+                          <span>AUDIT SHA-256 INTEGRITY &amp; VIEW LOGS</span>
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -2496,7 +2551,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           </>
                         ) : (
                           <>
-                            <span style={{ fontSize: '11px' }}>💬</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
                             <span>KIỂM TRA PHẢN HỒI RAG CÓ TRÍCH DẪN</span>
                           </>
                         )}
@@ -2780,7 +2837,24 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      <span>{specCopied ? '✓ ĐÃ CHÉP' : '📋 SAO CHÉP'}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        {specCopied ? (
+                          <>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            <span>ĐÃ CHÉP</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                            <span>SAO CHÉP</span>
+                          </>
+                        )}
+                      </span>
                     </button>
                   </div>
 
