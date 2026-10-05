@@ -5,6 +5,7 @@ Scientific Retrieval-Augmented Generation (RAG) Service.
 Integrates LanceDB Gold Lakehouse retrieval with local/remote LLM inference.
 """
 
+import asyncio
 import time
 import logging
 from typing import AsyncIterator, List, Tuple
@@ -118,14 +119,28 @@ class RagService:
 
     async def answer_query_stream(self, req: ChatRequest) -> AsyncIterator[str]:
         """Streams LLM tokens generated for the grounded RAG query."""
-        messages, chunks, _ = self._build_prompt_and_context(req)
+        messages, chunks, citations = self._build_prompt_and_context(req)
 
         if not chunks:
             yield "No matching scientific literature found in the Gold lakehouse for the given query."
             return
 
+        has_tokens = False
         async for token in llm_client.generate_stream(messages, temperature=req.temperature):
+            has_tokens = True
             yield token
+
+        if not has_tokens:
+            top_chunk = chunks[0]
+            fallback_answer = (
+                f"[Local LLM server (:9001 / :11434) is offline - showing grounded context]\n\n"
+                f"According to [{citations[0]}]:\n\n"
+                f"\"{top_chunk.text}\"\n\n"
+                f"(Start the local LLM with `npm run start:llm` to enable full neural generative answers)."
+            )
+            for word in fallback_answer.split(" "):
+                yield word + " "
+                await asyncio.sleep(0.015)
 
 
 rag_service = RagService()
