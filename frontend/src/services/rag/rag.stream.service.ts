@@ -9,6 +9,7 @@ export interface StreamChatOptions {
   onToken: (token: string) => void;
   onDone: () => void;
   onError?: (err: unknown) => void;
+  onMeta?: (meta: any) => void;
 }
 
 export function streamChatQuery(options: StreamChatOptions): UnsubscribeFn {
@@ -27,6 +28,7 @@ function runStream(
   const onToken = options.onToken;
   const onDone = options.onDone;
   const onError = options.onError;
+  const onMeta = options.onMeta;
   const url = API_CONFIG.baseUrl + API_CONFIG.endpoints.chatStream;
   fetch(url, {
     method: "POST",
@@ -36,7 +38,7 @@ function runStream(
   })
     .then((response) => {
       if (!response.ok) throw new Error("Streaming failed: " + response.statusText);
-      return readStream(response, onToken, onDone);
+      return readStream(response, onToken, onDone, onMeta);
     })
     .catch((err) => {
       if (err.name !== "AbortError" && onError) onError(err);
@@ -47,6 +49,7 @@ async function readStream(
   response: Response,
   onToken: (token: string) => void,
   onDone: () => void,
+  onMeta?: (meta: any) => void,
 ): Promise<void> {
   const reader = response.body && response.body.getReader();
   if (!reader) throw new Error("No readable stream available");
@@ -58,7 +61,7 @@ async function readStream(
     buffer += decoder.decode(chunk.value, { stream: true });
     const parts = buffer.split("\n");
     buffer = parts.pop() || "";
-    handleStreamLines(parts, onToken, onDone);
+    handleStreamLines(parts, onToken, onDone, onMeta);
   }
   onDone();
 }
@@ -67,6 +70,7 @@ function handleStreamLines(
   parts: string[],
   onToken: (token: string) => void,
   onDone: () => void,
+  onMeta?: (meta: any) => void,
 ): void {
   for (let i = 0; i < parts.length; i++) {
     const trimmed = parts[i].trim();
@@ -78,7 +82,9 @@ function handleStreamLines(
       }
       try {
         const parsed = JSON.parse(dataStr);
-        if (parsed.token) {
+        if (parsed.similarity_score !== undefined || parsed.context_chunks_used !== undefined) {
+          if (onMeta) onMeta(parsed);
+        } else if (parsed.token !== undefined) {
           onToken(parsed.token);
         }
       } catch {

@@ -125,6 +125,7 @@ pip install -e .
 Phân hệ Khai phá Dữ liệu xử lý toàn bộ 13,000 bài báo và 86,295 liên kết trích dẫn, tạo ra các artifact trong `data/gold/mining/`:
 
 #### Trên Windows (PowerShell):
+
 ```powershell
 # 1. Kích hoạt môi trường ảo
 .\.venv\Scripts\Activate.ps1
@@ -137,6 +138,7 @@ $env:PYTHONPATH = "data_mining"
 ```
 
 #### Trên Linux / macOS (Bash):
+
 ```bash
 # 1. Kích hoạt môi trường ảo
 source .venv/bin/activate
@@ -146,6 +148,7 @@ PYTHONPATH=data_mining python data_mining/src/mining/mining_engine.py
 ```
 
 > **Xem tài liệu chi tiết**:
+>
 > - Đặc tả thuật toán & toán học: [`docs/mining/FOUR_DATA_MINING_PILLARS.md`](docs/mining/FOUR_DATA_MINING_PILLARS.md)
 > - Hướng dẫn vận hành & cờ dòng lệnh CLI: [`docs/mining/PIPELINE_EXECUTION_GUIDE.md`](docs/mining/PIPELINE_EXECUTION_GUIDE.md)
 
@@ -156,6 +159,7 @@ PYTHONPATH=data_mining python data_mining/src/mining/mining_engine.py
 Hệ thống RAG sử dụng mô hình ngôn ngữ lớn cục bộ (Qwen 2.5 7B Instruct GGUF Q4_K_M) để tổng hợp câu trả lời học thuật:
 
 #### Cách 1: Khởi chạy NestJS LLM Microservice với GPU CUDA (Khuyến nghị - Port 9001)
+
 ```powershell
 # Chạy từ thư mục gốc dự án (yêu cầu Node.js >= 18):
 node dist/apps/llm-service/apps/llm-service/src/main.js
@@ -167,6 +171,7 @@ node dist/apps/llm-service/apps/llm-service/src/main.js
 ```
 
 #### Cách 2: Khởi chạy qua Ollama (Dự phòng - Port 11434)
+
 ```bash
 # Khởi động máy chủ Ollama
 ollama serve
@@ -182,6 +187,7 @@ ollama run qwen2.5:7b
 Máy chủ FastAPI phục vụ cả truy xuất ngữ nghĩa RAG thời gian thực (hybrid FTS + BM25 + LanceDB) lẫn 4 Trụ cột Khai phá:
 
 #### Trên Windows (PowerShell):
+
 ```powershell
 # 1. Kích hoạt môi trường ảo
 .\.venv\Scripts\Activate.ps1
@@ -191,6 +197,7 @@ Máy chủ FastAPI phục vụ cả truy xuất ngữ nghĩa RAG thời gian th�
 ```
 
 #### Trên Linux / macOS (Bash):
+
 ```bash
 # 1. Kích hoạt môi trường ảo
 source .venv/bin/activate
@@ -200,6 +207,7 @@ python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 #### Kiểm thử & Tài liệu API:
+
 ```bash
 # Chạy kiểm thử tự động (12/12 passing)
 pytest backend/tests/test_api.py -v
@@ -239,22 +247,26 @@ npm run build
 Để đảm bảo toàn bộ hệ thống hoạt động đồng bộ và không gặp lỗi kết nối, hãy mở 3 terminal riêng biệt và khởi chạy theo đúng thứ tự:
 
 1. **Terminal 1 (LLM Microservice)**:
+
    ```powershell
    node dist/apps/llm-service/apps/llm-service/src/main.js
    ```
-   *(Chờ đến khi xuất hiện thông báo `LLM Service running on http://localhost:9001`)*
 
+   *(Chờ đến khi xuất hiện thông báo `LLM Service running on http://localhost:9001`)*
 2. **Terminal 2 (FastAPI Backend)**:
+
    ```powershell
    .\.venv\Scripts\uvicorn.exe backend.app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
-   *(Backend sẽ tự động phát hiện LLM microservice trên port 9001 và kết nối LanceDB cục bộ)*
 
+   *(Backend sẽ tự động phát hiện LLM microservice trên port 9001 và kết nối LanceDB cục bộ)*
 3. **Terminal 3 (React 19 Frontend)**:
+
    ```powershell
    cd frontend
    npm run dev
    ```
+
    *(Mở trình duyệt tại `http://localhost:5173`. Các tab EDA, 4 Trụ cột Mining và Grounded RAG Chat sẽ tải dữ liệu mượt mà)*
 
 ---
@@ -291,15 +303,16 @@ Hệ thống RAG được đánh giá tự động bằng bộ kiểm thử [Dee
 
 ### Bảng So sánh Hiệu năng (Baseline vs. Upgraded RAG với Cross-Encoder)
 
-| Chỉ số DeepEval | Baseline (Dense Only) | Reranker + Guardrails | Mức Cải thiện | Trạng thái |
-| :--- | :---: | :---: | :---: | :--- |
-| **Contextual Precision** | `0.637` (60.0% pass) | **`0.860` (80.0% pass)** | **+35.0%** 🚀 | **Độ chính xác tăng vọt** |
-| **Answer Relevancy** | `0.687` (47.4% pass) | **`0.752` (55.0% pass)** | **+9.4%** 📈 | **Câu trả lời cô đọng, đúng trọng tâm** |
-| **Contextual Recall** | `0.950` (95.0% pass) | **`1.000` (100.0% pass)** | **+5.3%** 🎯 | **Bao phủ 100% tri thức chuẩn** |
-| **Faithfulness** | `0.668` (50.0% pass) | **`0.699` (52.9% pass)** | **+4.7%** 🛡️ | **Giảm thiểu tối đa ảo giác (hallucination)** |
-| **Academic Citation Grounding** | `0.757` (90.5% pass) | **`0.720` (90.0% pass)** | Đạt chuẩn | **90% trích dẫn chính xác `[Paper: <id>]`** |
+| Chỉ số DeepEval                     | Baseline (Dense Only) |       Reranker + Guardrails       |   Mức Cải thiện   | Trạng thái                                              |
+| :------------------------------------ | :--------------------: | :-------------------------------: | :------------------: | :-------------------------------------------------------- |
+| **Contextual Precision**        | `0.637` (60.0% pass) | **`0.860` (80.0% pass)** | **+35.0%** 🚀 | **Độ chính xác tăng vọt**                     |
+| **Answer Relevancy**            | `0.687` (47.4% pass) | **`0.752` (55.0% pass)** |  **+9.4%** 📈  | **Câu trả lời cô đọng, đúng trọng tâm**   |
+| **Contextual Recall**           | `0.950` (95.0% pass) | **`1.000` (100.0% pass)** |  **+5.3%** 🎯  | **Bao phủ 100% tri thức chuẩn**                  |
+| **Faithfulness**                | `0.668` (50.0% pass) | **`0.699` (52.9% pass)** | **+4.7%** 🛡️ | **Giảm thiểu tối đa ảo giác (hallucination)** |
+| **Academic Citation Grounding** | `0.757` (90.5% pass) | **`0.720` (90.0% pass)** |     Đạt chuẩn     | **90% trích dẫn chính xác `[Paper: <id>]`**   |
 
 > 📖 **Xem báo cáo phân tích chi tiết toàn diện**:
+>
 > - [Báo cáo Đánh giá Hiệu năng RAG 21 Mẫu (RAG_EVALUATION_REPORT_21_SAMPLES.md)](docs/benchmarks/RAG_EVALUATION_REPORT_21_SAMPLES.md)
 > - [Hướng dẫn Vận hành Suite DeepEval (DEEPEVAL_GUIDE.md)](docs/benchmarks/DEEPEVAL_GUIDE.md)
 
@@ -311,10 +324,12 @@ Báo cáo thuyết trình bảo vệ đồ án được biên soạn dưới d�
 
 - **Tệp trình chiếu chính**: [`docs/presentation/data_mining_defense_presentation.html`](docs/presentation/data_mining_defense_presentation.html) *(Mở trực tiếp trên bất kỳ trình duyệt web nào, không cần máy chủ phục vụ)*
 - **Kịch bản biên dịch lại**:
+
   ```powershell
   .\.venv\Scripts\python.exe scripts/build_presentation_report.py
   ```
 - **Cấu trúc 16 Slide Bảo vệ (Plot-First)**:
+
   - **Slide 1**: Bìa học thuật & Thông tin đề tài Hội đồng.
   - **Slide 2**: Kiến trúc Medallion Lakehouse 3 tầng & DuckDB Zero-copy OLAP Flow.
   - **Slide 3 - 5**: Khám phá dữ liệu (EDA) — Phân bố chuyên ngành, 2.76M công thức toán, Bùng nổ GenAI 2024, và Ma trận đồng xuất bản liên ngành.
@@ -325,8 +340,8 @@ Báo cáo thuyết trình bảo vệ đồ án được biên soạn dưới d�
   - **Slide 14**: Cầu nối Data Mining $\to$ RAG Architecture (PageRank weighting, FP-Growth keyword expansion, LaTeX preservation).
   - **Slide 15**: Kết quả đối đầu DeepEval 21 mẫu thử (+35% Contextual Precision, 100% Contextual Recall).
   - **Slide 16**: Phản biện học thuật — 3 Hạn chế trung thực & Lộ trình hoàn thiện 3 bước.
-
 - **Phím Tắt Điều Khiển Khi Thuyết Trình**:
+
   - `→` / `Space` / `PageDown`: Tiến 1 slide.
   - `←` / `PageUp`: Lùi 1 slide.
   - `N`: **Bật/Tắt Ghi chú Thuyết minh tiếng Việt (Speaker Notes Drawer)** chứa gợi ý diễn giải chi tiết cho từng slide.

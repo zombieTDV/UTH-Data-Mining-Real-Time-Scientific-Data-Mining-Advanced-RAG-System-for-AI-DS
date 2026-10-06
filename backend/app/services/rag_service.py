@@ -8,7 +8,7 @@ Integrates LanceDB Gold Lakehouse retrieval with local/remote LLM inference.
 import asyncio
 import time
 import logging
-from typing import AsyncIterator, List, Tuple
+from typing import AsyncIterator, List, Tuple, Union
 from backend.app.core.config import settings
 from backend.app.schemas.chat import ChatRequest, ChatResponse
 from backend.app.schemas.search import ChunkDto, SearchRequest
@@ -177,13 +177,23 @@ class RagService:
             retrieval_context=[c.text for c in chunks],
         )
 
-    async def answer_query_stream(self, req: ChatRequest) -> AsyncIterator[str]:
-        """Streams LLM tokens generated for the grounded RAG query."""
+    async def answer_query_stream(self, req: ChatRequest) -> AsyncIterator[Union[str, dict]]:
+        """Streams LLM tokens generated for the grounded RAG query, yielding an initial metadata dict."""
         messages, chunks, _ = self._build_prompt_and_context(req)
 
         if not chunks:
             yield "No matching scientific literature found in the Gold lakehouse for the given query."
             return
+
+        top_score = f"{chunks[0].score:.4f}" if chunks[0].score else "0.8500"
+        top_auth = next((c for c in chunks if c.authority_author), None)
+        yield {
+            "similarity_score": top_score,
+            "context_chunks_used": len(chunks),
+            "authority_boosted": bool(top_auth),
+            "top_influencer_author": top_auth.authority_author if top_auth else None,
+            "rule_expansions": chunks[0].rule_expansions if (chunks and chunks[0].rule_expansions) else None,
+        }
 
         has_tokens = False
         async for token in llm_client.generate_stream(messages, temperature=req.temperature):

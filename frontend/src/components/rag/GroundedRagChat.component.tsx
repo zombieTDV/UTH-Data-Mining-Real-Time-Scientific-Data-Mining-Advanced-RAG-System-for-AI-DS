@@ -33,6 +33,7 @@ interface InspectedPaperData {
   sectionTitle?: string;
   score?: string;
   chunkText?: string;
+  doi?: string;
 }
 
 const RESEARCH_PROMPT_SUGGESTIONS = [
@@ -141,15 +142,25 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       const chunks = await fetchPaper(paperId);
       if (chunks && chunks.length > 0) {
         const first = chunks[0];
+        const targetSection = sectionTitle?.toLowerCase();
+        const matchedChunk = targetSection
+          ? chunks.find(c => c.section_title && c.section_title.toLowerCase().includes(targetSection))
+          : undefined;
+        const displayChunk = matchedChunk || chunks.find(c => c.section_title && c.section_title.toLowerCase() !== 'abstract') || first;
+
+        const abstractChunk = chunks.find(c => c.section_title?.toLowerCase() === 'abstract' || c.chunk_id?.includes('_c000'));
+        const resolvedAbstract = first.abstract || abstractChunk?.text || displayChunk.abstract || 'Abstract content indexed in LanceDB Lakehouse.';
+
         setInspectedPaper({
           paperId,
           title: first.title || `Paper ${paperId}`,
-          authors: first.authors || ['Academic Authors'],
+          authors: (first.authors && first.authors.length > 0) ? first.authors : ['Academic Authors'],
           category: first.primary_category || 'cs.AI',
-          abstract: first.abstract || '',
-          sectionTitle: first.sections?.[0]?.heading || sectionTitle || 'Section 3: Methodology',
-          score: '0.8510',
-          chunkText: first.sections?.[0]?.text?.slice(0, 300) + '...' || '',
+          abstract: resolvedAbstract,
+          sectionTitle: displayChunk.section_title || sectionTitle || 'Main Methodology',
+          score: displayChunk.score ? displayChunk.score.toFixed(4) : (first.score ? first.score.toFixed(4) : '0.8510'),
+          chunkText: displayChunk.text ? (displayChunk.text.length > 350 ? displayChunk.text.slice(0, 350) + '...' : displayChunk.text) : '',
+          doi: first.doi || undefined,
         });
       }
     } catch (err) {
@@ -200,14 +211,15 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   };
 
   const handleStreamingSend = (query: string) => {
+      const startTime = Date.now();
       const assistantMsgId = `ast-${Date.now()}`;
       const newAssistantMsg: ChatMessage = {
         id: assistantMsgId,
         sender: 'assistant',
         text: '',
         citations: [],
-        similarity_score: '0.8510',
-        generation_time: '0.01s',
+        similarity_score: '0.8500',
+        generation_time: '0.00s',
         context_chunks_used: 5,
         timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
         isStreaming: true,
@@ -218,16 +230,27 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       let accumulated = '';
       const unsubscribe = streamChatQuery({
         query,
+        onMeta: (meta) => {
+          updateAssistantMessage(assistantMsgId, {
+            similarity_score: meta.similarity_score ?? '0.8500',
+            context_chunks_used: meta.context_chunks_used ?? 5,
+            authority_boosted: meta.authority_boosted,
+            top_influencer_author: meta.top_influencer_author,
+            rule_expansions: meta.rule_expansions,
+          });
+        },
         onToken: (token) => {
           accumulated += token;
           updateAssistantMessage(assistantMsgId, { text: accumulated });
         },
         onDone: () => {
+          const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
           const citeMatches = Array.from(
             accumulated.matchAll(/\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]/g)
           ).map((m) => m[2] ? `Paper: ${m[1].trim()}, Section: ${m[2].trim()}` : `Paper: ${m[1].trim()}`);
           updateAssistantMessage(assistantMsgId, {
             isStreaming: false,
+            generation_time: `${elapsedSec}s`,
             citations: citeMatches.length > 0 ? Array.from(new Set(citeMatches)) : ['Paper: 2310.01407, Section: 3 Methodology'],
           });
           setLoading(false);
@@ -350,7 +373,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             type="button"
             onClick={() => handleInspectCitation(paperId, section)}
             className="citation-chip"
-            title={`Inspect Academic Dossier: arXiv:${paperId} (${section})`}
+            title={`Inspect Academic Dossier: ${paperId.startsWith('openalex:') ? paperId : `arXiv:${paperId}`} (${section})`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -371,7 +394,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             </svg>
-            <span>arXiv:{paperId} · {section.replace(/^Section\s*\d+:?\s*/i, '')}</span>
+            <span>{paperId.startsWith('openalex:') ? paperId : `arXiv:${paperId}`} · {section.replace(/^Section\s*\d+:?\s*/i, '')}</span>
           </button>
         );
       }
@@ -1000,7 +1023,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   color: '#ffffff',
                 }}
               >
-                ARXIV DOSSIER
+                {inspectedPaper.paperId.startsWith('openalex:') ? 'OPENALEX DOSSIER' : 'ARXIV DOSSIER'}
               </span>
               <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: isDark ? '#38bdf8' : '#0284c7', fontWeight: 700 }}>
                 {inspectedPaper.paperId}
@@ -1116,7 +1139,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 {/* External Action Links */}
                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px' }}>
                   <a
-                    href={`https://arxiv.org/abs/${inspectedPaper.paperId.replace(/^arXiv:/i, '')}`}
+                    href={
+                      inspectedPaper.doi
+                        ? inspectedPaper.doi
+                        : inspectedPaper.paperId.startsWith('openalex:')
+                        ? `https://openalex.org/${inspectedPaper.paperId.replace('openalex:', '')}`
+                        : `https://arxiv.org/abs/${inspectedPaper.paperId.replace(/^arXiv:/i, '')}`
+                    }
                     target="_blank"
                     rel="noreferrer"
                     style={{
@@ -1134,7 +1163,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       fontFamily: 'var(--font-mono)',
                     }}
                   >
-                    <span>OPEN ARXIV ABSTRACT PAGE</span>
+                    <span>
+                      {inspectedPaper.doi
+                        ? 'OPEN DOI / ARTICLE PAGE'
+                        : inspectedPaper.paperId.startsWith('openalex:')
+                        ? 'OPEN OPENALEX PAGE'
+                        : 'OPEN ARXIV ABSTRACT PAGE'}
+                    </span>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                       <polyline points="15 3 21 3 21 9" />

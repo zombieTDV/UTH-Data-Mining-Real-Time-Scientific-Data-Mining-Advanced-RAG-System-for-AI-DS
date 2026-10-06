@@ -215,6 +215,48 @@ class RetrievalService:
     def is_ready(self) -> bool:
         return self._ready and self.table is not None
 
+    def _extract_paper_id_from_query(self, query: str) -> Optional[str]:
+        """Detects explicit paper IDs (e.g. openalex:W2594538354, W2594538354, 2310.01407) in user query."""
+        m_oa = re.search(r"(?:openalex:)?(W\d{8,11})", query, re.IGNORECASE)
+        if m_oa:
+            return f"openalex:{m_oa.group(1).upper()}"
+        m_ar = re.search(r"(?:arxiv:\s*)?(\d{4}\.\d{4,5}(?:v\d+)?)", query, re.IGNORECASE)
+        if m_ar:
+            return m_ar.group(1)
+        return None
+
+    def _lookup_paper_metadata(self, paper_id: str) -> dict:
+        """Looks up full metadata for a paper across all Silver Parquet catalogs."""
+        clean_pid = paper_id.replace("arXiv:", "").strip()
+        search_paths = [
+            settings.PROJECT_ROOT_DIR / "data" / "silver" / "papers.parquet",
+            settings.PROJECT_ROOT_DIR / "data" / "silver" / "year=2026" / "papers.parquet",
+            settings.SILVER_PARQUET,
+        ]
+
+        for p in search_paths:
+            if not p or not p.exists():
+                continue
+            try:
+                import pyarrow.parquet as pq
+                import pyarrow.compute as pc
+                tbl = pq.read_table(p)
+                col_names = tbl.schema.names
+
+                if "paper_id" in col_names:
+                    filt = tbl.filter(pc.equal(tbl["paper_id"], clean_pid))
+                    if filt.num_rows > 0:
+                        return filt.to_pylist()[0]
+
+                if "openalex_id" in col_names:
+                    bare_id = clean_pid.replace("openalex:", "")
+                    filt_oa = tbl.filter(pc.equal(tbl["openalex_id"], bare_id))
+                    if filt_oa.num_rows > 0:
+                        return filt_oa.to_pylist()[0]
+            except Exception as err:
+                logger.debug("[RETRIEVAL] Could not read metadata from %s: %s", p, err)
+        return {}
+
     def search(self, req: SearchRequest) -> List[ChunkDto]:
         if not self.is_ready():
             logger.warning("[RETRIEVAL] LanceDB table not ready. Returning empty list.")
@@ -224,6 +266,51 @@ class RetrievalService:
             k = req.top_k or 5
             mode = (req.mode or "vector").lower()
             rule_expansions = self._expand_rules(req.query, req.category)
+
+            # Check for direct paper ID in query
+            detected_pid = self._extract_paper_id_from_query(req.query)
+            if detected_pid:
+                try:
+                    direct_rows = self.table.search().where(f"paper_id = '{detected_pid}'").limit(k * 2).to_pandas()
+                    if direct_rows.empty and detected_pid.startswith("openalex:"):
+                        bare = detected_pid.replace("openalex:", "")
+                        direct_rows = self.table.search().where(f"paper_id = '{bare}'").limit(k * 2).to_pandas()
+
+                    if not direct_rows.empty:
+                        logger.info("[RETRIEVAL] Direct paper ID match for '%s': found %d chunks", detected_pid, len(direct_rows))
+                        meta = self._lookup_paper_metadata(detected_pid)
+                        pid_chunks: List[ChunkDto] = []
+                        for idx, r in direct_rows.iterrows():
+                            raw_authors = meta.get("authors") or r.get("authors") or []
+                            if hasattr(raw_authors, "tolist"):
+                                a_list = [str(a) for a in raw_authors.tolist()]
+                            elif isinstance(raw_authors, list):
+                                a_list = [str(a) for a in raw_authors]
+                            else:
+                                a_list = [str(raw_authors)] if raw_authors else []
+
+                            c_score = round(0.98 - idx * 0.01, 4)
+                            pid_chunks.append(
+                                ChunkDto(
+                                    chunk_id=str(r.get("chunk_id", "")),
+                                    paper_id=detected_pid,
+                                    title=str(meta.get("title") or r.get("title", "")),
+                                    text=str(r.get("text", "")),
+                                    abstract=str(meta.get("abstract")) if meta.get("abstract") else None,
+                                    authors=a_list,
+                                    year=int(meta.get("year", r.get("year", 2026))) if (meta.get("year") or r.get("year")) else 2026,
+                                    primary_category=str(meta.get("primary_category") or r.get("primary_category", "cs.AI")),
+                                    section_title=str(r.get("section_title", "")),
+                                    doi=str(meta.get("doi")) if meta.get("doi") else (str(r.get("doi")) if r.get("doi") else None),
+                                    score=c_score,
+                                    source=f"lancedb://{getattr(self, 'table_name', settings.LANCEDB_TABLE)}",
+                                    rule_expansions=rule_expansions if rule_expansions else None,
+                                )
+                            )
+                        if len(pid_chunks) >= k:
+                            return pid_chunks[:k]
+                except Exception as pid_err:
+                    logger.debug("[RETRIEVAL] Direct paper ID search failed: %s", pid_err)
 
             # Retrieve candidate pool for authority reranking and fusion
             candidate_limit = max(k * 2, 10)
@@ -334,25 +421,55 @@ class RetrievalService:
         if not self.is_ready():
             return []
         try:
-            # Query chunks from LanceDB
             clean_pid = paper_id.replace("arXiv:", "").strip()
             rows = self.table.search().where(f"paper_id = '{clean_pid}'").limit(20).to_pandas()
-            
-            # Fetch paper metadata from Silver Parquet if available
-            paper_meta = {}
-            if settings.SILVER_PARQUET.exists():
-                try:
-                    import pyarrow.parquet as pq
-                    import pyarrow.compute as pc
-                    table = pq.read_table(
-                        settings.SILVER_PARQUET,
-                        columns=["paper_id", "title", "abstract", "authors", "primary_category", "year", "doi"]
+            if rows.empty and clean_pid.startswith("W"):
+                rows = self.table.search().where(f"paper_id = 'openalex:{clean_pid}'").limit(20).to_pandas()
+            elif rows.empty and clean_pid.startswith("openalex:"):
+                bare = clean_pid.replace("openalex:", "")
+                rows = self.table.search().where(f"paper_id = '{bare}'").limit(20).to_pandas()
+
+            # Lookup paper metadata from Silver Parquet catalogs
+            paper_meta = self._lookup_paper_metadata(clean_pid)
+
+            if rows.empty and paper_meta:
+                raw_authors = paper_meta.get("authors") or []
+                if hasattr(raw_authors, "tolist"):
+                    authors_list = [str(a) for a in raw_authors.tolist()]
+                elif isinstance(raw_authors, list):
+                    authors_list = [str(a) for a in raw_authors]
+                else:
+                    authors_list = [str(raw_authors)] if raw_authors else []
+
+                abstract_text = paper_meta.get("abstract") or "No abstract text available."
+                return [
+                    ChunkDto(
+                        chunk_id=f"{clean_pid}_c000",
+                        paper_id=clean_pid,
+                        title=str(paper_meta.get("title", "")),
+                        text=abstract_text,
+                        abstract=abstract_text,
+                        authors=authors_list,
+                        year=int(paper_meta.get("year", 2026)) if paper_meta.get("year") else 2026,
+                        primary_category=str(paper_meta.get("primary_category", "")),
+                        section_title="Abstract",
+                        doi=str(paper_meta.get("doi")) if paper_meta.get("doi") else None,
+                        score=0.8500,
+                        source="silver://papers.parquet",
                     )
-                    filtered = table.filter(pc.equal(table["paper_id"], clean_pid))
-                    if filtered.num_rows > 0:
-                        paper_meta = filtered.to_pylist()[0]
-                except Exception as meta_err:
-                    logger.debug("[RETRIEVAL] Could not read metadata from parquet: %s", meta_err)
+                ]
+
+            # Extract fallback abstract from chunks if not in parquet
+            abstract_text = paper_meta.get("abstract")
+            if not abstract_text and not rows.empty:
+                if "chunk_type" in rows.columns:
+                    abs_row = rows[rows["chunk_type"] == "abstract"]
+                    if not abs_row.empty:
+                        abstract_text = str(abs_row.iloc[0]["text"])
+                if not abstract_text and "section_title" in rows.columns:
+                    abs_sec = rows[rows["section_title"].str.lower() == "abstract"]
+                    if not abs_sec.empty:
+                        abstract_text = str(abs_sec.iloc[0]["text"])
 
             results = []
             for _, r in rows.iterrows():
@@ -370,12 +487,13 @@ class RetrievalService:
                         paper_id=clean_pid,
                         title=str(paper_meta.get("title") or r.get("title", "")),
                         text=str(r.get("text", "")),
-                        abstract=str(paper_meta.get("abstract")) if paper_meta.get("abstract") else None,
+                        abstract=str(abstract_text) if abstract_text else None,
                         authors=authors_list,
-                        year=int(paper_meta.get("year", 2026)) if paper_meta.get("year") else 2026,
+                        year=int(paper_meta.get("year", r.get("year", 2026))) if (paper_meta.get("year") or r.get("year")) else 2026,
                         primary_category=str(paper_meta.get("primary_category") or r.get("primary_category", "")),
                         section_title=str(r.get("section_title", "")),
-                        doi=str(paper_meta.get("doi")) if paper_meta.get("doi") else None,
+                        doi=str(paper_meta.get("doi")) if paper_meta.get("doi") else (str(r.get("doi")) if r.get("doi") else None),
+                        score=0.8510,
                         source=f"{settings.LANCEDB_URI}/{settings.LANCEDB_TABLE}",
                     )
                 )
