@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { useTranslation } from '../../hooks';
 
 export interface StatusBarProps {
   totalPapers: number;
@@ -11,6 +12,8 @@ export const StatusBar: FC<StatusBarProps> = ({
   totalVectors = 143523,
   totalFormulas = 2220938,
 }) => {
+  const { language } = useTranslation();
+
   return (
     <footer
       style={{
@@ -28,14 +31,18 @@ export const StatusBar: FC<StatusBarProps> = ({
       }}
     >
       <div>
-        <span>UNIVERSITY OF TRANSPORT AND COMMUNICATIONS // REAL-TIME SCIENTIFIC DATA MINING LAKEHOUSE</span>
+        <span>
+          {language === 'vi'
+            ? 'TRƯỜNG ĐẠI HỌC GIAO THÔNG VẬN TẢI TP.HCM (UTH) // LAKEHOUSE KHAI THÁC DỮ LIỆU KHOA HỌC THỜI GIAN THỰC'
+            : 'UNIVERSITY OF TRANSPORT AND COMMUNICATIONS // REAL-TIME SCIENTIFIC DATA MINING LAKEHOUSE'}
+        </span>
       </div>
       <div style={{ display: 'flex', gap: '16px' }}>
-        <span>{totalPapers.toLocaleString()} PAPERS</span>
+        <span>{totalPapers.toLocaleString()} {language === 'vi' ? 'BÀI BÁO' : 'PAPERS'}</span>
         <span>&bull;</span>
-        <span>{(totalVectors + Math.max(0, totalPapers - 13000) * 14).toLocaleString()} VECTORS</span>
+        <span>{(totalVectors + Math.max(0, totalPapers - 36414) * 14).toLocaleString()} VECTORS</span>
         <span>&bull;</span>
-        <span>{(totalFormulas / 1000000).toFixed(2)}M FORMULAS</span>
+        <span>{(totalFormulas / 1000000).toFixed(2)}M {language === 'vi' ? 'CÔNG THỨC' : 'FORMULAS'}</span>
       </div>
     </footer>
   );

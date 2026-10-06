@@ -639,7 +639,7 @@ def build_presentation():
         </div>
       </div>
       <div class="slide-footer">
-        <div class="footer-affiliation">UNIVERSITY OF TRANSPORT AND COMMUNICATIONS // SCIENTIFIC LAKEHOUSE</div>
+        <div class="footer-affiliation">HO CHI MINH CITY UNIVERSITY OF TRANSPORT (UTH) // SCIENTIFIC LAKEHOUSE</div>
         <div>THÁNG 10/2026 · PHIÊN BẢN 2.0</div>
       </div>
     </div>

@@ -26,6 +26,20 @@ async def get_storage_stats():
     return storage_service.get_stats()
 
 
+@router.post("/storage/sync-r2", tags=["Storage & Lakehouse"])
+async def trigger_r2_sync():
+    """Triggers background live scan of Cloudflare R2 bucket and updates manifest cache."""
+    return storage_service.sync_live_from_r2()
+
+
+@router.post("/storage/reset-session", tags=["Storage & Lakehouse"])
+async def reset_streaming_session():
+    """Resets the persistent streaming session count back to baseline."""
+    from backend.app.services.streaming_service import streaming_service
+    streaming_service.reset_session()
+    return {"status": "SUCCESS", "message": "Streaming ingestion session reset to baseline."}
+
+
 @router.post("/storage/query", response_model=DuckDbQueryResponse, tags=["Storage & Lakehouse"])
 async def execute_duckdb_query(req: DuckDbQueryRequest):
     """Executes a vectorized DuckDB SQL query over the Parquet Lakehouse files."""

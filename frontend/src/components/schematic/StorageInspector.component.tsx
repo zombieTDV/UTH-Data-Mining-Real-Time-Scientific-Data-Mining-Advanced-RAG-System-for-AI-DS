@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { fetchStorageStats } from '../../services';
+import { fetchStorageStats, syncR2Storage, resetStorageSession } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
 import type { StorageStatsResponse } from '../../types';
 
 export interface LakehouseLayer {
-  zone: 'BRONZE' | 'SILVER' | 'GOLD';
+  zone: 'BRONZE' | 'SILVER' | 'GOLD' | 'BACKUP';
   name: string;
   storageType: string;
   format: string;
@@ -15,56 +15,46 @@ export interface LakehouseLayer {
   description: string;
 }
 
-export const LAYERS: LakehouseLayer[] = [
-  {
-    zone: 'BRONZE',
-    name: 'Raw arXiv HTML5 Papers',
-    storageType: 'Cloudflare R2 Object Store',
-    format: 'W3C HTML5 (.html)',
-    itemsCount: '9,022 files',
-    sizeBytes: '2.821 GB',
-    r2Location: 's3://uth-scientific-lakehouse/bronze/html/year=2026/',
-    color: 'var(--accent-bronze)',
-    description: 'Raw web-crawled HTML5 documents from ar5iv containing full sections, tables, math tags, and bibliography.'
-  },
-  {
-    zone: 'BRONZE',
-    name: 'OAI-PMH Harvest Batches',
-    storageType: 'Cloudflare R2 Object Store',
-    format: 'Compressed JSON Bundles',
-    itemsCount: '44 batch bundles',
-    sizeBytes: '26.42 MB',
-    r2Location: 's3://uth-scientific-lakehouse/bronze/oai_batches/',
-    color: 'var(--accent-bronze)',
-    description: 'Raw metadata harvesting batches retrieved through arXiv OAI-PMH protocol across 5 core AI/DS categories.'
-  },
-  {
-    zone: 'SILVER',
-    name: 'Curated Canonical Papers',
-    storageType: 'Local Disk & Cloudflare R2',
-    format: 'Apache Parquet (Snappy)',
-    itemsCount: '13,000 papers (9,015 enriched)',
-    sizeBytes: '13.98 KB',
-    r2Location: 's3://uth-scientific-lakehouse/silver/year=2026/papers.parquet',
-    color: 'var(--accent-silver)',
-    description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.22M extracted LaTeX formulas (2,220,938).'
-  },
-  {
-    zone: 'GOLD',
-    name: 'Contextual Vector Lakehouse',
-    storageType: 'LanceDB Multi-Modal Table',
-    format: 'Lance Columnar (.lance)',
-    itemsCount: '143,523 chunks',
-    sizeBytes: '127.10 MB',
-    r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
-    color: 'var(--accent-gold)',
-    description: 'Semantically contextualized chunks paired with 768-dimensional Nomic embeddings for sub-50ms cosine ANN search.'
-  }
-];
-
 export function StorageInspector() {
   const [stats, setStats] = useState<StorageStatsResponse | null>(null);
-  const { sessionIngested, storageUsedGb, storageStats } = useLakehouseStreamStore();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const {
+    sessionIngested,
+    storageStats,
+    viewMode,
+    setViewMode,
+    refreshStorageStats,
+  } = useLakehouseStreamStore();
+
+  const handleSyncR2 = async () => {
+    setIsSyncing(true);
+    setSyncMessage('Scanning Cloudflare R2 bucket objects...');
+    try {
+      const res = await syncR2Storage();
+      await refreshStorageStats();
+      const updated = await fetchStorageStats();
+      setStats(updated);
+      setSyncMessage(res.message || 'R2 storage stats synchronized successfully.');
+    } catch (e: any) {
+      setSyncMessage(`Sync failed: ${e.message}`);
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncMessage(null), 4000);
+    }
+  };
+
+  const handleResetSession = async () => {
+    if (confirm('Reset real-time ingestion session counter back to baseline?')) {
+      try {
+        await resetStorageSession();
+        await refreshStorageStats();
+      } catch (e: any) {
+        console.error('Failed to reset session:', e);
+      }
+    }
+  };
 
   useEffect(() => {
     fetchStorageStats()
@@ -73,60 +63,92 @@ export function StorageInspector() {
   }, []);
 
   const activeStats = storageStats || stats;
-  const bronzeCount = (activeStats?.zones?.bronzeCount ?? 9022) + sessionIngested;
-  const bronzeSizeBytes = (activeStats?.zones?.bronzeSizeBytes ?? 3028942848) + (sessionIngested * 380000);
-  const bronzeGb = (bronzeSizeBytes / 1024 ** 3).toFixed(3);
-  const silverKb = activeStats ? (activeStats.zones.silverSizeBytes / 1000).toFixed(2) : '13.98';
-  const goldMb = activeStats ? (activeStats.zones.goldSizeBytes / 1024 ** 2).toFixed(2) : '121.21';
-  const goldGb = activeStats ? (activeStats.zones.goldSizeBytes / 1024 ** 3).toFixed(3) : '0.118';
-  const goldChunks = (activeStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
-  const totalGb = storageUsedGb ? storageUsedGb.toFixed(3) : (activeStats?.total_size_gb ? activeStats.total_size_gb.toFixed(3) : '2.939');
-  const quotaGb = activeStats?.free_tier_quota_gb ? activeStats.free_tier_quota_gb.toFixed(2) : '10.00';
+  const isTotalView = viewMode === 'total';
+
+  const activeData = activeStats?.activeLakehouse;
+  const backupData = activeStats?.backupStorage;
+  const totalBucket = activeStats?.totalBucket;
+
+  const arxivCount = (activeData?.arxivHtmlCount ?? 11660) + sessionIngested;
+  const arxivGb = (activeData?.arxivHtmlSizeGb ?? 3.763).toFixed(3);
+  const openalexCount = (activeData?.openalexCount ?? 24754).toLocaleString();
+  const openalexGb = (activeData?.openalexSizeGb ?? 3.971).toFixed(3);
+  const silverMb = (activeData?.silverParquetSizeMb ?? 316.06).toFixed(2);
+  const goldChunks = ((activeData?.activeLanceDbVectors ?? 143523) + (sessionIngested * 16)).toLocaleString();
+  const goldMb = (activeData?.activeLanceDbSizeMb ?? 121.21).toFixed(2);
+  const backupGb = (backupData?.totalSizeGb ?? 3.069).toFixed(3);
+
+  const activeGb = (activeData?.totalSizeGb ?? 8.073).toFixed(3);
+  const activePct = (activeData?.usedPercentage ?? 80.73).toFixed(1);
+  const totalGb = (totalBucket?.totalSizeGb ?? 11.142).toFixed(3);
+  const totalPct = (totalBucket?.usedPercentage ?? 111.42).toFixed(1);
 
   const layers: LakehouseLayer[] = [
     {
       zone: 'BRONZE',
-      name: 'Raw arXiv HTML5 Papers',
+      name: 'Raw arXiv Academic HTML5',
       storageType: 'Cloudflare R2 Object Store & Disk',
       format: 'W3C HTML5 (.html)',
-      itemsCount: `${bronzeCount.toLocaleString()} files`,
-      sizeBytes: `${bronzeGb} GB`,
-      r2Location: 's3://uth-scientific-lakehouse/bronze/raw_html/year=2026/',
-      color: 'var(--accent-bronze)',
-      description: 'Raw web-crawled HTML5 documents from ar5iv containing full sections, tables, math tags, and bibliography.'
+      itemsCount: `${arxivCount.toLocaleString()} files`,
+      sizeBytes: `${arxivGb} GB`,
+      r2Location: 's3://uth-scientific-lakehouse/bronze/arxiv/raw_html/',
+      color: '#3b82f6',
+      description: 'Raw web-crawled HTML5 preprints from arXiv containing full academic sections, tables, math tags, and bibliography.'
+    },
+    {
+      zone: 'BRONZE',
+      name: 'OpenAlex Scientific Extended Corpus',
+      storageType: 'Cloudflare R2 Object Store',
+      format: 'JSON / Metadata Records',
+      itemsCount: `${openalexCount} works`,
+      sizeBytes: `${openalexGb} GB`,
+      r2Location: 's3://uth-scientific-lakehouse/bronze/openalex/',
+      color: '#8b5cf6',
+      description: 'Global scientific catalog records with citation graphs, author affiliations, and open-access PDF links.'
     },
     {
       zone: 'BRONZE',
       name: 'OAI-PMH Harvest Batches',
       storageType: 'Cloudflare R2 Object Store',
       format: 'Compressed JSON Bundles',
-      itemsCount: '44 batch bundles',
-      sizeBytes: '26.42 MB',
-      r2Location: 's3://uth-scientific-lakehouse/bronze/oai_batches/',
-      color: 'var(--accent-bronze)',
-      description: 'Raw metadata harvesting batches retrieved through arXiv OAI-PMH protocol across 5 core AI/DS categories.'
+      itemsCount: '12 batch bundles',
+      sizeBytes: '21.24 MB',
+      r2Location: 's3://uth-scientific-lakehouse/bronze/arxiv/batches/',
+      color: '#60a5fa',
+      description: 'Raw metadata harvesting batches retrieved through arXiv OAI-PMH protocol across 5 AI/DS categories.'
     },
     {
       zone: 'SILVER',
-      name: 'Curated Canonical Papers',
-      storageType: 'Local Disk & Cloudflare R2',
+      name: 'Curated Canonical Lakehouse',
+      storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy)',
-      itemsCount: '13,000 papers (9,015 enriched)',
-      sizeBytes: `${silverKb} KB`,
-      r2Location: 's3://uth-scientific-lakehouse/silver/year=2026/papers.parquet',
-      color: 'var(--accent-silver)',
-      description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.22M extracted LaTeX formulas (2,220,938).'
+      itemsCount: '9 Partitions (36,414 works)',
+      sizeBytes: `${silverMb} MB`,
+      r2Location: 's3://uth-scientific-lakehouse/silver/papers/',
+      color: '#10b981',
+      description: 'Deduplicated, schema-enforced columnar Parquet tables with 2,220,938 extracted LaTeX mathematical equations.'
     },
     {
       zone: 'GOLD',
-      name: 'Contextual Vector Lakehouse',
-      storageType: 'LanceDB Multi-Modal Table',
+      name: 'Contextual Vector Lakehouse (Active Cache)',
+      storageType: 'Local SSD NVMe Serving Index',
       format: 'Lance Columnar (.lance)',
-      itemsCount: `${goldChunks.toLocaleString()} chunks`,
-      sizeBytes: `${goldMb} MB (${goldGb} GB)`,
+      itemsCount: `${goldChunks} vectors`,
+      sizeBytes: `${goldMb} MB`,
+      r2Location: 'data/gold/lancedb/scientific_papers_gold.lance',
+      color: '#eab308',
+      description: 'Contextualized 768-dimensional dense embeddings optimized for sub-15ms cosine ANN similarity search.'
+    },
+    {
+      zone: 'BACKUP',
+      name: 'Cloud Disaster Recovery Vector Replica',
+      storageType: 'Cloudflare R2 Cold Snapshots',
+      format: 'LanceDB Multi-Segment Archives',
+      itemsCount: '28 chunk segments',
+      sizeBytes: `${backupGb} GB`,
       r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
-      color: 'var(--accent-gold)',
-      description: 'Semantically contextualized chunks paired with 768-dimensional Nomic embeddings for sub-50ms cosine ANN search.'
+      color: '#f59e0b',
+      description: 'Disaster recovery cloud backup replica enabling instant cluster reconstitution with zero egress fees.'
     }
   ];
 
@@ -137,28 +159,198 @@ export function StorageInspector() {
       borderRadius: 'var(--radius-lg)',
       padding: '24px',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+      {/* Top Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '14px' }}>
         <div>
-          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Cloudflare R2 &amp; Medallion Storage Breakdown (Live Audited)
-          </h3>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{stats?.bucket || 'uth-scientific-lakehouse'}</code> (Zero Egress Fees)
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+              Cloudflare R2 Multi-Tier Storage Lens
+            </h3>
+            <span style={{
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
+              padding: '2px 8px',
+              borderRadius: '10px',
+              background: 'rgba(16, 185, 129, 0.12)',
+              color: 'var(--accent-emerald)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+            }}>
+              Zero Egress Fees
+            </span>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
+            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{activeStats?.bucket || 'uth-scientific-lakehouse'}</code> · S3 Endpoint: Cloudflare Global Edge
           </p>
         </div>
 
-        <div style={{
-          display: 'flex',
-          gap: '12px',
-          fontSize: '11px',
-          fontFamily: 'var(--font-mono)'
-        }}>
-          <span style={{ color: 'var(--text-muted)' }}>Total Stored: <strong style={{ color: 'var(--text-primary)' }}>{totalGb} GB</strong></span>
-          <span style={{ color: 'var(--text-muted)' }}>Free Quota: <strong style={{ color: 'var(--accent-emerald)' }}>{quotaGb} GB</strong></span>
+        {/* Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Active vs Total View Switcher */}
+          <div style={{
+            display: 'inline-flex',
+            background: 'var(--bg-elevated)',
+            padding: '3px',
+            borderRadius: '14px',
+            border: '1px solid var(--border-muted)',
+            fontSize: '11px',
+            fontFamily: 'var(--font-mono)',
+          }}>
+            <button
+              type="button"
+              onClick={() => setViewMode('active')}
+              style={{
+                background: !isTotalView ? 'var(--accent-emerald)' : 'transparent',
+                color: !isTotalView ? '#ffffff' : 'var(--text-muted)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '4px 10px',
+                cursor: 'pointer',
+                fontWeight: !isTotalView ? 600 : 400,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Active ({activeGb} GB)
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('total')}
+              style={{
+                background: isTotalView ? 'var(--accent-gold)' : 'transparent',
+                color: isTotalView ? '#000000' : 'var(--text-muted)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '4px 10px',
+                cursor: 'pointer',
+                fontWeight: isTotalView ? 600 : 400,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Total Bucket ({totalGb} GB)
+            </button>
+          </div>
+
+          {/* Sync Button */}
+          <button
+            type="button"
+            onClick={handleSyncR2}
+            disabled={isSyncing}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              cursor: isSyncing ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            {isSyncing ? 'Syncing...' : 'Sync Live R2'}
+          </button>
+
+          {/* Reset Session Button */}
+          {sessionIngested > 0 && (
+            <button
+              type="button"
+              onClick={handleResetSession}
+              style={{
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#ef4444',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                cursor: 'pointer',
+              }}
+            >
+              Reset Session (+{sessionIngested})
+            </button>
+          )}
         </div>
       </div>
 
+      {syncMessage && (
+        <div style={{
+          padding: '8px 14px',
+          borderRadius: 'var(--radius-sm)',
+          background: 'rgba(59, 130, 246, 0.1)',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          color: '#60a5fa',
+          fontSize: '12px',
+          fontFamily: 'var(--font-mono)',
+          marginBottom: '16px',
+        }}>
+          {syncMessage}
+        </div>
+      )}
 
+      {/* 3 Overview Metric Boxes */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '12px',
+        marginBottom: '20px',
+      }}>
+        {/* Box 1: Primary Active Lakehouse */}
+        <div style={{
+          background: 'var(--bg-elevated)',
+          padding: '14px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-subtle)',
+        }}>
+          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+            PRIMARY ACTIVE LAKEHOUSE
+          </div>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+            {activeGb} GB <span style={{ fontSize: '13px', color: 'var(--accent-emerald)', fontWeight: 500 }}>({activePct}% Free Quota)</span>
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            arXiv HTML5 (3.76 GB) + OpenAlex (3.97 GB) + Parquet (316 MB)
+          </div>
+        </div>
+
+        {/* Box 2: Disaster Recovery Backup */}
+        <div style={{
+          background: 'var(--bg-elevated)',
+          padding: '14px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-subtle)',
+        }}>
+          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+            DISASTER RECOVERY SNAPSHOTS
+          </div>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>
+            {backupGb} GB <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>(28 segments)</span>
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            Gold LanceDB cloud replica on R2 for instant cold recovery
+          </div>
+        </div>
+
+        {/* Box 3: Total Physical Bucket */}
+        <div style={{
+          background: 'var(--bg-elevated)',
+          padding: '14px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-subtle)',
+        }}>
+          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+            TOTAL CLOUDFLARE R2 BUCKET
+          </div>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+            {totalGb} GB <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 500 }}>({totalPct}%)</span>
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            36,673 files · 1.14 GB overage (~$0.017/month / 400 VND)
+          </div>
+        </div>
+      </div>
+
+      {/* Granular Layers Table */}
       <div style={{ overflowX: 'auto' }}>
         <table style={{
           width: '100%',
@@ -179,7 +371,7 @@ export function StorageInspector() {
               <th style={{ padding: '10px 14px' }}>Dataset Name</th>
               <th style={{ padding: '10px 14px' }}>Format</th>
               <th style={{ padding: '10px 14px' }}>Count</th>
-              <th style={{ padding: '10px 14px' }}>Size</th>
+              <th style={{ padding: '10px 14px' }}>Volume</th>
               <th style={{ padding: '10px 14px' }}>Lakehouse Prefix</th>
             </tr>
           </thead>
@@ -191,7 +383,6 @@ export function StorageInspector() {
                   borderBottom: idx < layers.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                 }}
               >
-
                 <td style={{ padding: '12px 14px' }}>
                   <span style={{
                     fontSize: '10px',

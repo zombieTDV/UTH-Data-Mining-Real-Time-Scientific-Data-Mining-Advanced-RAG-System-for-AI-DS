@@ -10,7 +10,9 @@ import datetime
 import json
 import logging
 import time
+from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Optional
+from backend.app.core.config import settings
 
 logger = logging.getLogger("streaming_service")
 
@@ -20,7 +22,7 @@ class StreamingService:
         self.status: str = "IDLE"  # IDLE | STREAMING | PAUSED | COMPLETED | ERROR
         self.target_papers: int = 3000
         self.session_ingested: int = 0
-        self.base_corpus_count: int = 13000
+        self.base_corpus_count: int = 36414  # 11,660 arXiv + 24,754 OpenAlex active works
         self.current_speed_ppm: float = 0.0
         self.start_time: Optional[float] = None
         self.stop_signal = asyncio.Event()
@@ -28,10 +30,42 @@ class StreamingService:
         self._task: Optional[asyncio.Task] = None
         self.recent_events: List[Dict[str, Any]] = []
 
-        # Real-time storage tracking
-        self.base_storage_bytes: int = 3156054549
+        # Real-time active lakehouse storage tracking (8.184 GB active Lakehouse)
+        self.base_storage_bytes: int = 8787548614
         self.accumulated_bytes_delta: int = 0
         self.free_tier_quota_gb: float = 10.0
+
+        # State persistence file
+        self.state_file = settings.DATA_DIR / "lakehouse" / "session_state.json"
+        self._load_persisted_state()
+
+    def _load_persisted_state(self):
+        try:
+            if self.state_file.exists():
+                with open(self.state_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.session_ingested = data.get("session_ingested", 0)
+                    self.accumulated_bytes_delta = data.get("accumulated_bytes_delta", 0)
+                    logger.info(f"[STREAMING] Loaded persistent session state: ingested={self.session_ingested}")
+        except Exception as e:
+            logger.warning(f"[STREAMING] Failed to load session state: {e}")
+
+    def _save_persisted_state(self):
+        try:
+            self.state_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.state_file, "w", encoding="utf-8") as f:
+                json.dump({
+                    "session_ingested": self.session_ingested,
+                    "accumulated_bytes_delta": self.accumulated_bytes_delta,
+                    "updated_at": datetime.datetime.now().isoformat(),
+                }, f, indent=2)
+        except Exception as e:
+            logger.warning(f"[STREAMING] Failed to save session state: {e}")
+
+    def reset_session(self):
+        self.session_ingested = 0
+        self.accumulated_bytes_delta = 0
+        self._save_persisted_state()
 
     def get_current_storage(self) -> Dict[str, Any]:
         total_bytes = self.base_storage_bytes + self.accumulated_bytes_delta
@@ -136,6 +170,7 @@ class StreamingService:
                 # Real-time bytes delta for paper (HTML bronze ~320KB + Parquet slice ~20KB + lance vectors ~40KB)
                 paper_bytes_delta = 380_000 + (formulas * 4_500)
                 self.accumulated_bytes_delta += paper_bytes_delta
+                self._save_persisted_state()
                 storage_state = self.get_current_storage()
 
                 event = {

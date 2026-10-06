@@ -2,7 +2,7 @@ export const APP_CONFIG = {
   name: 'UTH Scientific Lakehouse',
   shortName: 'UTH-DM',
   version: '0.1.0',
-  university: 'University of Transport and Communications',
+  university: 'Ho Chi Minh City University of Transport (UTH)',
   defaultTab: 'schematic' as const,
   defaultTheme: 'light' as const,
   defaultTargetPapers: 10000,

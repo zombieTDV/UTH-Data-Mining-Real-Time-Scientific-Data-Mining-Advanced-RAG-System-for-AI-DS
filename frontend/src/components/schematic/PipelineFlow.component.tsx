@@ -28,31 +28,43 @@ export function PipelineFlow() {
     storageStats,
   } = useLakehouseStreamStore();
 
-  const currentCorpus = totalCorpus || 13000;
-  const currentBronzeCount = (storageStats?.zones?.bronzeCount ?? 9022) + sessionIngested;
-  const currentBatchesCount = storageStats?.total_objects ? Math.max(1, storageStats.total_objects - (storageStats?.zones?.bronzeCount ?? 9022)) : 44;
+  const currentCorpus = totalCorpus || 36414;
+  const currentBronzeCount = storageStats?.activeLakehouse
+    ? storageStats.activeLakehouse.arxivHtmlCount + sessionIngested
+    : (storageStats?.zones?.bronzeCount ?? 11660) + sessionIngested;
+  const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
+  const currentBatchesCount = 12;
   const currentVectors = (storageStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
   const currentFormulas = 2220938 + (sessionIngested * 24);
-  const currentEnriched = 9015 + sessionIngested;
-  const currentGoldMb = (127.10 + (sessionIngested * 0.04)).toFixed(2);
+  const currentEnriched = currentBronzeCount;
+  const currentGoldMb = storageStats?.activeLakehouse
+    ? (storageStats.activeLakehouse.activeLanceDbSizeMb + (sessionIngested * 0.04)).toFixed(2)
+    : (121.21 + (sessionIngested * 0.04)).toFixed(2);
+  const currentSilverMb = storageStats?.activeLakehouse
+    ? storageStats.activeLakehouse.silverParquetSizeMb.toFixed(2)
+    : '316.06';
 
   const phases = useMemo<PipelinePhase[]>(() => [
     {
       id: 'phase-1',
       phaseNumber: '01',
-      name: 'arXiv Harvest & Bronze Ingestion',
+      name: 'Source Ingest & Bronze Lake',
       zone: 'BRONZE',
       zoneColor: 'var(--accent-bronze)',
       status: 'COMPLETED',
-      inputs: ['arXiv OAI-PMH Endpoints', 'ar5iv HTML5 Repository'],
-      outputs: [`${currentBronzeCount.toLocaleString()} Raw HTML5 Files`, `${currentBatchesCount} OAI Batch JSONs (26.4MB)`],
+      inputs: ['arXiv OAI-PMH & ar5iv HTML5', 'OpenAlex REST API & Citations', 'Top AI Conference Proceedings'],
+      outputs: [
+        `${currentBronzeCount.toLocaleString()} arXiv HTML5 Files`,
+        `${currentOpenAlexCount.toLocaleString()} OpenAlex Metadata JSONs`,
+        `${currentBatchesCount} OAI Batch Checkpoints (26.4MB)`
+      ],
       tools: ['HTTPX Async', 'Cloudflare R2 S3 API', 'SHA-256 Hasher'],
       metrics: {
-        processed: `${currentCorpus.toLocaleString()} Papers Harvested`,
-        rate: '6.0s Rate-Limit Delay',
+        processed: `${(currentBronzeCount + currentOpenAlexCount).toLocaleString()} Works Harvested`,
+        rate: `${(currentBronzeCount / 1000).toFixed(1)}k arXiv + ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex`,
         latency: `${storageUsedGb.toFixed(3)} GB Transferred`
       },
-      details: 'Harvests metadata via OAI-PMH XML protocol across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably streams raw paper HTML5 and batch records directly into Cloudflare R2 Bronze Lakehouse.'
+      details: `Harvests metadata and full-content preprints across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably streams ${currentBronzeCount.toLocaleString()} raw HTML5 preprints and ${currentOpenAlexCount.toLocaleString()} OpenAlex rich records into Cloudflare R2 Bronze Lakehouse.`
     },
     {
       id: 'phase-2',
@@ -62,12 +74,12 @@ export function PipelineFlow() {
       zoneColor: 'var(--accent-silver)',
       status: 'COMPLETED',
       inputs: ['Raw Bronze HTML5 & OAI Batches'],
-      outputs: ['Apache Parquet (year=2026)', 'DuckDB Canonical View'],
+      outputs: ['Apache Parquet (9 partitions, year=2026)', 'DuckDB Canonical View'],
       tools: ['BeautifulSoup4 & lxml', 'Apache Arrow', 'DuckDB Engine'],
       metrics: {
         processed: `${currentEnriched.toLocaleString()} Papers Full-Section Enriched`,
         rate: `${currentFormulas.toLocaleString()} LaTeX Formulas Extracted`,
-        latency: '13.98 KB Columnar Storage'
+        latency: `${currentSilverMb} MB Columnar Storage`
       },
       details: `Parses academic structures into canonical sections (Abstract, Intro, Methods, Results, Discussion). Cleans and preserves ${(currentFormulas / 1000000).toFixed(2)}M mathematical equations (${currentFormulas.toLocaleString()}) in pristine LaTeX syntax.`
     },

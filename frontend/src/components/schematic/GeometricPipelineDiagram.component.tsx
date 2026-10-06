@@ -29,13 +29,18 @@ export function GeometricPipelineDiagram() {
     isStreaming,
   } = useLakehouseStreamStore();
 
-  const currentCorpus = totalCorpus || 13000;
-  const currentBronzeCount = (storageStats?.zones?.bronzeCount ?? 9022) + sessionIngested;
-  const currentBatchesCount = storageStats?.total_objects ? Math.max(1, storageStats.total_objects - (storageStats?.zones?.bronzeCount ?? 9022)) : 44;
+  const currentCorpus = totalCorpus || 36414;
+  const currentBronzeCount = storageStats?.activeLakehouse
+    ? storageStats.activeLakehouse.arxivHtmlCount + sessionIngested
+    : (storageStats?.zones?.bronzeCount ?? 11660) + sessionIngested;
+  const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
+  const currentBatchesCount = 12;
   const currentVectors = (storageStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
   const currentFormulas = 2220938 + (sessionIngested * 24);
-  const currentEnriched = 9015 + sessionIngested;
-  const currentGoldMb = (127.10 + (sessionIngested * 0.04)).toFixed(2);
+  const currentEnriched = currentBronzeCount;
+  const currentGoldMb = storageStats?.activeLakehouse
+    ? (storageStats.activeLakehouse.activeLanceDbSizeMb + (sessionIngested * 0.04)).toFixed(2)
+    : (121.21 + (sessionIngested * 0.04)).toFixed(2);
 
   const [statusText, setStatusText] = useState<string>(
     `PIPELINE READY · ${currentCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`
@@ -51,17 +56,17 @@ export function GeometricPipelineDiagram() {
     {
       id: 'node-harvest',
       code: '01/INGEST',
-      name: 'arXiv OAI-PMH & ar5iv',
+      name: 'Source Ingest',
       zone: 'HARVEST',
       zoneColor: '#ef4444',
-      toolName: 'arXiv Harvester',
-      toolCategory: 'Source Stream',
-      metricLabel: 'TOTAL HARVESTED',
-      metricValue: `${currentCorpus.toLocaleString()} Papers`,
-      secondaryMetric: 'cs.AI, cs.LG, cs.CV, cs.CL, stat.ML',
+      toolName: 'Source Harvester',
+      toolCategory: 'arXiv + OpenAlex + Conf',
+      metricLabel: 'TOTAL CORPUS',
+      metricValue: `${(currentBronzeCount + currentOpenAlexCount).toLocaleString()} Works`,
+      secondaryMetric: `${(currentBronzeCount / 1000).toFixed(1)}k arXiv · ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex · 184 Conf`,
       status: isStreaming ? 'ACTIVE' : 'SYNCED',
       iconType: 'arxiv',
-      specList: ['OAI-PMH XML v2.0', 'HTML5 Full-Text Crawler', '6.0s Rate Limiter']
+      specList: ['arXiv OAI-PMH & ar5iv HTML5', 'OpenAlex REST API & Citations', 'NeurIPS / ICML / ICLR / KDD']
     },
     {
       id: 'node-bronze',
@@ -70,13 +75,13 @@ export function GeometricPipelineDiagram() {
       zone: 'BRONZE',
       zoneColor: '#f59e0b',
       toolName: 'Cloudflare R2',
-      toolCategory: 'Immutable Raw Store',
-      metricLabel: 'RAW STORED',
+      toolCategory: 'Multi-Tier Raw Lake',
+      metricLabel: 'ACTIVE STORED',
       metricValue: `${storageUsedGb.toFixed(3)} GB`,
-      secondaryMetric: `${currentBronzeCount.toLocaleString()} HTML5 + ${currentBatchesCount} Batches`,
+      secondaryMetric: `${currentBronzeCount.toLocaleString()} HTML5 · ${currentOpenAlexCount.toLocaleString()} Meta`,
       status: 'ONLINE',
       iconType: 'r2',
-      specList: ['S3 Compatible API', 'Zero Egress Fees', 'SHA-256 Checksummed']
+      specList: ['S3 Compatible Global Edge', 'Zero Egress Fees (100% Free)', 'SHA-256 Content Addressed']
     },
     {
       id: 'node-duckdb',
@@ -96,17 +101,17 @@ export function GeometricPipelineDiagram() {
     {
       id: 'node-silver',
       code: '04/CURATED',
-      name: 'Apache Parquet Partition',
+      name: 'Apache Parquet Lakehouse',
       zone: 'SILVER',
       zoneColor: '#60a5fa',
       toolName: 'Apache Parquet',
       toolCategory: 'Columnar Store',
       metricLabel: 'CURATED TABLE',
-      metricValue: '13.98 KB',
-      secondaryMetric: 'Partition: year=2026',
+      metricValue: storageStats?.activeLakehouse ? `${storageStats.activeLakehouse.silverParquetSizeMb.toFixed(2)} MB` : '316.06 MB',
+      secondaryMetric: '9 Partitions · Canonical Schema',
       status: 'SYNCED',
       iconType: 'parquet',
-      specList: ['Snappy Compression', 'Nested Schema Dict', 'Canonical Section Taxonomy']
+      specList: ['Snappy Compression', 'Arrow Vectorized Schema', 'Canonical Section Taxonomy']
     },
     {
       id: 'node-nomic',

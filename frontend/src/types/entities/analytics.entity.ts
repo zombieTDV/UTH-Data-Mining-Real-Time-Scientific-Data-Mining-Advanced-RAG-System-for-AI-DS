@@ -217,11 +217,51 @@ export interface TrendsResponse {
 export interface StorageZoneInfo {
   bronzeCount: number;
   bronzeSizeBytes: number;
+  openalexCount?: number;
+  openalexSizeBytes?: number;
   silverTables: string[];
   silverSizeBytes: number;
   goldTables: string[];
   goldChunkCount: number;
   goldSizeBytes: number;
+  goldBackupChunkCount?: number;
+  goldBackupSizeBytes?: number;
+}
+
+export interface ActiveLakehouseInfo {
+  totalObjects: number;
+  totalSizeBytes: number;
+  totalSizeGb: number;
+  usedPercentage: number;
+  arxivHtmlCount: number;
+  arxivHtmlSizeBytes: number;
+  arxivHtmlSizeGb: number;
+  openalexCount: number;
+  openalexSizeBytes: number;
+  openalexSizeGb: number;
+  silverParquetCount: number;
+  silverParquetSizeBytes: number;
+  silverParquetSizeMb: number;
+  activeLanceDbVectors: number;
+  activeLanceDbSizeBytes: number;
+  activeLanceDbSizeMb: number;
+}
+
+export interface BackupStorageInfo {
+  totalObjects: number;
+  totalSizeBytes: number;
+  totalSizeGb: number;
+  description: string;
+}
+
+export interface TotalBucketInfo {
+  totalObjects: number;
+  totalSizeBytes: number;
+  totalSizeGb: number;
+  usedPercentage: number;
+  freeTierQuotaGb: number;
+  overageGb: number;
+  estimatedOverageCostUsd: number;
 }
 
 export interface StorageStatsResponse {
@@ -234,6 +274,9 @@ export interface StorageStatsResponse {
   used_percentage: number;
   zones: StorageZoneInfo;
   remoteIndicesReady: boolean;
+  activeLakehouse?: ActiveLakehouseInfo;
+  backupStorage?: BackupStorageInfo;
+  totalBucket?: TotalBucketInfo;
 }
 
 export interface HealthResponse {

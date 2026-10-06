@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavRail } from './navigation/rail';
-import { HeaderBar, StatusBar } from './navigation/header';
+import { HeaderBar } from './navigation/header';
 import { SchematicScreen, EdaScreen, PillarsScreen, RagScreen, LogsScreen } from './screens';
 import {
   fetchHealth,
@@ -17,6 +17,7 @@ export default function App() {
   const {
     isStreaming,
     totalCorpus,
+    sessionIngested,
     streamSpeed,
     storageUsedGb,
     storageUsedPct,
@@ -29,8 +30,8 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Live Ground Truth: 13,000 papers, 2.22M formulas, 143,523 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(13000);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 36,414 works, 2.22M formulas, 143,523 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(36414);
   const [totalFormulas, setTotalFormulas] = useState<number>(2220938);
   const [totalVectors, setTotalVectors] = useState<number>(143523);
 
@@ -49,9 +50,6 @@ export default function App() {
 
     fetchEdaSummary()
       .then((eda) => {
-        if (eda?.dataset_overview?.total_papers) {
-          setTotalPapers(eda.dataset_overview.total_papers);
-        }
         if (eda?.dataset_overview?.total_math_formulas) {
           setTotalFormulas(eda.dataset_overview.total_math_formulas);
         }
@@ -60,7 +58,15 @@ export default function App() {
 
     fetchStorageStats()
       .then((data) => {
-        if (data?.zones?.goldChunkCount) setTotalVectors(data.zones.goldChunkCount);
+        if (data?.activeLakehouse) {
+          const works = (data.activeLakehouse.arxivHtmlCount || 11660) + (data.activeLakehouse.openalexCount || 24754);
+          setTotalPapers(works);
+          if (data.activeLakehouse.activeLanceDbVectors) {
+            setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
+          }
+        } else if (data?.zones?.goldChunkCount) {
+          setTotalVectors(data.zones.goldChunkCount);
+        }
       })
       .catch(() => {});
 
@@ -120,7 +126,9 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = totalCorpus || totalPapers;
+  const effectiveTotalPapers = totalCorpus || totalPapers || 36414;
+  const effectiveTotalVectors = totalVectors + (sessionIngested * 14);
+  const effectiveTotalFormulas = totalFormulas;
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>
@@ -148,6 +156,9 @@ export default function App() {
           pipelineStatus={pipelineStatus}
           streamActive={isStreaming}
           totalPapers={effectiveTotalPapers}
+          totalFormulas={effectiveTotalFormulas}
+          totalVectors={effectiveTotalVectors}
+          sessionIngested={sessionIngested}
           streamSpeed={streamSpeed}
           storageUsedGb={storageUsedGb}
           storageUsedPct={storageUsedPct}
@@ -158,7 +169,7 @@ export default function App() {
             flex: 1,
             overflowY: activeTab === 'logs' ? 'auto' : 'hidden',
             overflowX: 'hidden',
-            padding: activeTab === 'schematic' ? '14px 20px' : activeTab === 'rag' ? '0' : activeTab === 'logs' ? '20px 24px' : '12px 24px',
+            padding: activeTab === 'schematic' ? '0' : activeTab === 'rag' ? '0' : activeTab === 'logs' ? '16px 20px' : '12px 20px',
             backgroundColor: 'transparent',
             display: 'flex',
             flexDirection: 'column',
@@ -194,12 +205,6 @@ export default function App() {
 
           {activeTab === 'logs' && <LogsScreen />}
         </main>
-
-        <StatusBar
-          totalPapers={effectiveTotalPapers}
-          totalVectors={totalVectors}
-          totalFormulas={totalFormulas}
-        />
       </div>
     </div>
   );

@@ -2,39 +2,60 @@ import type { FC } from 'react';
 import { useTranslation } from '../../hooks';
 
 export const LanguageToggle: FC = () => {
-  const { language, toggleLanguage, t } = useTranslation();
+  const { language, setLanguage } = useTranslation();
 
   return (
-    <button
-      onClick={toggleLanguage}
-      title={t('nav.switchLanguage')}
+    <div
+      role="group"
+      aria-label="Language selection"
       style={{
-        display: 'flex',
+        display: 'inline-flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        width: '32px',
-        height: '32px',
-        borderRadius: '6px',
+        padding: '2px',
+        borderRadius: '7px',
+        backgroundColor: 'var(--bg-elevated)',
         border: '1px solid var(--border-subtle)',
-        backgroundColor: 'var(--bg-secondary)',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        color: 'var(--text-secondary)',
-        fontSize: '12px',
-        fontWeight: 700,
-        padding: 0,
-        letterSpacing: '0.02em',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
-        e.currentTarget.style.color = 'var(--text-primary)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-        e.currentTarget.style.color = 'var(--text-secondary)';
+        gap: '2px',
       }}
     >
-      {language === 'en' ? 'VI' : 'EN'}
-    </button>
+      <button
+        type="button"
+        onClick={() => setLanguage('vi')}
+        style={{
+          padding: '3px 8px',
+          borderRadius: '5px',
+          fontSize: '10.5px',
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 800,
+          border: 'none',
+          cursor: 'pointer',
+          backgroundColor: language === 'vi' ? 'rgba(239, 68, 68, 0.16)' : 'transparent',
+          color: language === 'vi' ? '#ef4444' : 'var(--text-muted)',
+          transition: 'all 0.15s ease',
+        }}
+        title="Tiếng Việt (Vietnamese)"
+      >
+        VI
+      </button>
+      <button
+        type="button"
+        onClick={() => setLanguage('en')}
+        style={{
+          padding: '3px 8px',
+          borderRadius: '5px',
+          fontSize: '10.5px',
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 800,
+          border: 'none',
+          cursor: 'pointer',
+          backgroundColor: language === 'en' ? 'rgba(59, 130, 246, 0.16)' : 'transparent',
+          color: language === 'en' ? '#3b82f6' : 'var(--text-muted)',
+          transition: 'all 0.15s ease',
+        }}
+        title="English"
+      >
+        EN
+      </button>
+    </div>
   );
 };
