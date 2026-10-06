@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { subscribeTelemetry, subscribeIngestionStream } from '../../services';
+import { subscribeTelemetry } from '../../services';
+import { useLakehouseStreamStore, type StreamingLogEntry } from '../../store';
 
 export interface LogLine {
   id: string;
@@ -28,58 +29,135 @@ export const PIPELINE_LOGS: LogLine[] = [
     id: 'l-03',
     time: '2026-10-03 13:41:35',
     level: 'INFO',
-    tag: 'RAG/QUERY',
-    message: 'Received scientific query: "How is z_t sampled in CoDi during generation?"'
+    tag: 'RAG/EMBED',
+    message: 'Query vectorized via nomic-embed-text-v1.5: 768 dimensions in 18.2ms'
   },
   {
     id: 'l-04',
-    time: '2026-10-03 13:30:12',
-    level: 'SUCCESS',
-    tag: 'STORAGE/GOLD',
-    message: 'LanceDB Gold multi-modal index built: 143,523 text embeddings (384-dim, cosine metric)'
+    time: '2026-10-03 13:38:42',
+    level: 'INFO',
+    tag: 'LLM/INIT',
+    message: 'Qwen2.5-7B-Instruct (GGUF Q4_K_M) loaded into Apple Silicon Metal GPU memory (n_ctx=4096, n_gpu_layers=28)'
   },
   {
     id: 'l-05',
-    time: '2026-10-03 13:28:44',
+    time: '2026-10-03 06:30:14',
     level: 'STORAGE',
-    tag: 'STORAGE/SILVER',
-    message: 'Parquet silver tables written to s3://arxiv-lakehouse/silver/ (10,000 papers, Snappy)'
+    tag: 'R2/SYNC',
+    message: 'Cloudflare R2 lakehouse synchronized: 5.524 GB total across Bronze (2.84 GB), Silver (231.7 MB), Gold (2.45 GB)'
   },
   {
     id: 'l-06',
-    time: '2026-10-03 13:25:01',
-    level: 'INFO',
-    tag: 'MINING/PILLARS',
-    message: 'FP-Growth computed 48 frequent itemsets (min_sup=0.05), 32 rules (min_conf=0.60)'
+    time: '2026-10-03 06:29:48',
+    level: 'SUCCESS',
+    tag: 'GOLD/INDEX',
+    message: '143,523 chunks indexed into LanceDB table scientific_papers_gold (768-dim embeddings, Cosine ANN)'
   },
   {
     id: 'l-07',
-    time: '2026-10-03 13:22:18',
+    time: '2026-10-03 06:25:10',
     level: 'INFO',
-    tag: 'MINING/PILLARS',
-    message: 'K-Means clustering converged at k=8 (Silhouette: 0.6184, Davies-Bouldin: 0.7412)'
+    tag: 'GOLD/EMBED',
+    message: 'Batch 17,940/17,940 embedded on MPS Metal GPU: 100% complete (Total duration: 1h 12m)'
   },
   {
     id: 'l-08',
-    time: '2026-10-03 13:19:55',
+    time: '2026-10-03 06:18:22',
     level: 'INFO',
-    tag: 'MINING/PILLARS',
-    message: 'PageRank computed across 2,410 co-authorship nodes. Top: Yoshua Bengio (0.0142)'
+    tag: 'GOLD/EMBED',
+    message: 'Batch 17,000/17,940 embedded on MPS Metal GPU (batch_size=8, torch.mps.empty_cache applied)'
   },
   {
     id: 'l-09',
-    time: '2026-10-03 13:15:30',
-    level: 'STORAGE',
-    tag: 'STORAGE/BRONZE',
-    message: 'Bronze JSON corpus: 10,000 papers synced from R2 bucket arxiv-lakehouse-bronze'
+    time: '2026-10-03 05:55:40',
+    level: 'INFO',
+    tag: 'GOLD/EMBED',
+    message: 'Batch 12,000/17,940 embedded on MPS Metal GPU (batch_size=8, torch.mps.empty_cache applied)'
   },
   {
     id: 'l-10',
-    time: '2026-10-03 13:10:00',
-    level: 'START',
-    tag: 'PIPELINE/INIT',
-    message: 'Pipeline initialized. Hardware: Apple M3 Max (Metal/MPS enabled). DuckDB v1.1.3'
+    time: '2026-10-03 05:30:15',
+    level: 'INFO',
+    tag: 'GOLD/EMBED',
+    message: 'Batch 06,000/17,940 embedded on MPS Metal GPU (batch_size=8, torch.mps.empty_cache applied)'
   },
+  {
+    id: 'l-11',
+    time: '2026-10-03 05:14:20',
+    level: 'SUCCESS',
+    tag: 'SILVER/WRITE',
+    message: '8,989 HTML5 papers enriched with full sections and 2,224,198 LaTeX formulas written to data/silver/year=2026/papers.parquet'
+  },
+  {
+    id: 'l-12',
+    time: '2026-10-03 04:52:10',
+    level: 'INFO',
+    tag: 'SILVER/DUCKDB',
+    message: 'DuckDB engine registered view over Silver Parquet partition (Row count: 10,000, 231.73 MB)'
+  },
+  {
+    id: 'l-13',
+    time: '2026-10-03 04:30:11',
+    level: 'INFO',
+    tag: 'SILVER/PARQUET',
+    message: 'PyArrow serialized columnar table: 10,000 rows with SNAPPY compression (Compression Ratio: 3.82:1)'
+  },
+  {
+    id: 'l-14',
+    time: '2026-10-03 04:15:30',
+    level: 'INFO',
+    tag: 'ENRICH/HTML',
+    message: 'Parsed ar5iv document 2312.17591: 5 sections extracted, 142 LaTeX math equations preserved'
+  },
+  {
+    id: 'l-15',
+    time: '2026-10-03 03:45:18',
+    level: 'INFO',
+    tag: 'ENRICH/HTML',
+    message: 'Parsed ar5iv document 2310.01407: 6 sections extracted, 88 LaTeX math equations preserved'
+  },
+  {
+    id: 'l-16',
+    time: '2026-10-03 03:10:00',
+    level: 'SUCCESS',
+    tag: 'BRONZE/HARVEST',
+    message: '10,000 metadata records harvested from arXiv OAI-PMH across categories: cs.AI, cs.LG, cs.CV, cs.CL, stat.ML'
+  },
+  {
+    id: 'l-17',
+    time: '2026-10-03 02:40:12',
+    level: 'INFO',
+    tag: 'BRONZE/OAI',
+    message: 'Batch 10/12 harvested: 1,000 XML records dumped to bronze/oai_batches/batch_10.json (resumptionToken verified)'
+  },
+  {
+    id: 'l-18',
+    time: '2026-10-03 02:05:44',
+    level: 'INFO',
+    tag: 'BRONZE/OAI',
+    message: 'Batch 05/12 harvested: 1,000 XML records dumped to bronze/oai_batches/batch_05.json (resumptionToken verified)'
+  },
+  {
+    id: 'l-19',
+    time: '2026-10-03 01:30:19',
+    level: 'INFO',
+    tag: 'BRONZE/OAI',
+    message: 'Batch 01/12 harvested: Initial 1,000 records stream established from http://export.arxiv.org/oai2'
+  },
+  {
+    id: 'l-20',
+    time: '2026-10-03 01:29:55',
+    level: 'INFO',
+    tag: 'ENV/HARDWARE',
+    message: 'Hardware inspection: Apple M-Series chip with Metal MPS backend verified (16 GB Unified Memory)'
+  },
+  {
+    id: 'l-21',
+    time: '2026-10-03 01:29:50',
+    level: 'START',
+    tag: 'MASTER/INIT',
+    message: 'Master Pipeline execution initiated on macOS Darwin arm64 (Dual logging stream to logs/master_pipeline_20261003.log)'
+  }
 ];
 
 export function LiveTelemetryFeed() {
@@ -88,28 +166,17 @@ export function LiveTelemetryFeed() {
   const [search, setSearch] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const { logs: storeLogs } = useLakehouseStreamStore();
+
   useEffect(() => {
     const unsub = subscribeTelemetry((data: any) => {
-      if (data && data.stage) {
+      if (data && (data.event || data.message || data.status)) {
         const newLog: LogLine = {
           id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          time: data.timestamp ? data.timestamp.replace('T', ' ').slice(0, 19) : new Date().toISOString().replace('T', ' ').slice(0, 19),
-          level: data.status === 'SUCCESS' ? 'SUCCESS' : data.status === 'ERROR' ? 'STORAGE' : 'INFO',
-          tag: `LIVE/${data.stage.toUpperCase()}`,
-          message: data.message || `Processed ${data.papers_processed || 0} papers (Latency: ${data.latency_ms || 0}ms)`,
-        };
-        setLogs((prev) => [newLog, ...prev.slice(0, 99)]);
-      }
-    });
-
-    const unsubStream = subscribeIngestionStream((event: any) => {
-      if (event && event.type) {
-        const newLog: LogLine = {
-          id: `stream-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           time: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          level: event.type === 'PAPER_INGESTED' ? 'SUCCESS' : 'INFO',
-          tag: 'INGESTION/CDC',
-          message: event.title ? `[${event.paper_id}] ${event.title} (${event.category})` : `CDC Stream: ${event.type}`,
+          level: (data.level || (data.status === 'ONLINE' ? 'SUCCESS' : 'INFO')) as any,
+          tag: data.tag || 'TELEMETRY/SSE',
+          message: data.message || `System event: ${JSON.stringify(data)}`,
         };
         setLogs((prev) => [newLog, ...prev.slice(0, 99)]);
       }
@@ -117,11 +184,22 @@ export function LiveTelemetryFeed() {
 
     return () => {
       unsub();
-      unsubStream();
     };
   }, []);
 
-  const filteredLogs = logs.filter((l) => {
+  // Merge store live logs with static/telemetry logs
+  const allLogs = [
+    ...storeLogs.map((sl: StreamingLogEntry) => ({
+      id: sl.id,
+      time: sl.time,
+      level: sl.level as LogLine['level'],
+      tag: sl.tag,
+      message: sl.msg,
+    })),
+    ...logs,
+  ];
+
+  const filteredLogs = allLogs.filter((l) => {
     if (filterLevel !== 'ALL' && l.level !== filterLevel) return false;
     if (search.trim()) {
       const q = search.toLowerCase();

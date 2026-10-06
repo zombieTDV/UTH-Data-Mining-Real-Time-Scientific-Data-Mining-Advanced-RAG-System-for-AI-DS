@@ -26,8 +26,9 @@ dist-ssr
 
 # Local lakehouse data & heavy weights
 data/
+data/**
 models/
-.venv/
-.gemini/
-.env
-.env.*
+models/**
+*.pt
+*.bin
+*.tar.gz

@@ -254,6 +254,9 @@ export interface IngestionStatus {
   total_corpus: number;
   speed_ppm: number;
   elapsed_seconds: number;
+  storage_total_bytes?: number;
+  storage_total_gb?: number;
+  storage_used_pct?: number;
 }
 
 export interface IngestionControlResponse {
@@ -275,6 +278,31 @@ export interface IngestionEvent {
   session_ingested?: number;
   vectors_synced?: number;
   latency_ms?: number;
+  bronze_bytes_delta?: number;
+  storage_total_bytes?: number;
+  storage_total_gb?: number;
+  storage_used_pct?: number;
+}
+
+export interface DuckDbQueryResult {
+  columns: string[];
+  rows: Record<string, any>[];
+  row_count: number;
+  execution_time_ms: number;
+}
+
+export interface LakehouseSearchResult {
+  query: string;
+  mode: string;
+  total_results: number;
+  results: Array<{
+    chunk_id: string;
+    paper_id: string;
+    title: string;
+    text: string;
+    primary_category?: string;
+    score?: number;
+  }>;
 }
 
 export interface DuckDbQueryResult {

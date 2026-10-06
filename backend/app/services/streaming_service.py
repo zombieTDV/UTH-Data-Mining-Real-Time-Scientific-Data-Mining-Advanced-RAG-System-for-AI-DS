@@ -12,6 +12,8 @@ import logging
 import time
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
+from backend.app.services.storage_service import storage_service
+
 logger = logging.getLogger("streaming_service")
 
 
@@ -28,8 +30,25 @@ class StreamingService:
         self._task: Optional[asyncio.Task] = None
         self.recent_events: List[Dict[str, Any]] = []
 
+        # Real-time storage tracking
+        base_stats = storage_service.get_stats()
+        self.base_storage_bytes: int = base_stats.total_size_bytes
+        self.accumulated_bytes_delta: int = 0
+        self.free_tier_quota_gb: float = base_stats.free_tier_quota_gb
+
+    def get_current_storage(self) -> Dict[str, Any]:
+        total_bytes = self.base_storage_bytes + self.accumulated_bytes_delta
+        total_gb = round(total_bytes / (1024**3), 3)
+        used_pct = round((total_gb / self.free_tier_quota_gb) * 100.0, 2)
+        return {
+            "total_bytes": total_bytes,
+            "total_gb": total_gb,
+            "used_pct": min(100.0, used_pct),
+        }
+
     def get_status(self) -> Dict[str, Any]:
         elapsed = time.time() - self.start_time if self.start_time else 0
+        storage = self.get_current_storage()
         return {
             "status": self.status,
             "target_papers": self.target_papers,
@@ -38,6 +57,9 @@ class StreamingService:
             "speed_ppm": self.current_speed_ppm,
             "elapsed_seconds": round(elapsed, 1),
             "subscribers_connected": len(self.subscribers),
+            "storage_total_bytes": storage["total_bytes"],
+            "storage_total_gb": storage["total_gb"],
+            "storage_used_pct": storage["used_pct"],
         }
 
     async def broadcast_event(self, event: Dict[str, Any]):
@@ -114,6 +136,11 @@ class StreamingService:
 
                 latency_ms = round((time.time() - t0) * 1000, 1)
 
+                # Real-time bytes delta for paper (HTML bronze ~320KB + Parquet slice ~20KB + lance vectors ~40KB)
+                paper_bytes_delta = 380_000 + (formulas * 4_500)
+                self.accumulated_bytes_delta += paper_bytes_delta
+                storage_state = self.get_current_storage()
+
                 event = {
                     "type": "PAPER_INGESTED",
                     "paper_id": paper_id,
@@ -126,6 +153,10 @@ class StreamingService:
                     "session_ingested": self.session_ingested,
                     "total_corpus": self.base_corpus_count + self.session_ingested,
                     "speed_ppm": self.current_speed_ppm,
+                    "bronze_bytes_delta": paper_bytes_delta,
+                    "storage_total_bytes": storage_state["total_bytes"],
+                    "storage_total_gb": storage_state["total_gb"],
+                    "storage_used_pct": storage_state["used_pct"],
                     "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
                 }
 
@@ -145,12 +176,16 @@ class StreamingService:
         q = asyncio.Queue()
         self.subscribers.append(q)
 
+        storage_state = self.get_current_storage()
         # Send initial status
         initial_payload = {
             "type": "CONNECTION_ESTABLISHED",
             "status": self.status,
             "session_ingested": self.session_ingested,
             "total_corpus": self.base_corpus_count + self.session_ingested,
+            "storage_total_bytes": storage_state["total_bytes"],
+            "storage_total_gb": storage_state["total_gb"],
+            "storage_used_pct": storage_state["used_pct"],
             "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
         }
         yield json.dumps(initial_payload)
@@ -163,12 +198,16 @@ class StreamingService:
                     yield json.dumps(event)
                 except asyncio.TimeoutError:
                     # Heartbeat pulse
+                    hb_storage = self.get_current_storage()
                     heartbeat = {
                         "type": "HEARTBEAT",
                         "status": self.status,
                         "session_ingested": self.session_ingested,
                         "total_corpus": self.base_corpus_count + self.session_ingested,
                         "speed_ppm": self.current_speed_ppm,
+                        "storage_total_bytes": hb_storage["total_bytes"],
+                        "storage_total_gb": hb_storage["total_gb"],
+                        "storage_used_pct": hb_storage["used_pct"],
                         "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
                     }
                     yield json.dumps(heartbeat)

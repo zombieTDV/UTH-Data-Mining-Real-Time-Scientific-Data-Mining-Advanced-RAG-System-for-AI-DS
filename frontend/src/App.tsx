@@ -5,31 +5,34 @@ import { SchematicScreen, EdaScreen, PillarsScreen, RagScreen, LogsScreen } from
 import {
   fetchHealth,
   subscribeTelemetry,
-  subscribeIngestionStream,
   triggerMiningPipeline,
   fetchStorageStats,
   fetchEdaSummary,
 } from './services';
-import { useThemeStore } from './store';
+import { useThemeStore, useLakehouseStreamStore } from './store';
 import type { AppTab, PipelineStatus, BackendStatus, SchematicViewMode } from './types';
 
 export default function App() {
   const { theme, toggleTheme } = useThemeStore();
+  const {
+    isStreaming,
+    totalCorpus,
+    streamSpeed,
+    storageUsedGb,
+    storageUsedPct,
+    initializeStream,
+  } = useLakehouseStreamStore();
+
   const [activeTab, setActiveTab] = useState<AppTab>('schematic');
   const [schematicViewMode, setSchematicViewMode] = useState<SchematicViewMode>('canvas');
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('IDLE');
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
+
   // Real-time Streaming State for Lakehouse Counter (Live Ground Truth: 13,000 papers, 2.77M formulas, 143.5k vectors)
   const [totalPapers, setTotalPapers] = useState<number>(13000);
   const [totalFormulas, setTotalFormulas] = useState<number>(2765395);
   const [totalVectors, setTotalVectors] = useState<number>(143523);
-  const [streamActive, setStreamActive] = useState<boolean>(false);
-  const [streamSpeed, setStreamSpeed] = useState<number>(0);
-
-  // Cloudflare R2 Storage stats
-  const [storageUsedGb, setStorageUsedGb] = useState<number>(5.688);
-  const [storageUsedPct, setStorageUsedPct] = useState<number>(56.9);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 
@@ -57,13 +60,11 @@ export default function App() {
 
     fetchStorageStats()
       .then((data) => {
-        if (data?.total_size_gb) setStorageUsedGb(data.total_size_gb);
-        if (data?.used_percentage) setStorageUsedPct(data.used_percentage);
         if (data?.zones?.goldChunkCount) setTotalVectors(data.zones.goldChunkCount);
       })
       .catch(() => {});
 
-    const unsubscribe = subscribeTelemetry(
+    const unsubscribeTelemetry = subscribeTelemetry(
       (data) => {
         setBackendStatus('ONLINE');
         if (data?.timestamp) {
@@ -73,27 +74,14 @@ export default function App() {
       () => setBackendStatus('OFFLINE')
     );
 
-    const unsubStream = subscribeIngestionStream((event) => {
-      if (event.type === 'PAPER_INGESTED') {
-        setStreamActive(true);
-        setTotalPapers(event.total_corpus || 13000);
-        setStreamSpeed(event.speed_ppm || 0);
-      } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
-        if (event.status === 'STREAMING') {
-          setStreamActive(true);
-          setTotalPapers(event.total_corpus || 13000);
-          setStreamSpeed(event.speed_ppm || 0);
-        } else if (event.status === 'PAUSED' || event.status === 'COMPLETED') {
-          setStreamActive(false);
-        }
-      }
-    });
+    // Initialize singleton SSE stream with auto-reconnect
+    const unsubscribeStream = initializeStream();
 
     return () => {
-      unsubscribe();
-      unsubStream();
+      unsubscribeTelemetry();
+      unsubscribeStream();
     };
-  }, []);
+  }, [initializeStream]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -132,6 +120,8 @@ export default function App() {
     setActiveTab('rag');
   };
 
+  const effectiveTotalPapers = totalCorpus || totalPapers;
+
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>
       <NavRail
@@ -156,8 +146,8 @@ export default function App() {
           backendStatus={backendStatus}
           lastTelemetryTick={lastTelemetryTick}
           pipelineStatus={pipelineStatus}
-          streamActive={streamActive}
-          totalPapers={totalPapers}
+          streamActive={isStreaming}
+          totalPapers={effectiveTotalPapers}
           streamSpeed={streamSpeed}
           storageUsedGb={storageUsedGb}
           storageUsedPct={storageUsedPct}
@@ -206,7 +196,7 @@ export default function App() {
         </main>
 
         <StatusBar
-          totalPapers={totalPapers}
+          totalPapers={effectiveTotalPapers}
           totalVectors={totalVectors}
           totalFormulas={totalFormulas}
         />

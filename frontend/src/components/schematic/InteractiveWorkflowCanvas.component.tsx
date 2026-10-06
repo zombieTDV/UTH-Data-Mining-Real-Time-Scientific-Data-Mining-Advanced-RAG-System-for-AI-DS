@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, type FC, type MouseEvent } from 'react';
 import {
-  subscribeIngestionStream,
   startStreamingIngestion,
   stopStreamingIngestion,
-  fetchStreamingStatus,
   executeDuckDbQuery,
   searchLakehouse,
   sendChatQuery,
 } from '../../services';
+import { useLakehouseStreamStore } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
 
 export type PipelineStageKey =
@@ -454,72 +453,37 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   // Simulation state for realistic data streaming animation
   const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
-  const [papersHarvested, setPapersHarvested] = useState<number>(10000);
+  const [simulationHarvestedCount, setSimulationHarvestedCount] = useState<number>(0);
   const [formulasExtracted, setFormulasExtracted] = useState<number>(2224198);
   const [vectorsIndexed, setVectorsIndexed] = useState<number>(143523);
 
-  // Real-time Streaming CDC State
-  const [isStreaming, setIsStreaming] = useState<boolean>(false);
-  const [streamSessionCount, setStreamSessionCount] = useState<number>(0);
-  const [streamSpeed, setStreamSpeed] = useState<number>(0);
-  const [streamTarget, setStreamTarget] = useState<number>(3000);
+  // Consume Centralized Lakehouse Stream Store
+  const {
+    isStreaming,
+    totalCorpus,
+    sessionIngested: streamSessionCount,
+    streamSpeed,
+    streamTarget,
+    setStreamTarget,
+    storageUsedGb,
+    lastPaperDeltaBytes,
+  } = useLakehouseStreamStore();
 
-  useEffect(() => {
-    fetchStreamingStatus().then((st) => {
-      if (st && st.status === 'STREAMING') {
-        setIsStreaming(true);
-        setStreamSessionCount(st.session_ingested || 0);
-        setStreamSpeed(st.speed_ppm || 0);
-      }
-    }).catch(() => {});
-
-    const unsub = subscribeIngestionStream((event) => {
-      if (event.type === 'PAPER_INGESTED') {
-        setIsStreaming(true);
-        setStreamSessionCount(event.session_ingested || 0);
-        setStreamSpeed(event.speed_ppm || 0);
-        setPapersHarvested(event.total_corpus || 10000);
-
-        setLogs((prev) => [
-          ...prev,
-          {
-            id: Date.now() + Math.random(),
-            time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
-            level: 'SUCCESS',
-            tag: 'STREAM-CDC',
-            msg: `[STREAM 2025/2026] arXiv:${event.paper_id} (${event.category}) -> "${(event.title || '').substring(0, 48)}..." -> Appended Silver Parquet -> Synced ${event.vectors_synced} vectors to LanceDB Gold (${event.latency_ms}ms)`,
-          },
-        ]);
-      } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
-        if (event.status === 'STREAMING') {
-          setIsStreaming(true);
-          setStreamSessionCount(event.session_ingested || 0);
-          setStreamSpeed(event.speed_ppm || 0);
-        } else if (event.status === 'PAUSED' || event.status === 'COMPLETED') {
-          setIsStreaming(false);
-        }
-      }
-    });
-
-    return () => unsub();
-  }, []);
+  const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : totalCorpus;
 
   const handleToggleStreaming = async () => {
     if (isStreaming) {
       try {
         await stopStreamingIngestion();
-        setIsStreaming(false);
       } catch (err) {
         console.error(err);
       }
     } else {
       try {
-        setIsStreaming(true);
         setBottomTab('logs');
         await startStreamingIngestion(streamTarget, 2.0);
       } catch (err) {
         console.error(err);
-        setIsStreaming(false);
       }
     }
   };
@@ -534,7 +498,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     }
 
     setSimulationStage('harvest');
-    setPapersHarvested(1420);
+    setSimulationHarvestedCount(1420);
     const now = new Date().toLocaleTimeString('en-US', { hour12: false });
     setLogs((prev) => [
       ...prev,
@@ -543,7 +507,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t1 = setTimeout(() => {
       setSimulationStage('bronze');
-      setPapersHarvested(6150);
+      setSimulationHarvestedCount(6150);
       setLogs((prev) => [
         ...prev,
         { id: Date.now() + 1, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'BRONZE-R2', msg: 'Streamed 6,150 raw HTML5 documents to Cloudflare R2 bucket bronze/raw_html/ (0 egress fees).' },
@@ -552,7 +516,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t2 = setTimeout(() => {
       setSimulationStage('duckdb');
-      setPapersHarvested(10000);
+      setSimulationHarvestedCount(10000);
       setFormulasExtracted(920000);
       setLogs((prev) => [
         ...prev,
@@ -942,22 +906,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
-                color: isDark ? '#fb7185' : '#e11d48',
-                backgroundColor: isDark ? 'rgba(225, 29, 72, 0.20)' : '#fff1f2',
-                border: `1px solid ${isDark ? 'rgba(225, 29, 72, 0.35)' : 'transparent'}`,
+                color: isStreaming ? '#34d399' : (isDark ? '#fb7185' : '#e11d48'),
+                backgroundColor: isStreaming
+                  ? (isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5')
+                  : (isDark ? 'rgba(225, 29, 72, 0.20)' : '#fff1f2'),
+                border: `1px solid ${isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent') : (isDark ? 'rgba(225, 29, 72, 0.35)' : 'transparent')}`,
                 padding: '1px 5px',
                 borderRadius: '4px',
               }}>
-                S3 API
+                {isStreaming ? '● SYNCING R2' : 'S3 API'}
               </span>
             </div>
 
             <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
               <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                2.841 GB Stored
+                {storageUsedGb.toFixed(3)} GB Stored
               </div>
-              <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
-                11,763 HTML5 + 16 Batches
+              <div style={{ fontSize: '10px', color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                {isStreaming && lastPaperDeltaBytes > 0
+                  ? `+${Math.round(lastPaperDeltaBytes / 1024)} KB · ${11763 + streamSessionCount} HTML5`
+                  : `${11763 + streamSessionCount} HTML5 + 16 Batches`}
               </div>
             </div>
 
