@@ -22,7 +22,7 @@ class StreamingService:
         self.status: str = "IDLE"  # IDLE | STREAMING | PAUSED | COMPLETED | ERROR
         self.target_papers: int = 3000
         self.session_ingested: int = 0
-        self.base_corpus_count: int = 13000
+        self.base_corpus_count: int = 36414  # 11,660 arXiv + 24,754 OpenAlex active works
         self.current_speed_ppm: float = 0.0
         self.start_time: Optional[float] = None
         self.stop_signal = asyncio.Event()
@@ -30,8 +30,8 @@ class StreamingService:
         self._task: Optional[asyncio.Task] = None
         self.recent_events: List[Dict[str, Any]] = []
 
-        # Real-time storage tracking
-        self.base_storage_bytes: int = 3156054549
+        # Real-time active lakehouse storage tracking (8.184 GB active Lakehouse)
+        self.base_storage_bytes: int = 8787548614
         self.accumulated_bytes_delta: int = 0
         self.free_tier_quota_gb: float = 10.0
 

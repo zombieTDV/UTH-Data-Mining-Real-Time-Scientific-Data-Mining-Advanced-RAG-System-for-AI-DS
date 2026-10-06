@@ -3,6 +3,7 @@ import { StatusPill } from './StatusPill.component';
 import { PipelineStatusPill } from './PipelineStatusPill.component';
 import { StorageMeter } from './StorageMeter.component';
 import { RunPipelineButton } from './RunPipelineButton.component';
+import { LanguageToggle } from './LanguageToggle.component';
 import { useTranslation } from '../../hooks';
 import type { BackendStatus, PipelineStatus } from '../../types';
 
@@ -12,6 +13,9 @@ export interface HeaderBarProps {
   pipelineStatus: PipelineStatus;
   streamActive: boolean;
   totalPapers: number;
+  totalFormulas?: number;
+  totalVectors?: number;
+  sessionIngested?: number;
   streamSpeed: number;
   storageUsedGb: number;
   storageUsedPct: number;
@@ -24,6 +28,9 @@ export const HeaderBar: FC<HeaderBarProps> = ({
   pipelineStatus,
   streamActive,
   totalPapers,
+  totalFormulas = 2220938,
+  totalVectors = 143523,
+  sessionIngested = 0,
   streamSpeed,
   storageUsedGb,
   storageUsedPct,
@@ -34,7 +41,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
   return (
     <header
       style={{
-        height: '52px',
+        height: '56px',
         flexShrink: 0,
         backgroundColor: 'var(--header-bg)',
         backdropFilter: 'blur(12px)',
@@ -44,28 +51,47 @@ export const HeaderBar: FC<HeaderBarProps> = ({
         alignItems: 'center',
         justifyContent: 'space-between',
         zIndex: 40,
+        gap: '16px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
-          {language === 'vi' ? 'HỆ THỐNG LAKEHOUSE KHOA HỌC & DATA MINING UTH' : 'UTH SCIENTIFIC LAKEHOUSE & MINING PIPELINE'}
-        </span>
-        <StatusPill backendStatus={backendStatus} lastTelemetryTick={lastTelemetryTick} />
+      {/* Brand & University Identity */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 900, letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
+              {language === 'vi' ? 'LAKEHOUSE DỮ LIỆU KHOA HỌC UTH' : 'UTH SCIENTIFIC LAKEHOUSE & MINING'}
+            </span>
+            <StatusPill backendStatus={backendStatus} lastTelemetryTick={lastTelemetryTick} />
+          </div>
+          <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.02em' }}>
+            {language === 'vi'
+              ? 'TRƯỜNG ĐẠI HỌC GIAO THÔNG VẬN TẢI TP.HCM (UTH)'
+              : 'HO CHI MINH CITY UNIVERSITY OF TRANSPORT (UTH)'}
+          </span>
+        </div>
       </div>
 
-      <PipelineStatusPill
-        pipelineStatus={pipelineStatus}
-        streamActive={streamActive}
-        totalPapers={totalPapers}
-        streamSpeed={streamSpeed}
-      />
+      {/* Real-time Synchronized Status Center ("Cục này") */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minWidth: 0 }}>
+        <PipelineStatusPill
+          pipelineStatus={pipelineStatus}
+          streamActive={streamActive}
+          totalPapers={totalPapers}
+          totalFormulas={totalFormulas}
+          totalVectors={totalVectors}
+          streamSpeed={streamSpeed}
+          sessionIngested={sessionIngested}
+        />
+      </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      {/* Right Controls: Visual Storage Meter + Segmented Language Switch + Pipeline Action */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
         <StorageMeter
           storageUsedGb={storageUsedGb}
           storageUsedPct={storageUsedPct}
           totalPapers={totalPapers}
         />
+        <LanguageToggle />
         <RunPipelineButton pipelineStatus={pipelineStatus} onClick={onTriggerPipeline} />
       </div>
     </header>

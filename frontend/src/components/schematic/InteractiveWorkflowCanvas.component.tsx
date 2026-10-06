@@ -3236,7 +3236,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       <div
         style={{
           position: 'fixed',
-          bottom: drawerOpen ? (drawerExpanded ? '540px' : '390px') : '48px',
+          bottom: drawerOpen ? (drawerExpanded ? '540px' : '390px') : '20px',
           right: '28px',
           display: 'flex',
           alignItems: 'center',

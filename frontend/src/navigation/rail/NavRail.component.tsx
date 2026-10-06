@@ -2,7 +2,6 @@ import type { FC } from 'react';
 import { NAV_RAIL_ITEMS, type NavRailProps } from './NavRail.types';
 import { RailIcon } from './RailIcon.component';
 import { ThemeToggle } from './ThemeToggle.component';
-import { LanguageToggle } from './LanguageToggle.component';
 import { useTranslation } from '../../hooks';
 
 export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onToggleTheme }) => {
@@ -107,11 +106,10 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
       </nav>
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
-        <LanguageToggle />
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
 
         <div
-          title="University of Transport and Communications (UTH)"
+          title="Trường Đại học Giao thông Vận tải TP.HCM - UTH (Ho Chi Minh City University of Transport)"
           style={{
             width: '30px',
             height: '30px',

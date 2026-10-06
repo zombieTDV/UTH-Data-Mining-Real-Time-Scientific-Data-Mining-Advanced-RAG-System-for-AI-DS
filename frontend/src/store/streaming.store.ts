@@ -54,13 +54,13 @@ const getStoredLogs = (): StreamingLogEntry[] => {
 
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus: 13000,
+  totalCorpus: 36414,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
-  storageUsedGb: 8.073,
-  storageUsedPct: 80.73,
-  storageTotalBytes: 8668472480,
+  storageUsedGb: 8.184,
+  storageUsedPct: 81.84,
+  storageTotalBytes: 8787548614,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
   storageStats: null,
@@ -172,7 +172,7 @@ export function initializeLakehouseStream(): () => void {
       if (st) {
         updateState({
           isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || 13000,
+          totalCorpus: st.total_corpus || 36414,
           sessionIngested: st.session_ingested || 0,
           streamSpeed: st.speed_ppm || 0,
           storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,

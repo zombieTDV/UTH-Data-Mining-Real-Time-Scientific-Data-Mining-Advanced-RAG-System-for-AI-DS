@@ -12,7 +12,7 @@
 
 ---
 
-- **Motivation/Background**: Building an end-to-end real-time academic literature mining and retrieval-augmented generation (RAG) system for the AI/DS domain at University of Transport and Communications (UTH).
+- **Motivation/Background**: Building an end-to-end real-time academic literature mining and retrieval-augmented generation (RAG) system for the AI/DS domain at Ho Chi Minh City University of Transport (UTH).
 - **Purpose**: Serve as the authoritative, living technical blueprint, architectural specification, and phase-by-phase roadmap for the repository.
 - **Overview Pipeline**: Real-time extraction (arXiv, OpenAlex) -> Bronze immutable storage (Cloudflare R2) -> Silver clean Parquet & citations -> Gold LanceDB vector index & 4 Data Mining pillars -> Serving layer (FastAPI backend + React 19 interactive dashboard).
 - **Detailed Plan**: §1 Project Summary & Academic Scope; §2 Medallion Lakehouse Architecture; §3 The 4 Data Mining & Modeling Pillars; §4 Engineering Phases & Roadmap (Phases 0 to 5); §5 Operational Progress & Definition of Done; §6 System Governance & Reproducibility.
@@ -33,7 +33,7 @@
 ## 1. Project Summary & Academic Scope
 
 - **Topic**: *Khai thác dữ liệu nghiên cứu khoa học thời gian thực hướng tới xây dựng hệ thống truy xuất tri thức nâng cao (RAG) cho miền AI/DS*.
-- **Course**: Data Mining (Khai phá Dữ liệu) — University of Transport and Communications (UTH).
+- **Course**: Data Mining (Khai phá Dữ liệu) — Ho Chi Minh City University of Transport (UTH).
 - **Instructor**: TS. Trần Thế Vinh.
 - **Core Objective**: Provide an end-to-end data pipeline that ingests scientific papers from arXiv and OpenAlex, stores them in an immutable cloud lakehouse (Cloudflare R2), executes 4 core data mining and modeling algorithms, and serves both structured literature analytics and real-time generative RAG over 13,000 papers.
 

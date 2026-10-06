@@ -23,8 +23,8 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   onTriggerPipeline,
 }) => {
   return (
-    <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '8px', gap: '8px' }}>
+    <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
+      <div style={{ position: 'absolute', top: '14px', right: '20px', zIndex: 30 }}>
         <div
           style={{
             display: 'flex',
@@ -33,6 +33,8 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
             borderRadius: '8px',
             border: '1px solid var(--badge-border)',
             gap: '4px',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
           }}
         >
           <button
@@ -84,7 +86,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           />
         </div>
       ) : (
-        <div style={{ flex: 1, width: '100%', overflowY: 'auto', padding: '10px 0 30px' }}>
+        <div style={{ flex: 1, width: '100%', overflowY: 'auto', padding: '54px 20px 30px' }}>
           <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <MetricsBento />
             <GeometricTelemetryGauges />
