@@ -19,8 +19,12 @@ export const APP_CONFIG = {
   },
 } as const;
 
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 export const API_CONFIG = {
-  baseUrl: '',
+  baseUrl: (import.meta.env.VITE_API_URL as string) || (isLocalhost ? 'http://127.0.0.1:8000' : ''),
   endpoints: {
     health: '/health',
     eda: '/api/mining/eda',

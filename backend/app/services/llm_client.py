@@ -64,8 +64,12 @@ class LlmClient:
             return requested_tokens
 
     def preload(self):
-        """Warm-up and preload local model into Apple Silicon Metal GPU memory at startup."""
-        logger.info("[LLM STARTUP] Preloading Qwen2.5-7B GGUF with Apple Metal GPU offloading...")
+        """Warm-up and preload local model into GPU memory at startup."""
+        active = self._get_active_endpoint()
+        if active:
+            logger.info("[LLM STARTUP] External LLM microservice detected (%s), skipping in-process GGUF loading.", active)
+            return
+        logger.info("[LLM STARTUP] Preloading Qwen2.5-7B GGUF...")
         llm = self._get_local_llm()
         if llm:
             logger.info("[LLM STARTUP] Qwen2.5-7B is fully preloaded in GPU memory (n_ctx=%d) and ready.", llm.n_ctx())
@@ -144,7 +148,7 @@ class LlmClient:
         temperature: Optional[float] = None,
     ) -> Optional[str]:
         """Synchronous chat completion with automatic failover."""
-        tokens = max_tokens or settings.LLM_MAX_TOKENS
+        tokens = max_tokens or min(settings.LLM_MAX_TOKENS, 512)
         temp = temperature if temperature is not None else settings.LLM_TEMPERATURE
 
         # 1. Try external HTTP endpoint if active
