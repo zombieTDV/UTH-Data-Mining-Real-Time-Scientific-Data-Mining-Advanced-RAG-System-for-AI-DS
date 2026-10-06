@@ -29,10 +29,11 @@ export function GeometricPipelineDiagram() {
     isStreaming,
   } = useLakehouseStreamStore();
 
-  const currentCorpus = totalCorpus || 13000;
+  const currentCorpus = totalCorpus || 36414;
   const currentBronzeCount = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.arxivHtmlCount + sessionIngested
     : (storageStats?.zones?.bronzeCount ?? 11660) + sessionIngested;
+  const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
   const currentBatchesCount = 12;
   const currentVectors = (storageStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
   const currentFormulas = 2220938 + (sessionIngested * 24);
@@ -61,8 +62,8 @@ export function GeometricPipelineDiagram() {
       toolName: 'Multi-Source Harvester',
       toolCategory: 'arXiv + OpenAlex + Conf',
       metricLabel: 'TOTAL CORPUS',
-      metricValue: `${(currentBronzeCount + 24754).toLocaleString()} Works`,
-      secondaryMetric: '11.6k arXiv · 24.7k OpenAlex · 184 Conf',
+      metricValue: `${(currentBronzeCount + currentOpenAlexCount).toLocaleString()} Works`,
+      secondaryMetric: `${(currentBronzeCount / 1000).toFixed(1)}k arXiv · ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex · 184 Conf`,
       status: isStreaming ? 'ACTIVE' : 'SYNCED',
       iconType: 'arxiv',
       specList: ['arXiv OAI-PMH & ar5iv HTML5', 'OpenAlex REST API & Citations', 'NeurIPS / ICML / ICLR / KDD']
@@ -77,7 +78,7 @@ export function GeometricPipelineDiagram() {
       toolCategory: 'Multi-Tier Raw Lake',
       metricLabel: 'ACTIVE STORED',
       metricValue: `${storageUsedGb.toFixed(3)} GB`,
-      secondaryMetric: '11.6k HTML5 + 24.7k OpenAlex + 184 Conf',
+      secondaryMetric: `${currentBronzeCount.toLocaleString()} HTML5 · ${currentOpenAlexCount.toLocaleString()} Meta`,
       status: 'ONLINE',
       iconType: 'r2',
       specList: ['S3 Compatible Global Edge', 'Zero Egress Fees (100% Free)', 'SHA-256 Content Addressed']

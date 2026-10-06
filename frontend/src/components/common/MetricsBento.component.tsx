@@ -56,9 +56,9 @@ export const MetricsBento: FC = () => {
         label="Corpus Scale"
         badge="Multi-Source Medallion"
         badgeColor="var(--accent-emerald)"
-        value="13,000"
-        unit="papers"
-        description="arXiv Primary Harvest + 24,754 OpenAlex Extended Works"
+        value={(arxivCount + openalexCount).toLocaleString()}
+        unit="works"
+        description="arXiv Primary Preprints + OpenAlex Extended Works"
         footerLeft={`arXiv HTML5: ${arxivCount.toLocaleString()}`}
         footerRight={`OpenAlex: ${openalexCount.toLocaleString()}`}
         glowColor="rgba(96, 165, 250, 0.08)"
@@ -67,7 +67,7 @@ export const MetricsBento: FC = () => {
       {/* 2. Gold Zone Vector Lakehouse */}
       <StatCard
         label="Gold Zone Vector Lakehouse"
-        badge="384 Dim"
+        badge="768 Dim"
         badgeColor="var(--accent-gold)"
         value={activeVectors.toLocaleString()}
         description="LanceDB Contextual Chunks (Fast ANN Search)"

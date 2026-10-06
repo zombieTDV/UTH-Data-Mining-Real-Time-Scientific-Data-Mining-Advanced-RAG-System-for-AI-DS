@@ -44,7 +44,7 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-03 06:30:14',
     level: 'STORAGE',
     tag: 'R2/SYNC',
-    message: 'Cloudflare R2 lakehouse synchronized: 2.939 GB total across Bronze (2.821 GB), Silver (13.98 KB), Gold (127.10 MB)'
+    message: 'Cloudflare R2 lakehouse synchronized: 8.184 GB total across Bronze (7.734 GB), Silver (316.06 MB), Gold (121.21 MB)'
   },
   {
     id: 'l-06',

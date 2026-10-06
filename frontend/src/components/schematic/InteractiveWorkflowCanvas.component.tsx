@@ -39,29 +39,31 @@ export interface ToolDetail {
 export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
   'start-flow': {
     id: 'start-flow',
-    name: 'arXiv Harvester & ar5iv HTML5',
+    name: 'Multi-Source Harvester (arXiv + OpenAlex)',
     category: 'Source Data Ingestion Engine',
-    role: 'Harvests academic metadata and full-text HTML5 papers',
-    engineVersion: 'arXiv OAI-PMH XML v2.0 + HTTPX Async',
+    role: 'Harvests academic metadata, full-text HTML5 papers, and conference papers',
+    engineVersion: 'arXiv OAI-PMH XML + OpenAlex REST API + HTTPX Async',
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '13,000 Papers Harvested',
-      secondaryMetric: 'cs.AI, cs.LG, cs.CV, cs.CL, stat.ML',
+      primaryMetric: '36,414 Works Harvested',
+      secondaryMetric: '11,660 arXiv • 24,754 OpenAlex • 184 Conf',
       latency: '6.0s Rate-Limit Delay',
-      throughput: '100% Validated DOI / arXiv ID',
+      throughput: '100% Validated DOI / Canonical ID',
     },
     features: [
-      'Asynchronous HTTPX client with rate limiter complying with arXiv policy',
-      'Full-text HTML5 crawler extracting abstract, introduction, methods, results',
-      'Dual-stream ingestion capturing both OAI XML metadata and ar5iv HTML5',
+      'Asynchronous HTTPX client with rate limiter complying with arXiv & OpenAlex policies',
+      'Full-text HTML5 crawler extracting abstract, introduction, methods, results, and formulas',
+      'Multi-source ingestion capturing arXiv preprints and OpenAlex global metadata',
       'SHA-256 cryptographic content verification on each harvested document',
     ],
-    samplePreviewTitle: 'OAI-PMH Ingestion Protocol Spec',
+    samplePreviewTitle: 'Multi-Source Ingestion Protocol Spec',
     sampleCodeOrSchema: `POST https://export.arxiv.org/oai2
 verb=ListRecords&metadataPrefix=arXivRaw&set=cs
+GET https://api.openalex.org/works?filter=has_doi:true,publication_year:2026
 Payload: {
   "id": "2602.10001",
+  "sources": ["arXiv", "OpenAlex"],
   "categories": ["cs.AI", "cs.LG"],
   "title": "Scalable Vector Indexing over Multi-Modal Academic Repositories",
   "authors": ["Yang Liu", "Hao Chen", "Wei Wang"],
@@ -73,32 +75,32 @@ Payload: {
     id: 'bronze-instance',
     name: 'Cloudflare R2 Object Storage',
     category: 'Bronze Immutable Data Lake',
-    role: 'Zero-egress raw storage for HTML5 and batch records',
+    role: 'Zero-egress raw storage for HTML5 and multi-source metadata',
     engineVersion: 'Cloudflare R2 (S3-Compatible API)',
     badgeColor: '#e11d48',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '2.939 GB Raw Storage',
-      secondaryMetric: '9,022 HTML5 + 44 Batches',
+      primaryMetric: '8.184 GB Stored (Primary Active)',
+      secondaryMetric: '11,660 HTML5 + 24,754 Metadata (81.8% Quota)',
       latency: '< 45ms S3 HeadObject',
       throughput: 'Zero Egress Fees (Cloudflare Global Edge)',
     },
     features: [
       'Global low-latency S3-compatible cloud object store with 0 egress costs',
-      'Strict partitioning scheme: raw/html/year=2026/{paper_id}.html',
-      'Stores 9,022 raw HTML5 files and 44 bulk OAI JSON batch checkpoints',
+      'Strict partitioning scheme: bronze/raw_html/year=2026/ and bronze/openalex/year=2026/',
+      'Stores 11,660 raw HTML5 files and 24,754 OpenAlex metadata JSON records',
       'Dual automated MD5 and SHA-256 integrity verification on upload',
     ],
     samplePreviewTitle: 'Cloudflare R2 Bucket Key Hierarchy',
     sampleCodeOrSchema: `s3://uth-scientific-lakehouse/
 ├── bronze/
-│   ├── raw_html/year=2026/
-│   │   ├── 2602.01234.html (320 KB)
-│   │   └── ... (9,022 objects · 2.94 GB)
-│   └── oai_batches/
-│       └── batch_0001.json ... batch_0044.json (26.4 MB)
+│   ├── raw_html/year=2026/ (11,660 HTML5 preprints · 3.763 GB)
+│   ├── openalex/year=2026/ (24,754 JSON records · 3.971 GB)
+│   └── oai_batches/ (12 batch checkpoints · 26.4 MB)
+├── silver/
+│   └── papers/year=2026/ (9 Parquet partitions · 316.06 MB)
 └── gold/
-    └── mining/ (FP-growth rules, Louvain graph, K-Means clusters)`,
+    └── lancedb/ (143,523 vectors · 121.21 MB active / 28 backup segments · 4.88 GB)`,
   },
   'review-duckdb': {
     id: 'review-duckdb',
@@ -142,8 +144,8 @@ ORDER BY paper_count DESC;
     badgeColor: '#10b981',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '13.98 KB Parquet Size',
-      secondaryMetric: '13,000 Curated Rows (year=2026)',
+      primaryMetric: '316.06 MB Parquet Size',
+      secondaryMetric: '9 Partitions (year=2026, 36,414 Works)',
       latency: '10x Storage Compression Ratio',
       throughput: 'Column Projection & Predicate Pushdown',
     },
@@ -361,9 +363,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     { id: 1, time: '12:00:01', level: 'INFO', tag: 'SYSTEM', msg: 'Lakehouse Engine v2.4 initialized. Ready for scientific ingestion.' },
     { id: 2, time: '12:00:03', level: 'SUCCESS', tag: 'STORAGE', msg: 'Cloudflare R2 bucket s3://uth-scientific-lakehouse connected (Zero egress).' },
     { id: 3, time: '12:00:05', level: 'SUCCESS', tag: 'OLAP', msg: 'DuckDB in-process vector OLAP engine online (Apache Arrow SIMD zero-copy).' },
-    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 143,523 embeddings (dim=384, metric=cosine).' },
+    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 143,523 embeddings (dim=768, metric=cosine).' },
     { id: 5, time: '12:00:09', level: 'INFO', tag: 'RAG', msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate armed with Metal GPU offload.' },
-    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 13,000 papers, 2,220,938 formulas, 143,523 LanceDB vectors synced.' },
+    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 36,414 works (11.6k arXiv + 24.7k OpenAlex), 2,220,938 formulas, 143,523 LanceDB vectors synced.' },
   ]);
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -473,13 +475,28 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const liveBronzeCount = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.arxivHtmlCount + streamSessionCount
-    : (storageStats?.zones?.bronzeCount ?? 11660) + streamSessionCount;
+    : 11660 + streamSessionCount;
+
+  const liveOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
+  const liveConfCount = 184;
+  const liveTotalWorks = liveBronzeCount + liveOpenAlexCount;
+
   const liveBronzeGb = storageStats?.activeLakehouse
-    ? storageStats.activeLakehouse.arxivHtmlSizeGb.toFixed(3)
-    : (storageStats ? ((storageStats.zones.bronzeSizeBytes + streamSessionCount * 380000) / 1024 ** 3).toFixed(3) : '3.763');
+    ? (storageStats.activeLakehouse.arxivHtmlSizeGb + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3)
+    : (3.763 + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3);
+
+  const liveSilverMb = (storageStats?.activeLakehouse?.silverParquetSizeMb ?? 316.06) + (streamSessionCount * 0.025);
+  const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 9;
+
+  const liveVectors = isPipelineRunning && simulationStage !== 'completed'
+    ? vectorsIndexed
+    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 143523) + (streamSessionCount * 14);
+  const liveFormulas = (formulasExtracted || 2220938) + (streamSessionCount * 170);
+
   const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
-  const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || 13000);
+  const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || liveTotalWorks);
+  const displayWorks = isPipelineRunning && simulationStage !== 'completed' ? papersHarvested : liveTotalWorks;
 
   const handleToggleStreaming = async () => {
     if (isStreaming) {
@@ -526,7 +543,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t2 = setTimeout(() => {
       setSimulationStage('duckdb');
-      setSimulationHarvestedCount(13000);
+      setSimulationHarvestedCount(36414);
       setFormulasExtracted(920000);
       setLogs((prev) => [
         ...prev,
@@ -549,7 +566,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       setVectorsIndexed(143523);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 13,000 papers, 143,523 vectors online.' },
+        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 36,414 works, 143,523 vectors online.' },
       ]);
     }, 6000);
 
@@ -728,17 +745,28 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         }
       };
     }
+    if (selectedNodeId === 'silver-parquet') {
+      return {
+        ...baseTool,
+        telemetrySummary: {
+          ...baseTool.telemetrySummary,
+          primaryMetric: `${liveSilverMb.toFixed(2)} MB Columnar Parquet`,
+          secondaryMetric: `${liveSilverPartitions} Partition Tables (${liveTotalWorks.toLocaleString()} records)`,
+        }
+      };
+    }
     if (selectedNodeId === 'start-flow') {
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${(totalCorpus || 13000).toLocaleString()} Papers Ingested`,
+          primaryMetric: `${(totalCorpus || liveTotalWorks).toLocaleString()} Works Ingested`,
+          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv + ${liveOpenAlexCount.toLocaleString()} OpenAlex + 184 Conf`,
         }
       };
     }
     return baseTool;
-  }, [baseTool, selectedNodeId, storageUsedGb, liveBronzeCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus]);
+  }, [baseTool, selectedNodeId, storageUsedGb, liveBronzeCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveOpenAlexCount, liveSilverMb, liveSilverPartitions]);
 
   return (
     <div
@@ -790,7 +818,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           <div
             onClick={() => handleOpenInspector('start-flow')}
             style={{
-              width: '210px',
+              width: '240px',
               backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
@@ -834,7 +862,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>Multi-Source Ingest</div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>arXiv · OpenAlex · Conf</div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Federated Crawlers</div>
                 </div>
               </div>
 
@@ -854,12 +882,73 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               </span>
             </div>
 
-            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary }}>
-                {isStreaming ? `${papersHarvested.toLocaleString()} Papers (+${streamSessionCount})` : `${(liveBronzeCount + 24754).toLocaleString()} Works Ingested`}
+            <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
+                  {displayWorks.toLocaleString()}
+                </span>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                  {isStreaming ? `+${streamSessionCount} mới (${streamSpeed}/m)` : 'Works Ingested'}
+                </span>
               </div>
-              <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
-                {isStreaming ? `Live CDC: ${streamSpeed} bài/phút` : '11.6k arXiv · 24.7k OpenAlex · 184 Conf'}
+
+              {/* Segmented Distribution Bar */}
+              <div style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', display: 'flex', border: '1px solid var(--border-subtle)' }} title={`Phân bổ: arXiv ${liveBronzeCount.toLocaleString()} (${Math.round((liveBronzeCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%)`}>
+                <div style={{ width: `${(liveBronzeCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#8b5cf6', transition: 'width 0.3s' }} />
+                <div style={{ width: `${(liveOpenAlexCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#6366f1', transition: 'width 0.3s' }} />
+              </div>
+
+              {/* High-Contrast Visual Source Chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
+                  color: isDark ? '#c084fc' : '#7c3aed',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#8b5cf6' }} />
+                  arXiv: {liveBronzeCount.toLocaleString()}
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
+                  color: isDark ? '#818cf8' : '#4338ca',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
+                  OpenAlex: {liveOpenAlexCount.toLocaleString()}
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                  color: isDark ? '#fbbf24' : '#b45309',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  Conf: {liveConfCount}
+                </span>
               </div>
             </div>
 
@@ -908,7 +997,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           <div
             onClick={() => handleOpenInspector('bronze-instance')}
             style={{
-              width: '210px',
+              width: '240px',
               backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
@@ -970,14 +1059,109 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               </span>
             </div>
 
-            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                {storageUsedGb.toFixed(3)} GB Stored
+            <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
+                  {storageUsedGb.toFixed(3)} GB
+                </span>
+                <span style={{
+                  fontSize: '9.5px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  color: storageUsedPct >= 90 ? '#ef4444' : storageUsedPct >= 80 ? '#f59e0b' : 'var(--accent-emerald)',
+                  backgroundColor: storageUsedPct >= 90 ? 'rgba(239, 68, 68, 0.15)' : storageUsedPct >= 80 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                }}>
+                  {storageUsedPct.toFixed(1)}% / 10 GB
+                </span>
               </div>
-              <div style={{ fontSize: '10px', color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                {isStreaming && lastPaperDeltaBytes > 0
-                  ? `+${Math.round(lastPaperDeltaBytes / 1024)} KB · ${liveBronzeCount.toLocaleString()} HTML5`
-                  : '11.6k HTML5 + 24.7k OpenAlex + 184 Conf'}
+
+              {/* Visual Storage Progress Bar */}
+              <div style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={`Hạn mức Cloudflare R2: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)`}>
+                <div style={{
+                  width: `${Math.min(100, storageUsedPct)}%`,
+                  height: '100%',
+                  background: storageUsedPct >= 90
+                    ? 'linear-gradient(90deg, #f43f5e, #dc2626)'
+                    : storageUsedPct >= 80
+                    ? 'linear-gradient(90deg, #f59e0b, #ea580c)'
+                    : 'linear-gradient(90deg, #10b981, #06b6d4)',
+                  borderRadius: '9999px',
+                  transition: 'width 0.4s ease',
+                }} />
+              </div>
+
+              {/* Color-Coded Lakehouse Layer Chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(225, 29, 72, 0.18)' : '#ffe4e6',
+                  color: isDark ? '#fb7185' : '#e11d48',
+                  border: '1px solid rgba(225, 29, 72, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#e11d48' }} />
+                  HTML5: {parseFloat(liveBronzeGb).toFixed(2)} GB
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
+                  color: isDark ? '#818cf8' : '#4338ca',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
+                  Meta: 3.97 GB
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                  color: isDark ? '#34d399' : '#059669',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                  Parquet: {liveSilverMb.toFixed(0)} MB
+                </span>
+
+                {isStreaming && lastPaperDeltaBytes > 0 && (
+                  <span style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '5px',
+                    backgroundColor: 'rgba(6, 182, 212, 0.18)',
+                    color: 'var(--accent-cyan)',
+                    border: '1px solid rgba(6, 182, 212, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                    +{Math.round(lastPaperDeltaBytes / 1024)} KB CDC
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1026,7 +1210,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           <div
             onClick={() => handleOpenInspector('review-duckdb')}
             style={{
-              width: '220px',
+              width: '240px',
               backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
@@ -1088,12 +1272,66 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               </span>
             </div>
 
-            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                {formulasExtracted.toLocaleString()} Formulas
+            <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
+                  {liveFormulas.toLocaleString()}
+                </span>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                  Formulas Parsed
+                </span>
               </div>
-              <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
-                Zero-Copy Apache Arrow
+
+              {/* Visual Performance Chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fef3c7',
+                  color: isDark ? '#fbbf24' : '#b45309',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+                  Zero-Copy Arrow
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                  color: isDark ? '#34d399' : '#047857',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  SIMD AVX-512
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                  color: isDark ? '#60a5fa' : '#2563eb',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  &lt;18ms Query
+                </span>
               </div>
             </div>
 
@@ -1241,9 +1479,66 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </span>
                 </div>
 
-                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                  <span style={{ color: themeStyles.textMuted }}>9 Partitions (2026)</span>
-                  <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>316.06 MB Parquet</span>
+                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
+                      {liveSilverMb.toFixed(2)} MB
+                    </span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                      Silver Parquet
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    <span style={{
+                      fontSize: '9.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '5px',
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                      color: isDark ? '#34d399' : '#047857',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                      {liveSilverPartitions} Partitions
+                    </span>
+
+                    <span style={{
+                      fontSize: '9.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '5px',
+                      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                      color: isDark ? '#60a5fa' : '#2563eb',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}>
+                      Snappy 4.2x
+                    </span>
+
+                    <span style={{
+                      fontSize: '9.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '5px',
+                      backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f3e8ff',
+                      color: isDark ? '#c084fc' : '#7c3aed',
+                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}>
+                      PyArrow OLAP
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1311,9 +1606,66 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </span>
                 </div>
 
-                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                  <span style={{ color: themeStyles.textMuted }}>768-dim Vectors</span>
-                  <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>{vectorsIndexed.toLocaleString()}</span>
+                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
+                      {liveVectors.toLocaleString()}
+                    </span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                      Gold Vectors
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    <span style={{
+                      fontSize: '9.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '5px',
+                      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.18)' : '#eff6ff',
+                      color: isDark ? '#60a5fa' : '#2563eb',
+                      border: '1px solid rgba(37, 99, 235, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
+                      768-dim Nomic
+                    </span>
+
+                    <span style={{
+                      fontSize: '9.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '5px',
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                      color: isDark ? '#34d399' : '#047857',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}>
+                      IVF-PQ &lt;15ms
+                    </span>
+
+                    <span style={{
+                      fontSize: '9.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '5px',
+                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                      color: isDark ? '#fbbf24' : '#b45309',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}>
+                      NVMe Cached
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1366,7 +1718,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div
               onClick={() => handleOpenInspector('grounded-rag')}
               style={{
-                width: '230px',
+                width: '240px',
                 backgroundColor: themeStyles.cardBg,
                 borderRadius: '14px',
                 padding: '14px 16px',
@@ -1424,12 +1776,65 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
               </div>
 
-              <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
-                <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                  Verified Citations
+              <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
+                    Verified Citations
+                  </span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: isDark ? '#a5b4fc' : '#6366f1' }}>
+                    100% Grounded
+                  </span>
                 </div>
-                <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
-                  Sub-50ms ANN Search
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  <span style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#ede9fe',
+                    color: isDark ? '#a5b4fc' : '#6366f1',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
+                    Sub-50ms ANN
+                  </span>
+
+                  <span style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                    color: isDark ? '#34d399' : '#047857',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                    LaTeX MathML
+                  </span>
+
+                  <span style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                    color: isDark ? '#fbbf24' : '#b45309',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                    Metal Engine
+                  </span>
                 </div>
               </div>
 

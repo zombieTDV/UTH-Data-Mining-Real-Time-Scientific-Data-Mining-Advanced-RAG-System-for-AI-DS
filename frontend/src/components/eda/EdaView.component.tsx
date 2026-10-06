@@ -490,7 +490,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
   const temporalAggregatedPoints = useMemo(() => {
     const rawDist = data?.temporal_distribution || [];
-    const total = data?.dataset_overview.total_papers || 13000;
+    const total = data?.dataset_overview.total_papers || 10000;
 
     let cBefore2019 = 0;
     let c2020 = 0;
@@ -965,7 +965,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               cursor: 'pointer',
             }}
           >
-            TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
+            TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'})
           </button>
 
           {categoryList.slice(0, 8).map((cat) => {
@@ -1042,7 +1042,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>1. RAW INGEST:</span>
-              <strong style={{ color: themeStyles.textPrimary }}>{overview.total_papers?.toLocaleString() || '13,000'} papers</strong>
+              <strong style={{ color: themeStyles.textPrimary }}>{overview.total_papers?.toLocaleString() || '10,000'} papers</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. HTML5 FULL-TEXT:</span>
@@ -1535,7 +1535,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     let runningCount = 0;
                     const paretoPoints = categoryList.slice(0, 8).map((cat, i) => {
                       runningCount += cat.count;
-                      const cumPct = (runningCount / (overview.total_papers || 13000)) * 100;
+                      const cumPct = (runningCount / (overview.total_papers || 10000)) * 100;
                       const cx = 90 + i * 95 + 23;
                       const cy = 235 - (cumPct / 100) * 195;
                       return { cx, cy, cumPct, cat };
@@ -2507,7 +2507,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       [EDA-04] CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
                     </h3>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                      Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'} bài báo
+                      Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'} bài báo
                     </div>
                   </div>
 
@@ -2547,7 +2547,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       ))}
 
                       <text x="50" y="48" textAnchor="middle" fontSize="12" fontFamily="var(--font-mono)" fontWeight="800" fill={themeStyles.textPrimary}>
-                        {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'}
+                        {overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'}
                       </text>
                       <text x="50" y="60" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textMuted}>
                         PAPERS
@@ -4078,7 +4078,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             {hoveredBar.category}
           </div>
           <div style={{ marginTop: '2px' }}>
-            Số bài: <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / (overview.total_papers || 13000)) * 100).toFixed(1)}%)
+            Số bài: <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / (overview.total_papers || 10000)) * 100).toFixed(1)}%)
           </div>
           <div style={{ color: '#ea580c' }}>
             Công thức: <strong>{hoveredBar.math.toLocaleString()}</strong> (avg {(hoveredBar.math / hoveredBar.count).toFixed(1)}/paper)

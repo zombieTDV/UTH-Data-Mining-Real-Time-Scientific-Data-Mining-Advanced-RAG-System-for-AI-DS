@@ -1882,7 +1882,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  13,000 bài báo &bull; 384-D Embeddings
+                  36,414 công trình &bull; 768-D Embeddings
                 </div>
               </div>
             </div>

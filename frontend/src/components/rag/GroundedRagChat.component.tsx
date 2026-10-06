@@ -69,7 +69,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
     sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **13,000 harvested papers**, **2.22M formulas** (2,220,938 LaTeX equations), and **143,523 LanceDB vector embeddings** (MiniLM 384-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
+    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **36,414 harvested works** (11,660 arXiv HTML5 preprints + 24,754 OpenAlex metadata records), **2.22M formulas** (2,220,938 LaTeX equations), and **143,523 LanceDB vector embeddings** (Nomic Embed 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?',
     timestamp: '12:00:00',
   },
 ];
@@ -596,7 +596,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
           <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
-            13,000 Papers · 143,523 LanceDB Vectors (MiniLM 384-D)
+            36,414 Works · 143,523 LanceDB Vectors (Nomic 768-D)
           </span>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
@@ -1289,7 +1289,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder="Ask any scientific inquiry across 13,000 papers..."
+                placeholder="Ask any scientific inquiry across 36,414 academic works..."
                 style={{
                   width: '100%',
                   border: 'none',

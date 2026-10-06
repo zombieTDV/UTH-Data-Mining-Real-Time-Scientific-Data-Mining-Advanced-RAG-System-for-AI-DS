@@ -122,7 +122,7 @@ export function StorageInspector() {
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy)',
-      itemsCount: '9 Partitions (13,000 papers)',
+      itemsCount: '9 Partitions (36,414 works)',
       sizeBytes: `${silverMb} MB`,
       r2Location: 's3://uth-scientific-lakehouse/silver/papers/',
       color: '#10b981',
@@ -137,7 +137,7 @@ export function StorageInspector() {
       sizeBytes: `${goldMb} MB`,
       r2Location: 'data/gold/lancedb/scientific_papers_gold.lance',
       color: '#eab308',
-      description: 'Contextualized 384-dimensional dense embeddings optimized for sub-15ms cosine ANN similarity search.'
+      description: 'Contextualized 768-dimensional dense embeddings optimized for sub-15ms cosine ANN similarity search.'
     },
     {
       zone: 'BACKUP',
