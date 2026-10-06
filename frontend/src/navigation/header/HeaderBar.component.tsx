@@ -3,7 +3,6 @@ import { StatusPill } from './StatusPill.component';
 import { PipelineStatusPill } from './PipelineStatusPill.component';
 import { StorageMeter } from './StorageMeter.component';
 import { RunPipelineButton } from './RunPipelineButton.component';
-import { ThemeToggle } from './ThemeToggle.component';
 import { LanguageToggle } from './LanguageToggle.component';
 import type { BackendStatus, PipelineStatus } from '../../types';
 
@@ -60,7 +59,6 @@ export const HeaderBar: FC<HeaderBarProps> = ({
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <ThemeToggle />
         <LanguageToggle />
         <StorageMeter
           storageUsedGb={storageUsedGb}

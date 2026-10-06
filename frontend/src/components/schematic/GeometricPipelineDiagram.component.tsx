@@ -55,17 +55,17 @@ export function GeometricPipelineDiagram() {
     {
       id: 'node-harvest',
       code: '01/INGEST',
-      name: 'arXiv OAI-PMH & ar5iv',
+      name: 'Multi-Source Academic Ingest',
       zone: 'HARVEST',
       zoneColor: '#ef4444',
-      toolName: 'arXiv Harvester',
-      toolCategory: 'Source Stream',
-      metricLabel: 'TOTAL HARVESTED',
-      metricValue: `${currentCorpus.toLocaleString()} Papers`,
-      secondaryMetric: 'cs.AI, cs.LG, cs.CV, cs.CL, stat.ML',
+      toolName: 'Multi-Source Harvester',
+      toolCategory: 'arXiv + OpenAlex + Conf',
+      metricLabel: 'TOTAL CORPUS',
+      metricValue: `${(currentBronzeCount + 24754).toLocaleString()} Works`,
+      secondaryMetric: '11.6k arXiv · 24.7k OpenAlex · 184 Conf',
       status: isStreaming ? 'ACTIVE' : 'SYNCED',
       iconType: 'arxiv',
-      specList: ['OAI-PMH XML v2.0', 'HTML5 Full-Text Crawler', '6.0s Rate Limiter']
+      specList: ['arXiv OAI-PMH & ar5iv HTML5', 'OpenAlex REST API & Citations', 'NeurIPS / ICML / ICLR / KDD']
     },
     {
       id: 'node-bronze',
@@ -74,13 +74,13 @@ export function GeometricPipelineDiagram() {
       zone: 'BRONZE',
       zoneColor: '#f59e0b',
       toolName: 'Cloudflare R2',
-      toolCategory: 'Immutable Raw Store',
-      metricLabel: 'RAW STORED',
+      toolCategory: 'Multi-Tier Raw Lake',
+      metricLabel: 'ACTIVE STORED',
       metricValue: `${storageUsedGb.toFixed(3)} GB`,
-      secondaryMetric: `${currentBronzeCount.toLocaleString()} HTML5 + ${currentBatchesCount} Batches`,
+      secondaryMetric: '11.6k HTML5 + 24.7k OpenAlex + 184 Conf',
       status: 'ONLINE',
       iconType: 'r2',
-      specList: ['S3 Compatible API', 'Zero Egress Fees', 'SHA-256 Checksummed']
+      specList: ['S3 Compatible Global Edge', 'Zero Egress Fees (100% Free)', 'SHA-256 Content Addressed']
     },
     {
       id: 'node-duckdb',
@@ -100,17 +100,17 @@ export function GeometricPipelineDiagram() {
     {
       id: 'node-silver',
       code: '04/CURATED',
-      name: 'Apache Parquet Partition',
+      name: 'Apache Parquet Lakehouse',
       zone: 'SILVER',
       zoneColor: '#60a5fa',
       toolName: 'Apache Parquet',
       toolCategory: 'Columnar Store',
       metricLabel: 'CURATED TABLE',
-      metricValue: '13.98 KB',
-      secondaryMetric: 'Partition: year=2026',
+      metricValue: storageStats?.activeLakehouse ? `${storageStats.activeLakehouse.silverParquetSizeMb.toFixed(2)} MB` : '316.06 MB',
+      secondaryMetric: '9 Partitions · Canonical Schema',
       status: 'SYNCED',
       iconType: 'parquet',
-      specList: ['Snappy Compression', 'Nested Schema Dict', 'Canonical Section Taxonomy']
+      specList: ['Snappy Compression', 'Arrow Vectorized Schema', 'Canonical Section Taxonomy']
     },
     {
       id: 'node-nomic',
