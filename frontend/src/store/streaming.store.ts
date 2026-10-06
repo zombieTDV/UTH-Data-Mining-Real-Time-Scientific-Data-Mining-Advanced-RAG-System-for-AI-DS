@@ -35,13 +35,13 @@ export interface LakehouseStreamState {
 
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus: 10000,
+  totalCorpus: 13000,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
-  storageUsedGb: 5.524,
-  storageUsedPct: 55.2,
-  storageTotalBytes: 5931000000,
+  storageUsedGb: 2.939,
+  storageUsedPct: 29.39,
+  storageTotalBytes: 3156054549,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
   storageStats: null,
@@ -111,7 +111,7 @@ export function initializeLakehouseStream(): () => void {
       if (st) {
         updateState({
           isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || 10000,
+          totalCorpus: st.total_corpus || 13000,
           sessionIngested: st.session_ingested || 0,
           streamSpeed: st.speed_ppm || 0,
           storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,

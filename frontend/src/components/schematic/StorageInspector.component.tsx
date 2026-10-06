@@ -21,8 +21,8 @@ export const LAYERS: LakehouseLayer[] = [
     name: 'Raw arXiv HTML5 Papers',
     storageType: 'Cloudflare R2 Object Store',
     format: 'W3C HTML5 (.html)',
-    itemsCount: '11,763 files',
-    sizeBytes: '2.841 GB',
+    itemsCount: '9,022 files',
+    sizeBytes: '2.821 GB',
     r2Location: 's3://uth-scientific-lakehouse/bronze/html/year=2026/',
     color: 'var(--accent-bronze)',
     description: 'Raw web-crawled HTML5 documents from ar5iv containing full sections, tables, math tags, and bibliography.'
@@ -32,7 +32,7 @@ export const LAYERS: LakehouseLayer[] = [
     name: 'OAI-PMH Harvest Batches',
     storageType: 'Cloudflare R2 Object Store',
     format: 'Compressed JSON Bundles',
-    itemsCount: '16 batch bundles',
+    itemsCount: '44 batch bundles',
     sizeBytes: '26.42 MB',
     r2Location: 's3://uth-scientific-lakehouse/bronze/oai_batches/',
     color: 'var(--accent-bronze)',
@@ -73,13 +73,13 @@ export function StorageInspector() {
   }, []);
 
   const activeStats = storageStats || stats;
-  const bronzeCount = (activeStats?.zones?.bronzeCount ?? 11659) + sessionIngested;
-  const bronzeSizeBytes = (activeStats?.zones?.bronzeSizeBytes ?? 3918000000) + (sessionIngested * 380000);
+  const bronzeCount = (activeStats?.zones?.bronzeCount ?? 9022) + sessionIngested;
+  const bronzeSizeBytes = (activeStats?.zones?.bronzeSizeBytes ?? 3028942848) + (sessionIngested * 380000);
   const bronzeGb = (bronzeSizeBytes / 1024 ** 3).toFixed(3);
-  const silverMb = activeStats ? (activeStats.zones.silverSizeBytes / 1024 ** 2).toFixed(2) : '231.73';
-  const goldGb = activeStats ? (activeStats.zones.goldSizeBytes / 1024 ** 3).toFixed(3) : '2.456';
+  const silverMb = activeStats ? (activeStats.zones.silverSizeBytes / 1024 ** 2).toFixed(2) : '13.98';
+  const goldGb = activeStats ? (activeStats.zones.goldSizeBytes / 1024 ** 3).toFixed(3) : '0.118';
   const goldChunks = (activeStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
-  const totalGb = storageUsedGb ? storageUsedGb.toFixed(3) : (activeStats?.total_size_gb ? activeStats.total_size_gb.toFixed(3) : '6.337');
+  const totalGb = storageUsedGb ? storageUsedGb.toFixed(3) : (activeStats?.total_size_gb ? activeStats.total_size_gb.toFixed(3) : '2.939');
   const quotaGb = activeStats?.free_tier_quota_gb ? activeStats.free_tier_quota_gb.toFixed(2) : '10.00';
 
   const layers: LakehouseLayer[] = [

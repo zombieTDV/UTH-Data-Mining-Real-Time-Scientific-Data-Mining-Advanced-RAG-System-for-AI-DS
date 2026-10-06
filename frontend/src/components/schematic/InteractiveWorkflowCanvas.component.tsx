@@ -78,15 +78,15 @@ Payload: {
     badgeColor: '#e11d48',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '2.841 GB Raw Storage',
-      secondaryMetric: '11,763 HTML5 + 16 Batches',
+      primaryMetric: '2.939 GB Raw Storage',
+      secondaryMetric: '9,022 HTML5 + 44 Batches',
       latency: '< 45ms S3 HeadObject',
       throughput: 'Zero Egress Fees (Cloudflare Global Edge)',
     },
     features: [
       'Global low-latency S3-compatible cloud object store with 0 egress costs',
       'Strict partitioning scheme: raw/html/year=2026/{paper_id}.html',
-      'Stores 11,763 raw HTML5 files and 16 bulk OAI JSON batch checkpoints',
+      'Stores 9,022 raw HTML5 files and 44 bulk OAI JSON batch checkpoints',
       'Dual automated MD5 and SHA-256 integrity verification on upload',
     ],
     samplePreviewTitle: 'Cloudflare R2 Bucket Key Hierarchy',
@@ -94,9 +94,9 @@ Payload: {
 ├── bronze/
 │   ├── raw_html/year=2026/
 │   │   ├── 2602.01234.html (320 KB)
-│   │   └── ... (11,763 objects · 2.84 GB)
+│   │   └── ... (9,022 objects · 2.94 GB)
 │   └── oai_batches/
-│       └── batch_0001.json ... batch_0016.json (26.4 MB)
+│       └── batch_0001.json ... batch_0044.json (26.4 MB)
 └── gold/
     └── mining/ (FP-growth rules, Louvain graph, K-Means clusters)`,
   },
@@ -466,10 +466,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     streamTarget,
     setStreamTarget,
     storageUsedGb,
+    storageUsedPct,
+    storageStats,
     lastPaperDeltaBytes,
   } = useLakehouseStreamStore();
 
-  const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : totalCorpus;
+  const liveBronzeCount = (storageStats?.zones?.bronzeCount ?? 9022) + streamSessionCount;
+  const liveBronzeGb = storageStats ? ((storageStats.zones.bronzeSizeBytes + streamSessionCount * 380000) / 1024 ** 3).toFixed(2) : '2.82';
+  const liveBatchesCount = storageStats?.total_objects ? Math.max(1, storageStats.total_objects - (storageStats?.zones?.bronzeCount ?? 9022)) : 12;
+  const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
+  const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || 13000);
 
   const handleToggleStreaming = async () => {
     if (isStreaming) {
@@ -924,8 +930,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               </div>
               <div style={{ fontSize: '10px', color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
                 {isStreaming && lastPaperDeltaBytes > 0
-                  ? `+${Math.round(lastPaperDeltaBytes / 1024)} KB · ${11763 + streamSessionCount} HTML5`
-                  : `${11763 + streamSessionCount} HTML5 + 16 Batches`}
+                  ? `+${Math.round(lastPaperDeltaBytes / 1024)} KB · ${liveBronzeCount.toLocaleString()} HTML5`
+                  : `${liveBronzeCount.toLocaleString()} HTML5 + ${liveBatchesCount} Batches`}
               </div>
             </div>
 
@@ -2343,9 +2349,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         lineHeight: 1.6,
                       }}>
                         <div style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>s3://uth-scientific-lakehouse/</div>
-                        <div style={{ color: isDark ? '#fb7185' : '#e11d48' }}>├── bronze/raw_html/year=2026/ (11,763 HTML5 objects · 2.84 GB)</div>
-                        <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>├── bronze/oai_batches/ (16 JSON batch records · 26.4 MB)</div>
-                        <div style={{ color: isDark ? '#34d399' : '#059669' }}>└── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters)</div>
+                        <div style={{ color: isDark ? '#fb7185' : '#e11d48' }}>
+                          ├── bronze/raw_html/year=2026/ ({liveBronzeCount.toLocaleString()} HTML5 objects · {liveBronzeGb} GB)
+                        </div>
+                        <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>
+                          ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · {storageStats ? (storageStats.zones.silverSizeBytes / 1024 ** 2).toFixed(1) : '20.8'} MB)
+                        </div>
+                        <div style={{ color: isDark ? '#34d399' : '#059669' }}>
+                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.zones?.goldChunkCount ?? 143523).toLocaleString()} vectors)
+                        </div>
                       </div>
                     </div>
 
@@ -2355,10 +2367,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           STORAGE CAPACITY &amp; HEALTH
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '4px' }}>
-                          5.688 GB / 10.00 GB (56.9%)
+                          {storageUsedGb.toFixed(3)} GB / {liveQuotaGb.toFixed(2)} GB ({storageUsedPct.toFixed(1)}%)
                         </div>
                         <div style={{ height: '6px', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
-                          <div style={{ width: '56.9%', height: '100%', backgroundColor: '#e11d48' }} />
+                          <div style={{ width: `${Math.min(100, Math.max(0, storageUsedPct))}%`, height: '100%', backgroundColor: storageUsedPct > 80 ? '#e11d48' : '#3b82f6', transition: 'width 0.3s ease' }} />
                         </div>
                         <div style={{ fontSize: '10px', color: isDark ? '#34d399' : '#059669', fontFamily: 'var(--font-mono)', marginTop: '6px', fontWeight: 700 }}>
                           ✓ ZERO EGRESS FEES (Cloudflare Global Network)
@@ -2371,7 +2383,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           const now = new Date().toLocaleTimeString('en-US', { hour12: false });
                           setLogs((prev) => [
                             ...prev,
-                            { id: Date.now(), time: now, level: 'SUCCESS', tag: 'MD5-CHECK', msg: 'Cloudflare R2 Bucket audit: 11,763 objects validated with 100% SHA-256 match.' },
+                            { id: Date.now(), time: now, level: 'SUCCESS', tag: 'MD5-CHECK', msg: `Cloudflare R2 Bucket audit: ${liveBronzeCount.toLocaleString()} objects validated with 100% SHA-256 match.` },
                           ]);
                           setBottomTab('logs');
                         }}
@@ -3145,7 +3157,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>R2 LAKEHOUSE STORAGE</div>
                         <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '2px' }}>
-                          5.688 GB (56.9%)
+                          {storageUsedGb.toFixed(3)} GB ({storageUsedPct.toFixed(1)}%)
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#059669', fontWeight: 700 }}>
