@@ -3,7 +3,7 @@ import { StatusPill } from './StatusPill.component';
 import { PipelineStatusPill } from './PipelineStatusPill.component';
 import { StorageMeter } from './StorageMeter.component';
 import { RunPipelineButton } from './RunPipelineButton.component';
-import { LanguageToggle } from './LanguageToggle.component';
+import { useTranslation } from '../../hooks';
 import type { BackendStatus, PipelineStatus } from '../../types';
 
 export interface HeaderBarProps {
@@ -29,6 +29,8 @@ export const HeaderBar: FC<HeaderBarProps> = ({
   storageUsedPct,
   onTriggerPipeline,
 }) => {
+  const { language } = useTranslation();
+
   return (
     <header
       style={{
@@ -46,7 +48,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
-          UTH SCIENTIFIC LAKEHOUSE &amp; MINING PIPELINE
+          {language === 'vi' ? 'HỆ THỐNG LAKEHOUSE KHOA HỌC & DATA MINING UTH' : 'UTH SCIENTIFIC LAKEHOUSE & MINING PIPELINE'}
         </span>
         <StatusPill backendStatus={backendStatus} lastTelemetryTick={lastTelemetryTick} />
       </div>
@@ -59,7 +61,6 @@ export const HeaderBar: FC<HeaderBarProps> = ({
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <LanguageToggle />
         <StorageMeter
           storageUsedGb={storageUsedGb}
           storageUsedPct={storageUsedPct}

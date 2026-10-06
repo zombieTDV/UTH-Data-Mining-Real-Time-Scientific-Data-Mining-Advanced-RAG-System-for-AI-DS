@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 import en from '../../assets/languages/en.json';
 import vi from '../../assets/languages/vi.json';
 
@@ -39,6 +39,53 @@ function interpolate(text: string, params?: Record<string, string | number>): st
   );
 }
 
+const getInitialLanguage = (): Language => {
+  if (typeof window === 'undefined') return 'vi';
+  const saved = localStorage.getItem(STORAGE_KEY) as Language;
+  if (saved === 'en' || saved === 'vi') return saved;
+  return 'vi';
+};
+
+let currentLanguage: Language = getInitialLanguage();
+
+if (typeof window !== 'undefined') {
+  document.documentElement.lang = currentLanguage;
+}
+
+const listeners = new Set<() => void>();
+
+function emitLanguageChange() {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+export function setLanguageGlobally(lang: Language) {
+  if (currentLanguage === lang) return;
+  currentLanguage = lang;
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY, lang);
+    document.documentElement.lang = lang;
+  }
+  emitLanguageChange();
+}
+
+export function toggleLanguageGlobally() {
+  const next: Language = currentLanguage === 'en' ? 'vi' : 'en';
+  setLanguageGlobally(next);
+}
+
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+function getSnapshot(): Language {
+  return currentLanguage;
+}
+
 export interface UseTranslationReturn {
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -47,34 +94,20 @@ export interface UseTranslationReturn {
 }
 
 export function useTranslation(): UseTranslationReturn {
-  const [language, setLanguageState] = useState<Language>(() => {
-    if (typeof window === 'undefined') return 'en';
-    return (localStorage.getItem(STORAGE_KEY) as Language) || 'en';
-  });
+  const language: Language = useSyncExternalStore(subscribe, getSnapshot, () => 'vi' as Language);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, language);
-    document.documentElement.lang = language;
-  }, [language]);
+  const t = (key: string, params?: Record<string, string | number>): string => {
+    const translation = getNestedValue(
+      translations[language] as unknown as Record<string, unknown>,
+      key
+    );
+    return interpolate(translation, params);
+  };
 
-  const setLanguage = useCallback((lang: Language) => {
-    setLanguageState(lang);
-  }, []);
-
-  const toggleLanguage = useCallback(() => {
-    setLanguageState((prev) => (prev === 'en' ? 'vi' : 'en'));
-  }, []);
-
-  const t = useCallback(
-    (key: string, params?: Record<string, string | number>): string => {
-      const translation = getNestedValue(
-        translations[language] as unknown as Record<string, unknown>,
-        key
-      );
-      return interpolate(translation, params);
-    },
-    [language]
-  );
-
-  return { language, setLanguage, toggleLanguage, t };
+  return {
+    language,
+    setLanguage: setLanguageGlobally,
+    toggleLanguage: toggleLanguageGlobally,
+    t,
+  };
 }

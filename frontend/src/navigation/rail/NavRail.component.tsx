@@ -2,8 +2,33 @@ import type { FC } from 'react';
 import { NAV_RAIL_ITEMS, type NavRailProps } from './NavRail.types';
 import { RailIcon } from './RailIcon.component';
 import { ThemeToggle } from './ThemeToggle.component';
+import { LanguageToggle } from './LanguageToggle.component';
+import { useTranslation } from '../../hooks';
 
 export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onToggleTheme }) => {
+  const { t } = useTranslation();
+
+  const getTabLabel = (id: string, fallback: string) => {
+    switch (id) {
+      case 'schematic': return t('nav.schematic') || fallback;
+      case 'eda': return t('nav.eda') || fallback;
+      case 'pillars': return t('nav.pillars') || fallback;
+      case 'rag': return t('nav.rag') || fallback;
+      case 'logs': return t('nav.logs') || fallback;
+      default: return fallback;
+    }
+  };
+
+  const getTabTitle = (id: string, fallback: string) => {
+    switch (id) {
+      case 'schematic': return t('nav.schematicTitle') || fallback;
+      case 'eda': return t('nav.edaTitle') || fallback;
+      case 'pillars': return t('nav.pillarsTitle') || fallback;
+      case 'rag': return t('nav.ragTitle') || fallback;
+      case 'logs': return t('nav.logsTitle') || fallback;
+      default: return fallback;
+    }
+  };
   return (
     <aside
       style={{
@@ -56,7 +81,7 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
               key={item.id}
               type="button"
               onClick={() => onNavigate(item.id)}
-              title={item.title}
+              title={getTabTitle(item.id, item.title)}
               style={{
                 width: '42px',
                 height: '42px',
@@ -75,13 +100,14 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
               }}
             >
               <RailIcon tab={item.id} />
-              <span style={{ fontSize: '8.5px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{item.label}</span>
+              <span style={{ fontSize: '8.5px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{getTabLabel(item.id, item.label)}</span>
             </button>
           );
         })}
       </nav>
 
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center' }}>
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+        <LanguageToggle />
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
 
         <div

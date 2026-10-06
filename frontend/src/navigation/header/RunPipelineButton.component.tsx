@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { useTranslation } from '../../hooks';
 import type { PipelineStatus } from '../../types';
 
 export interface RunPipelineButtonProps {
@@ -7,6 +8,8 @@ export interface RunPipelineButtonProps {
 }
 
 export const RunPipelineButton: FC<RunPipelineButtonProps> = ({ pipelineStatus, onClick }) => {
+  const { language } = useTranslation();
+
   return (
     <button
       type="button"
@@ -34,14 +37,14 @@ export const RunPipelineButton: FC<RunPipelineButtonProps> = ({ pipelineStatus, 
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
             <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
           </svg>
-          <span>RUNNING...</span>
+          <span>{language === 'vi' ? 'ĐANG CHẠY...' : 'RUNNING...'}</span>
         </>
       ) : (
         <>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
             <polygon points="5 3 19 12 5 21 5 3" />
           </svg>
-          <span>RUN PIPELINE</span>
+          <span>{language === 'vi' ? 'CHẠY PIPELINE' : 'RUN PIPELINE'}</span>
         </>
       )}
     </button>

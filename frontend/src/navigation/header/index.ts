@@ -10,4 +10,3 @@ export { RunPipelineButton } from './RunPipelineButton.component';
 export type { RunPipelineButtonProps } from './RunPipelineButton.component';
 export { StatusBar } from './StatusBar.component';
 export type { StatusBarProps } from './StatusBar.component';
-export { LanguageToggle } from './LanguageToggle.component';
