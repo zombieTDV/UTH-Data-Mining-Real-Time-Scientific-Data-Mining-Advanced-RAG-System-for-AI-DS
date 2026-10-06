@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchStorageStats } from '../../services';
+import { useLakehouseStreamStore } from '../../store';
 import type { StorageStatsResponse } from '../../types';
 
 export interface LakehouseLayer {
@@ -63,6 +64,7 @@ export const LAYERS: LakehouseLayer[] = [
 
 export function StorageInspector() {
   const [stats, setStats] = useState<StorageStatsResponse | null>(null);
+  const { sessionIngested, storageUsedGb, storageStats } = useLakehouseStreamStore();
 
   useEffect(() => {
     fetchStorageStats()
@@ -70,13 +72,15 @@ export function StorageInspector() {
       .catch((err) => console.error('[StorageInspector] Failed to load live stats:', err));
   }, []);
 
-  const bronzeCount = stats?.zones?.bronzeCount ?? 11659;
-  const bronzeGb = stats ? (stats.zones.bronzeSizeBytes / 1024 ** 3).toFixed(3) : '3.649';
-  const silverMb = stats ? (stats.zones.silverSizeBytes / 1024 ** 2).toFixed(2) : '231.73';
-  const goldGb = stats ? (stats.zones.goldSizeBytes / 1024 ** 3).toFixed(3) : '2.456';
-  const goldChunks = stats?.zones?.goldChunkCount ?? 143523;
-  const totalGb = stats?.total_size_gb ? stats.total_size_gb.toFixed(3) : '6.337';
-  const quotaGb = stats?.free_tier_quota_gb ? stats.free_tier_quota_gb.toFixed(2) : '10.00';
+  const activeStats = storageStats || stats;
+  const bronzeCount = (activeStats?.zones?.bronzeCount ?? 11659) + sessionIngested;
+  const bronzeSizeBytes = (activeStats?.zones?.bronzeSizeBytes ?? 3918000000) + (sessionIngested * 380000);
+  const bronzeGb = (bronzeSizeBytes / 1024 ** 3).toFixed(3);
+  const silverMb = activeStats ? (activeStats.zones.silverSizeBytes / 1024 ** 2).toFixed(2) : '231.73';
+  const goldGb = activeStats ? (activeStats.zones.goldSizeBytes / 1024 ** 3).toFixed(3) : '2.456';
+  const goldChunks = (activeStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
+  const totalGb = storageUsedGb ? storageUsedGb.toFixed(3) : (activeStats?.total_size_gb ? activeStats.total_size_gb.toFixed(3) : '6.337');
+  const quotaGb = activeStats?.free_tier_quota_gb ? activeStats.free_tier_quota_gb.toFixed(2) : '10.00';
 
   const layers: LakehouseLayer[] = [
     {

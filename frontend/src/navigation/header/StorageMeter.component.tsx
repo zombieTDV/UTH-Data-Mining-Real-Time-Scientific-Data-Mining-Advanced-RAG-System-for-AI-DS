@@ -6,12 +6,12 @@ export interface StorageMeterProps {
   totalPapers: number;
 }
 
-export const StorageMeter: FC<StorageMeterProps> = ({ storageUsedGb, storageUsedPct, totalPapers }) => {
+export const StorageMeter: FC<StorageMeterProps> = ({ storageUsedGb, storageUsedPct }) => {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
       <span style={{ color: 'var(--text-muted)' }}>R2 LAKE:</span>
       <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
-        {(storageUsedGb + (totalPapers - 10000) * 0.00056).toFixed(3)} GB
+        {storageUsedGb.toFixed(3)} GB
       </span>
       <span
         style={{
@@ -22,9 +22,11 @@ export const StorageMeter: FC<StorageMeterProps> = ({ storageUsedGb, storageUsed
           fontWeight: 700,
           border: '1px solid rgba(16, 185, 129, 0.3)',
         }}
+        title="Cloudflare R2 Free Tier: 10.0 GB quota"
       >
-        {Math.min(100, +(storageUsedPct + (totalPapers - 10000) * 0.0056).toFixed(1))}%
+        {Math.min(100, +storageUsedPct.toFixed(1))}%
       </span>
     </div>
   );
 };
+

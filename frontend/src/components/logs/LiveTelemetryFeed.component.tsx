@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { subscribeTelemetry, subscribeIngestionStream } from '../../services';
+import { subscribeTelemetry } from '../../services';
+import { useLakehouseStreamStore, type StreamingLogEntry } from '../../store';
 
 export interface LogLine {
   id: string;
@@ -165,6 +166,8 @@ export function LiveTelemetryFeed() {
   const [search, setSearch] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const { logs: storeLogs } = useLakehouseStreamStore();
+
   useEffect(() => {
     const unsub = subscribeTelemetry((data: any) => {
       if (data && (data.event || data.message || data.status)) {
@@ -179,26 +182,24 @@ export function LiveTelemetryFeed() {
       }
     });
 
-    const unsubStream = subscribeIngestionStream((event: any) => {
-      if (event && event.type) {
-        const newLog: LogLine = {
-          id: `stream-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          time: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          level: event.type === 'PAPER_INGESTED' ? 'SUCCESS' : 'INFO',
-          tag: 'INGESTION/CDC',
-          message: event.title ? `[${event.paper_id}] ${event.title} (${event.category})` : `CDC Stream: ${event.type}`,
-        };
-        setLogs((prev) => [newLog, ...prev.slice(0, 99)]);
-      }
-    });
-
     return () => {
       unsub();
-      unsubStream();
     };
   }, []);
 
-  const filteredLogs = logs.filter((l) => {
+  // Merge store live logs with static/telemetry logs
+  const allLogs = [
+    ...storeLogs.map((sl: StreamingLogEntry) => ({
+      id: sl.id,
+      time: sl.time,
+      level: sl.level as LogLine['level'],
+      tag: sl.tag,
+      message: sl.msg,
+    })),
+    ...logs,
+  ];
+
+  const filteredLogs = allLogs.filter((l) => {
     if (filterLevel !== 'ALL' && l.level !== filterLevel) return false;
     if (search.trim()) {
       const q = search.toLowerCase();

@@ -254,6 +254,9 @@ export interface IngestionStatus {
   total_corpus: number;
   speed_ppm: number;
   elapsed_seconds: number;
+  storage_total_bytes?: number;
+  storage_total_gb?: number;
+  storage_used_pct?: number;
 }
 
 export interface IngestionControlResponse {
@@ -275,6 +278,10 @@ export interface IngestionEvent {
   session_ingested?: number;
   vectors_synced?: number;
   latency_ms?: number;
+  bronze_bytes_delta?: number;
+  storage_total_bytes?: number;
+  storage_total_gb?: number;
+  storage_used_pct?: number;
 }
 
 export interface DuckDbQueryResult {
