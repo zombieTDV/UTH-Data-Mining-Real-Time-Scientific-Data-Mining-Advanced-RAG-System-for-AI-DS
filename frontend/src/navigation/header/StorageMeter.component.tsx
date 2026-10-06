@@ -24,7 +24,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({ storageUsedGb, storageUsed
         }}
         title="Cloudflare R2 Free Tier: 10.0 GB quota"
       >
-        {Math.min(100, +storageUsedPct.toFixed(1))}%
+        {Math.min(100, storageUsedPct).toFixed(2)}%
       </span>
     </div>
   );

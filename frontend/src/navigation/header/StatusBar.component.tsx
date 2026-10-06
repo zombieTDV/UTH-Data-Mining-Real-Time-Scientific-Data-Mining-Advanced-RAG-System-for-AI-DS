@@ -9,7 +9,7 @@ export interface StatusBarProps {
 export const StatusBar: FC<StatusBarProps> = ({
   totalPapers,
   totalVectors = 143523,
-  totalFormulas = 2765395,
+  totalFormulas = 2220938,
 }) => {
   return (
     <footer

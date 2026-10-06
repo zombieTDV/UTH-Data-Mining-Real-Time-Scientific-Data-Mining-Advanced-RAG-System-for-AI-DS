@@ -27,12 +27,12 @@ export const PIPELINE_PHASES: PipelinePhase[] = [
     zoneColor: 'var(--accent-bronze)',
     status: 'COMPLETED',
     inputs: ['arXiv OAI-PMH Endpoints', 'ar5iv HTML5 Repository'],
-    outputs: ['11,763 Raw HTML5 Files', '16 OAI Batch JSONs (26.4MB)'],
+    outputs: ['9,022 Raw HTML5 Files', '44 OAI Batch JSONs (26.4MB)'],
     tools: ['HTTPX Async', 'Cloudflare R2 S3 API', 'SHA-256 Hasher'],
     metrics: {
       processed: '13,000 Papers Harvested',
       rate: '6.0s Rate-Limit Delay',
-      latency: '2.84 GB Transferred'
+      latency: '2.939 GB Transferred'
     },
     details: 'Harvests metadata via OAI-PMH XML protocol across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably streams raw paper HTML5 and batch records directly into Cloudflare R2 Bronze Lakehouse.'
   },
@@ -47,11 +47,11 @@ export const PIPELINE_PHASES: PipelinePhase[] = [
     outputs: ['Apache Parquet (year=2026)', 'DuckDB Canonical View'],
     tools: ['BeautifulSoup4 & lxml', 'Apache Arrow', 'DuckDB Engine'],
     metrics: {
-      processed: '11,763 Papers Full-Section Enriched',
-      rate: '2,765,395 LaTeX Formulas Extracted',
-      latency: '231.7 MB Columnar Storage'
+      processed: '9,015 Papers Full-Section Enriched',
+      rate: '2,220,938 LaTeX Formulas Extracted',
+      latency: '13.98 KB Columnar Storage'
     },
-    details: 'Parses academic structures into canonical sections (Abstract, Intro, Methods, Results, Discussion). Cleans and preserves 2.77M mathematical equations in pristine LaTeX syntax.'
+    details: 'Parses academic structures into canonical sections (Abstract, Intro, Methods, Results, Discussion). Cleans and preserves 2.22M mathematical equations (2,220,938) in pristine LaTeX syntax.'
   },
   {
     id: 'phase-3',
@@ -66,9 +66,9 @@ export const PIPELINE_PHASES: PipelinePhase[] = [
     metrics: {
       processed: '143,523 Contextual Chunks',
       rate: '768-dim Dense Vectors',
-      latency: '2.456 GB Indexed Table'
+      latency: '127.10 MB Indexed Table'
     },
-    details: 'Segments long-form papers with context preservation (Paper Title | Section Title | Content). Generates 768-dimensional normalized embeddings on Apple Silicon GPU and syncs index to R2.'
+    details: 'Segments long-form papers with context preservation (Paper Title | Section Title | Content). Generates 768-dimensional normalized embeddings on Apple Silicon GPU and syncs 143,523 vectors to R2.'
   },
   {
     id: 'phase-4',
@@ -85,7 +85,7 @@ export const PIPELINE_PHASES: PipelinePhase[] = [
       rate: '6.0 tokens/s Metal GPU Generation',
       latency: 'Zero Hallucination Refusal Gate'
     },
-    details: 'Runs high-precision cosine semantic search over 143.5k vectors, formats academic system prompts with anti-hallucination guardrails, and produces streaming answers with verified section citations.'
+    details: 'Runs high-precision cosine semantic search over 143,523 vectors, formats academic system prompts with anti-hallucination guardrails, and produces streaming answers with verified section citations.'
   }
 ];
 

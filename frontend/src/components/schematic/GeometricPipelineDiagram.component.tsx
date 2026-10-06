@@ -41,8 +41,8 @@ export const SCHEMATIC_NODES: DiagramNode[] = [
     toolName: 'Cloudflare R2',
     toolCategory: 'Immutable Raw Store',
     metricLabel: 'RAW STORED',
-    metricValue: '2.841 GB',
-    secondaryMetric: '11,763 HTML5 + 16 Batches',
+    metricValue: '2.939 GB',
+    secondaryMetric: '9,022 HTML5 + 44 Batches',
     status: 'ONLINE',
     iconType: 'r2',
     specList: ['S3 Compatible API', 'Zero Egress Fees', 'SHA-256 Checksummed']
@@ -56,8 +56,8 @@ export const SCHEMATIC_NODES: DiagramNode[] = [
     toolName: 'DuckDB Engine',
     toolCategory: 'In-Process OLAP',
     metricLabel: 'LATEX EXTRACTED',
-    metricValue: '2,765,395',
-    secondaryMetric: '11,763 Full-Section Enriched',
+    metricValue: '2,220,938',
+    secondaryMetric: '9,015 Full-Section Enriched',
     status: 'ACTIVE',
     iconType: 'duckdb',
     specList: ['Vectorized SIMD Execution', 'Zero-Copy Apache Arrow', 'Math Tag Normalizer']
@@ -71,7 +71,7 @@ export const SCHEMATIC_NODES: DiagramNode[] = [
     toolName: 'Apache Parquet',
     toolCategory: 'Columnar Store',
     metricLabel: 'CURATED TABLE',
-    metricValue: '231.73 MB',
+    metricValue: '13.98 KB',
     secondaryMetric: 'Partition: year=2026',
     status: 'SYNCED',
     iconType: 'parquet',
@@ -102,7 +102,7 @@ export const SCHEMATIC_NODES: DiagramNode[] = [
     toolCategory: 'Vector Lakehouse',
     metricLabel: 'INDEXED CHUNKS',
     metricValue: '143,523 Rows',
-    secondaryMetric: '2.456 GB Table Size',
+    secondaryMetric: '127.10 MB Table Size',
     status: 'ONLINE',
     iconType: 'lancedb',
     specList: ['Lance Columnar Format', 'Cosine Metric ANN Index', 'Sub-50ms Approximate Lookup']
@@ -142,7 +142,7 @@ export const SCHEMATIC_NODES: DiagramNode[] = [
 export function GeometricPipelineDiagram() {
   const [activeNodeId, setActiveNodeId] = useState<string>('node-harvest');
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [statusText, setStatusText] = useState<string>('PIPELINE READY · 13,000 PAPERS / 143.5k VECTORS ONLINE');
+  const [statusText, setStatusText] = useState<string>('PIPELINE READY · 13,000 PAPERS / 143,523 VECTORS ONLINE');
 
   const handleRunPipeline = () => {
     setIsRunning(true);
@@ -156,7 +156,7 @@ export function GeometricPipelineDiagram() {
   const handleResetPipeline = () => {
     setStatusText('BUFFER PURGED: Staging cache reset');
     setTimeout(() => {
-      setStatusText('PIPELINE READY · 13,000 PAPERS / 143.5k VECTORS ONLINE');
+      setStatusText('PIPELINE READY · 13,000 PAPERS / 143,523 VECTORS ONLINE');
     }, 1500);
   };
 

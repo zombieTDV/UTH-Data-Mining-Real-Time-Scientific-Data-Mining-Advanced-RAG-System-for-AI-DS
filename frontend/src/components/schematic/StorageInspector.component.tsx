@@ -43,11 +43,11 @@ export const LAYERS: LakehouseLayer[] = [
     name: 'Curated Canonical Papers',
     storageType: 'Local Disk & Cloudflare R2',
     format: 'Apache Parquet (Snappy)',
-    itemsCount: '13,000 papers (11,763 enriched)',
-    sizeBytes: '231.73 MB',
+    itemsCount: '13,000 papers (9,015 enriched)',
+    sizeBytes: '13.98 KB',
     r2Location: 's3://uth-scientific-lakehouse/silver/year=2026/papers.parquet',
     color: 'var(--accent-silver)',
-    description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.77M extracted LaTeX formulas.'
+    description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.22M extracted LaTeX formulas (2,220,938).'
   },
   {
     zone: 'GOLD',
@@ -55,7 +55,7 @@ export const LAYERS: LakehouseLayer[] = [
     storageType: 'LanceDB Multi-Modal Table',
     format: 'Lance Columnar (.lance)',
     itemsCount: '143,523 chunks',
-    sizeBytes: '2.456 GB',
+    sizeBytes: '127.10 MB',
     r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
     color: 'var(--accent-gold)',
     description: 'Semantically contextualized chunks paired with 768-dimensional Nomic embeddings for sub-50ms cosine ANN search.'
@@ -76,7 +76,8 @@ export function StorageInspector() {
   const bronzeCount = (activeStats?.zones?.bronzeCount ?? 9022) + sessionIngested;
   const bronzeSizeBytes = (activeStats?.zones?.bronzeSizeBytes ?? 3028942848) + (sessionIngested * 380000);
   const bronzeGb = (bronzeSizeBytes / 1024 ** 3).toFixed(3);
-  const silverMb = activeStats ? (activeStats.zones.silverSizeBytes / 1024 ** 2).toFixed(2) : '13.98';
+  const silverKb = activeStats ? (activeStats.zones.silverSizeBytes / 1000).toFixed(2) : '13.98';
+  const goldMb = activeStats ? (activeStats.zones.goldSizeBytes / 1024 ** 2).toFixed(2) : '121.21';
   const goldGb = activeStats ? (activeStats.zones.goldSizeBytes / 1024 ** 3).toFixed(3) : '0.118';
   const goldChunks = (activeStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
   const totalGb = storageUsedGb ? storageUsedGb.toFixed(3) : (activeStats?.total_size_gb ? activeStats.total_size_gb.toFixed(3) : '2.939');
@@ -99,8 +100,8 @@ export function StorageInspector() {
       name: 'OAI-PMH Harvest Batches',
       storageType: 'Cloudflare R2 Object Store',
       format: 'Compressed JSON Bundles',
-      itemsCount: '12 batch bundles',
-      sizeBytes: '20.83 MB',
+      itemsCount: '44 batch bundles',
+      sizeBytes: '26.42 MB',
       r2Location: 's3://uth-scientific-lakehouse/bronze/oai_batches/',
       color: 'var(--accent-bronze)',
       description: 'Raw metadata harvesting batches retrieved through arXiv OAI-PMH protocol across 5 core AI/DS categories.'
@@ -110,11 +111,11 @@ export function StorageInspector() {
       name: 'Curated Canonical Papers',
       storageType: 'Local Disk & Cloudflare R2',
       format: 'Apache Parquet (Snappy)',
-      itemsCount: '10,000 papers (8,989 enriched)',
-      sizeBytes: `${silverMb} MB`,
+      itemsCount: '13,000 papers (9,015 enriched)',
+      sizeBytes: `${silverKb} KB`,
       r2Location: 's3://uth-scientific-lakehouse/silver/year=2026/papers.parquet',
       color: 'var(--accent-silver)',
-      description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.22M extracted LaTeX formulas.'
+      description: 'Cleaned and structured schema containing parsed sections, abstracts, authors, and 2.22M extracted LaTeX formulas (2,220,938).'
     },
     {
       zone: 'GOLD',
@@ -122,7 +123,7 @@ export function StorageInspector() {
       storageType: 'LanceDB Multi-Modal Table',
       format: 'Lance Columnar (.lance)',
       itemsCount: `${goldChunks.toLocaleString()} chunks`,
-      sizeBytes: `${goldGb} GB`,
+      sizeBytes: `${goldMb} MB (${goldGb} GB)`,
       r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
       color: 'var(--accent-gold)',
       description: 'Semantically contextualized chunks paired with 768-dimensional Nomic embeddings for sub-50ms cosine ANN search.'

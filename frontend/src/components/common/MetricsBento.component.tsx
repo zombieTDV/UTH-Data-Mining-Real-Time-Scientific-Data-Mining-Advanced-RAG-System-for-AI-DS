@@ -13,10 +13,10 @@ export const MetricsBento: FC = () => {
         label="Corpus Scale"
         badge="100% Ingested"
         badgeColor="var(--accent-emerald)"
-        value="10,000"
+        value="13,000"
         description="AI/DS Scientific Papers Indexed"
         footerLeft="ar5iv HTML5: 9,022"
-        footerRight="OAI Batches: 12"
+        footerRight="OAI Batches: 44"
         glowColor="rgba(96, 165, 250, 0.08)"
       />
 
@@ -33,21 +33,21 @@ export const MetricsBento: FC = () => {
 
       <StatCard
         label="Cloudflare R2 Bucket"
-        badge="55.24% of Free Tier"
+        badge="29.39% of Free Tier"
         badgeColor="#f59e0b"
-        value="5.524"
-        unit="/ 10.0 GB"
+        value="2.939"
+        unit="/ 10.00 GB"
         description=""
-        footerLeft="Remaining: 4.476 GB"
+        footerLeft="Remaining: 7.061 GB"
         footerRight="Zero Egress Fees"
-        progressPercent={55.24}
+        progressPercent={29.39}
       />
 
       <StatCard
         label="Mathematical Extraction Engine"
         badge=""
         badgeColor="var(--accent-violet)"
-        value="2,224,198 Formulas"
+        value="2,220,938 Formulas"
         description="Cleaned and normalized into pure LaTeX syntax across Silver & Gold"
         footerLeft=""
         footerRight=""

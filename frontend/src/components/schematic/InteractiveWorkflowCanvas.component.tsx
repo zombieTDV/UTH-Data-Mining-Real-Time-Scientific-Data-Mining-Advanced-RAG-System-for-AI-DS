@@ -109,8 +109,8 @@ Payload: {
     badgeColor: '#f59e0b',
     status: 'ACTIVE',
     telemetrySummary: {
-      primaryMetric: '2,224,198 LaTeX Formulas',
-      secondaryMetric: '8,989 Full-Section Enriched Papers',
+      primaryMetric: '2,220,938 LaTeX Formulas',
+      secondaryMetric: '9,015 Full-Section Enriched Papers',
       latency: '0.042s Execution Benchmark',
       throughput: 'Zero-Copy Apache Arrow Columnar Memory',
     },
@@ -142,7 +142,7 @@ ORDER BY paper_count DESC;
     badgeColor: '#10b981',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '231.73 MB Parquet Size',
+      primaryMetric: '13.98 KB Parquet Size',
       secondaryMetric: '13,000 Curated Rows (year=2026)',
       latency: '10x Storage Compression Ratio',
       throughput: 'Column Projection & Predicate Pushdown',
@@ -175,7 +175,7 @@ ORDER BY paper_count DESC;
     status: 'ONLINE',
     telemetrySummary: {
       primaryMetric: '143,523 Vectors Indexed',
-      secondaryMetric: '768 Dimensions · 2.456 GB Index',
+      secondaryMetric: '768 Dimensions · 127.10 MB Index',
       latency: '< 18ms Cosine ANN Lookup',
       throughput: '4 Mining Pillars Fully Computed',
     },
@@ -192,7 +192,7 @@ ORDER BY paper_count DESC;
 db = lancedb.connect("data/gold/lancedb")
 tbl = db.open_table("scientific_papers_gold")
 
-# Hardware-accelerated Cosine ANN retrieval over 143.5k chunks
+# Hardware-accelerated Cosine ANN retrieval over 143,523 chunks
 results = tbl.search(query_embedding) \\
              .metric("cosine") \\
              .where("category = 'cs.AI'") \\
@@ -363,7 +363,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     { id: 3, time: '12:00:05', level: 'SUCCESS', tag: 'OLAP', msg: 'DuckDB in-process vector OLAP engine online (Apache Arrow SIMD zero-copy).' },
     { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 143,523 embeddings (dim=384, metric=cosine).' },
     { id: 5, time: '12:00:09', level: 'INFO', tag: 'RAG', msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate armed with Metal GPU offload.' },
-    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 13,000 papers, 2.77M formulas, 143.5k LanceDB vectors synced.' },
+    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 13,000 papers, 2,220,938 formulas, 143,523 LanceDB vectors synced.' },
   ]);
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -472,8 +472,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   } = useLakehouseStreamStore();
 
   const liveBronzeCount = (storageStats?.zones?.bronzeCount ?? 9022) + streamSessionCount;
-  const liveBronzeGb = storageStats ? ((storageStats.zones.bronzeSizeBytes + streamSessionCount * 380000) / 1024 ** 3).toFixed(2) : '2.82';
-  const liveBatchesCount = storageStats?.total_objects ? Math.max(1, storageStats.total_objects - (storageStats?.zones?.bronzeCount ?? 9022)) : 12;
+  const liveBronzeGb = storageStats ? ((storageStats.zones.bronzeSizeBytes + streamSessionCount * 380000) / 1024 ** 3).toFixed(3) : '2.821';
+  const liveBatchesCount = storageStats?.total_objects ? Math.max(1, storageStats.total_objects - (storageStats?.zones?.bronzeCount ?? 9022)) : 44;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
   const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || 13000);
 
@@ -522,7 +522,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t2 = setTimeout(() => {
       setSimulationStage('duckdb');
-      setSimulationHarvestedCount(10000);
+      setSimulationHarvestedCount(13000);
       setFormulasExtracted(920000);
       setLogs((prev) => [
         ...prev,
@@ -532,11 +532,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t3 = setTimeout(() => {
       setSimulationStage('parallel');
-      setFormulasExtracted(2765395);
+      setFormulasExtracted(2220938);
       setVectorsIndexed(72000);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2.77M formulas, 143.5k vectors indexed.' },
+        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,220,938 formulas, 143,523 vectors indexed.' },
       ]);
     }, 4000);
 
@@ -545,7 +545,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       setVectorsIndexed(143523);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 13,000 papers, 143.5k vectors online.' },
+        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 13,000 papers, 143,523 vectors online.' },
       ]);
     }, 6000);
 
@@ -657,7 +657,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (143k vectors).` },
+        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (143,523 vectors).` },
       ]);
     } catch (err: any) {
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -1197,7 +1197,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                 <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                   <span style={{ color: themeStyles.textMuted }}>Partition: 2026</span>
-                  <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>231.73 MB Parquet</span>
+                  <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>13.98 KB Parquet</span>
                 </div>
               </div>
 
@@ -2192,7 +2192,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             PHÂN BỐ MẬT ĐỘ CÔNG THỨC TOÁN (SIMD DENSITY METRIC)
                           </span>
                           <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: isDark ? '#fbbf24' : '#d97706', fontWeight: 700 }}>
-                            Total: 2,224,198 formulas
+                            Total: 2,220,938 formulas
                           </span>
                         </div>
 
@@ -2353,7 +2353,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           ├── bronze/raw_html/year=2026/ ({liveBronzeCount.toLocaleString()} HTML5 objects · {liveBronzeGb} GB)
                         </div>
                         <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>
-                          ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · {storageStats ? (storageStats.zones.silverSizeBytes / 1024 ** 2).toFixed(1) : '20.8'} MB)
+                          ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · 26.42 MB)
                         </div>
                         <div style={{ color: isDark ? '#34d399' : '#059669' }}>
                           └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.zones?.goldChunkCount ?? 143523).toLocaleString()} vectors)
@@ -2367,7 +2367,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           STORAGE CAPACITY &amp; HEALTH
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '4px' }}>
-                          {storageUsedGb.toFixed(3)} GB / {liveQuotaGb.toFixed(2)} GB ({storageUsedPct.toFixed(1)}%)
+                          {storageUsedGb.toFixed(3)} GB / {liveQuotaGb.toFixed(2)} GB ({storageUsedPct.toFixed(2)}%)
                         </div>
                         <div style={{ height: '6px', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
                           <div style={{ width: `${Math.min(100, Math.max(0, storageUsedPct))}%`, height: '100%', backgroundColor: storageUsedPct > 80 ? '#e11d48' : '#3b82f6', transition: 'width 0.3s ease' }} />
@@ -3157,7 +3157,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>R2 LAKEHOUSE STORAGE</div>
                         <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '2px' }}>
-                          {storageUsedGb.toFixed(3)} GB ({storageUsedPct.toFixed(1)}%)
+                          {storageUsedGb.toFixed(3)} GB ({storageUsedPct.toFixed(2)}%)
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#059669', fontWeight: 700 }}>

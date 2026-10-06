@@ -41,8 +41,8 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
         {pipelineStatus === 'RUNNING'
           ? 'Pipeline Active: Harvesting arXiv batches, DuckDB Parquet & LanceDB Gold indexing...'
           : streamActive
-          ? `Real-Time CDC Stream Active: ${totalPapers.toLocaleString()} papers synced (+${totalPapers - 10000} new) · ${streamSpeed} papers/min`
-          : `Lakehouse Standby: ${totalPapers.toLocaleString()} papers, 2.22M formulas, 143k LanceDB vectors synced.`}
+          ? `Real-Time CDC Stream Active: ${totalPapers.toLocaleString()} papers synced (+${Math.max(0, totalPapers - 13000)} new) · ${streamSpeed} papers/min`
+          : `Lakehouse Standby: ${totalPapers.toLocaleString()} papers, 2,220,938 formulas, 143,523 LanceDB vectors synced.`}
       </span>
     </div>
   );

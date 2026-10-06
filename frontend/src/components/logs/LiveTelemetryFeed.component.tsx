@@ -44,7 +44,7 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-03 06:30:14',
     level: 'STORAGE',
     tag: 'R2/SYNC',
-    message: 'Cloudflare R2 lakehouse synchronized: 5.524 GB total across Bronze (2.84 GB), Silver (231.7 MB), Gold (2.45 GB)'
+    message: 'Cloudflare R2 lakehouse synchronized: 2.939 GB total across Bronze (2.821 GB), Silver (13.98 KB), Gold (127.10 MB)'
   },
   {
     id: 'l-06',
@@ -86,14 +86,14 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-03 05:14:20',
     level: 'SUCCESS',
     tag: 'SILVER/WRITE',
-    message: '8,989 HTML5 papers enriched with full sections and 2,224,198 LaTeX formulas written to data/silver/year=2026/papers.parquet'
+    message: '9,015 HTML5 papers enriched with full sections and 2,220,938 LaTeX formulas written to data/silver/year=2026/papers.parquet'
   },
   {
     id: 'l-12',
     time: '2026-10-03 04:52:10',
     level: 'INFO',
     tag: 'SILVER/DUCKDB',
-    message: 'DuckDB engine registered view over Silver Parquet partition (Row count: 10,000, 231.73 MB)'
+    message: 'DuckDB engine registered view over Silver Parquet partition (Row count: 10,000, 13.98 KB)'
   },
   {
     id: 'l-13',

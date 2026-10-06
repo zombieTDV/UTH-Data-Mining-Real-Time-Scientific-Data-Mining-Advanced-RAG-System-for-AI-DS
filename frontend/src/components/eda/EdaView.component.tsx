@@ -1046,15 +1046,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. HTML5 FULL-TEXT:</span>
-              <strong style={{ color: '#059669' }}>{overview.enriched_html_papers?.toLocaleString() || '11,763'} ({((overview.enrichment_ratio || 0.9048) * 100).toFixed(1)}%)</strong>
+              <strong style={{ color: '#059669' }}>{overview.enriched_html_papers?.toLocaleString() || '9,015'} ({((overview.enrichment_ratio || 0.9015) * 100).toFixed(2)}%)</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>3. LATEX MATH:</span>
-              <strong style={{ color: '#ea580c' }}>{overview.total_math_formulas ? `${(overview.total_math_formulas / 1000000).toFixed(2)}M` : '2.77M'} formulas</strong>
+              <strong style={{ color: '#ea580c' }}>{overview.total_math_formulas ? `${(overview.total_math_formulas / 1000000).toFixed(2)}M` : '2.22M'} formulas</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>4. DEEP CORPUS:</span>
-              <strong style={{ color: '#2563eb' }}>{overview.total_words ? `${(overview.total_words / 1000000).toFixed(2)}M` : '60.98M'} words</strong>
+              <strong style={{ color: '#2563eb' }}>{overview.total_words ? `${(overview.total_words / 1000000).toFixed(2)}M` : '47.78M'} words</strong>
             </div>
           </div>
         )}
@@ -3253,7 +3253,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
               {/* Subtitle */}
               <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '10px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                Kiểm định thực nghiệm trên n = 11,763 bài báo có cấu trúc HTML5 đầy đủ trong Lakehouse.
+                Kiểm định thực nghiệm trên n = 9,015 bài báo có cấu trúc HTML5 đầy đủ trong Lakehouse.
               </div>
 
               {/* 4x4 Heatmap Table */}
