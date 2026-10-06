@@ -23,7 +23,7 @@ class RagService:
     def _build_prompt_and_context(self, req: ChatRequest) -> Tuple[List[dict], List[ChunkDto], List[str]]:
         """Retrieves candidates from LanceDB, reranks with cross-encoder, and constructs strictly grounded academic prompts."""
         # 1. Retrieve wider candidate pool from LanceDB (Hybrid mode)
-        candidate_k = settings.RERANKER_CANDIDATE_K if settings.RERANKER_ENABLED else (req.top_k or 5)
+        candidate_k = settings.RERANKER_CANDIDATE_K if settings.RERANKER_ENABLED else max(req.top_k or 5, 15)
         search_req = SearchRequest(
             query=req.query,
             top_k=candidate_k,
@@ -78,7 +78,8 @@ class RagService:
             "3. MANDATORY CITATIONS: Every substantive technical claim, architectural detail, and performance metric must cite the exact paper using `[Paper: {paper_id}]`.\n"
             "4. DIRECT & CONCISE: Answer directly, concisely, and formally without introductory conversational pleasantries, filler, or unrequested tangential background.\n"
             "5. PRESERVE LATEX: If mathematical formulas are discussed, preserve exact LaTeX notation like $...$ or $$...$$.\n"
-            f"6. OBJECTIVE SYNTHESIS: When multiple papers discuss related concepts, compare their approaches objectively.{authority_note}"
+            "6. ORIGIN & DERIVED WORK ACCURACY: When a paper applies, adapts, or extends a well-known methodology (e.g., Classifier-Free Guidance, LoRA, FlashAttention), explicitly clarify that the paper applies or extends the technique to its domain, rather than claiming it invented the foundational method.\n"
+            f"7. OBJECTIVE SYNTHESIS: When multiple papers discuss related concepts, compare their approaches objectively.{authority_note}"
         )
 
         context_text = "\n".join(context_parts)

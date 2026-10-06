@@ -22,11 +22,11 @@ export const MetricsBento: FC = () => {
 
       <StatCard
         label="Gold Zone Vector Lakehouse"
-        badge="768 Dim"
+        badge="384 Dim"
         badgeColor="var(--accent-gold)"
         value="143,523"
         description="LanceDB Contextual Chunks"
-        footerLeft="Nomic-embed-v1.5"
+        footerLeft="MiniLM-L6-v2"
         footerRight="Cosine ANN Metric"
         glowColor="rgba(234, 179, 8, 0.08)"
       />

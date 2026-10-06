@@ -1,8 +1,8 @@
 """
 backend/app/services/embedder_service.py
 ----------------------------------------
-Local Embedding Service for Dense Retrieval wrapping Nomic Embed Text v1.5.
-Provides 768-dimensional normalized dense vectors for LanceDB cosine similarity.
+Local Embedding Service for Dense Retrieval wrapping sentence-transformers/all-MiniLM-L6-v2.
+Provides 384-dimensional normalized dense vectors matching LanceDB Gold Lakehouse schema.
 """
 
 import logging
@@ -12,9 +12,9 @@ logger = logging.getLogger("embedder_service")
 
 
 class EmbedderService:
-    """Manages offline embedding generation using Nomic Embed Text v1.5."""
+    """Manages offline embedding generation using sentence-transformers/all-MiniLM-L6-v2."""
 
-    def __init__(self, model_name: str = "nomic-ai/nomic-embed-text-v1.5"):
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
         self.model_name = model_name
         self.tokenizer = None
         self.model = None
@@ -45,28 +45,27 @@ class EmbedderService:
 
             self._torch = torch
             self._F = F
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
-            self.model = AutoModel.from_pretrained(self.model_name, trust_remote_code=True)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.model = AutoModel.from_pretrained(self.model_name)
             self.model.eval()
             self._ready = True
-            logger.info("[EMBEDDER] Embedding model loaded successfully.")
+            logger.info("[EMBEDDER] Embedding model loaded successfully (dim=384).")
         except Exception as e:
             logger.warning("[EMBEDDER] Failed to load embedding model: %s. Dense search will fall back to FTS.", str(e))
             self._ready = False
 
     def embed_query(self, query: str) -> Optional[List[float]]:
-        """Generates a 768-dimensional L2-normalized embedding for a search query."""
+        """Generates a 384-dimensional L2-normalized embedding for a search query."""
         self._lazy_init()
         if not self._ready or self.model is None or self.tokenizer is None:
             return None
 
         try:
-            formatted_query = f"search_query: {query}"
             inputs = self.tokenizer(
-                [formatted_query],
+                [query.strip()],
                 padding=True,
                 truncation=True,
-                max_length=1024,
+                max_length=512,
                 return_tensors="pt",
             )
             with self._torch.no_grad():

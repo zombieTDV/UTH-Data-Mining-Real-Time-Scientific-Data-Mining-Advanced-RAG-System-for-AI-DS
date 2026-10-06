@@ -60,7 +60,7 @@ const RESEARCH_PROMPT_SUGGESTIONS = [
 ];
 
 const RAG_STREAMING_STATUSES = [
-  'Querying LanceDB Gold Lakehouse (143,523 vector 768-D)...',
+  'Querying LanceDB Gold Lakehouse (143,523 vectors 384-D)...',
   'Verifying context & arXiv citations...',
   'Qwen2.5-7B synthesizing academic response...',
 ];
@@ -69,7 +69,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
     sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **13,000 harvested papers**, **2.77M formulas**, and **143,523 LanceDB vector embeddings** (Nomic v1.5 768-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
+    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **13,000 harvested papers**, **2.77M formulas**, and **143,523 LanceDB vector embeddings** (MiniLM 384-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
     timestamp: '12:00:00',
   },
 ];
@@ -596,7 +596,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
           <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
-            13,000 Papers · 143.5k LanceDB Vectors (Nomic 768-D)
+            13,000 Papers · 143.5k LanceDB Vectors (MiniLM 384-D)
           </span>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
@@ -845,7 +845,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       }}
                     >
                       <span style={{ color: '#10b981', fontWeight: 700 }}>
-                        ● LanceDB Vector ANN (768-D)
+                        ● LanceDB Vector ANN (384-D)
                       </span>
                       <span>·</span>
                       <span>Sim: <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{msg.similarity_score || '0.8510'}</strong></span>

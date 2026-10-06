@@ -36,7 +36,7 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-03 13:30:12',
     level: 'SUCCESS',
     tag: 'STORAGE/GOLD',
-    message: 'LanceDB Gold multi-modal index built: 143,523 text embeddings (768-dim, cosine metric)'
+    message: 'LanceDB Gold multi-modal index built: 143,523 text embeddings (384-dim, cosine metric)'
   },
   {
     id: 'l-05',

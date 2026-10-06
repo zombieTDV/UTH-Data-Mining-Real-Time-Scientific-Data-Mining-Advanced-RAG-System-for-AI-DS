@@ -116,11 +116,14 @@ class RetrievalService:
 
         score = 0.0
 
-        # 1. Exact phrase match bonus
+        # 1. Exact phrase and title match bonus
         if len(q_lower) > 5 and q_lower in t_lower:
             score += 5.0
-        if title_lower and len(q_lower) > 5 and q_lower in title_lower:
-            score += 8.0
+        if title_lower:
+            if len(q_lower) > 5 and q_lower in title_lower:
+                score += 8.0
+            if len(title_lower) >= 8 and title_lower in q_lower:
+                score += 10.0
 
         # 2. Extract technical terms and acronyms (e.g. DPO, LoRA, RoPE, GQA, r=16)
         words = re.findall(r"\b[A-Za-z0-9_-]{2,}\b", query)
@@ -257,6 +260,59 @@ class RetrievalService:
                 logger.debug("[RETRIEVAL] Could not read metadata from %s: %s", p, err)
         return {}
 
+    def _clean_query_for_title_matching(self, query: str) -> str:
+        """Strips conversational noise, filler phrases, and common articles to extract core title/topic."""
+        q = query.strip()
+        cleaned = re.sub(
+            r"^(?:tell\s+me\s+about|can\s+you\s+explain|could\s+you\s+explain|what\s+is|what\s+are|do\s+you\s+have|give\s+me|show\s+me|explain|describe|about)\s+",
+            "",
+            q,
+            flags=re.IGNORECASE,
+        ).strip()
+        cleaned = re.sub(r"^(?:the|a|an)\s+", "", cleaned, flags=re.IGNORECASE).strip()
+        cleaned = re.sub(
+            r"\s+(?:paper|article|manuscript|study|thesis|document|work)\b.*$",
+            "",
+            cleaned,
+            flags=re.IGNORECASE,
+        ).strip()
+        return cleaned
+
+    def _search_title_matches(self, cleaned_title: str) -> List[dict]:
+        """Queries Silver Parquet catalogs to find papers whose title closely matches the user's intent."""
+        if not cleaned_title or len(cleaned_title) < 4:
+            return []
+
+        search_paths = [
+            settings.PROJECT_ROOT_DIR / "data" / "silver" / "papers.parquet",
+            settings.PROJECT_ROOT_DIR / "data" / "silver" / "year=2026" / "papers.parquet",
+            settings.SILVER_PARQUET,
+        ]
+
+        import duckdb
+        for p in search_paths:
+            if not p or not p.exists():
+                continue
+            try:
+                con = duckdb.connect()
+                desc = con.execute(f"DESCRIBE SELECT * FROM '{p.as_posix()}'").df()
+                cols = set(desc["column_name"].tolist())
+                order_clause = "ORDER BY citation_count DESC" if "citation_count" in cols else ""
+                sql = f"""
+                    SELECT paper_id, title, year, doi
+                    FROM '{p.as_posix()}'
+                    WHERE lower(title) LIKE ?
+                    {order_clause}
+                    LIMIT 3
+                """
+                like_term = f"%{cleaned_title.lower()}%"
+                df = con.execute(sql, [like_term]).df()
+                if not df.empty:
+                    return df.to_dict(orient="records")
+            except Exception as err:
+                logger.debug("[RETRIEVAL] Title search error on %s: %s", p, err)
+        return []
+
     def search(self, req: SearchRequest) -> List[ChunkDto]:
         if not self.is_ready():
             logger.warning("[RETRIEVAL] LanceDB table not ready. Returning empty list.")
@@ -312,15 +368,74 @@ class RetrievalService:
                 except Exception as pid_err:
                     logger.debug("[RETRIEVAL] Direct paper ID search failed: %s", pid_err)
 
-            # Retrieve candidate pool for authority reranking and fusion
-            candidate_limit = max(k * 2, 10)
+            # Direct Title Match Search: if user query targets a specific paper title
+            cleaned_title_query = self._clean_query_for_title_matching(req.query)
+            title_hits = self._search_title_matches(cleaned_title_query)
+            title_chunks: List[ChunkDto] = []
+            seen_chunk_ids = set()
+
+            if title_hits:
+                for th in title_hits:
+                    pid = str(th.get("paper_id", ""))
+                    try:
+                        t_rows = self.table.search().where(f"paper_id = '{pid}'").limit(3).to_pandas()
+                        if t_rows.empty and pid.startswith("openalex:"):
+                            bare = pid.replace("openalex:", "")
+                            t_rows = self.table.search().where(f"paper_id = '{bare}'").limit(3).to_pandas()
+                        for _, tr in t_rows.iterrows():
+                            cid = str(tr.get("chunk_id", ""))
+                            if cid in seen_chunk_ids:
+                                continue
+                            seen_chunk_ids.add(cid)
+
+                            raw_authors = tr.get("authors")
+                            if hasattr(raw_authors, "tolist"):
+                                authors_list = [str(a) for a in raw_authors.tolist()]
+                            elif isinstance(raw_authors, list):
+                                authors_list = [str(a) for a in raw_authors]
+                            else:
+                                authors_list = [str(raw_authors)] if raw_authors else []
+
+                            norm_pr, auth_author = self._match_authority(authors_list)
+                            if norm_pr == 0.0 and "pagerank" in tr and tr["pagerank"] is not None:
+                                try:
+                                    pr_val = float(tr["pagerank"])
+                                    if pr_val > 0:
+                                        norm_pr = min(1.0, pr_val / max(1e-6, self.max_pagerank))
+                                except Exception:
+                                    pass
+
+                            title_chunks.append(
+                                ChunkDto(
+                                    chunk_id=cid,
+                                    paper_id=pid,
+                                    title=str(th.get("title") or tr.get("title", "")),
+                                    text=str(tr.get("text", "")),
+                                    abstract=str(tr.get("abstract")) if tr.get("abstract") else None,
+                                    authors=authors_list,
+                                    year=int(th.get("year") or tr.get("year", 2026)),
+                                    primary_category=str(th.get("primary_category") or tr.get("primary_category", "cs.AI")),
+                                    section_title=str(tr.get("section_title", "")),
+                                    doi=str(th.get("doi")) if th.get("doi") else (str(tr.get("doi")) if tr.get("doi") else None),
+                                    score=0.96,
+                                    source=f"lancedb://{getattr(self, 'table_name', settings.LANCEDB_TABLE)}",
+                                    authority_score=round(norm_pr, 4) if norm_pr > 0 else None,
+                                    authority_author=auth_author,
+                                    rule_expansions=rule_expansions if rule_expansions else None,
+                                )
+                            )
+                    except Exception as th_err:
+                        logger.debug("[RETRIEVAL] Title candidate fetch error: %s", th_err)
+
+            # Retrieve rich candidate pool for authority reranking and fusion
+            candidate_limit = max(k * 8, 40)
 
             # Execute search on LanceDB
             query_builder = None
             if mode in ("vector", "dense", "hybrid"):
                 query_vector = embedder_service.embed_query(req.query)
                 if query_vector is not None and self.vector_dim == len(query_vector):
-                    query_builder = self.table.search(query_vector).metric("cosine")
+                    query_builder = self.table.search(query_vector, vector_column_name="vector").metric("cosine")
                 else:
                     query_builder = self.table.search(req.query)
             else:
@@ -331,8 +446,13 @@ class RetrievalService:
 
             rows = query_builder.limit(candidate_limit).to_pandas()
 
-            candidates: List[ChunkDto] = []
+            candidates: List[ChunkDto] = list(title_chunks)
             for _, r in rows.iterrows():
+                cid = str(r.get("chunk_id", ""))
+                if cid in seen_chunk_ids:
+                    continue
+                seen_chunk_ids.add(cid)
+
                 raw_authors = r.get("authors")
                 if hasattr(raw_authors, "tolist"):
                     authors_list = [str(a) for a in raw_authors.tolist()]
@@ -359,12 +479,13 @@ class RetrievalService:
                     except Exception:
                         pass
 
-                # Boost score by up to 25% based on normalized PageRank
+                # Boost score by up to 25% based on normalized PageRank and clamp to 0.9999
                 boosted_score = base_score * (1.0 + 0.25 * norm_pr) if norm_pr > 0 else base_score
+                clamped_score = min(0.9999, round(boosted_score, 4))
 
                 candidates.append(
                     ChunkDto(
-                        chunk_id=str(r.get("chunk_id", "")),
+                        chunk_id=cid,
                         paper_id=str(r.get("paper_id", "")),
                         title=str(r.get("title", "")),
                         text=str(r.get("text", "")),
@@ -373,7 +494,7 @@ class RetrievalService:
                         year=int(r.get("year", 2026)) if r.get("year") else 2026,
                         primary_category=str(r.get("primary_category", "")) if r.get("primary_category") else None,
                         section_title=str(r.get("section_title", "")) if r.get("section_title") else None,
-                        score=round(boosted_score, 4),
+                        score=clamped_score,
                         source=f"lancedb://{getattr(self, 'table_name', settings.LANCEDB_TABLE)}",
                         authority_score=round(norm_pr, 4) if norm_pr > 0 else None,
                         authority_author=auth_author,
@@ -405,10 +526,10 @@ class RetrievalService:
                     max_rrf = 2.0 / 61.0
                     scaled_rrf = 0.70 + (rrf_score / max_rrf) * 0.25
 
-                    # Re-apply normalized PageRank boost
+                    # Re-apply normalized PageRank boost and strictly clamp to <= 0.9999
                     norm_pr = c.authority_score or 0.0
                     fused_boosted = scaled_rrf * (1.0 + 0.25 * norm_pr) if norm_pr > 0 else scaled_rrf
-                    c.score = round(fused_boosted, 4)
+                    c.score = min(0.9999, round(fused_boosted, 4))
 
             # Re-rank candidates by final score and slice to top-k
             candidates.sort(key=lambda c: c.score or 0.0, reverse=True)

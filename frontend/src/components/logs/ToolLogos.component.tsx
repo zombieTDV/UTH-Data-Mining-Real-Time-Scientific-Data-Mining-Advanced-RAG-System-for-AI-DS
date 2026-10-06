@@ -101,11 +101,11 @@ export const TOOLS_DATA: ToolItem[] = [
     )
   },
   {
-    id: 'nomic',
-    name: 'Nomic Embed v1.5',
+    id: 'minilm',
+    name: 'MiniLM-L6-v2',
     category: 'Model & Engine',
     role: 'Academic Literature Embeddings',
-    spec: '768 Dimensions · Matryoshka · 8k Context',
+    spec: '384 Dimensions · Sub-5ms · Cosine ANN',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
