@@ -19,6 +19,9 @@ interface ChatMessage {
   context_chunks_used?: number;
   timestamp: string;
   isStreaming?: boolean;
+  authority_boosted?: boolean;
+  top_influencer_author?: string;
+  rule_expansions?: string[];
 }
 
 interface InspectedPaperData {
@@ -30,6 +33,7 @@ interface InspectedPaperData {
   sectionTitle?: string;
   score?: string;
   chunkText?: string;
+  doi?: string;
 }
 
 const RESEARCH_PROMPT_SUGGESTIONS = [
@@ -55,11 +59,17 @@ const RESEARCH_PROMPT_SUGGESTIONS = [
   },
 ];
 
+const RAG_STREAMING_STATUSES = [
+  'Querying LanceDB Gold Lakehouse (143,523 vectors 384-D)...',
+  'Verifying context & arXiv citations...',
+  'Qwen2.5-7B synthesizing academic response...',
+];
+
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
     sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **10,000 harvested papers**, **2.22M formulas**, and **143,523 LanceDB vector embeddings** (Nomic v1.5 768-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
+    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **13,000 harvested papers**, **2.77M formulas**, and **143,523 LanceDB vector embeddings** (MiniLM 384-D). Every response is strictly grounded in verified arXiv full texts. What scientific question can I answer for you today?',
     timestamp: '12:00:00',
   },
 ];
@@ -75,6 +85,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [useStreaming, setUseStreaming] = useState<boolean>(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [streamingStepIndex, setStreamingStepIndex] = useState<number>(0);
 
   // Paper Dossier Drawer State
   const [inspectedPaper, setInspectedPaper] = useState<InspectedPaperData | null>(null);
@@ -82,6 +93,21 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Cycle streaming status text when waiting for the first token
+  useEffect(() => {
+    const hasStreamingEmpty = messages.some((m) => m.isStreaming && !m.text);
+    if (!hasStreamingEmpty) {
+      setStreamingStepIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setStreamingStepIndex((prev) => (prev + 1) % RAG_STREAMING_STATUSES.length);
+    }, 1400);
+
+    return () => clearInterval(interval);
+  }, [messages]);
 
   useEffect(() => {
     if (initialQuery && initialQuery.trim()) {
@@ -116,32 +142,40 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       const chunks = await fetchPaper(paperId);
       if (chunks && chunks.length > 0) {
         const first = chunks[0];
+        const targetSection = sectionTitle?.toLowerCase();
+        const matchedChunk = targetSection
+          ? chunks.find(c => c.section_title && c.section_title.toLowerCase().includes(targetSection))
+          : undefined;
+        const displayChunk = matchedChunk || chunks.find(c => c.section_title && c.section_title.toLowerCase() !== 'abstract') || first;
+
+        const abstractChunk = chunks.find(c => c.section_title?.toLowerCase() === 'abstract' || c.chunk_id?.includes('_c000'));
+        const resolvedAbstract = first.abstract || abstractChunk?.text || displayChunk.abstract || 'Abstract content indexed in LanceDB Lakehouse.';
+
         setInspectedPaper({
           paperId,
           title: first.title || `Paper ${paperId}`,
-          authors: first.authors || ['Academic Authors'],
+          authors: (first.authors && first.authors.length > 0) ? first.authors : ['Academic Authors'],
           category: first.primary_category || 'cs.AI',
-          abstract: first.abstract || '',
-          sectionTitle: first.sections?.[0]?.heading || sectionTitle || 'Section 3: Methodology',
-          score: '0.8510',
-          chunkText: first.sections?.[0]?.text?.slice(0, 300) + '...' || '',
+          abstract: resolvedAbstract,
+          sectionTitle: displayChunk.section_title || sectionTitle || 'Main Methodology',
+          score: displayChunk.score ? displayChunk.score.toFixed(4) : (first.score ? first.score.toFixed(4) : '0.8510'),
+          chunkText: displayChunk.text ? (displayChunk.text.length > 350 ? displayChunk.text.slice(0, 350) + '...' : displayChunk.text) : '',
+          doi: first.doi || undefined,
         });
       }
-    } catch {
-      // Graceful fallback metadata for known paper IDs
-      if (paperId.includes('2310.01407')) {
-        setInspectedPaper({
-          paperId: '2310.01407',
-          title: 'CoDi: Conditional Diffusion Distillation for Few-Step Latent Generation',
-          authors: ['Hao Chen', 'Yang Liu', 'Wei Wang et al.'],
-          category: 'cs.CV',
-          abstract: 'We present CoDi, an efficient distillation method for conditional continuous-time diffusion models that guarantees convergence along teacher probability flow trajectories with minimal discretization error.',
-          sectionTitle: 'Section 3: Methodology and Intermediate Latent Sampling',
-          score: '0.8842',
-          chunkText: 'Sampling the intermediate latent variable z_t at timestep t along the teacher probability flow ODE ensures that the distilled student network aligns with the teacher trajectory under condition c, preserving cross-attention alignment.',
-        });
-      }
+    } catch (err) {
+      setInspectedPaper({
+        paperId,
+        title: `Paper ID: ${paperId}`,
+        authors: ['Scientific Research Group'],
+        category: 'cs.AI',
+        abstract: 'Unable to retrieve abstract details for this record from Lakehouse.',
+        sectionTitle: sectionTitle || 'Full Document Text',
+        score: '0.8500',
+        chunkText: 'Chunk content is currently unavailable or updating.',
+      });
     } finally {
+
       setIsDossierLoading(false);
     }
   };
@@ -177,14 +211,15 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   };
 
   const handleStreamingSend = (query: string) => {
+      const startTime = Date.now();
       const assistantMsgId = `ast-${Date.now()}`;
       const newAssistantMsg: ChatMessage = {
         id: assistantMsgId,
         sender: 'assistant',
         text: '',
         citations: [],
-        similarity_score: '0.8510',
-        generation_time: '0.01s',
+        similarity_score: '0.8500',
+        generation_time: '0.00s',
         context_chunks_used: 5,
         timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
         isStreaming: true,
@@ -195,16 +230,27 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       let accumulated = '';
       const unsubscribe = streamChatQuery({
         query,
+        onMeta: (meta) => {
+          updateAssistantMessage(assistantMsgId, {
+            similarity_score: meta.similarity_score ?? '0.8500',
+            context_chunks_used: meta.context_chunks_used ?? 5,
+            authority_boosted: meta.authority_boosted,
+            top_influencer_author: meta.top_influencer_author,
+            rule_expansions: meta.rule_expansions,
+          });
+        },
         onToken: (token) => {
           accumulated += token;
           updateAssistantMessage(assistantMsgId, { text: accumulated });
         },
         onDone: () => {
+          const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
           const citeMatches = Array.from(
-            accumulated.matchAll(/\[Paper:\s*([^,\]]+),\s*Section:\s*([^\]]+)\]/g)
-          ).map((m) => `Paper: ${m[1].trim()}, Section: ${m[2].trim()}`);
+            accumulated.matchAll(/\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]/g)
+          ).map((m) => m[2] ? `Paper: ${m[1].trim()}, Section: ${m[2].trim()}` : `Paper: ${m[1].trim()}`);
           updateAssistantMessage(assistantMsgId, {
             isStreaming: false,
+            generation_time: `${elapsedSec}s`,
             citations: citeMatches.length > 0 ? Array.from(new Set(citeMatches)) : ['Paper: 2310.01407, Section: 3 Methodology'],
           });
           setLoading(false);
@@ -237,13 +283,17 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           citations: res.citations ?? [],
           similarity_score: res.similarity_score ?? '0.8510',
           generation_time: res.generation_time ?? '0.01s',
-          context_chunks_used: res.context_chunks_used ?? 5,
+          authority_boosted: res.authority_boosted,
+          top_influencer_author: res.top_influencer_author,
+          rule_expansions: res.rule_expansions,
         });
-      } catch {
+      } catch (err: any) {
         updateAssistantMessage(fallbackMsgId, {
-          text: `**Grounded Research Synthesis:**\n\nFor the inquiry: *"${query}"*, the LanceDB Gold vector index retrieved relevant context chunks across the corpus.\n\nThe findings confirm empirical validation in academic literature, emphasizing parameter efficiency, gradient consistency, and strict alignment with scientific benchmarks.`,
-          citations: ['Paper: 2310.01407, Section: 3 Methodology'],
-          similarity_score: '0.8164',
+          text: `**System Alert:** ${err?.message || 'Could not connect to the backend service'}. Please verify that the FastAPI backend is running on port 8000.`,
+          citations: [],
+          similarity_score: '0.0000',
+          generation_time: '0.00s',
+          context_chunks_used: 0,
         });
       }
       setLoading(false);
@@ -266,14 +316,17 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         generation_time: res.generation_time ?? '0.01s',
         context_chunks_used: res.context_chunks_used ?? 5,
         isStreaming: false,
+        authority_boosted: res.authority_boosted,
+        top_influencer_author: res.top_influencer_author,
+        rule_expansions: res.rule_expansions,
       });
-    } catch {
+    } catch (err: any) {
       updateAssistantMessage(assistantMsgId, {
-        text: `**Grounded Research Synthesis:**\n\nFor the scientific inquiry: *"${query}"*, the LanceDB Gold vector index retrieved relevant context chunks across the academic corpus.\n\nThe empirical findings confirm parameter efficiency, latent manifold alignment, and strict convergence according to established mathematical theorems.`,
-        citations: ['Paper: 2310.01407, Section: 3 Methodology'],
-        similarity_score: '0.8510',
-        generation_time: '0.01s',
-        context_chunks_used: 5,
+        text: `**System Alert:** ${err?.message || 'Could not connect to the backend service'}. Please verify that the FastAPI backend is running on port 8000.`,
+        citations: [],
+        similarity_score: '0.0000',
+        generation_time: '0.00s',
+        context_chunks_used: 0,
         isStreaming: false,
       });
     }
@@ -304,23 +357,23 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   };
 
   const renderInlineContent = (rawText: string): React.ReactNode[] => {
-    const tokenRegex = /(\[Paper:\s*[^,\]]+,\s*Section:\s*[^\]]+\]|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
+    const tokenRegex = /(\[Paper:\s*[^,\]]+(?:,\s*Section:\s*[^\]]+)?\]|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
     const parts = rawText.split(tokenRegex);
 
     return parts.map((part, idx) => {
       if (!part) return null;
 
-      const citeMatch = part.match(/^\[Paper:\s*([^,\]]+),\s*Section:\s*([^\]]+)\]$/);
+      const citeMatch = part.match(/^\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]$/);
       if (citeMatch) {
         const paperId = citeMatch[1].trim();
-        const section = citeMatch[2].trim();
+        const section = citeMatch[2]?.trim() || 'Methodology';
         return (
           <button
             key={`cite-${idx}`}
             type="button"
             onClick={() => handleInspectCitation(paperId, section)}
             className="citation-chip"
-            title={`Inspect Academic Dossier: arXiv:${paperId} (${section})`}
+            title={`Inspect Academic Dossier: ${paperId.startsWith('openalex:') ? paperId : `arXiv:${paperId}`} (${section})`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -341,7 +394,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             </svg>
-            <span>arXiv:{paperId} · {section.replace(/^Section\s*\d+:?\s*/i, '')}</span>
+            <span>{paperId.startsWith('openalex:') ? paperId : `arXiv:${paperId}`} · {section.replace(/^Section\s*\d+:?\s*/i, '')}</span>
           </button>
         );
       }
@@ -543,7 +596,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
           <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
-            10,000 Papers · 143k LanceDB Vectors (Nomic 768-D)
+            13,000 Papers · 143.5k LanceDB Vectors (MiniLM 384-D)
           </span>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
@@ -690,28 +743,95 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   >
                     {isUser ? (
                       <p style={{ margin: 0, fontWeight: 500 }}>{msg.text}</p>
-                    ) : (
-                      renderMessageContent(msg.text)
-                    )}
-
-                    {/* Streaming Cursor Indicator */}
-                    {msg.isStreaming && (
-                      <span
+                    ) : !msg.text && msg.isStreaming ? (
+                      <div
                         style={{
-                          display: 'inline-block',
-                          width: '8px',
-                          height: '14px',
-                          marginLeft: '4px',
-                          backgroundColor: '#38bdf8',
-                          verticalAlign: 'middle',
-                          animation: 'pulseFlow 1s infinite',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '2px 0',
+                          fontSize: '12.5px',
+                          color: isDark ? '#94a3b8' : '#64748b',
                         }}
-                      />
+                      >
+                        {/* Animated typing dots */}
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            background: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.1)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: '5px',
+                              height: '5px',
+                              borderRadius: '50%',
+                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
+                              display: 'inline-block',
+                              animation: 'typingDot 1.4s infinite ease-in-out',
+                              animationDelay: '0s',
+                            }}
+                          />
+                          <span
+                            style={{
+                              width: '5px',
+                              height: '5px',
+                              borderRadius: '50%',
+                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
+                              display: 'inline-block',
+                              animation: 'typingDot 1.4s infinite ease-in-out',
+                              animationDelay: '0.2s',
+                            }}
+                          />
+                          <span
+                            style={{
+                              width: '5px',
+                              height: '5px',
+                              borderRadius: '50%',
+                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
+                              display: 'inline-block',
+                              animation: 'typingDot 1.4s infinite ease-in-out',
+                              animationDelay: '0.4s',
+                            }}
+                          />
+                        </div>
+
+                        {/* Status text on the same line */}
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            letterSpacing: '0.2px',
+                          }}
+                        >
+                          {RAG_STREAMING_STATUSES[streamingStepIndex]}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        {renderMessageContent(msg.text)}
+                        {msg.isStreaming && (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              width: '2px',
+                              height: '14px',
+                              marginLeft: '3px',
+                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
+                              verticalAlign: '-2px',
+                              animation: 'cursorBlink 0.8s infinite',
+                            }}
+                          />
+                        )}
+                      </>
                     )}
                   </div>
 
                   {/* Telemetry Radar & Citations for Assistant */}
-                  {!isUser && (
+                  {!isUser && (!msg.isStreaming || (msg.text && msg.text.trim().length > 0)) && (
                     <div
                       style={{
                         display: 'flex',
@@ -725,7 +845,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       }}
                     >
                       <span style={{ color: '#10b981', fontWeight: 700 }}>
-                        ● LanceDB Vector ANN (768-D)
+                        ● LanceDB Vector ANN (384-D)
                       </span>
                       <span>·</span>
                       <span>Sim: <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{msg.similarity_score || '0.8510'}</strong></span>
@@ -733,6 +853,50 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       <span>Latency: <strong style={{ color: isDark ? '#f59e0b' : '#d97706' }}>{msg.generation_time || '0.01s'}</strong></span>
                       <span>·</span>
                       <span>Context: {msg.context_chunks_used || 5} Chunks</span>
+
+                      {msg.authority_boosted && (
+                        <>
+                          <span>·</span>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              color: '#f59e0b',
+                              fontWeight: 700,
+                              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid rgba(245, 158, 11, 0.3)',
+                            }}
+                            title={`Tác giả bài báo nằm trong Top PageRank Citation Graph: ${msg.top_influencer_author || 'High-Impact Influencer'}`}
+                          >
+                            ★ Graph PageRank Boost {msg.top_influencer_author ? `(${msg.top_influencer_author.split('(')[0].trim()})` : ''}
+                          </span>
+                        </>
+                      )}
+
+                      {msg.rule_expansions && msg.rule_expansions.length > 0 && (
+                        <>
+                          <span>·</span>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              color: '#8b5cf6',
+                              fontWeight: 600,
+                              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : '#f3e8ff',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid rgba(139, 92, 246, 0.3)',
+                            }}
+                            title={`Mở rộng từ khóa dựa trên luật kết hợp FP-Growth: ${msg.rule_expansions.join(', ')}`}
+                          >
+                            ☍ Rules: {msg.rule_expansions.join(', ')}
+                          </span>
+                        </>
+                      )}
 
                       <button
                         type="button"
@@ -859,7 +1023,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   color: '#ffffff',
                 }}
               >
-                ARXIV DOSSIER
+                {inspectedPaper.paperId.startsWith('openalex:') ? 'OPENALEX DOSSIER' : 'ARXIV DOSSIER'}
               </span>
               <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: isDark ? '#38bdf8' : '#0284c7', fontWeight: 700 }}>
                 {inspectedPaper.paperId}
@@ -975,7 +1139,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 {/* External Action Links */}
                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px' }}>
                   <a
-                    href={`https://arxiv.org/abs/${inspectedPaper.paperId.replace(/^arXiv:/i, '')}`}
+                    href={
+                      inspectedPaper.doi
+                        ? inspectedPaper.doi
+                        : inspectedPaper.paperId.startsWith('openalex:')
+                        ? `https://openalex.org/${inspectedPaper.paperId.replace('openalex:', '')}`
+                        : `https://arxiv.org/abs/${inspectedPaper.paperId.replace(/^arXiv:/i, '')}`
+                    }
                     target="_blank"
                     rel="noreferrer"
                     style={{
@@ -993,7 +1163,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       fontFamily: 'var(--font-mono)',
                     }}
                   >
-                    <span>OPEN ARXIV ABSTRACT PAGE</span>
+                    <span>
+                      {inspectedPaper.doi
+                        ? 'OPEN DOI / ARTICLE PAGE'
+                        : inspectedPaper.paperId.startsWith('openalex:')
+                        ? 'OPEN OPENALEX PAGE'
+                        : 'OPEN ARXIV ABSTRACT PAGE'}
+                    </span>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                       <polyline points="15 3 21 3 21 9" />
@@ -1081,7 +1257,12 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   opacity: loading ? 0.6 : 1,
                 }}
               >
-                <span>⚡ {item.label}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none" style={{ color: '#f59e0b' }}>
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                  <span>{item.label}</span>
+                </span>
               </button>
             ))}
           </div>
@@ -1108,7 +1289,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder="Ask any scientific inquiry across 10,000 papers..."
+                placeholder="Ask any scientific inquiry across 13,000 papers..."
                 style={{
                   width: '100%',
                   border: 'none',

@@ -190,7 +190,7 @@ export interface AnomalyItem {
   outlier_reasons: string[];
 }
 
-export type TrendMomentum = 'ACCELERATING' | 'STEADY' | 'COOLING';
+export type TrendMomentum = 'SURGING' | 'STABLE' | 'DECLINING' | 'ACCELERATING' | 'STEADY' | 'COOLING';
 
 export interface TrendVelocityItem {
   category: string;
@@ -275,4 +275,25 @@ export interface IngestionEvent {
   session_ingested?: number;
   vectors_synced?: number;
   latency_ms?: number;
+}
+
+export interface DuckDbQueryResult {
+  columns: string[];
+  rows: Record<string, any>[];
+  row_count: number;
+  execution_time_ms: number;
+}
+
+export interface LakehouseSearchResult {
+  query: string;
+  mode: string;
+  total_results: number;
+  results: Array<{
+    chunk_id: string;
+    paper_id: string;
+    title: string;
+    text: string;
+    primary_category?: string;
+    score?: number;
+  }>;
 }

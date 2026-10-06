@@ -2,6 +2,8 @@ export {
   fetchHealth,
   fetchStorageStats,
   triggerMiningPipeline,
+  executeDuckDbQuery,
+  searchLakehouse,
 } from './mining.service';
 
 export {

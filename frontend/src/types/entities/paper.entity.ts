@@ -22,15 +22,26 @@ export interface PaperEntity {
   authors: string[];
   abstract: string;
   primary_category: string;
-  categories: string[];
-  published_date: string;
+  categories?: string[];
+  published_date?: string;
   updated_date?: string;
-  math_count: number;
-  word_count: number;
-  section_count: number;
+  math_count?: number;
+  word_count?: number;
+  section_count?: number;
   sections?: PaperEntitySection[];
   html_url?: string;
   pdf_url?: string;
+
+  // LanceDB ChunkDto properties returned by GET /api/papers/{paper_id}
+  chunk_id?: string;
+  text?: string;
+  section_title?: string;
+  score?: number;
+  year?: number;
+  source?: string;
+  authority_score?: number;
+  authority_author?: string;
+  rule_expansions?: string[];
 }
 
 export interface PaperChunkEntity {

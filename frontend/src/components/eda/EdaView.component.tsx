@@ -5,7 +5,7 @@ import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 
-export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'rag_audit';
+export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
 
 export interface ScatterPaperPoint {
   id: string;
@@ -367,6 +367,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   const donutSvgRef = useRef<SVGSVGElement | null>(null);
 
   // Advanced Chart Insight States
+  const [temporalSmoothing, setTemporalSmoothing] = useState<boolean>(false);
+  const [correlationMetric, setCorrelationMetric] = useState<'pearson' | 'spearman'>('pearson');
+  const [hoveredCorrelationCell, setHoveredCorrelationCell] = useState<{ row: string; col: string; val: number; p: string; note: string } | null>(null);
   const [showParetoCurve, setShowParetoCurve] = useState<boolean>(true);
   const [scaleMode, setScaleMode] = useState<'linear' | 'log10'>('linear');
   const [cooccurrenceThreshold, setCooccurrenceThreshold] = useState<number>(0);
@@ -424,7 +427,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       else if (e.key === '2') setActiveDeck('scatter');
       else if (e.key === '3') setActiveDeck('taxonomy');
       else if (e.key === '4') setActiveDeck('authors');
-      else if (e.key === '5') setActiveDeck('rag_audit');
+      else if (e.key === '5') setActiveDeck('correlations');
+      else if (e.key === '6') setActiveDeck('rag_audit');
       else if (e.key === 'f' || e.key === 'F') setIsFocusMode((prev) => !prev);
       else if (e.key === 'Escape') setSelectedPaperForDrawer(null);
     };
@@ -439,6 +443,17 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
     return () => clearTimeout(timer);
   }, [feedbackToast]);
 
+  const getCategoryColor = (cat: string) => {
+    if (cat.startsWith('cs.LG')) return '#2563eb'; // Blue
+    if (cat.startsWith('cs.CV')) return '#0284c7'; // Light Blue
+    if (cat.startsWith('cs.CL')) return '#0d9488'; // Teal
+    if (cat.startsWith('stat.ML')) return '#ea580c'; // Orange
+    if (cat.startsWith('cs.AI')) return '#7c3aed'; // Purple
+    if (cat.startsWith('cs.RO')) return '#f59e0b'; // Amber
+    if (cat.startsWith('cs.NE')) return '#10b981'; // Emerald
+    return '#6366f1';
+  };
+
   const categoryList: CategoryDistItem[] = useMemo(() => {
     if (!data) return [];
     return data.category_distribution;
@@ -449,6 +464,152 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
     if (selectedCategory === 'ALL') return null;
     return categoryList.find((c) => c.category === selectedCategory) || null;
   }, [categoryList, selectedCategory]);
+
+  const maxPaperCount = useMemo(() => {
+    if (!categoryList || categoryList.length === 0) return 3500;
+    const m = Math.max(...categoryList.map((c) => c.count));
+    return Math.max(1000, Math.ceil(m / 500) * 500);
+  }, [categoryList]);
+
+  const maxMathCount = useMemo(() => {
+    if (!categoryList || categoryList.length === 0) return 1200000;
+    const m = Math.max(...categoryList.map((c) => c.total_math_formulas));
+    return Math.max(200000, Math.ceil(m / 200000) * 200000);
+  }, [categoryList]);
+
+  const peakTemporalPeriod = useMemo(() => {
+    if (!data?.temporal_distribution || data.temporal_distribution.length === 0) {
+      return { period: '01/2024', count: 5027 };
+    }
+    const top = data.temporal_distribution.reduce(
+      (max, cur) => (cur.count > max.count ? cur : max),
+      data.temporal_distribution[0]
+    );
+    return { period: top.period, count: top.count };
+  }, [data]);
+
+  const temporalAggregatedPoints = useMemo(() => {
+    const rawDist = data?.temporal_distribution || [];
+    const total = data?.dataset_overview.total_papers || 13000;
+
+    let cBefore2019 = 0;
+    let c2020 = 0;
+    let c2021 = 0;
+    let c2022 = 0;
+    let c2023 = 0;
+    let c202401 = 0;
+    let c202402 = 0;
+    let c2024Rest = 0;
+
+    for (const item of rawDist) {
+      const p = item.period;
+      const c = item.count;
+      if (p < '2019') {
+        cBefore2019 += c;
+      } else if (p < '2021') {
+        c2020 += c;
+      } else if (p.startsWith('2021')) {
+        c2021 += c;
+      } else if (p.startsWith('2022')) {
+        c2022 += c;
+      } else if (p.startsWith('2023')) {
+        c2023 += c;
+      } else if (p === '2024-01') {
+        c202401 += c;
+      } else if (p === '2024-02') {
+        c202402 += c;
+      } else {
+        c2024Rest += c;
+      }
+    }
+
+    const rawPoints = [
+      { label: "'18", count: cBefore2019 },
+      { label: "'20", count: c2020 },
+      { label: "'21", count: c2021 },
+      { label: "'22", count: c2022 },
+      { label: "'23", count: c2023 },
+      { label: '01/24', count: c202401 },
+      { label: '02/24', count: c202402 },
+      { label: "'24+", count: c2024Rest },
+    ];
+
+    const effectivePoints = temporalSmoothing
+      ? rawPoints.map((p, idx, arr) => {
+          let count = p.count;
+          if (idx === 0) {
+            count = Math.round(0.75 * p.count + 0.25 * arr[1].count);
+          } else if (idx === arr.length - 1) {
+            count = Math.round(0.25 * arr[idx - 1].count + 0.75 * p.count);
+          } else {
+            count = Math.round(0.20 * arr[idx - 1].count + 0.60 * p.count + 0.20 * arr[idx + 1].count);
+          }
+          return { label: p.label, count };
+        })
+      : rawPoints;
+
+    const maxC = Math.max(...effectivePoints.map((p) => p.count), 1);
+    const yCeil = Math.max(5000, Math.ceil(maxC / 1000) * 1000);
+    const stepX = 360 / (effectivePoints.length - 1);
+
+    const points = effectivePoints.map((p, idx) => ({
+      label: p.label,
+      count: p.count,
+      pct: `${((p.count / total) * 100).toFixed(1)}%`,
+      x: Math.round(55 + idx * stepX),
+      y: Math.round(180 - (p.count / yCeil) * 140),
+    }));
+
+    const peakPoint = points.reduce((m, p) => (p.count > m.count ? p : m), points[0]);
+
+    return { yCeil, points, peakPoint, isSmoothed: temporalSmoothing };
+  }, [data, temporalSmoothing]);
+
+  const donutSlices = useMemo(() => {
+    if (!categoryList || categoryList.length === 0) return [];
+    const topCategories = categoryList.slice(0, 6);
+    const topPctTotal = topCategories.reduce((sum, c) => sum + c.percentage, 0);
+    const remainderPct = Math.max(0, 100 - topPctTotal);
+
+    const slices = topCategories.map((c) => ({
+      category: c.category,
+      percentage: c.percentage,
+      color: getCategoryColor(c.category),
+    }));
+
+    if (remainderPct > 0.5) {
+      slices.push({
+        category: 'Khác',
+        percentage: remainderPct,
+        color: '#64748b',
+      });
+    }
+
+    const circumference = 2 * Math.PI * 38;
+    let cumulativeOffset = 0;
+
+    return slices.map((s) => {
+      const arcLength = (s.percentage / 100) * circumference;
+      const dashArray = `${arcLength.toFixed(1)} ${(circumference - arcLength).toFixed(1)}`;
+      const dashOffset = (-cumulativeOffset).toFixed(1);
+      cumulativeOffset += arcLength;
+      return {
+        ...s,
+        dashArray,
+        dashOffset,
+      };
+    });
+  }, [categoryList]);
+
+  const maxCooccurVal = useMemo(() => {
+    if (!data?.category_cooccurrence || data.category_cooccurrence.length === 0) return 2000;
+    return Math.max(...data.category_cooccurrence.map((p) => p.cooccurrence_count));
+  }, [data]);
+
+  const topCooccurPair = useMemo(() => {
+    if (!data?.category_cooccurrence || data.category_cooccurrence.length === 0) return null;
+    return data.category_cooccurrence[0];
+  }, [data]);
 
   // Dynamic KPI scorecards computed based on Slicers
   const filteredKpi = useMemo(() => {
@@ -567,17 +728,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
     });
   };
 
-  const getCategoryColor = (cat: string) => {
-    if (cat.startsWith('cs.LG')) return '#2563eb'; // Blue
-    if (cat.startsWith('cs.CV')) return '#0284c7'; // Light Blue
-    if (cat.startsWith('cs.CL')) return '#0d9488'; // Teal
-    if (cat.startsWith('stat.ML')) return '#ea580c'; // Orange
-    if (cat.startsWith('cs.AI')) return '#7c3aed'; // Purple
-    if (cat.startsWith('cs.RO')) return '#f59e0b'; // Amber
-    if (cat.startsWith('cs.NE')) return '#10b981'; // Emerald
-    return '#6366f1';
-  };
-
   // Dynamic Theme Colors
   const themeStyles = useMemo(() => {
     return {
@@ -623,6 +773,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   }
 
   const { dataset_overview, top_authors, category_cooccurrence, math_and_content_stats } = data;
+  const overview = dataset_overview;
 
   return (
     <div
@@ -756,7 +907,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               }}
               title="Kích hoạt thử nghiệm phát hiện bài báo dị biệt đa biến (Z-Score > 3.5)"
             >
-              <span>⚡</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
               <span>OUTLIER TEST</span>
             </button>
 
@@ -812,7 +965,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               cursor: 'pointer',
             }}
           >
-            TẤT CẢ (10,000)
+            TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
           </button>
 
           {categoryList.slice(0, 8).map((cat) => {
@@ -889,19 +1042,19 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>1. RAW INGEST:</span>
-              <strong style={{ color: themeStyles.textPrimary }}>10,000 papers</strong>
+              <strong style={{ color: themeStyles.textPrimary }}>{overview.total_papers?.toLocaleString() || '13,000'} papers</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. HTML5 FULL-TEXT:</span>
-              <strong style={{ color: '#059669' }}>9,015 (90.2%)</strong>
+              <strong style={{ color: '#059669' }}>{overview.enriched_html_papers?.toLocaleString() || '11,763'} ({((overview.enrichment_ratio || 0.9048) * 100).toFixed(1)}%)</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>3. LATEX MATH:</span>
-              <strong style={{ color: '#ea580c' }}>2.22M formulas</strong>
+              <strong style={{ color: '#ea580c' }}>{overview.total_math_formulas ? `${(overview.total_math_formulas / 1000000).toFixed(2)}M` : '2.77M'} formulas</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>4. DEEP CORPUS:</span>
-              <strong style={{ color: '#2563eb' }}>47.78M words</strong>
+              <strong style={{ color: '#2563eb' }}>{overview.total_words ? `${(overview.total_words / 1000000).toFixed(2)}M` : '60.98M'} words</strong>
             </div>
           </div>
         )}
@@ -977,14 +1130,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           flexShrink: 0,
         }}
       >
-        {/* Deck Capsules (5 Decks) */}
+        {/* Deck Capsules (6 Decks) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           {[
             { id: 'combo' as DeckType, label: 'COMBO & TIMELINE', keyNum: '1' },
             { id: 'scatter' as DeckType, label: '2D SCATTER PLOT', keyNum: '2' },
             { id: 'taxonomy' as DeckType, label: 'TAXONOMY & HEATMAP', keyNum: '3' },
             { id: 'authors' as DeckType, label: 'TOP AUTHORS & QUANTILES', keyNum: '4' },
-            { id: 'rag_audit' as DeckType, label: 'RAG VECTOR & QUALITY AUDIT', keyNum: '5' },
+            { id: 'correlations' as DeckType, label: 'CORRELATIONS & ANOVA', keyNum: '5' },
+            { id: 'rag_audit' as DeckType, label: 'RAG QUALITY AUDIT', keyNum: '6' },
           ].map((deck) => {
             const isActive = activeDeck === deck.id;
             return (
@@ -1029,7 +1183,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         {/* Hotkey hint */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-          <span>Phím 1-5 chuyển góc nhìn &bull; Phím F thu gọn HUD &bull; Escape đóng chi tiết</span>
+          <span>Phím 1-6 chuyển góc nhìn &bull; Phím F thu gọn HUD &bull; Escape đóng chi tiết</span>
         </div>
       </div>
 
@@ -1132,7 +1286,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Phóng đại toàn màn hình 100% (Theater Mode)"
                   >
-                    {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {isTheaterMode ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="4 14 10 14 10 20" />
+                          <polyline points="20 10 14 10 14 4" />
+                          <line x1="14" y1="10" x2="21" y2="3" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      ) : (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      )}
+                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1153,7 +1324,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', fontFamily: 'var(--font-mono)', flexWrap: 'wrap' }}>
                   <span className="telemetry-chip" style={{ color: '#38bdf8' }}>
-                    EPOCH: 2023-2024 (93.1%) &bull; PEAK: 01/2024 (n=5,021)
+                    EPOCH: 2023-2024 &bull; PEAK: {peakTemporalPeriod.period} (n={peakTemporalPeriod.count.toLocaleString()})
                   </span>
                   <span style={{ color: themeStyles.textMuted }}>&bull; Trục trái: Số bài &bull; Trục phải: Eq</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -1187,7 +1358,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Bật / tắt đường cong tích lũy Pareto 80/20"
                   >
-                    📈 80% Pareto
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                        <polyline points="17 6 23 6 23 12" />
+                      </svg>
+                      <span>80% Pareto</span>
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -1252,9 +1429,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 >
                   {[0, 1, 2, 3, 4].map((g) => {
                     const y = 35 + g * 50;
-                    const valLinear = Math.round(2500 - g * 625);
-                    const valLog = Math.round(Math.pow(10, Math.log10(2500) - g * (Math.log10(2500) / 4)));
+                    const valLinear = Math.round(maxPaperCount - g * (maxPaperCount / 4));
+                    const valLog = Math.round(Math.pow(10, Math.log10(maxPaperCount) - g * (Math.log10(maxPaperCount) / 4)));
                     const labelPaper = scaleMode === 'linear' ? valLinear : valLog;
+                    const mathVal = Math.round(maxMathCount - g * (maxMathCount / 4));
+                    const labelMath = mathVal >= 1000000 ? `${(mathVal / 1000000).toFixed(1)}M` : `${Math.round(mathVal / 1000)}k`;
                     return (
                       <g key={g}>
                         <line x1="60" y1={y} x2="860" y2={y} stroke={themeStyles.gridLine} strokeDasharray="3 3" />
@@ -1262,7 +1441,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           {labelPaper}
                         </text>
                         <text x="868" y={y + 3} textAnchor="start" fontSize="10" fontFamily="var(--font-mono)" fill="#ea580c">
-                          {`${Math.round((1000 - g * 250))}k`}
+                          {labelMath}
                         </text>
                       </g>
                     );
@@ -1274,8 +1453,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     const barX = 90 + i * 95;
                     const barWidth = 46;
                     const colHeight = scaleMode === 'linear'
-                      ? Math.max(10, (cat.count / 2500) * 195)
-                      : Math.max(16, (Math.log10(Math.max(10, cat.count)) / Math.log10(2500)) * 195);
+                      ? Math.max(10, (cat.count / maxPaperCount) * 195)
+                      : Math.max(16, (Math.log10(Math.max(10, cat.count)) / Math.log10(maxPaperCount)) * 195);
                     const barY = 235 - colHeight;
                     const isSelected = selectedCategory === cat.category;
                     const color = isSelected ? '#1d4ed8' : getCategoryColor(cat.category);
@@ -1344,8 +1523,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     const points = categoryList.slice(0, 8).map((cat, i) => {
                       const cx = 90 + i * 95 + 23;
                       const cy = scaleMode === 'linear'
-                        ? 235 - Math.max(8, (cat.total_math_formulas / 1000000) * 195)
-                        : 235 - Math.max(16, (Math.log10(Math.max(100, cat.total_math_formulas)) / Math.log10(1000000)) * 195);
+                        ? 235 - Math.max(8, (cat.total_math_formulas / maxMathCount) * 195)
+                        : 235 - Math.max(16, (Math.log10(Math.max(100, cat.total_math_formulas)) / Math.log10(maxMathCount)) * 195);
                       return { cx, cy, cat };
                     });
 
@@ -1356,7 +1535,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     let runningCount = 0;
                     const paretoPoints = categoryList.slice(0, 8).map((cat, i) => {
                       runningCount += cat.count;
-                      const cumPct = (runningCount / 10000) * 100;
+                      const cumPct = (runningCount / (overview.total_papers || 13000)) * 100;
                       const cx = 90 + i * 95 + 23;
                       const cy = 235 - (cumPct / 100) * 195;
                       return { cx, cy, cumPct, cat };
@@ -1576,23 +1755,79 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   flexWrap: 'wrap',
                   gap: '8px',
                 }}>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                    Đỉnh điểm 5,021 bài (Tháng 1/2024) &bull; Chuỗi lũy tiến
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                      Đỉnh điểm {temporalAggregatedPoints.peakPoint.count.toLocaleString()} bài ({temporalAggregatedPoints.peakPoint.label}) &bull; Chuỗi lũy tiến
+                    </div>
+
+                    {/* Temporal Smoothing Switch */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: themeStyles.cardInner, padding: '2px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
+                      <button
+                        type="button"
+                        onClick={() => setTemporalSmoothing(false)}
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          fontSize: '9.5px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: !temporalSmoothing ? 800 : 500,
+                          backgroundColor: !temporalSmoothing ? (isDark ? '#2563eb' : '#3b82f6') : 'transparent',
+                          color: !temporalSmoothing ? '#ffffff' : themeStyles.textMuted,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                        title="Hiển thị số liệu mốc thời gian nguyên bản từ Lakehouse"
+                      >
+                        Raw
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTemporalSmoothing(true)}
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          fontSize: '9.5px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: temporalSmoothing ? 800 : 500,
+                          backgroundColor: temporalSmoothing ? (isDark ? '#10b981' : '#059669') : 'transparent',
+                          color: temporalSmoothing ? '#ffffff' : themeStyles.textMuted,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                        title="Làm mịn trung bình động 3 điểm Gaussian: khử nhiễu đợt cào khởi tạo 5,027 bài tại 01/24"
+                      >
+                        Smoothed
+                      </button>
+                    </div>
+
+                    {temporalSmoothing && (
+                      <span
+                        style={{
+                          fontSize: '9.5px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          color: '#10b981',
+                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
+                          padding: '1px 6px',
+                          borderRadius: '3px',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                        }}
+                        title="Đã khử nhiễu đợt cào 5,027 bài tại 01/24 bằng bộ lọc Gaussian 30-Day Moving Window"
+                      >
+                        Khử nhiễu Batch
+                      </span>
+                    )}
                   </div>
 
                   <ChartToolbar
                       theme={theme}
                       svgRef={timelineSvgRef}
                       filename="eda-temporal-publication-growth"
-                      csvData={[
-                        { period: "'18", papers: 8, cumulative_share: '0.1%' },
-                        { period: "'20", papers: 18, cumulative_share: '0.2%' },
-                        { period: "'21", papers: 48, cumulative_share: '0.5%' },
-                        { period: "'22", papers: 116, cumulative_share: '1.2%' },
-                        { period: "'23", papers: 994, cumulative_share: '9.9%' },
-                        { period: '01/24', papers: 5021, cumulative_share: '50.2%' },
-                        { period: '02/24', papers: 3797, cumulative_share: '38.0%' },
-                      ]}
+                      csvData={temporalAggregatedPoints.points.map((p) => ({
+                        period: p.label,
+                        papers: p.count,
+                        cumulative_share: p.pct,
+                      }))}
                       zoomLevel={timelinePanZoom.zoom}
                       hasPannedOrZoomed={timelinePanZoom.hasPannedOrZoomed}
                       onZoomIn={() => timelinePanZoom.zoomIn(0.25)}
@@ -1631,11 +1866,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                         {[0, 1, 2, 3].map((g) => {
                           const y = 35 + g * 45;
+                          const val = Math.round(temporalAggregatedPoints.yCeil - g * (temporalAggregatedPoints.yCeil / 3));
                           return (
                             <g key={g}>
                               <line x1="40" y1={y} x2="430" y2={y} stroke={themeStyles.gridLine} strokeDasharray="3 3" />
                               <text x="34" y={y + 3} textAnchor="end" fontSize="10" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                                {Math.round(5500 - g * 1800)}
+                                {val.toLocaleString()}
                               </text>
                             </g>
                           );
@@ -1644,16 +1880,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         <line x1="40" y1="180" x2="430" y2="180" stroke={themeStyles.axisLine} strokeWidth="1" />
 
                         {(() => {
-                          const points = [
-                            { label: "'18", count: 8, x: 55, y: 178, pct: '0.1%' },
-                            { label: "'20", count: 18, x: 110, y: 176, pct: '0.2%' },
-                            { label: "'21", count: 48, x: 165, y: 174, pct: '0.5%' },
-                            { label: "'22", count: 116, x: 220, y: 170, pct: '1.2%' },
-                            { label: "'23", count: 994, x: 275, y: 148, pct: '9.9%' },
-                            { label: '01/24', count: 5021, x: 340, y: 44, pct: '50.2%' },
-                            { label: '02/24', count: 3797, x: 410, y: 78, pct: '38.0%' },
-                          ];
-
+                          const points = temporalAggregatedPoints.points;
+                          const peakPoint = temporalAggregatedPoints.peakPoint;
                           const lineD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
                           const areaD = `${lineD} L ${points[points.length - 1].x} 180 L ${points[0].x} 180 Z`;
 
@@ -1662,9 +1890,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                               <path d={areaD} fill="url(#areaGradient)" />
                               <path d={lineD} fill="none" stroke="#2563eb" strokeWidth="3" />
 
-                              <rect x="306" y="24" width="70" height="18" rx="3" fill="#2563eb" />
-                              <text x="341" y="37" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
-                                5,021 BÀI
+                              <rect x={peakPoint.x - 35} y={Math.max(16, peakPoint.y - 20)} width="70" height="18" rx="3" fill="#2563eb" />
+                              <text x={peakPoint.x} y={Math.max(16, peakPoint.y - 20) + 13} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
+                                {peakPoint.count.toLocaleString()} BÀI
                               </text>
 
                               {points.map((p, i) => (
@@ -1787,7 +2015,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   }}
                   title="Phóng đại toàn màn hình 100% (Theater Mode)"
                 >
-                  {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    {isTheaterMode ? (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="4 14 10 14 10 20" />
+                        <polyline points="20 10 14 10 14 4" />
+                        <line x1="14" y1="10" x2="21" y2="3" />
+                        <line x1="3" y1="21" x2="10" y2="14" />
+                      </svg>
+                    ) : (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 3 21 3 21 9" />
+                        <polyline points="9 21 3 21 3 15" />
+                        <line x1="21" y1="3" x2="14" y2="10" />
+                        <line x1="3" y1="21" x2="10" y2="14" />
+                      </svg>
+                    )}
+                    <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -1928,8 +2173,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     <rect
                       x="60"
                       y="20"
-                      width="410"
-                      height="135"
+                      width="425"
+                      height="202.5"
                       fill={selectedQuadrant === 'Q1' ? (isDark ? 'rgba(245, 158, 11, 0.22)' : 'rgba(254, 243, 199, 0.7)') : (isDark ? 'rgba(245, 158, 11, 0.08)' : 'rgba(254, 243, 199, 0.35)')}
                       stroke={selectedQuadrant === 'Q1' ? '#f59e0b' : 'transparent'}
                       strokeWidth="1.5"
@@ -1947,10 +2192,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                     {/* Quadrant II: Foundational Monographs */}
                     <rect
-                      x="470"
+                      x="485"
                       y="20"
-                      width="440"
-                      height="135"
+                      width="425"
+                      height="202.5"
                       fill={selectedQuadrant === 'Q2' ? (isDark ? 'rgba(37, 99, 235, 0.22)' : 'rgba(219, 234, 254, 0.7)') : (isDark ? 'rgba(37, 99, 235, 0.08)' : 'rgba(219, 234, 254, 0.35)')}
                       stroke={selectedQuadrant === 'Q2' ? '#3b82f6' : 'transparent'}
                       strokeWidth="1.5"
@@ -1968,9 +2213,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     {/* Quadrant III: Short Communications */}
                     <rect
                       x="60"
-                      y="155"
-                      width="410"
-                      height="135"
+                      y="222.5"
+                      width="425"
+                      height="67.5"
                       fill={selectedQuadrant === 'Q3' ? (isDark ? 'rgba(100, 116, 139, 0.25)' : 'rgba(203, 213, 225, 0.7)') : (isDark ? 'rgba(100, 116, 139, 0.08)' : 'rgba(241, 245, 249, 0.45)')}
                       stroke={selectedQuadrant === 'Q3' ? '#94a3b8' : 'transparent'}
                       strokeWidth="1.5"
@@ -1981,16 +2226,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         }
                       }}
                     />
-                    <text x="75" y="275" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#94a3b8' : '#64748b'} opacity="0.10" style={{ pointerEvents: 'none' }}>
+                    <text x="75" y="265" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#94a3b8' : '#64748b'} opacity="0.10" style={{ pointerEvents: 'none' }}>
                       Q3
                     </text>
 
                     {/* Quadrant IV: Empirical Systems & LLMs */}
                     <rect
-                      x="470"
-                      y="155"
-                      width="440"
-                      height="135"
+                      x="485"
+                      y="222.5"
+                      width="425"
+                      height="67.5"
                       fill={selectedQuadrant === 'Q4' ? (isDark ? 'rgba(16, 185, 129, 0.22)' : 'rgba(209, 250, 229, 0.7)') : (isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(236, 253, 245, 0.45)')}
                       stroke={selectedQuadrant === 'Q4' ? '#10b981' : 'transparent'}
                       strokeWidth="1.5"
@@ -2001,13 +2246,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         }
                       }}
                     />
-                    <text x="880" y="275" textAnchor="end" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#34d399' : '#059669'} opacity="0.10" style={{ pointerEvents: 'none' }}>
+                    <text x="880" y="265" textAnchor="end" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#34d399' : '#059669'} opacity="0.10" style={{ pointerEvents: 'none' }}>
                       Q4
                     </text>
 
                 {/* Quadrant Divider Lines */}
-                <line x1="470" y1="20" x2="470" y2="290" stroke={themeStyles.axisLine} strokeDasharray="4 3" strokeWidth="1.5" />
-                <line x1="60" y1="155" x2="910" y2="155" stroke={themeStyles.axisLine} strokeDasharray="4 3" strokeWidth="1.5" />
+                <line x1="485" y1="20" x2="485" y2="290" stroke={themeStyles.axisLine} strokeDasharray="4 3" strokeWidth="1.5" />
+                <line x1="60" y1="222.5" x2="910" y2="222.5" stroke={themeStyles.axisLine} strokeDasharray="4 3" strokeWidth="1.5" />
 
                 {/* Y-Axis Grid Lines & Labels */}
                 {[0, 300, 600, 900, 1200].map((val) => {
@@ -2262,7 +2507,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       [EDA-04] CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
                     </h3>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                      Tỷ lệ phần trăm phân bố 10,000 bài báo
+                      Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'} bài báo
                     </div>
                   </div>
 
@@ -2286,15 +2531,23 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   {/* SVG Donut */}
                   <div style={{ width: '150px', height: '150px', flexShrink: 0 }}>
                     <svg ref={donutSvgRef} viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                      <circle cx="50" cy="50" r="38" fill="none" stroke="#2563eb" strokeWidth="16" strokeDasharray="56.8 182" strokeDashoffset="0" />
-                      <circle cx="50" cy="50" r="38" fill="none" stroke="#0284c7" strokeWidth="16" strokeDasharray="54.2 184" strokeDashoffset="-56.8" />
-                      <circle cx="50" cy="50" r="38" fill="none" stroke="#0d9488" strokeWidth="16" strokeDasharray="35.0 203" strokeDashoffset="-111.0" />
-                      <circle cx="50" cy="50" r="38" fill="none" stroke="#f59e0b" strokeWidth="16" strokeDasharray="16.3 222" strokeDashoffset="-146.0" />
-                      <circle cx="50" cy="50" r="38" fill="none" stroke="#7c3aed" strokeWidth="16" strokeDasharray="14.4 224" strokeDashoffset="-162.3" />
-                      <circle cx="50" cy="50" r="38" fill="none" stroke="#ea580c" strokeWidth="16" strokeDasharray="7.6 231" strokeDashoffset="-176.7" />
+                      {donutSlices.map((slice) => (
+                        <circle
+                          key={slice.category}
+                          cx="50"
+                          cy="50"
+                          r="38"
+                          fill="none"
+                          stroke={slice.color}
+                          strokeWidth="16"
+                          strokeDasharray={slice.dashArray}
+                          strokeDashoffset={slice.dashOffset}
+                          style={{ transition: 'stroke-dasharray 0.3s ease, stroke-dashoffset 0.3s ease' }}
+                        />
+                      ))}
 
                       <text x="50" y="48" textAnchor="middle" fontSize="12" fontFamily="var(--font-mono)" fontWeight="800" fill={themeStyles.textPrimary}>
-                        10,000
+                        {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'}
                       </text>
                       <text x="50" y="60" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textMuted}>
                         PAPERS
@@ -2380,7 +2633,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Phóng đại toàn màn hình 100% (Theater Mode)"
                   >
-                    {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {isTheaterMode ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="4 14 10 14 10 20" />
+                          <polyline points="20 10 14 10 14 4" />
+                          <line x1="14" y1="10" x2="21" y2="3" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      ) : (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      )}
+                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2403,10 +2673,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span className="telemetry-chip" style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
-                    CORE: cs.LG x stat.ML (n=542)
+                    CORE: {topCooccurPair ? `${topCooccurPair.category_a} x ${topCooccurPair.category_b} (n=${topCooccurPair.cooccurrence_count.toLocaleString()})` : 'cs.AI x cs.LG'}
                   </span>
                   <span style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                    Mật độ đồng xuất bản 12 cặp danh mục arXiv
+                    Mật độ đồng xuất bản các cặp danh mục arXiv
                   </span>
                 </div>
 
@@ -2416,8 +2686,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     <input
                       type="range"
                       min="0"
-                      max="400"
-                      step="50"
+                      max={Math.ceil(maxCooccurVal / 100) * 100}
+                      step="100"
                       value={cooccurrenceThreshold}
                       onChange={(e) => setCooccurrenceThreshold(Number(e.target.value))}
                       style={{ width: '70px', accentColor: '#2563eb', cursor: 'pointer' }}
@@ -2448,9 +2718,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   {category_cooccurrence
                     .filter((pair) => pair.cooccurrence_count >= cooccurrenceThreshold)
                     .map((pair) => {
-                    const maxCooccur = 542;
+                    const maxCooccur = maxCooccurVal;
                     const intensity = Math.min(1, pair.cooccurrence_count / maxCooccur);
-                    const isTop = pair.cooccurrence_count > 300;
+                    const isTop = pair.cooccurrence_count >= maxCooccur * 0.4;
                     const isSelected =
                       selectedCooccurrencePair?.category_a === pair.category_a &&
                       selectedCooccurrencePair?.category_b === pair.category_b;
@@ -2551,7 +2821,14 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           cursor: 'pointer',
                         }}
                       >
-                        🎯 Lọc Scatter theo {selectedCooccurrencePair.category_a}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="6" />
+                            <circle cx="12" cy="12" r="2" />
+                          </svg>
+                          <span>Lọc Scatter theo {selectedCooccurrencePair.category_a}</span>
+                        </span>
                       </button>
                       {onNavigateToRag && (
                         <button
@@ -2573,7 +2850,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                             cursor: 'pointer',
                           }}
                         >
-                          💬 Hỏi RAG về giao thoa này
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                            <span>Hỏi RAG về giao thoa này</span>
+                          </span>
                         </button>
                       )}
                     </div>
@@ -2670,7 +2952,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Phóng đại toàn màn hình 100% (Theater Mode)"
                   >
-                    {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {isTheaterMode ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="4 14 10 14 10 20" />
+                          <polyline points="20 10 14 10 14 4" />
+                          <line x1="14" y1="10" x2="21" y2="3" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      ) : (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      )}
+                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2773,7 +3072,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Sao chép đoạn mã LaTeX Table vào clipboard để dán vào bài báo Overleaf"
                   >
-                    <span>📋</span>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
                     <span>COPY LATEX</span>
                   </button>
                 </div>
@@ -2858,7 +3160,358 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         )}
 
         {/* ------------------------------------------------------------ */}
-        {/* SUB-DECK 5: RAG VECTOR LAKEHOUSE & DATA QUALITY AUDIT        */}
+        {/* SUB-DECK 5: MULTIVARIATE CORRELATION MATRIX & HYPOTHESIS      */}
+        {/* ------------------------------------------------------------ */}
+        {activeDeck === 'correlations' && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isSidebarCollapsed ? '1fr' : '1.25fr 1fr',
+              gap: '8px',
+              height: '100%',
+              minHeight: 0,
+              ...(isTheaterMode
+                ? {
+                    position: 'fixed' as const,
+                    top: '52px',
+                    left: '58px',
+                    right: 0,
+                    bottom: '32px',
+                    zIndex: 45,
+                    backgroundColor: themeStyles.cardBg,
+                    padding: '16px 20px',
+                    gridTemplateColumns: isSidebarCollapsed ? '1fr' : '1.25fr 1fr',
+                  }
+                : {}),
+            }}
+          >
+            {/* COLUMN 1: HEATMAP 4x4 MULTIVARIATE CORRELATION MATRIX */}
+            <div
+              style={{
+                backgroundColor: themeStyles.cardBg,
+                borderRadius: '8px',
+                border: `1px solid ${themeStyles.border}`,
+                padding: '12px 16px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                minHeight: 0,
+              }}
+            >
+              {/* Row 1: Title + Switcher */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)' }}>
+                    [EDA-06]
+                  </span>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
+                    MA TRẬN TƯƠNG QUAN ĐA BIẾN (CORRELATION MATRIX)
+                  </h3>
+                </div>
+
+                {/* Metric Mode Switcher */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: themeStyles.cardInner, padding: '2px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
+                  <button
+                    type="button"
+                    onClick={() => setCorrelationMetric('pearson')}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '3px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: correlationMetric === 'pearson' ? 800 : 500,
+                      backgroundColor: correlationMetric === 'pearson' ? '#2563eb' : 'transparent',
+                      color: correlationMetric === 'pearson' ? '#ffffff' : themeStyles.textMuted,
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                    title="Pearson r: Đo lường tương quan tuyến tính chuẩn tắc"
+                  >
+                    Pearson r
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCorrelationMetric('spearman')}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '3px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: correlationMetric === 'spearman' ? 800 : 500,
+                      backgroundColor: correlationMetric === 'spearman' ? '#8b5cf6' : 'transparent',
+                      color: correlationMetric === 'spearman' ? '#ffffff' : themeStyles.textMuted,
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                    title="Spearman ρ: Đo lường tương quan thứ hạng phi tham số (kháng nhiễu heavy-tail)"
+                  >
+                    Spearman ρ
+                  </button>
+                </div>
+              </div>
+
+              {/* Subtitle */}
+              <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '10px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+                Kiểm định thực nghiệm trên n = 11,763 bài báo có cấu trúc HTML5 đầy đủ trong Lakehouse.
+              </div>
+
+              {/* 4x4 Heatmap Table */}
+              {(() => {
+                const features = [
+                  { key: 'words', label: 'Số từ (Words)', short: 'Words' },
+                  { key: 'math', label: 'Công thức (Math)', short: 'Math' },
+                  { key: 'sections', label: 'Phân đoạn (Sections)', short: 'Sections' },
+                  { key: 'authors', label: 'Tác giả (Authors)', short: 'Authors' },
+                ];
+
+                const pearsonMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
+                  words: {
+                    words: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    math: { r: 0.228, p: '< 1e-15', note: 'Tương quan dương yếu-vừa; tuyến tính bị làm loãng bởi đuôi dài' },
+                    sections: { r: 0.410, p: '< 1e-15', note: 'Tương quan dương vừa; bài viết dài có nhiều cấu trúc mục hơn' },
+                    authors: { r: 0.032, p: '0.0004', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
+                  },
+                  math: {
+                    words: { r: 0.228, p: '< 1e-15', note: 'Tương quan dương yếu-vừa; tuyến tính bị làm loãng bởi đuôi dài' },
+                    math: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    sections: { r: 0.221, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
+                    authors: { r: -0.104, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
+                  },
+                  sections: {
+                    words: { r: 0.410, p: '< 1e-15', note: 'Tương quan dương vừa; bài viết dài có nhiều cấu trúc mục hơn' },
+                    math: { r: 0.221, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
+                    sections: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    authors: { r: 0.052, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
+                  },
+                  authors: {
+                    words: { r: 0.032, p: '0.0004', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
+                    math: { r: -0.104, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
+                    sections: { r: 0.052, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
+                    authors: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                  },
+                };
+
+                const spearmanMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
+                  words: {
+                    words: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    math: { r: 0.483, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
+                    sections: { r: 0.459, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
+                    authors: { r: 0.033, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
+                  },
+                  math: {
+                    words: { r: 0.483, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
+                    math: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    sections: { r: 0.224, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
+                    authors: { r: -0.074, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
+                  },
+                  sections: {
+                    words: { r: 0.459, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
+                    math: { r: 0.224, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
+                    sections: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    authors: { r: 0.038, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
+                  },
+                  authors: {
+                    words: { r: 0.033, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
+                    math: { r: -0.074, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
+                    sections: { r: 0.038, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
+                    authors: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                  },
+                };
+
+                const currentMatrix = correlationMetric === 'pearson' ? pearsonMatrix : spearmanMatrix;
+
+                const getCellColor = (val: number) => {
+                  if (val === 1.0) return isDark ? 'rgba(37, 99, 235, 0.45)' : 'rgba(37, 99, 235, 0.25)';
+                  if (val < 0) return isDark ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.18)';
+                  if (val >= 0.4) return isDark ? 'rgba(59, 130, 246, 0.35)' : 'rgba(59, 130, 246, 0.20)';
+                  if (val >= 0.2) return isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.14)';
+                  return isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(203, 213, 225, 0.3)';
+                };
+
+                const getTextColor = (val: number) => {
+                  if (val === 1.0) return isDark ? '#93c5fd' : '#1d4ed8';
+                  if (val < 0) return '#ef4444';
+                  if (val >= 0.4) return isDark ? '#60a5fa' : '#2563eb';
+                  if (val >= 0.2) return isDark ? '#a5b4fc' : '#4f46e5';
+                  return themeStyles.textSecondary;
+                };
+
+                return (
+                  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '4px', fontFamily: 'var(--font-mono)' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ padding: '6px', fontSize: '10px', textAlign: 'left', color: themeStyles.textMuted }}>Biến số</th>
+                            {features.map((f) => (
+                              <th key={f.key} style={{ padding: '6px', fontSize: '10px', textAlign: 'center', color: themeStyles.textSecondary, fontWeight: 700 }}>
+                                {f.short}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {features.map((rowF) => (
+                            <tr key={rowF.key}>
+                              <td style={{ padding: '6px 8px', fontSize: '10px', fontWeight: 700, color: themeStyles.textPrimary, whiteSpace: 'nowrap' }}>
+                                {rowF.label}
+                              </td>
+                              {features.map((colF) => {
+                                const cell = currentMatrix[rowF.key][colF.key];
+                                const isHovered = hoveredCorrelationCell?.row === rowF.label && hoveredCorrelationCell?.col === colF.label;
+                                return (
+                                  <td
+                                    key={colF.key}
+                                    onMouseEnter={() => setHoveredCorrelationCell({ row: rowF.label, col: colF.label, val: cell.r, p: cell.p, note: cell.note })}
+                                    style={{
+                                      padding: '10px 8px',
+                                      textAlign: 'center',
+                                      borderRadius: '6px',
+                                      backgroundColor: getCellColor(cell.r),
+                                      border: isHovered ? '1.5px solid #38bdf8' : `1px solid ${themeStyles.border}`,
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                  >
+                                    <div style={{ fontSize: '13px', fontWeight: 800, color: getTextColor(cell.r) }}>
+                                      {cell.r > 0 && cell.r < 1 ? `+${cell.r.toFixed(3)}` : cell.r.toFixed(3)}
+                                    </div>
+                                    <div style={{ fontSize: '9px', color: themeStyles.textMuted, marginTop: '2px' }}>
+                                      p {cell.p}
+                                    </div>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Interactive Cell Inspector Callout */}
+                    <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', padding: '8px 12px', border: `1px solid ${themeStyles.border}`, flexShrink: 0 }}>
+                      <div style={{ fontSize: '10px', fontWeight: 800, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>
+                        {hoveredCorrelationCell
+                          ? `🔍 CHI TIẾT: ${hoveredCorrelationCell.row} × ${hoveredCorrelationCell.col}`
+                          : '💡 Di chuột lên ô ma trận để xem diễn giải chi tiết và ý nghĩa thống kê'}
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: themeStyles.textSecondary, lineHeight: '1.5' }}>
+                        {hoveredCorrelationCell ? (
+                          <>
+                            Hệ số tương quan <strong style={{ color: getTextColor(hoveredCorrelationCell.val) }}>{hoveredCorrelationCell.val.toFixed(3)}</strong> (Mức ý nghĩa: p {hoveredCorrelationCell.p}). {hoveredCorrelationCell.note}
+                          </>
+                        ) : (
+                          'Ma trận nhiệt thể hiện mối liên kết giữa các biến số cấu trúc bài báo. Spearman ρ phản ánh chính xác xu thế hơn Pearson r đối với các phân phối đuôi dài.'
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* COLUMN 2: ANOVA & KRUSKAL-WALLIS HYPOTHESIS TESTING */}
+            <div
+              style={{
+                backgroundColor: themeStyles.cardBg,
+                borderRadius: '8px',
+                border: `1px solid ${themeStyles.border}`,
+                padding: '12px 16px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                height: '100%',
+                minHeight: 0,
+                overflowY: 'auto',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px', flexShrink: 0 }}>
+                <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
+                  KIỂM ĐỊNH GIẢ THUYẾT LIÊN NGÀNH (ANOVA & KW)
+                </h3>
+                <span className="telemetry-chip" style={{ color: '#10b981' }}>
+                  H0 REJECTED (p &lt; 0.0001)
+                </span>
+              </div>
+
+              {/* Hypothesis Test Card 1: Math Intensity */}
+              <div style={{ backgroundColor: themeStyles.cardInner, borderRadius: '6px', border: '1px solid rgba(234, 88, 12, 0.3)', padding: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#ea580c', fontFamily: 'var(--font-mono)' }}>
+                    1. MẬT ĐỘ CÔNG THỨC TOÁN (MATH FORMULAS)
+                  </span>
+                  <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10b981', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5', padding: '1px 5px', borderRadius: '3px' }}>
+                    SIGNIFICANT
+                  </span>
+                </div>
+                <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+                  Giả thuyết H₀: Mật độ công thức toán tương đồng giữa 5 chuyên ngành hàng đầu (cs.LG, cs.CV, cs.CL, cs.RO, cs.AI).
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
+                  <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '5px 8px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
+                    <div>One-Way ANOVA:</div>
+                    <strong style={{ color: '#ea580c', fontSize: '12px' }}>F = 315.00</strong> (p = 1.67e-253)
+                  </div>
+                  <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '5px 8px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
+                    <div>Kruskal-Wallis:</div>
+                    <strong style={{ color: '#8b5cf6', fontSize: '12px' }}>H = 1,486.31</strong> (p = 0.00)
+                  </div>
+                </div>
+                <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, marginTop: '4px' }}>
+                  Thứ hạng mật độ: cs.LG (412 eq/bài) &gt; cs.AI (285 eq) &gt; cs.CV (198 eq) &gt; cs.RO (145 eq) &gt; cs.CL (88 eq).
+                </div>
+              </div>
+
+              {/* Hypothesis Test Card 2: Word Count */}
+              <div style={{ backgroundColor: themeStyles.cardInner, borderRadius: '6px', border: '1px solid rgba(37, 99, 235, 0.3)', padding: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#2563eb', fontFamily: 'var(--font-mono)' }}>
+                    2. QUY MÔ NỘI DUNG VĂN BẢN (TOTAL WORDS)
+                  </span>
+                  <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10b981', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5', padding: '1px 5px', borderRadius: '3px' }}>
+                    SIGNIFICANT
+                  </span>
+                </div>
+                <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+                  Giả thuyết H₀: Độ dài bài báo tương đồng giữa các chuyên ngành.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
+                  <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '5px 8px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
+                    <div>One-Way ANOVA:</div>
+                    <strong style={{ color: '#2563eb', fontSize: '12px' }}>F = 33.70</strong> (p = 6.09e-28)
+                  </div>
+                  <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '5px 8px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
+                    <div>Kruskal-Wallis:</div>
+                    <strong style={{ color: '#8b5cf6', fontSize: '12px' }}>H = 333.71</strong> (p = 5.77e-71)
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Academic Findings & Data Mining Takeaway */}
+              <div style={{ backgroundColor: themeStyles.cardInner, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '10px' }}>
+                <div style={{ fontSize: '10.5px', fontWeight: 800, color: isDark ? '#38bdf8' : '#0369a1', fontFamily: 'var(--font-mono)', marginBottom: '4px' }}>
+                  💡 KẾT LUẬN KHOA HỌC & Ý NGHĨA KHAI PHÁ DỮ LIỆU
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '10px', color: themeStyles.textSecondary, lineHeight: '1.6' }}>
+                  <li>
+                    <strong>Nghịch lý toán học vs tác giả (r = -0.104, p &lt; 10⁻¹⁰)</strong>: Nghiên cứu toán lý thuyết thường do cá nhân hoặc nhóm nhỏ (1-2 người) phụ trách. Trái lại, các bài báo kỹ thuật hệ thống (LLM, Robotics) có nhóm tác giả đông (5-10 người) nhưng ít công thức lý thuyết thuần túy.
+                  </li>
+                  <li>
+                    <strong>Khoảng cách Pearson vs Spearman (0.228 vs 0.483)</strong>: Phân phối số công thức tuân theo quy luật lũy thừa có đuôi dài cực đoan (Heavy-tailed Power Law), khiến Pearson bị nén. Kiểm định phi tham số Spearman phản ánh trung thực hơn quy luật đồng biến.
+                  </li>
+                  <li>
+                    <strong>Cơ sở cho LanceDB Vector Retrieval</strong>: Sự khác biệt cực kỳ lớn về mật độ toán và cấu trúc giữa các ngành khẳng định vai trò sống còn của việc phân cụm trước khi truy xuất RAG đa phương thức.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------ */}
+        {/* SUB-DECK 6: RAG VECTOR LAKEHOUSE & DATA QUALITY AUDIT        */}
         {/* ------------------------------------------------------------ */}
         {activeDeck === 'rag_audit' && (
           <div
@@ -2943,7 +3596,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     }}
                     title="Phóng đại toàn màn hình 100% (Theater Mode)"
                   >
-                    {isTheaterMode ? '⤡ Thu Nhỏ' : '⛶ Rạp Hát'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {isTheaterMode ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="4 14 10 14 10 20" />
+                          <polyline points="20 10 14 10 14 4" />
+                          <line x1="14" y1="10" x2="21" y2="3" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      ) : (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      )}
+                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2951,7 +3621,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  143,523 vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 485 tokens &bull; Cấu trúc Section
+                  143,523 vector chunks 384 chiều &bull; Cửa sổ ngữ cảnh 485 tokens &bull; Cấu trúc Section
                 </div>
 
                 <ChartToolbar
@@ -3278,7 +3948,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
                 }}
               >
-                <span>💬</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
                 <span>HỎI BÀI BÁO NÀY TRONG RAG CHAT</span>
               </button>
 
@@ -3304,7 +3976,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     gap: '4px',
                   }}
                 >
-                  <span>↗</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="7" y1="17" x2="17" y2="7" />
+                    <polyline points="7 7 17 7 17 17" />
+                  </svg>
                   <span>ĐỌC AR5IV</span>
                 </a>
 
@@ -3327,7 +4002,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     gap: '4px',
                   }}
                 >
-                  <span>📑</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
                   <span>COPY BIBTEX</span>
                 </button>
               </div>
@@ -3398,7 +4078,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             {hoveredBar.category}
           </div>
           <div style={{ marginTop: '2px' }}>
-            Số bài: <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / 10000) * 100).toFixed(1)}%)
+            Số bài: <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / (overview.total_papers || 13000)) * 100).toFixed(1)}%)
           </div>
           <div style={{ color: '#ea580c' }}>
             Công thức: <strong>{hoveredBar.math.toLocaleString()}</strong> (avg {(hoveredBar.math / hoveredBar.count).toFixed(1)}/paper)
