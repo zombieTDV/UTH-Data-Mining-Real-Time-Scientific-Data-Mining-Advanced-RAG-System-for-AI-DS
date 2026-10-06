@@ -151,36 +151,76 @@ PYTHONPATH=data_mining python data_mining/src/mining/mining_engine.py
 
 ---
 
-### C. Phân hệ Backend API & Serving (`backend/` - FastAPI)
+### C. Phân hệ Local LLM Microservice (Port 9001 / Ollama Port 11434)
 
-Máy chủ FastAPI phục vụ cả truy xuất ngữ nghĩa RAG thời gian thực lẫn 4 Trụ cột Khai phá:
+Hệ thống RAG sử dụng mô hình ngôn ngữ lớn cục bộ (Qwen 2.5 7B Instruct GGUF Q4_K_M) để tổng hợp câu trả lời học thuật:
 
+#### Cách 1: Khởi chạy NestJS LLM Microservice với GPU CUDA (Khuyến nghị - Port 9001)
+```powershell
+# Chạy từ thư mục gốc dự án (yêu cầu Node.js >= 18):
+node dist/apps/llm-service/apps/llm-service/src/main.js
+
+# Máy chủ LLM sẽ tải mô hình GGUF và tăng tốc qua CUDA:
+# - LLM Service API:     http://localhost:9001
+# - Swagger API Docs:    http://localhost:9001/docs
+# - Endpoint tương thích: http://localhost:9001/v1/chat/completions
+```
+
+#### Cách 2: Khởi chạy qua Ollama (Dự phòng - Port 11434)
 ```bash
-# 1. Kích hoạt môi trường ảo
-source .venv/bin/activate  # Trên Windows: .\.venv\Scripts\Activate.ps1
+# Khởi động máy chủ Ollama
+ollama serve
 
-# 2. Khởi chạy máy chủ FastAPI (Port 8000)
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-
-# 3. Chạy toàn bộ kiểm thử tự động (12/12 passing)
-pytest backend/tests/test_api.py -v
-
-# 4. Xem tài liệu API tương tác:
-# - Swagger UI: http://localhost:8000/docs
-# - ReDoc:      http://localhost:8000/redoc
+# Tải và chạy mô hình Qwen 2.5 7B
+ollama run qwen2.5:7b
 ```
 
 ---
 
-### D. Phân hệ Giao diện Dashboard (`frontend/` - React 19)
+### D. Phân hệ Backend API & Serving (`backend/` - FastAPI Port 8000)
 
-Giao diện tương tác trực quan hóa biểu đồ 4 Trụ cột Mining và hội thoại RAG:
+Máy chủ FastAPI phục vụ cả truy xuất ngữ nghĩa RAG thời gian thực (hybrid FTS + BM25 + LanceDB) lẫn 4 Trụ cột Khai phá:
+
+#### Trên Windows (PowerShell):
+```powershell
+# 1. Kích hoạt môi trường ảo
+.\.venv\Scripts\Activate.ps1
+
+# 2. Khởi chạy máy chủ FastAPI (Port 8000)
+.\.venv\Scripts\uvicorn.exe backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### Trên Linux / macOS (Bash):
+```bash
+# 1. Kích hoạt môi trường ảo
+source .venv/bin/activate
+
+# 2. Khởi chạy máy chủ FastAPI (Port 8000)
+python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### Kiểm thử & Tài liệu API:
+```bash
+# Chạy kiểm thử tự động (12/12 passing)
+pytest backend/tests/test_api.py -v
+
+# Xem tài liệu API tương tác:
+# - Swagger UI: http://localhost:8000/docs
+# - ReDoc:      http://localhost:8000/redoc
+# - Health API: http://localhost:8000/health
+```
+
+---
+
+### E. Phân hệ Giao diện Dashboard (`frontend/` - React 19 / Vite Port 5173)
+
+Giao diện tương tác trực quan hóa biểu đồ 4 Trụ cột Mining và trò chuyện RAG học thuật theo thời gian thực:
 
 ```bash
 # 1. Chuyển vào thư mục frontend
 cd frontend
 
-# 2. Cài đặt thư viện phụ thuộc
+# 2. Cài đặt thư viện phụ thuộc (nếu chưa cài)
 npm install
 
 # 3. Khởi chạy máy chủ giao diện (Port 5173)
@@ -191,6 +231,31 @@ npm run build
 
 # 5. Truy cập giao diện tại: http://localhost:5173
 ```
+
+---
+
+### F. Thứ Tự Khởi Chạy Chuẩn Toàn Hệ Thống (End-to-End Startup Sequence)
+
+Để đảm bảo toàn bộ hệ thống hoạt động đồng bộ và không gặp lỗi kết nối, hãy mở 3 terminal riêng biệt và khởi chạy theo đúng thứ tự:
+
+1. **Terminal 1 (LLM Microservice)**:
+   ```powershell
+   node dist/apps/llm-service/apps/llm-service/src/main.js
+   ```
+   *(Chờ đến khi xuất hiện thông báo `LLM Service running on http://localhost:9001`)*
+
+2. **Terminal 2 (FastAPI Backend)**:
+   ```powershell
+   .\.venv\Scripts\uvicorn.exe backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+   *(Backend sẽ tự động phát hiện LLM microservice trên port 9001 và kết nối LanceDB cục bộ)*
+
+3. **Terminal 3 (React 19 Frontend)**:
+   ```powershell
+   cd frontend
+   npm run dev
+   ```
+   *(Mở trình duyệt tại `http://localhost:5173`. Các tab EDA, 4 Trụ cột Mining và Grounded RAG Chat sẽ tải dữ liệu mượt mà)*
 
 ---
 
