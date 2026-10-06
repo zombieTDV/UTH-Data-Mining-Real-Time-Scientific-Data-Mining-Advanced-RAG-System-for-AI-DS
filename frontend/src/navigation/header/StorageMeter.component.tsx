@@ -23,80 +23,77 @@ export const StorageMeter: FC<StorageMeterProps> = ({
     ? 'linear-gradient(90deg, #f59e0b, #ea580c)'
     : 'linear-gradient(90deg, #10b981, #06b6d4)';
 
-  const accentColor = isHigh ? '#ef4444' : isMed ? '#f59e0b' : 'var(--accent-emerald)';
-  const badgeBg = isHigh
-    ? 'rgba(239, 68, 68, 0.14)'
-    : isMed
-    ? 'rgba(245, 158, 11, 0.14)'
-    : 'rgba(16, 185, 129, 0.14)';
+  const accentColor = isHigh ? '#ef4444' : isMed ? '#f59e0b' : '#34d399';
 
   return (
     <div
-      title={`Cloudflare R2 Storage Lens (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(2)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)`}
+      title={`Cloudflare R2 Storage Lens (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)`}
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-        padding: '4px 10px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '9px',
+        padding: '0 12px',
+        height: '32px',
         borderRadius: '8px',
         backgroundColor: 'var(--badge-bg)',
         border: '1px solid var(--badge-border)',
         fontFamily: 'var(--font-mono)',
-        minWidth: '170px',
         cursor: 'default',
+        boxSizing: 'border-box',
         transition: 'all 0.15s ease',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: accentColor }}>
-            <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-          </svg>
-          <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
-            R2 LAKE
-          </span>
-        </div>
-
-        <span
-          style={{
-            fontSize: '9.5px',
-            fontWeight: 800,
-            color: accentColor,
-            backgroundColor: badgeBg,
-            padding: '1px 5px',
-            borderRadius: '4px',
-          }}
+      {/* Cloudflare R2 Identity Icon & Label */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ color: accentColor, flexShrink: 0 }}
         >
-          {pct.toFixed(1)}%
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+        </svg>
+        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+          R2
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {/* Thanh tiến trình trực quan (Visual progress bar) */}
+      {/* Sleek Mini Capacity Gauge */}
+      <div
+        style={{
+          width: '52px',
+          height: '5px',
+          backgroundColor: 'var(--bg-elevated)',
+          borderRadius: '9999px',
+          overflow: 'hidden',
+          border: '1px solid var(--border-subtle)',
+          position: 'relative',
+          flexShrink: 0,
+        }}
+      >
         <div
           style={{
-            flex: 1,
-            height: '6px',
-            backgroundColor: 'var(--bg-elevated)',
+            width: `${pct}%`,
+            height: '100%',
+            background: barGradient,
             borderRadius: '9999px',
-            overflow: 'hidden',
-            border: '1px solid var(--border-subtle)',
-            position: 'relative',
+            transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
-        >
-          <div
-            style={{
-              width: `${pct}%`,
-              height: '100%',
-              background: barGradient,
-              borderRadius: '9999px',
-              transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-          />
-        </div>
+        />
+      </div>
 
-        <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-          {storageUsedGb.toFixed(2)} <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>/ 10 GB</span>
+      {/* Storage Volume: Only GB Ratio (No redundant % badge) */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', fontSize: '11px', fontWeight: 800 }}>
+        <span style={{ color: 'var(--text-primary)' }}>
+          {storageUsedGb.toFixed(2)}
+        </span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '9.5px', fontWeight: 600 }}>
+          / 10 GB
         </span>
       </div>
     </div>
