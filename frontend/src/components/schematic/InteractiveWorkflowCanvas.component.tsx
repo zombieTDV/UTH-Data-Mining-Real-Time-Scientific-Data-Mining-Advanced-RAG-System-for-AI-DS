@@ -471,9 +471,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     lastPaperDeltaBytes,
   } = useLakehouseStreamStore();
 
-  const liveBronzeCount = (storageStats?.zones?.bronzeCount ?? 9022) + streamSessionCount;
-  const liveBronzeGb = storageStats ? ((storageStats.zones.bronzeSizeBytes + streamSessionCount * 380000) / 1024 ** 3).toFixed(3) : '2.821';
-  const liveBatchesCount = storageStats?.total_objects ? Math.max(1, storageStats.total_objects - (storageStats?.zones?.bronzeCount ?? 9022)) : 44;
+  const liveBronzeCount = storageStats?.activeLakehouse
+    ? storageStats.activeLakehouse.arxivHtmlCount + streamSessionCount
+    : (storageStats?.zones?.bronzeCount ?? 11660) + streamSessionCount;
+  const liveBronzeGb = storageStats?.activeLakehouse
+    ? storageStats.activeLakehouse.arxivHtmlSizeGb.toFixed(3)
+    : (storageStats ? ((storageStats.zones.bronzeSizeBytes + streamSessionCount * 380000) / 1024 ** 3).toFixed(3) : '3.763');
+  const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
   const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || 13000);
 

@@ -30,8 +30,27 @@ export interface LakehouseStreamState {
   } | null;
   storageStats: StorageStatsResponse | null;
   connectionStatus: 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED';
+  viewMode: 'active' | 'total';
   logs: StreamingLogEntry[];
 }
+
+const getStoredViewMode = (): 'active' | 'total' => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('uth_lakehouse_view_mode');
+    if (saved === 'active' || saved === 'total') return saved;
+  }
+  return 'active';
+};
+
+const getStoredLogs = (): StreamingLogEntry[] => {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('uth_lakehouse_logs');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+  }
+  return [];
+};
 
 let state: LakehouseStreamState = {
   isStreaming: false,
@@ -39,14 +58,15 @@ let state: LakehouseStreamState = {
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
-  storageUsedGb: 2.939,
-  storageUsedPct: 29.39,
-  storageTotalBytes: 3156054549,
+  storageUsedGb: 8.073,
+  storageUsedPct: 80.73,
+  storageTotalBytes: 8668472480,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
   storageStats: null,
   connectionStatus: 'DISCONNECTED',
-  logs: [],
+  viewMode: getStoredViewMode(),
+  logs: getStoredLogs(),
 };
 
 const listeners = new Set<() => void>();
@@ -72,11 +92,15 @@ export async function refreshStorageStats(): Promise<void> {
   try {
     const data = await fetchStorageStats();
     if (data) {
+      const mode = state.viewMode;
+      const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 8.073);
+      const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 80.73);
+      const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 8668472480);
       updateState({
         storageStats: data,
-        storageUsedGb: data.total_size_gb,
-        storageUsedPct: data.used_percentage,
-        storageTotalBytes: data.total_size_bytes,
+        storageUsedGb: gb,
+        storageUsedPct: pct,
+        storageTotalBytes: bytes,
       });
     }
   } catch (e) {
@@ -84,16 +108,53 @@ export async function refreshStorageStats(): Promise<void> {
   }
 }
 
+export function setViewMode(mode: 'active' | 'total'): void {
+  updateState((prev) => {
+    const data = prev.storageStats;
+    let gb = prev.storageUsedGb;
+    let pct = prev.storageUsedPct;
+    let bytes = prev.storageTotalBytes;
+    if (data) {
+      if (mode === 'total') {
+        gb = data.total_size_gb;
+        pct = data.used_percentage;
+        bytes = data.total_size_bytes;
+      } else {
+        gb = data.activeLakehouse?.totalSizeGb ?? 8.073;
+        pct = data.activeLakehouse?.usedPercentage ?? 80.73;
+        bytes = data.activeLakehouse?.totalSizeBytes ?? 8668472480;
+      }
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('uth_lakehouse_view_mode', mode);
+      } catch {}
+    }
+    return {
+      viewMode: mode,
+      storageUsedGb: gb,
+      storageUsedPct: pct,
+      storageTotalBytes: bytes,
+    };
+  });
+}
+
 export function appendStreamLog(log: Omit<StreamingLogEntry, 'id'>): void {
-  updateState((prev) => ({
-    logs: [
+  updateState((prev) => {
+    const newLogs: StreamingLogEntry[] = [
       {
         ...log,
         id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       },
       ...prev.logs.slice(0, 199),
-    ],
-  }));
+    ];
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('uth_lakehouse_logs', JSON.stringify(newLogs.slice(0, 50)));
+      } catch {}
+    }
+    return { logs: newLogs };
+  });
 }
 
 export function setStreamTarget(target: number): void {
@@ -236,5 +297,6 @@ export function useLakehouseStreamStore() {
     setStreamTarget,
     appendLog: appendStreamLog,
     refreshStorageStats,
+    setViewMode,
   };
 }

@@ -4,6 +4,8 @@ export {
   triggerMiningPipeline,
   executeDuckDbQuery,
   searchLakehouse,
+  syncR2Storage,
+  resetStorageSession,
 } from './mining.service';
 
 export {

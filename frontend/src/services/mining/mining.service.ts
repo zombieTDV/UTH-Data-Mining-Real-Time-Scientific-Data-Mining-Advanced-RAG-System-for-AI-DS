@@ -50,3 +50,19 @@ export async function searchLakehouse(
   if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
   return res.json();
 }
+
+export async function syncR2Storage(): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${API_CONFIG.baseUrl}/api/storage/sync-r2`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`R2 sync failed: ${res.statusText}`);
+  return res.json();
+}
+
+export async function resetStorageSession(): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${API_CONFIG.baseUrl}/api/storage/reset-session`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Reset session failed: ${res.statusText}`);
+  return res.json();
+}

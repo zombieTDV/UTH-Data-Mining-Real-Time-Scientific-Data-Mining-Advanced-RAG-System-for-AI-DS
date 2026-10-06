@@ -29,12 +29,16 @@ export function PipelineFlow() {
   } = useLakehouseStreamStore();
 
   const currentCorpus = totalCorpus || 13000;
-  const currentBronzeCount = (storageStats?.zones?.bronzeCount ?? 9022) + sessionIngested;
-  const currentBatchesCount = storageStats?.total_objects ? Math.max(1, storageStats.total_objects - (storageStats?.zones?.bronzeCount ?? 9022)) : 44;
+  const currentBronzeCount = storageStats?.activeLakehouse
+    ? storageStats.activeLakehouse.arxivHtmlCount + sessionIngested
+    : (storageStats?.zones?.bronzeCount ?? 11660) + sessionIngested;
+  const currentBatchesCount = 12;
   const currentVectors = (storageStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
   const currentFormulas = 2220938 + (sessionIngested * 24);
-  const currentEnriched = 9015 + sessionIngested;
-  const currentGoldMb = (127.10 + (sessionIngested * 0.04)).toFixed(2);
+  const currentEnriched = currentBronzeCount;
+  const currentGoldMb = storageStats?.activeLakehouse
+    ? (storageStats.activeLakehouse.activeLanceDbSizeMb + (sessionIngested * 0.04)).toFixed(2)
+    : (121.21 + (sessionIngested * 0.04)).toFixed(2);
 
   const phases = useMemo<PipelinePhase[]>(() => [
     {
