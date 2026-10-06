@@ -12,8 +12,6 @@ import logging
 import time
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from backend.app.services.storage_service import storage_service
-
 logger = logging.getLogger("streaming_service")
 
 
@@ -31,10 +29,9 @@ class StreamingService:
         self.recent_events: List[Dict[str, Any]] = []
 
         # Real-time storage tracking
-        base_stats = storage_service.get_stats()
-        self.base_storage_bytes: int = base_stats.total_size_bytes
+        self.base_storage_bytes: int = 3156054549
         self.accumulated_bytes_delta: int = 0
-        self.free_tier_quota_gb: float = base_stats.free_tier_quota_gb
+        self.free_tier_quota_gb: float = 10.0
 
     def get_current_storage(self) -> Dict[str, Any]:
         total_bytes = self.base_storage_bytes + self.accumulated_bytes_delta

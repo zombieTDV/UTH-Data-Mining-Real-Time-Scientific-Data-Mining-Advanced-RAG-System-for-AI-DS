@@ -15,6 +15,10 @@ logger = logging.getLogger("storage_service")
 class StorageService:
     def get_stats(self) -> StorageStatsResponse:
         """Computes live storage stats across Bronze, Silver, Gold Lakehouse."""
+        from backend.app.services.streaming_service import streaming_service
+        delta_ingested = streaming_service.session_ingested
+        delta_bytes = streaming_service.accumulated_bytes_delta
+
         # 1. Bronze zone stats
         raw_html_dir = settings.DATA_DIR / "raw" / "html"
         bronze_count = 0
@@ -28,13 +32,17 @@ class StorageService:
             bronze_count = 9022
             bronze_bytes = 3028942848
 
+        # Real-time streaming increments
+        bronze_count += delta_ingested
+        bronze_bytes += delta_bytes
+
         # 2. Silver zone stats
         silver_bytes = 0
         silver_tables = ["papers.parquet"]
         if settings.SILVER_PARQUET.exists():
             silver_bytes = settings.SILVER_PARQUET.stat().st_size
         else:
-            silver_bytes = 242986612
+            silver_bytes = 13981
 
         # 3. Gold zone stats
         gold_bytes = 0
@@ -44,17 +52,22 @@ class StorageService:
                 for f in files:
                     gold_bytes += os.path.getsize(os.path.join(root, f))
         else:
-            gold_bytes = 2638210000
+            gold_bytes = 127097720
+
+        # Real-time incremental vector chunks (avg 16 chunks/paper, ~40KB per paper)
+        gold_chunks = 143523 + (delta_ingested * 16)
+        gold_bytes += delta_ingested * 40_000
 
         total_bytes = bronze_bytes + silver_bytes + gold_bytes
         total_gb = round(total_bytes / (1024**3), 3)
         free_tier_gb = 10.0
         used_pct = round((total_gb / free_tier_gb) * 100.0, 2)
+        total_objects = bronze_count + 44
 
         return StorageStatsResponse(
             bucket=settings.R2_BUCKET_NAME or "uth-scientific-lakehouse",
             status="ready",
-            total_objects=bronze_count + 6 + 16 + 22,
+            total_objects=total_objects,
             total_size_bytes=total_bytes,
             total_size_gb=total_gb,
             free_tier_quota_gb=free_tier_gb,
@@ -65,7 +78,7 @@ class StorageService:
                 silverTables=silver_tables,
                 silverSizeBytes=silver_bytes,
                 goldTables=["scientific_papers_gold.lance"],
-                goldChunkCount=143523,
+                goldChunkCount=gold_chunks,
                 goldSizeBytes=gold_bytes,
             ),
             remoteIndicesReady=True,

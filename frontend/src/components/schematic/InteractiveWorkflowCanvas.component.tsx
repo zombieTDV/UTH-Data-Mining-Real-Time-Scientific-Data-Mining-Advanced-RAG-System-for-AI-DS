@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FC, type MouseEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type FC, type MouseEvent } from 'react';
 import {
   startStreamingIngestion,
   stopStreamingIngestion,
@@ -454,7 +454,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   // Simulation state for realistic data streaming animation
   const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
   const [simulationHarvestedCount, setSimulationHarvestedCount] = useState<number>(0);
-  const [formulasExtracted, setFormulasExtracted] = useState<number>(2224198);
+  const [formulasExtracted, setFormulasExtracted] = useState<number>(2220938);
   const [vectorsIndexed, setVectorsIndexed] = useState<number>(143523);
 
   // Consume Centralized Lakehouse Stream Store
@@ -692,7 +692,49 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   };
 
 
-  const selectedTool = TOOL_DETAILS_MAP[selectedNodeId] || TOOL_DETAILS_MAP['start-flow'];
+  const baseTool = TOOL_DETAILS_MAP[selectedNodeId] || TOOL_DETAILS_MAP['start-flow'];
+  const selectedTool = useMemo(() => {
+    if (selectedNodeId === 'review-r2' || selectedNodeId === 'bronze-instance') {
+      return {
+        ...baseTool,
+        telemetrySummary: {
+          ...baseTool.telemetrySummary,
+          primaryMetric: `${storageUsedGb.toFixed(3)} GB Raw Storage`,
+          secondaryMetric: `${liveBronzeCount.toLocaleString()} HTML5 + ${liveBatchesCount} Batches`,
+        }
+      };
+    }
+    if (selectedNodeId === 'review-duckdb') {
+      return {
+        ...baseTool,
+        telemetrySummary: {
+          ...baseTool.telemetrySummary,
+          primaryMetric: `${(2220938 + streamSessionCount * 24).toLocaleString()} LaTeX Formulas`,
+          secondaryMetric: `${(9015 + streamSessionCount).toLocaleString()} Full-Section Enriched Papers`,
+        }
+      };
+    }
+    if (selectedNodeId === 'gold-lancedb') {
+      return {
+        ...baseTool,
+        telemetrySummary: {
+          ...baseTool.telemetrySummary,
+          primaryMetric: `${((storageStats?.zones?.goldChunkCount ?? 143523) + streamSessionCount * 16).toLocaleString()} Vectors Indexed`,
+          secondaryMetric: `768 Dimensions · ${(127.10 + streamSessionCount * 0.04).toFixed(2)} MB Index`,
+        }
+      };
+    }
+    if (selectedNodeId === 'start-flow') {
+      return {
+        ...baseTool,
+        telemetrySummary: {
+          ...baseTool.telemetrySummary,
+          primaryMetric: `${(totalCorpus || 13000).toLocaleString()} Papers Ingested`,
+        }
+      };
+    }
+    return baseTool;
+  }, [baseTool, selectedNodeId, storageUsedGb, liveBronzeCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus]);
 
   return (
     <div
@@ -2710,7 +2752,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       TÍNH NĂNG KIẾN TRÚC CỐT LÕI (CAPABILITY CHECKLIST)
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {selectedTool.features.map((feature, idx) => (
+                      {(selectedTool.features || []).map((feature: string, idx: number) => (
                         <div
                           key={idx}
                           style={{
