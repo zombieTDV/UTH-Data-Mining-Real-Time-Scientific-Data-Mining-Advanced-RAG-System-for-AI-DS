@@ -48,7 +48,7 @@ export function PipelineFlow() {
     {
       id: 'phase-1',
       phaseNumber: '01',
-      name: 'Multi-Source Academic Ingest & Bronze Lake',
+      name: 'Source Ingest & Bronze Lake',
       zone: 'BRONZE',
       zoneColor: 'var(--accent-bronze)',
       status: 'COMPLETED',

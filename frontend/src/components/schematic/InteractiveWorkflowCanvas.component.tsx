@@ -39,7 +39,7 @@ export interface ToolDetail {
 export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
   'start-flow': {
     id: 'start-flow',
-    name: 'Multi-Source Harvester (arXiv + OpenAlex)',
+    name: 'Source Ingest (arXiv + OpenAlex)',
     category: 'Source Data Ingestion Engine',
     role: 'Harvests academic metadata, full-text HTML5 papers, and conference papers',
     engineVersion: 'arXiv OAI-PMH XML + OpenAlex REST API + HTTPX Async',
@@ -54,10 +54,10 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     features: [
       'Asynchronous HTTPX client with rate limiter complying with arXiv & OpenAlex policies',
       'Full-text HTML5 crawler extracting abstract, introduction, methods, results, and formulas',
-      'Multi-source ingestion capturing arXiv preprints and OpenAlex global metadata',
+      'Federated academic ingestion capturing arXiv preprints and OpenAlex global metadata',
       'SHA-256 cryptographic content verification on each harvested document',
     ],
-    samplePreviewTitle: 'Multi-Source Ingestion Protocol Spec',
+    samplePreviewTitle: 'Source Ingestion Protocol Spec',
     sampleCodeOrSchema: `POST https://export.arxiv.org/oai2
 verb=ListRecords&metadataPrefix=arXivRaw&set=cs
 GET https://api.openalex.org/works?filter=has_doi:true,publication_year:2026
@@ -779,7 +779,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
-        minHeight: 'calc(100vh - 130px)',
+        height: '100%',
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         userSelect: 'none',
@@ -798,12 +799,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          paddingBottom: '20px',
         }}
       >
         <div
           style={{
-            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -115 : 0)}px) scale(${zoom})`,
+            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -130 : 0)}px) scale(${zoom})`,
             transformOrigin: 'center center',
             transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
             display: 'flex',
@@ -861,7 +861,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>Multi-Source Ingest</div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>Source Ingest</div>
                   <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Federated Crawlers</div>
                 </div>
               </div>
@@ -914,7 +914,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   gap: '4px',
                 }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#8b5cf6' }} />
-                  arXiv: {liveBronzeCount.toLocaleString()}
+                  arXiv {liveBronzeCount.toLocaleString()}
                 </span>
 
                 <span style={{
@@ -931,7 +931,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   gap: '4px',
                 }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
-                  OpenAlex: {liveOpenAlexCount.toLocaleString()}
+                  OpenAlex {liveOpenAlexCount.toLocaleString()}
                 </span>
 
                 <span style={{
@@ -947,7 +947,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   alignItems: 'center',
                   gap: '4px',
                 }}>
-                  Conf: {liveConfCount}
+                  Conf {liveConfCount}
                 </span>
               </div>
             </div>
@@ -1065,20 +1065,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   {storageUsedGb.toFixed(3)} GB
                 </span>
                 <span style={{
-                  fontSize: '9.5px',
-                  fontWeight: 800,
+                  fontSize: '10px',
+                  fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
-                  color: storageUsedPct >= 90 ? '#ef4444' : storageUsedPct >= 80 ? '#f59e0b' : 'var(--accent-emerald)',
-                  backgroundColor: storageUsedPct >= 90 ? 'rgba(239, 68, 68, 0.15)' : storageUsedPct >= 80 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                  padding: '1px 5px',
-                  borderRadius: '4px',
+                  color: 'var(--text-muted)',
                 }}>
-                  {storageUsedPct.toFixed(1)}% / 10 GB
+                  Primary Lake
                 </span>
               </div>
 
               {/* Visual Storage Progress Bar */}
-              <div style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={`Hạn mức Cloudflare R2: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)`}>
+              <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={`Hạn mức Cloudflare R2: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)`}>
                 <div style={{
                   width: `${Math.min(100, storageUsedPct)}%`,
                   height: '100%',
@@ -1108,7 +1105,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   gap: '4px',
                 }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#e11d48' }} />
-                  HTML5: {parseFloat(liveBronzeGb).toFixed(2)} GB
+                  HTML5 {parseFloat(liveBronzeGb).toFixed(2)} GB
                 </span>
 
                 <span style={{
@@ -1125,7 +1122,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   gap: '4px',
                 }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
-                  Meta: 3.97 GB
+                  Meta 3.97 GB
                 </span>
 
                 <span style={{
@@ -1142,7 +1139,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   gap: '4px',
                 }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                  Parquet: {liveSilverMb.toFixed(0)} MB
+                  Parquet {liveSilverMb.toFixed(0)} MB
                 </span>
 
                 {isStreaming && lastPaperDeltaBytes > 0 && (
@@ -1868,10 +1865,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         <section
           style={{
             position: 'fixed',
-            bottom: '32px', // Docked right above the 32px engineering footer
+            bottom: 0,
             left: '58px',   // Aligned beside the 58px sidebar rail
             right: 0,
-            height: drawerExpanded ? '520px' : '370px',
+            height: drawerExpanded ? 'calc(100vh - 120px)' : '390px',
             backgroundColor: themeStyles.drawerBg,
             borderTop: `2px solid ${themeStyles.drawerBorder}`,
             boxShadow: isDark ? '0 -10px 32px rgba(0, 0, 0, 0.55)' : '0 -10px 32px rgba(0, 0, 0, 0.12)',
@@ -2261,7 +2258,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         padding: '14px 16px',
                         display: 'flex',
                         flexDirection: 'column',
-                        justifyContent: 'space-between',
+                        gap: '12px',
                       }}
                     >
                       <div>
@@ -3641,7 +3638,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       <div
         style={{
           position: 'fixed',
-          bottom: drawerOpen ? (drawerExpanded ? '540px' : '390px') : '20px',
+          bottom: drawerOpen ? (drawerExpanded ? 'calc(100vh - 100px)' : '406px') : '16px',
           right: '28px',
           display: 'flex',
           alignItems: 'center',

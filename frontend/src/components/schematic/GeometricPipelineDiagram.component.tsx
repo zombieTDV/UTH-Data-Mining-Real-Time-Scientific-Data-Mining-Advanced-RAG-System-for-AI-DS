@@ -56,10 +56,10 @@ export function GeometricPipelineDiagram() {
     {
       id: 'node-harvest',
       code: '01/INGEST',
-      name: 'Multi-Source Academic Ingest',
+      name: 'Source Ingest',
       zone: 'HARVEST',
       zoneColor: '#ef4444',
-      toolName: 'Multi-Source Harvester',
+      toolName: 'Source Harvester',
       toolCategory: 'arXiv + OpenAlex + Conf',
       metricLabel: 'TOTAL CORPUS',
       metricValue: `${(currentBronzeCount + currentOpenAlexCount).toLocaleString()} Works`,

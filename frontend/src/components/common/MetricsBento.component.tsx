@@ -54,7 +54,7 @@ export const MetricsBento: FC = () => {
       {/* 1. Corpus Scale Card */}
       <StatCard
         label="Corpus Scale"
-        badge="Multi-Source Medallion"
+        badge="Medallion Lakehouse"
         badgeColor="var(--accent-emerald)"
         value={(arxivCount + openalexCount).toLocaleString()}
         unit="works"
