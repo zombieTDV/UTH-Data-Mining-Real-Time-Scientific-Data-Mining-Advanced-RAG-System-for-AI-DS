@@ -3583,6 +3583,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       const prevH = Math.max(4, (trend.previous_quarter_papers / maxVelocityPapers) * 125);
                       const recentH = Math.max(8, (trend.recent_quarter_papers / maxVelocityPapers) * 125);
                       const isHighSurge = trend.growth_rate_pct > 50 || trend.momentum === 'SURGING';
+                      const isDeclining = trend.growth_rate_pct < 0 || trend.momentum === 'DECLINING';
+                      const badgeColor = isHighSurge ? '#10b981' : isDeclining ? '#ef4444' : '#38bdf8';
 
                       return (
                         <g key={trend.category}>
@@ -3603,7 +3605,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             width="18"
                             height={recentH}
                             rx="2"
-                            fill="#2563eb"
+                            fill={isDeclining ? '#ef4444' : '#2563eb'}
                           />
 
                           {/* Unified Velocity Badge Pill */}
@@ -3615,7 +3617,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               height="18"
                               rx="4"
                               fill={isDark ? '#0f172a' : '#ffffff'}
-                              stroke={isHighSurge ? '#10b981' : '#38bdf8'}
+                              stroke={badgeColor}
                               strokeWidth="1.2"
                             />
                             <text
@@ -3625,9 +3627,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               fontSize="10"
                               fontFamily="var(--font-mono)"
                               fontWeight="800"
-                              fill={isHighSurge ? '#10b981' : '#38bdf8'}
+                              fill={badgeColor}
                             >
-                              +{Math.round(trend.growth_rate_pct)}%
+                              {trend.growth_rate_pct > 0 ? '+' : ''}{Math.round(trend.growth_rate_pct)}%
                             </text>
                           </g>
 
