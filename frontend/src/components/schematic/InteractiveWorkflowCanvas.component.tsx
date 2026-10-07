@@ -8,6 +8,7 @@ import {
 } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
+import { AnimatedCounter } from '../common/AnimatedCounter.component';
 
 export type PipelineStageKey =
   | 'idle'
@@ -471,6 +472,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     storageUsedPct,
     storageStats,
     lastPaperDeltaBytes,
+    activePipelineStage,
   } = useLakehouseStreamStore();
 
   const liveBronzeCount = storageStats?.activeLakehouse
@@ -578,10 +580,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     };
   }, [isPipelineRunning]);
 
+  const effectiveStage = (activePipelineStage && activePipelineStage !== 'idle') ? activePipelineStage : simulationStage;
   const isStageActive = (stage: string) => {
-    if (simulationStage === 'completed') return false;
-    if (simulationStage === stage) return true;
-    if (simulationStage === 'parallel' && (stage === 'silver' || stage === 'gold')) return true;
+    if (effectiveStage === 'completed') return false;
+    if (effectiveStage === stage) return true;
+    if ((effectiveStage === 'harvest' || effectiveStage === 'bronze') && (stage === 'harvest' || stage === 'bronze')) return true;
+    if ((effectiveStage === 'duckdb' || effectiveStage === 'silver') && (stage === 'duckdb' || stage === 'silver')) return true;
+    if ((effectiveStage === 'parallel' || effectiveStage === 'gold' || effectiveStage === 'embedding') && (stage === 'parallel' || stage === 'gold' || stage === 'silver')) return true;
+    if (effectiveStage === 'r2_sync' && (stage === 'bronze' || stage === 'silver' || stage === 'gold')) return true;
     return false;
   };
 
@@ -885,7 +891,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '13px', fontWeight: 900, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                  {displayWorks.toLocaleString()}
+                  <AnimatedCounter value={displayWorks} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
                   {isStreaming ? `+${streamSessionCount} mới (${streamSpeed}/m)` : 'Works Ingested'}
@@ -1062,7 +1068,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                  {storageUsedGb.toFixed(3)} GB
+                  <AnimatedCounter value={storageUsedGb} decimals={3} suffix=" GB" />
                 </span>
                 <span style={{
                   fontSize: '10px',
@@ -1272,7 +1278,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                  {liveFormulas.toLocaleString()}
+                  <AnimatedCounter value={liveFormulas} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
                   Formulas Parsed
@@ -1479,7 +1485,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
                     <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
-                      {liveSilverMb.toFixed(2)} MB
+                      <AnimatedCounter value={liveSilverMb} decimals={2} suffix=" MB" />
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
                       Silver Parquet
@@ -1606,7 +1612,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
                     <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
-                      {liveVectors.toLocaleString()}
+                      <AnimatedCounter value={liveVectors} />
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
                       Gold Vectors

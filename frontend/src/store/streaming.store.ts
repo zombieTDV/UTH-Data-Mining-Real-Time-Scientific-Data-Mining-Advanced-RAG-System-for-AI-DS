@@ -29,6 +29,7 @@ export interface LakehouseStreamState {
     latencyMs: number;
   } | null;
   storageStats: StorageStatsResponse | null;
+  activePipelineStage: 'idle' | 'harvest' | 'bronze' | 'duckdb' | 'silver' | 'embedding' | 'parallel' | 'gold' | 'r2_sync' | 'completed';
   connectionStatus: 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED';
   viewMode: 'active' | 'total';
   logs: StreamingLogEntry[];
@@ -64,6 +65,7 @@ let state: LakehouseStreamState = {
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
   storageStats: null,
+  activePipelineStage: 'idle',
   connectionStatus: 'DISCONNECTED',
   viewMode: getStoredViewMode(),
   logs: getStoredLogs(),
@@ -206,6 +208,7 @@ export function initializeLakehouseStream(): () => void {
           const updatedGb = event.storage_total_gb ?? +(state.storageUsedGb + paperDelta / (1024 ** 3)).toFixed(3);
           const updatedPct = event.storage_used_pct ?? +(state.storageUsedPct + (paperDelta / (10 * 1024 ** 3)) * 100).toFixed(2);
 
+          const stageKey = (event.stage || 'harvest').toLowerCase() as any;
           updateState((prev) => {
             const nextSession = event.session_ingested || prev.sessionIngested + 1;
             const vectorsDelta = typeof event.vectors_synced === 'number' ? event.vectors_synced : 0;
@@ -221,6 +224,7 @@ export function initializeLakehouseStream(): () => void {
 
             return {
               isStreaming: true,
+              activePipelineStage: stageKey,
               totalCorpus: event.total_corpus || prev.totalCorpus + 1,
               sessionIngested: nextSession,
               streamSpeed: event.speed_ppm || prev.streamSpeed,
@@ -244,7 +248,7 @@ export function initializeLakehouseStream(): () => void {
             };
           });
 
-          const isGold = event.stage === 'GOLD' || (typeof event.vectors_synced === 'number' && event.vectors_synced > 0 && (event.bronze_bytes_delta === 0 || !event.bronze_bytes_delta));
+          const isGold = event.stage?.toUpperCase() === 'GOLD' || (typeof event.vectors_synced === 'number' && event.vectors_synced > 0 && (event.bronze_bytes_delta === 0 || !event.bronze_bytes_delta));
           appendStreamLog({
             time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
             level: 'SUCCESS',
@@ -252,6 +256,41 @@ export function initializeLakehouseStream(): () => void {
             msg: isGold
               ? `[GOLD ZONE] Upserted ${(event.vectors_synced || 0).toLocaleString()} vectors to LanceDB Lakehouse ('scientific_papers_gold')`
               : `[BRONZE HARVEST] ${event.paper_id} (${event.category}) -> "${(event.title || '').slice(0, 48)}..." -> (+${Math.round(paperDelta / 1024)} KB raw payload)`,
+          });
+        } else if (event.type === 'STAGE_CHANGE') {
+          const rawStage = (event.stage || '').toLowerCase();
+          const targetStage: any = rawStage === 'embedding' ? 'parallel' : rawStage;
+          updateState((prev) => {
+            const vectorsDelta = typeof event.vectors_synced === 'number' ? event.vectors_synced : 0;
+            const updatedActive = prev.storageStats?.activeLakehouse && vectorsDelta > 0
+              ? {
+                  ...prev.storageStats.activeLakehouse,
+                  activeLanceDbVectors:
+                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) + vectorsDelta,
+                }
+              : prev.storageStats?.activeLakehouse;
+
+            return {
+              isStreaming: targetStage !== 'completed',
+              activePipelineStage: targetStage,
+              storageStats: prev.storageStats && updatedActive ? {
+                ...prev.storageStats,
+                activeLakehouse: updatedActive,
+              } : prev.storageStats,
+            };
+          });
+
+          if (rawStage === 'completed') {
+            setTimeout(() => {
+              updateState({ activePipelineStage: 'idle', isStreaming: false });
+            }, 6000);
+          }
+
+          appendStreamLog({
+            time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
+            level: 'INFO',
+            tag: 'PIPELINE-STEP',
+            msg: `[FLOW STAGE: ${rawStage.toUpperCase()}] ${event.title || 'Pipeline transition triggered.'}`,
           });
         } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
           if (event.status === 'STREAMING') {

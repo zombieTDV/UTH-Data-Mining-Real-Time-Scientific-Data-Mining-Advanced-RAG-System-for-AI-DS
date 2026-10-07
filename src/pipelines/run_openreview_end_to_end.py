@@ -86,6 +86,14 @@ def build_chunks_from_silver(records: List[Dict[str, Any]]) -> List[Dict[str, An
     return chunks
 
 
+def broadcast_telemetry(payload: dict):
+    try:
+        import httpx
+        httpx.post("http://localhost:8000/api/ingestion/broadcast", json=payload, timeout=0.25)
+    except Exception:
+        pass
+
+
 def main():
     parser = argparse.ArgumentParser(description="End-to-end OpenReview Ingestion to LanceDB Vector Indexing.")
     parser.add_argument("--limit", type=int, default=1000, help="Target papers to harvest and index (default: 1000)")
@@ -104,6 +112,13 @@ def main():
     # Step 1 & 2: Ingestion & Silver Parquet Transformation
     # --------------------------------------------------------------------------
     print("\n>>> [1/5] HARVESTING FROM OPENREVIEW TO BRONZE & SILVER...")
+    broadcast_telemetry({
+        "type": "STAGE_CHANGE",
+        "stage": "harvest",
+        "title": f"Harvesting {args.limit} papers from OpenReview ({args.venue})",
+        "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
+    })
+
     harvester = OpenReviewHarvester()
     records = harvester.harvest_and_vault(total_limit=args.limit, venue=args.venue)
 
@@ -117,6 +132,12 @@ def main():
     # Step 3: Dual Chunking (Abstract + Review Critique)
     # --------------------------------------------------------------------------
     print("\n>>> [2/5] CHUNKING PAPERS & EXTRACTING REVIEW CRITIQUES...")
+    broadcast_telemetry({
+        "type": "STAGE_CHANGE",
+        "stage": "duckdb",
+        "title": f"Dual Chunking & Silver Parquet Serialization ({len(records)} papers)",
+        "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
+    })
     raw_chunks = build_chunks_from_silver(records)
     print(f"[SUCCESS] Generated {len(raw_chunks)} chunks ({len(records)} abstracts + review units).")
 
@@ -124,6 +145,12 @@ def main():
     # Step 4: Dense Vector Embedding (Nomic Embed v1.5 on Apple Silicon MPS)
     # --------------------------------------------------------------------------
     print("\n>>> [3/5] GENERATING 768-D DENSE VECTORS VIA NOMIC EMBEDDER (APPLE MPS/GPU)...")
+    broadcast_telemetry({
+        "type": "STAGE_CHANGE",
+        "stage": "parallel",
+        "title": f"Nomic Embed v1.5 (Apple MPS): Embedding {len(raw_chunks)} chunks into 768-D vectors",
+        "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
+    })
     embedder = NomicEmbedder()
     print(f"[INFO] Using hardware device: {embedder.device}")
 
@@ -199,6 +226,12 @@ def main():
     # --------------------------------------------------------------------------
     if args.sync_r2:
         print("\n>>> [5/5] SYNCHRONIZING BRONZE, SILVER & GOLD TO CLOUDFLARE R2...")
+        broadcast_telemetry({
+            "type": "STAGE_CHANGE",
+            "stage": "r2_sync",
+            "title": "Synchronizing Bronze, Silver, Gold Parquet & LanceDB to Cloudflare R2",
+            "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
+        })
         from src.storage.r2_client import R2Client
         r2 = R2Client()
 
@@ -237,6 +270,13 @@ def main():
                 print("[R2 SYNC] [SUCCESS] LanceDB Gold vector index 100% synchronized with R2!")
             else:
                 print("[R2 SYNC] LanceDB Gold already in sync on Cloudflare R2.")
+
+    broadcast_telemetry({
+        "type": "STAGE_CHANGE",
+        "stage": "completed",
+        "title": f"OpenReview Pipeline Finished: {len(records)} papers & {inserted_count} Gold vectors synced",
+        "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
+    })
 
     elapsed = time.time() - start_time
     print("\n" + "=" * 80)

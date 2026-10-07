@@ -308,7 +308,7 @@ export interface IngestionControlResponse {
   message: string;
 }
 
-export type IngestionEventType = 'PAPER_INGESTED' | 'HEARTBEAT' | 'CONNECTION_ESTABLISHED';
+export type IngestionEventType = 'PAPER_INGESTED' | 'HEARTBEAT' | 'CONNECTION_ESTABLISHED' | 'STAGE_CHANGE';
 
 export interface IngestionEvent {
   type: IngestionEventType;
@@ -320,10 +320,11 @@ export interface IngestionEvent {
   title?: string;
   category?: string;
   session_ingested?: number;
-  stage?: 'BRONZE' | 'SILVER' | 'GOLD' | string;
+  stage?: string;
   vectors_synced?: number;
   latency_ms?: number;
   bronze_bytes_delta?: number;
+  silver_records?: number;
   storage_total_bytes?: number;
   storage_total_gb?: number;
   storage_used_pct?: number;
