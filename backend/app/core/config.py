@@ -59,11 +59,11 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     CONFIDENT_AI_API_KEY: str = ""
 
-    # Cross-Encoder Reranker Settings (disabled by default for low latency, hybrid RRF is active)
-    RERANKER_ENABLED: bool = False
+    # Cross-Encoder Reranker Settings (two-stage retrieval with cross-attention)
+    RERANKER_ENABLED: bool = True
     RERANKER_MODEL_NAME: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     RERANKER_FALLBACK_MODEL: str = "BAAI/bge-reranker-base"
-    RERANKER_TOP_K: int = 3
+    RERANKER_TOP_K: int = 5
     RERANKER_CANDIDATE_K: int = 15
 
     model_config = SettingsConfigDict(

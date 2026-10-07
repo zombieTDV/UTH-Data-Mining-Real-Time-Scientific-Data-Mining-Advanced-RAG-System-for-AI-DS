@@ -446,8 +446,8 @@ class RetrievalService:
                     except Exception as th_err:
                         logger.debug("[RETRIEVAL] Title candidate fetch error: %s", th_err)
 
-            # Retrieve rich candidate pool for authority reranking and fusion
-            candidate_limit = max(k * 8, 40)
+            # Retrieve candidate pool for authority reranking and fusion (bounded to prevent R2 S3 throttling)
+            candidate_limit = min(max(k * 2, 25), 40)
 
             # Execute search on LanceDB
             query_builder = None
