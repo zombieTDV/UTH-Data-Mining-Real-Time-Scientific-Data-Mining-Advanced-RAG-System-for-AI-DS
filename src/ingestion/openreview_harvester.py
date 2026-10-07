@@ -39,6 +39,14 @@ class OpenReviewHarvester:
     HF_OPENREVIEW_MIRROR = "https://datasets-server.huggingface.co/rows"
     DATASET_NAME = "AlgorithmicResearchGroup/openreview-papers-with-reviews"
 
+    # 4 Canonical Conference Groups on OpenReview
+    CONFERENCE_GROUPS = {
+        "ml_core": ["ICLR", "NeurIPS", "ICML"],
+        "nlp": ["ARR", "ACL", "EMNLP"],
+        "robotics_systems": ["CoRL", "MLSys"],
+        "safety_trust": ["SaTML", "Trustworthy"],
+    }
+
     def __init__(
         self,
         r2_client: Optional[R2Client] = None,
@@ -51,60 +59,27 @@ class OpenReviewHarvester:
 
         self.http_client = httpx.Client(
             headers={
-                "User-Agent": "UTH-DataMining-OpenReviewHarvester/2.0 (academic research; contact: data-mining@uth.edu.vn)"
+                "User-Agent": "UTH-DataMining-OpenReviewHarvester/2.5 (academic research; contact: data-mining@uth.edu.vn)"
             },
             timeout=30.0,
             follow_redirects=True,
         )
 
-    def fetch_via_direct_api(
-        self,
-        venue_id: str = "ICLR.cc/2024/Conference",
-        limit: int = 10,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        """Attempts direct API harvesting using openreview-py client."""
-        try:
-            import openreview
-
-            client = openreview.api.OpenReviewClient(
-                baseurl="https://api2.openreview.net",
-                username=username,
-                password=password,
-            )
-            logger.info("[OPENREVIEW] Querying API v2 for venue: %s (limit=%d)", venue_id, limit)
-            notes = client.get_notes(content={"venueid": venue_id}, limit=limit)
-            results = []
-            for note in notes:
-                item = {
-                    "paper_id": note.id,
-                    "title": note.content.get("title", {}).get("value", ""),
-                    "abstract": note.content.get("abstract", {}).get("value", ""),
-                    "authors": note.content.get("authors", {}).get("value", []),
-                    "venue": venue_id,
-                    "year": 2024,
-                    "pdf_url": f"https://openreview.net/pdf?id={note.id}",
-                    "forum_url": f"https://openreview.net/forum?id={note.id}",
-                    "reviews": [],
-                }
-                try:
-                    replies = client.get_notes(forum=note.id)
-                    for rep in replies:
-                        if "review" in rep.invitations[0].lower() or "official_review" in str(rep.invitations).lower():
-                            item["reviews"].append({
-                                "rating": rep.content.get("rating", {}).get("value"),
-                                "confidence": rep.content.get("confidence", {}).get("value"),
-                                "summary": rep.content.get("summary", {}).get("value"),
-                            })
-                except Exception:
-                    pass
-                results.append(item)
-            return results
-        except Exception as e:
-            logger.warning("[OPENREVIEW] Direct API encountered challenge/auth limitation: %s", str(e))
-            logger.info("[OPENREVIEW] Falling back to OpenReview Verified Academic Stream Mirror...")
-            return []
+    def _normalize_rating_score(self, raw_rating_str: Optional[str]) -> Optional[float]:
+        """Extracts and normalizes review rating into a continuous [0.0, 1.0] scale."""
+        if not raw_rating_str:
+            return None
+        import re
+        match = re.search(r"(\d+(?:\.\d+)?)", str(raw_rating_str))
+        if match:
+            val = float(match.group(1))
+            # Standard 10-point scale (ICLR/NeurIPS)
+            if val <= 10.0:
+                return round(val / 10.0, 3)
+            # Standard 5-point scale (ARR)
+            elif val <= 5.0:
+                return round(val / 5.0, 3)
+        return None
 
     def fetch_via_academic_mirror(
         self,
@@ -113,13 +88,13 @@ class OpenReviewHarvester:
         venue_filter: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Harvests verified OpenReview papers with full reviews from academic mirror."""
-        logger.info("[OPENREVIEW] Harvesting from OpenReview Academic Stream (limit=%d, offset=%d)...", limit, offset)
+        logger.info("[OPENREVIEW] Harvesting from OpenReview Academic Stream (limit=%d, filter=%s)...", limit, venue_filter)
         params = {
             "dataset": self.DATASET_NAME,
             "config": "default",
             "split": "train",
             "offset": offset,
-            "limit": min(limit, 100),
+            "limit": min(limit * 3, 100),  # Fetch extra to filter groups
         }
 
         try:
@@ -135,8 +110,10 @@ class OpenReviewHarvester:
                 paper_id = r.get("paper_id") or f"openreview_{len(papers_map)+1}"
                 venue = r.get("venue") or "ICLR"
 
-                if venue_filter and venue_filter.lower() not in venue.lower():
-                    continue
+                if venue_filter and venue_filter.upper() != "ALL":
+                    # Check venue filter against specific venue name or group keywords
+                    if venue_filter.lower() not in venue.lower():
+                        continue
 
                 if paper_id not in papers_map:
                     authors = r.get("paper_authors") or []
@@ -166,12 +143,18 @@ class OpenReviewHarvester:
                             rev_obj = {"review_text": raw_rev}
 
                     if rev_obj:
+                        rating_str = str(rev_obj.get("rating", ""))
+                        norm_rating = self._normalize_rating_score(rating_str)
                         papers_map[paper_id]["reviews"].append({
                             "title": rev_obj.get("title", ""),
-                            "rating": rev_obj.get("rating", ""),
+                            "rating": rating_str,
+                            "normalized_rating": norm_rating,
                             "confidence": rev_obj.get("confidence", ""),
                             "review_body": rev_obj.get("review", rev_obj.get("review_text", "")),
                         })
+
+                if len(papers_map) >= limit:
+                    break
 
             return list(papers_map.values())[:limit]
         except Exception as e:
@@ -189,31 +172,48 @@ class OpenReviewHarvester:
         logger.info("[OPENREVIEW HARVESTER] Target Venue: %s | Target Papers: %d", venue, total_limit)
         logger.info("================================================================================")
 
-        papers = self.fetch_via_direct_api(venue_id=f"{venue}.cc/2024/Conference", limit=total_limit)
+        # Resolve venue filter against the 4 canonical conference groups
+        venue_query = venue
+        if venue.lower() in self.CONFERENCE_GROUPS:
+            group_venues = self.CONFERENCE_GROUPS[venue.lower()]
+            venue_query = group_venues[0]
+            logger.info("[OPENREVIEW] Resolved group '%s' to primary venue '%s'", venue, venue_query)
+
+        papers = self.fetch_via_academic_mirror(limit=total_limit, venue_filter=venue_query)
 
         if not papers:
-            papers = self.fetch_via_academic_mirror(limit=total_limit, venue_filter=venue)
+            logger.warning("[OPENREVIEW] No papers collected for venue: %s. Fetching global OpenReview papers...", venue)
+            papers = self.fetch_via_academic_mirror(limit=total_limit, venue_filter="ALL")
 
         if not papers:
             logger.warning("[OPENREVIEW] No papers collected.")
             return []
 
+        # 3. Vault raw records to Bronze Layer
         timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         bronze_file = self.bronze_dir / f"openreview_{venue.lower()}_{timestamp_str}.json"
         with open(bronze_file, "w", encoding="utf-8") as f:
             json.dump(papers, f, ensure_ascii=False, indent=2)
         logger.info("[BRONZE VAULT] Saved %d papers to Bronze vault: %s", len(papers), bronze_file)
 
+        # 4. Prepare Silver records with Consensus & Controversy Metrics
         silver_records = []
         for p in papers:
+            # Build structured sections including peer review analysis
             sections = [
                 {"section_title": "Abstract", "content": p["abstract"]},
             ]
+
+            valid_ratings = []
             if p.get("reviews"):
                 review_summaries = []
                 for idx, r in enumerate(p["reviews"], 1):
+                    norm_score = r.get("normalized_rating")
+                    if norm_score is not None:
+                        valid_ratings.append(norm_score)
+
                     review_summaries.append(
-                        f"### Reviewer #{idx} (Rating: {r.get('rating', 'N/A')} | Confidence: {r.get('confidence', 'N/A')}):\n"
+                        f"### Reviewer #{idx} (Normalized Score: {norm_score or 'N/A'} | Rating: {r.get('rating', 'N/A')} | Confidence: {r.get('confidence', 'N/A')}):\n"
                         f"{r.get('review_body', '')[:1500]}"
                     )
                 sections.append({
@@ -221,12 +221,18 @@ class OpenReviewHarvester:
                     "content": "\n\n".join(review_summaries),
                 })
 
+            # Calculate Consensus (Mean) and Controversy (Variance)
+            consensus_score = round(sum(valid_ratings) / len(valid_ratings), 3) if valid_ratings else 0.70
+            variance_score = 0.0
+            if len(valid_ratings) > 1:
+                variance_score = round(sum((x - consensus_score) ** 2 for x in valid_ratings) / len(valid_ratings), 4)
+
             raw_meta = {
                 "paper_id": f"openreview_{p['paper_id']}",
                 "title": p["title"],
                 "abstract": p["abstract"],
                 "authors": p["authors"],
-                "categories": ["cs.LG", "cs.AI", f"venue:{venue}"],
+                "categories": ["cs.LG", "cs.AI", f"venue:{venue}", f"consensus:{consensus_score:.2f}"],
                 "primary_category": "cs.LG",
                 "published_date": f"{p['year']}-05-01",
                 "crawled_at": p["crawled_at"],
@@ -241,8 +247,13 @@ class OpenReviewHarvester:
                 "total_math_count": 5,
             }
             rec = self.silver_writer.prepare_record(raw_meta, parsed_content)
+            # Inject custom peer-review metrics into record
+            rec["consensus_score"] = float(consensus_score)
+            rec["controversy_variance"] = float(variance_score)
+            rec["review_count"] = int(len(p.get("reviews", [])))
             silver_records.append(rec)
 
+        # Save to local Silver Parquet partition
         silver_dest = settings.ROOT_DIR / "data" / "silver" / "openreview" / f"openreview_{venue.lower()}.parquet"
         silver_dest.parent.mkdir(parents=True, exist_ok=True)
         import pandas as pd
