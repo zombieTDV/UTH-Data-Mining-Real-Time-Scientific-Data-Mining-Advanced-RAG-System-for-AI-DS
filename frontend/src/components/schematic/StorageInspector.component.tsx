@@ -73,9 +73,9 @@ export function StorageInspector() {
   const arxivGb = (activeData?.arxivHtmlSizeGb ?? 3.763).toFixed(3);
   const openalexCount = (activeData?.openalexCount ?? 24754).toLocaleString();
   const openalexGb = (activeData?.openalexSizeGb ?? 3.971).toFixed(3);
-  const silverMb = (activeData?.silverParquetSizeMb ?? 316.06).toFixed(2);
-  const goldChunks = ((activeData?.activeLanceDbVectors ?? 143523) + (sessionIngested * 16)).toLocaleString();
-  const goldMb = (activeData?.activeLanceDbSizeMb ?? 121.21).toFixed(2);
+  const silverMb = (activeData?.silverParquetSizeMb ?? 321.68).toFixed(2);
+  const goldChunks = ((activeData?.activeLanceDbVectors ?? 164702) + (sessionIngested * 16)).toLocaleString();
+  const goldMb = (activeData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
   const backupGb = (backupData?.totalSizeGb ?? 3.069).toFixed(3);
 
   const activeGb = (activeData?.totalSizeGb ?? 8.073).toFixed(3);
@@ -122,29 +122,29 @@ export function StorageInspector() {
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy)',
-      itemsCount: '9 Partitions (36,414 works)',
+      itemsCount: '11 Partitions (38,414 works)',
       sizeBytes: `${silverMb} MB`,
-      r2Location: 's3://uth-scientific-lakehouse/silver/papers/',
+      r2Location: 's3://uth-scientific-lakehouse/silver/ (papers, cvf, openreview)',
       color: '#10b981',
-      description: 'Deduplicated, schema-enforced columnar Parquet tables with 2,220,938 extracted LaTeX mathematical equations.'
+      description: 'Deduplicated, schema-enforced columnar Parquet tables across arXiv, OpenAlex, CVPR 2024, and OpenReview.'
     },
     {
       zone: 'GOLD',
       name: 'Contextual Vector Lakehouse (Active Cache)',
       storageType: 'Local SSD NVMe Serving Index',
-      format: 'Lance Columnar (.lance)',
+      format: 'Lance Columnar (.lance) & Parquet',
       itemsCount: `${goldChunks} vectors`,
       sizeBytes: `${goldMb} MB`,
-      r2Location: 'data/gold/lancedb/scientific_papers_gold.lance',
+      r2Location: 'data/gold/ & s3://uth-scientific-lakehouse/gold/ (lancedb, cvf, openreview)',
       color: '#eab308',
-      description: 'Contextualized 768-dimensional dense embeddings optimized for sub-15ms cosine ANN similarity search.'
+      description: 'Contextualized 768-dimensional dense embeddings and Gold parquets spanning CVPR, OpenReview, and arXiv.'
     },
     {
       zone: 'BACKUP',
       name: 'Cloud Disaster Recovery Vector Replica',
       storageType: 'Cloudflare R2 Cold Snapshots',
       format: 'LanceDB Multi-Segment Archives',
-      itemsCount: '28 chunk segments',
+      itemsCount: '32 chunk segments',
       sizeBytes: `${backupGb} GB`,
       r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
       color: '#f59e0b',

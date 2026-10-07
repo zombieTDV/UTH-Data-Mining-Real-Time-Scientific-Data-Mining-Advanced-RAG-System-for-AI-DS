@@ -30,10 +30,10 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 36,414 works, 2.22M formulas, 143,523 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(36414);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 38,414 works, 164,702 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(38414);
   const [totalFormulas, setTotalFormulas] = useState<number>(2220938);
-  const [totalVectors, setTotalVectors] = useState<number>(143523);
+  const [totalVectors, setTotalVectors] = useState<number>(164702);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 

@@ -26,6 +26,9 @@ def sync_multi_source_lakehouse_to_r2():
         # Silver Parquet Cleaned Tables
         ("data/silver/cvf/cvpr2024.parquet", "silver/cvf/cvpr2024.parquet", "application/vnd.apache.parquet"),
         ("data/silver/openreview/openreview_all.parquet", "silver/openreview/openreview_all.parquet", "application/vnd.apache.parquet"),
+        # Gold Parquet Cleaned Tables
+        ("data/gold/parquets/cvpr2024_gold.parquet", "gold/cvf/cvpr2024_gold.parquet", "application/vnd.apache.parquet"),
+        ("data/gold/parquets/openreview_gold.parquet", "gold/openreview/openreview_gold.parquet", "application/vnd.apache.parquet"),
     ]
 
     synced_count = 0

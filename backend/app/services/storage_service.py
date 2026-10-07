@@ -36,11 +36,11 @@ class StorageService:
         self.base_openalex_count = 24754
         self.base_openalex_bytes = 4264028211    # ~3.971 GB
 
-        self.base_silver_count = 9
-        self.base_silver_bytes = 331411456       # ~316.06 MB
+        self.base_silver_count = 11
+        self.base_silver_bytes = 337315983       # ~321.68 MB
 
-        self.base_active_gold_vectors = 143523
-        self.base_active_gold_bytes = 127097720  # ~121.21 MB (local NVMe serving cache)
+        self.base_active_gold_vectors = 164702
+        self.base_active_gold_bytes = 221528740  # ~211.26 MB (164,702 vectors + CVPR & OpenReview Gold tables)
 
         self.base_backup_gold_count = 28
         self.base_backup_gold_bytes = 3295282176 # ~3.069 GB (R2 disaster recovery cloud replica)
@@ -209,9 +209,9 @@ class StorageService:
             bronzeSizeBytes=bronze_bytes,
             openalexCount=self.base_openalex_count,
             openalexSizeBytes=self.base_openalex_bytes,
-            silverTables=["papers.parquet", "year=2026/papers.parquet"],
+            silverTables=["papers.parquet", "year=2026/papers.parquet", "cvf/cvpr2024.parquet", "openreview/openreview_all.parquet"],
             silverSizeBytes=self.base_silver_bytes,
-            goldTables=["scientific_papers_gold.lance"],
+            goldTables=["scientific_papers_gold.lance", "cvf/cvpr2024_gold.parquet", "openreview/openreview_gold.parquet"],
             goldChunkCount=active_gold_vectors,
             goldSizeBytes=active_gold_bytes,
             goldBackupChunkCount=self.base_backup_gold_count,
