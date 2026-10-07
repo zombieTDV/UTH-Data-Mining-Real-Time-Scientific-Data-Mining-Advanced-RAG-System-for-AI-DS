@@ -1,5 +1,6 @@
 import type { FC } from 'react';
 import { StatCard } from './StatCard.component';
+import { AnimatedCounter } from './AnimatedCounter.component';
 import { useLakehouseStreamStore } from '../../store';
 
 export const MetricsBento: FC = () => {
@@ -56,11 +57,11 @@ export const MetricsBento: FC = () => {
         label="Corpus Scale"
         badge="Medallion Lakehouse"
         badgeColor="var(--accent-emerald)"
-        value={(arxivCount + openalexCount).toLocaleString()}
+        value={<AnimatedCounter value={arxivCount + openalexCount} />}
         unit="works"
         description="arXiv Primary Preprints + OpenAlex Extended Works"
-        footerLeft={`arXiv HTML5: ${arxivCount.toLocaleString()}`}
-        footerRight={`OpenAlex: ${openalexCount.toLocaleString()}`}
+        footerLeft={<>arXiv HTML5: <AnimatedCounter value={arxivCount} /></>}
+        footerRight={<>OpenAlex: <AnimatedCounter value={openalexCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
       />
 
@@ -69,10 +70,10 @@ export const MetricsBento: FC = () => {
         label="Gold Zone Vector Lakehouse"
         badge="768 Dim"
         badgeColor="var(--accent-gold)"
-        value={activeVectors.toLocaleString()}
+        value={<AnimatedCounter value={activeVectors} />}
         description="LanceDB Contextual Chunks (Fast ANN Search)"
-        footerLeft={`NVMe Serving: ${activeVectorMb} MB`}
-        footerRight={`Cloud Backup: ${backupGb} GB`}
+        footerLeft={<>NVMe Serving: <AnimatedCounter value={activeVectorMb} decimals={2} suffix=" MB" /></>}
+        footerRight={<>Cloud Backup: <AnimatedCounter value={backupGb} decimals={3} suffix=" GB" /></>}
         glowColor="rgba(234, 179, 8, 0.08)"
       />
 
@@ -157,7 +158,7 @@ export const MetricsBento: FC = () => {
           {/* Value Display */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
             <span style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              {displayGb.toFixed(3)}
+              <AnimatedCounter value={displayGb} decimals={3} />
             </span>
             <span style={{ fontSize: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>
               GB
@@ -173,7 +174,15 @@ export const MetricsBento: FC = () => {
               color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)',
               border: `1px solid ${isTotalView ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
             }}>
-              {isTotalView ? '111.4% (w/ Backup)' : `${displayPct.toFixed(1)}% Free Tier`}
+              {isTotalView ? (
+                <>
+                  <AnimatedCounter value={displayPct} decimals={1} suffix="%" /> (w/ Backup)
+                </>
+              ) : (
+                <>
+                  <AnimatedCounter value={displayPct} decimals={1} suffix="% Free Tier" />
+                </>
+              )}
             </span>
           </div>
 
@@ -277,7 +286,13 @@ export const MetricsBento: FC = () => {
           fontFamily: 'var(--font-mono)',
           color: 'var(--text-muted)',
         }}>
-          <span>{isTotalView ? 'Egress: $0.00 (Zero Fee)' : `Free Left: ${remainingFreeGb} GB`}</span>
+          <span>
+            {isTotalView ? (
+              'Egress: $0.00 (Zero Fee)'
+            ) : (
+              <>Free Left: <AnimatedCounter value={Number(remainingFreeGb)} decimals={3} suffix=" GB" /></>
+            )}
+          </span>
           <span style={{ color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)' }}>
             {isTotalView ? `Backup: +${backupGb} GB` : 'Safe in 10GB Quota'}
           </span>
@@ -289,7 +304,7 @@ export const MetricsBento: FC = () => {
         label="Mathematical Extraction Engine"
         badge="LaTeX Parser"
         badgeColor="var(--accent-violet)"
-        value={`${currentFormulas.toLocaleString()} Formulas`}
+        value={<><AnimatedCounter value={currentFormulas} /> Formulas</>}
         description="Cleaned and normalized into pure LaTeX syntax across Silver & Gold"
         footerLeft="Dual-Pass Regex + MathML"
         footerRight="Formula AST Tokenizer"

@@ -501,3 +501,38 @@ button:active {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* Real-Time Animated Counter Pulse Effects */
+@keyframes counterGlowEmerald {
+  0% {
+    color: #10b981;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4);
+    transform: translateY(-0.5px);
+  }
+  50% {
+    color: #34d399;
+    text-shadow: 0 0 14px rgba(52, 211, 153, 0.9), 0 0 24px rgba(16, 185, 129, 0.5);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+@keyframes counterGlowRuby {
+  0% {
+    color: #ef4444;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.4);
+    transform: translateY(0.5px);
+  }
+  50% {
+    color: #f87171;
+    text-shadow: 0 0 14px rgba(248, 113, 113, 0.9), 0 0 24px rgba(239, 68, 68, 0.5);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+    transform: translateY(0);
+  }
+}

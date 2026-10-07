@@ -126,9 +126,13 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = totalCorpus || totalPapers || 36414;
+  const effectiveTotalPapers = (totalCorpus || totalPapers || 38414) + sessionIngested;
   const effectiveTotalVectors = totalVectors + (sessionIngested * 14);
-  const effectiveTotalFormulas = totalFormulas;
+  const effectiveTotalFormulas = totalFormulas + (sessionIngested * 24);
+  const effectiveStorageGb = (storageUsedGb || 8.073) + (sessionIngested * 0.00035);
+  const effectiveStoragePct = storageUsedPct
+    ? Math.min(100, storageUsedPct + (sessionIngested * 0.0035))
+    : Math.min(100, (effectiveStorageGb / 10.0) * 100);
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>
@@ -160,8 +164,8 @@ export default function App() {
           totalVectors={effectiveTotalVectors}
           sessionIngested={sessionIngested}
           streamSpeed={streamSpeed}
-          storageUsedGb={storageUsedGb}
-          storageUsedPct={storageUsedPct}
+          storageUsedGb={effectiveStorageGb}
+          storageUsedPct={effectiveStoragePct}
           onTriggerPipeline={handleTriggerPipeline}
         />
         <main

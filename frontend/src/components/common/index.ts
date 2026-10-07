@@ -5,3 +5,5 @@ export { TrendingTopicCard, TrendingTopicCardTw } from './TrendingTopicCard.comp
 export type { TrendingTopic, TrendingTopicCardProps } from './TrendingTopicCard.component';
 export { ScientificMath } from './ScientificMath.component';
 export type { ScientificMathProps } from './ScientificMath.component';
+export { AnimatedCounter } from './AnimatedCounter.component';
+export type { AnimatedCounterProps } from './AnimatedCounter.component';
