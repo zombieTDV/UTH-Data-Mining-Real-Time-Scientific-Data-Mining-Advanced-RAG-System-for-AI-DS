@@ -92,18 +92,19 @@ def main():
     parser.add_argument("--venue", type=str, default="CVPR2024", help="Target venue (default: CVPR2024, or CVPR2023, ICCV2023)")
     parser.add_argument("--delay", type=float, default=0.05, help="Polite delay between requests in seconds (default: 0.05)")
     parser.add_argument("--batch-size", type=int, default=32, help="Embedding batch size (default: 32)")
+    parser.add_argument("--sync-r2", action="store_true", default=False, help="Automatically sync Bronze, Silver, Gold Parquet, and LanceDB to Cloudflare R2")
     args = parser.parse_args()
 
     start_time = time.time()
     print("\n" + "=" * 80)
     print("CVF / CVPR END-TO-END PIPELINE: INGESTION -> LAKEHOUSE -> LANCEDB GOLD")
-    print(f"Target: {args.limit} papers | Venue: {args.venue} | Delay: {args.delay}s | Batch Size: {args.batch_size}")
+    print(f"Target: {args.limit} papers | Venue: {args.venue} | Delay: {args.delay}s | Batch Size: {args.batch_size} | Sync R2: {args.sync_r2}")
     print("=" * 80)
 
     # --------------------------------------------------------------------------
     # Step 1 & 2: Ingestion & Silver Parquet Transformation
     # --------------------------------------------------------------------------
-    print("\n>>> [1/4] HARVESTING FROM CVF OPEN ACCESS TO BRONZE & SILVER...")
+    print("\n>>> [1/5] HARVESTING FROM CVF OPEN ACCESS TO BRONZE & SILVER...")
     harvester = CvfHarvester(request_delay=args.delay)
     records = harvester.harvest_and_vault(total_limit=args.limit, venue=args.venue)
 
@@ -116,14 +117,14 @@ def main():
     # --------------------------------------------------------------------------
     # Step 3: Chunking (Abstract + BibTeX Metadata)
     # --------------------------------------------------------------------------
-    print("\n>>> [2/4] CHUNKING PAPERS & EXTRACTING CITATION UNITS...")
+    print("\n>>> [2/5] CHUNKING PAPERS & EXTRACTING CITATION UNITS...")
     raw_chunks = build_chunks_from_cvf(records)
     print(f"[SUCCESS] Generated {len(raw_chunks)} chunks from {len(records)} papers.")
 
     # --------------------------------------------------------------------------
     # Step 4: Dense Vector Embedding (Nomic Embed v1.5 on Apple Silicon MPS)
     # --------------------------------------------------------------------------
-    print("\n>>> [3/4] GENERATING 768-D DENSE VECTORS VIA NOMIC EMBEDDER (APPLE MPS/GPU)...")
+    print("\n>>> [3/5] GENERATING 768-D DENSE VECTORS VIA NOMIC EMBEDDER (APPLE MPS/GPU)...")
     embedder = NomicEmbedder()
     print(f"[INFO] Using hardware device: {embedder.device}")
 
@@ -138,9 +139,9 @@ def main():
         c["vector"] = vectors[idx]
 
     # --------------------------------------------------------------------------
-    # Step 5: Upserting to LanceDB Gold Vector Table
+    # Step 5: Upserting to LanceDB Gold Vector Table & Gold Parquet Export
     # --------------------------------------------------------------------------
-    print("\n>>> [4/4] UPSERTING DIRECTLY INTO LANCEDB GOLD TABLE ('scientific_papers_gold')...")
+    print("\n>>> [4/5] UPSERTING DIRECTLY INTO LANCEDB GOLD TABLE ('scientific_papers_gold')...")
     lancedb_mgr = LanceDBManager()
     table_name = "scientific_papers_gold"
     inserted_count = lancedb_mgr.insert_chunks(raw_chunks, table_name=table_name)
@@ -148,6 +149,14 @@ def main():
 
     print(f"[SUCCESS] Upserted {inserted_count} new chunks into LanceDB!")
     print(f"[INFO] Total rows in LanceDB Gold table: {total_table_rows:,}")
+
+    # Export Gold Parquet for columnar query engine & cold backup
+    gold_parquet_dir = settings.ROOT_DIR / "data" / "gold" / "parquets"
+    gold_parquet_dir.mkdir(parents=True, exist_ok=True)
+    gold_parquet_path = gold_parquet_dir / "cvpr2024_gold.parquet"
+    clean_chunks = [{k: v for k, v in c.items() if k != "vector"} for c in raw_chunks]
+    pd.DataFrame(clean_chunks).to_parquet(gold_parquet_path, engine="pyarrow", compression="zstd")
+    print(f"[SUCCESS] Exported {len(clean_chunks)} chunks to Gold Parquet: {gold_parquet_path}")
 
     # --------------------------------------------------------------------------
     # Step 6: Instant Verification Test Query
@@ -163,6 +172,50 @@ def main():
     print(f"Top-1 Retrieved Chunk ID: {results.iloc[0]['chunk_id']}")
     print(f"Top-1 Retrieved Title:    {results.iloc[0]['title']}")
     print(f"Top-1 Section Type:       {results.iloc[0]['section_type']}")
+
+    # --------------------------------------------------------------------------
+    # Optional Step 7: Cloudflare R2 Multi-Tier Synchronization
+    # --------------------------------------------------------------------------
+    if args.sync_r2:
+        print("\n>>> [5/5] SYNCHRONIZING BRONZE, SILVER & GOLD TO CLOUDFLARE R2...")
+        from src.storage.r2_client import R2Client
+        r2 = R2Client()
+
+        # 1. Bronze JSON vault upload
+        bronze_files = sorted((settings.ROOT_DIR / "data" / "raw" / "cvf").glob("*.json"), key=os.path.getmtime)
+        if bronze_files:
+            latest_bronze = bronze_files[-1]
+            r2_bronze_key = f"bronze/cvf/{latest_bronze.name}"
+            r2.upload_file(latest_bronze, r2_bronze_key, content_type="application/json")
+            print(f"[R2 SYNC] [SUCCESS] Uploaded Bronze: {r2_bronze_key}")
+
+        # 2. Silver Parquet upload
+        silver_file = settings.ROOT_DIR / "data" / "silver" / "cvf" / f"{args.venue.lower()}.parquet"
+        if silver_file.exists():
+            r2_silver_key = f"silver/cvf/{silver_file.name}"
+            r2.upload_file(silver_file, r2_silver_key, content_type="application/vnd.apache.parquet")
+            print(f"[R2 SYNC] [SUCCESS] Uploaded Silver: {r2_silver_key}")
+
+        # 3. Gold Parquet upload
+        if gold_parquet_path.exists():
+            r2_gold_key = f"gold/cvf/{args.venue.lower()}_gold.parquet"
+            r2.upload_file(gold_parquet_path, r2_gold_key, content_type="application/vnd.apache.parquet")
+            print(f"[R2 SYNC] [SUCCESS] Uploaded Gold Parquet: {r2_gold_key}")
+
+        # 4. Incremental LanceDB Gold index upload
+        local_gold = settings.ROOT_DIR / "data" / "gold" / "lancedb" / "scientific_papers_gold.lance"
+        if local_gold.exists():
+            local_files = [f.relative_to(local_gold.parent) for f in local_gold.rglob("*") if f.is_file()]
+            r2_objs = r2.list_objects(prefix="gold/lancedb/scientific_papers_gold.lance/", max_keys=2000)
+            r2_keys = {o["key"] for o in r2_objs}
+            missing = [(local_gold.parent / rel, f"gold/lancedb/{rel}") for rel in local_files if f"gold/lancedb/{rel}" not in r2_keys]
+            if missing:
+                print(f"[R2 SYNC] Uploading {len(missing)} new LanceDB Gold segments...")
+                for loc, r2_k in missing:
+                    r2.upload_file(loc, r2_k)
+                print("[R2 SYNC] [SUCCESS] LanceDB Gold vector index 100% synchronized with R2!")
+            else:
+                print("[R2 SYNC] LanceDB Gold already in sync on Cloudflare R2.")
 
     elapsed = time.time() - start_time
     print("\n" + "=" * 80)

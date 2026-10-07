@@ -20,9 +20,6 @@ def sync_multi_source_lakehouse_to_r2():
 
     # 1. Sync Bronze & Silver files
     files_to_sync = [
-        # Bronze Raw Payloads
-        ("data/raw/cvf/cvpr2024_20261007_163212.json", "bronze/cvf/cvpr2024_20261007_163212.json", "application/json"),
-        ("data/raw/openreview/openreview_all_20261007_155300.json", "bronze/openreview/openreview_all_20261007_155300.json", "application/json"),
         # Silver Parquet Cleaned Tables
         ("data/silver/cvf/cvpr2024.parquet", "silver/cvf/cvpr2024.parquet", "application/vnd.apache.parquet"),
         ("data/silver/openreview/openreview_all.parquet", "silver/openreview/openreview_all.parquet", "application/vnd.apache.parquet"),
@@ -30,6 +27,12 @@ def sync_multi_source_lakehouse_to_r2():
         ("data/gold/parquets/cvpr2024_gold.parquet", "gold/cvf/cvpr2024_gold.parquet", "application/vnd.apache.parquet"),
         ("data/gold/parquets/openreview_gold.parquet", "gold/openreview/openreview_gold.parquet", "application/vnd.apache.parquet"),
     ]
+
+    # Dynamically include all Bronze JSON vault files
+    for cvf_f in (settings.ROOT_DIR / "data" / "raw" / "cvf").glob("*.json"):
+        files_to_sync.append((str(cvf_f.relative_to(settings.ROOT_DIR)), f"bronze/cvf/{cvf_f.name}", "application/json"))
+    for or_f in (settings.ROOT_DIR / "data" / "raw" / "openreview").glob("*.json"):
+        files_to_sync.append((str(or_f.relative_to(settings.ROOT_DIR)), f"bronze/openreview/{or_f.name}", "application/json"))
 
     synced_count = 0
     total_bytes = 0
