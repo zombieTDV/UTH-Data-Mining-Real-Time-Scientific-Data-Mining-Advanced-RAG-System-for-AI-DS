@@ -455,6 +455,10 @@ class RetrievalService:
                 query_vector = embedder_service.embed_query(req.query)
                 if query_vector is not None and self.vector_dim == len(query_vector):
                     query_builder = self.table.search(query_vector, vector_column_name="vector").metric("cosine")
+                    try:
+                        query_builder = query_builder.nprobes(20)
+                    except Exception:
+                        pass
                 else:
                     query_builder = self.table.search(req.query)
             else:
@@ -462,6 +466,20 @@ class RetrievalService:
 
             if req.category and "primary_category" in self.table.schema.names:
                 query_builder = query_builder.where(f"primary_category = '{req.category}'")
+
+            # Project specific columns to prevent transmitting raw 768-D float vectors over S3
+            target_cols = [
+                c for c in [
+                    "chunk_id", "paper_id", "title", "authors",
+                    "primary_category", "section_title", "section_type",
+                    "text", "context_text", "doi"
+                ] if c in self.table.schema.names
+            ]
+            if target_cols:
+                try:
+                    query_builder = query_builder.select(target_cols)
+                except Exception as proj_err:
+                    logger.debug("[RETRIEVAL] Projection error: %s", proj_err)
 
             rows = query_builder.limit(candidate_limit).to_pandas()
 
