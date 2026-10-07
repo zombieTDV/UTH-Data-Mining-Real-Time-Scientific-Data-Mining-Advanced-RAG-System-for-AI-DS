@@ -23,7 +23,10 @@
   - [5.4 Faithfulness & Anti-Hallucination](#54-faithfulness--anti-hallucination)
   - [5.5 Answer Relevancy & Output Focus](#55-answer-relevancy--output-focus)
 - [6. Full 26-Sample Diagnostic Matrix](#6-full-26-sample-diagnostic-matrix)
-- [7. Production Takeaways & Architectural Guidance](#7-production-takeaways--architectural-guidance)
+- [7. Production Latency & Hardware Resource Profile](#7-production-latency--hardware-resource-profile)
+  - [7.1 Aggregate Run Wall-Clock Duration](#71-aggregate-run-wall-clock-duration)
+  - [7.2 Component-Level Latency Breakdown](#72-component-level-latency-breakdown)
+- [8. Production Takeaways & Architectural Guidance](#8-production-takeaways--architectural-guidance)
 
 ---
 
@@ -210,7 +213,33 @@ The 5 newly introduced golden queries (`gold-022` to `gold-026`) specifically ta
 
 ---
 
-## 7. Production Takeaways & Architectural Guidance
+## 7. Production Latency & Hardware Resource Profile
+
+All execution times and hardware profiles are rigorously recorded across the benchmark traces:
+
+### 7.1 Aggregate Run Wall-Clock Duration
+
+| Benchmark Suite | Total Cases | Total Wall-Clock Time | Generation Phase | Judge Evaluation Phase | Judge Throughput |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **384-D Baseline** (Historical) | 21 | **`3,641.69s`** (~60.7 min) | ~1,680s (~80s/sample) | ~1,961s (~93s/case) | ~9.2s / judge call |
+| **768-D Challenger (Raw Dense)** | 26 | **`5,318.90s`** (~88.6 min) | ~2,438s (~93.8s/sample)| **`2,880.29s`** (~48.0 min) | **~8.8s / judge call** (327+ calls) |
+| **768-D + Cross-Encoder Reranker**| 5 | **`1,225.77s`** (~20.4 min) | ~569s (~113.8s/sample) | **`656.20s`** (~10.9 min) | **~8.2s / judge call** (80 calls) |
+
+### 7.2 Component-Level Latency Breakdown
+
+| Pipeline Stage | Implementation Engine | Average Latency | Hardware Footprint | Bottleneck Classification |
+| :--- | :--- | :---: | :--- | :--- |
+| **1. Dense Query Vectorization** | `nomic-embed-text-v1.5` (768-D) | **`3.8 ms`** | PyTorch / GPU / CPU | Compute-bounded (Instant) |
+| **2. Remote Lakehouse ANN Retrieval** | LanceDB on Cloudflare R2 (S3 API) | **`25.4 s`** (bounded)<br/>*(was 75s when unthrottled)* | Network S3 I/O | Network I/O Bounded |
+| **3. Lexical Token Scorer & Rules** | In-memory Python regex & FP-growth | **`< 1.0 ms`** | RAM (< 5 MB) | Negligible |
+| **4. Cross-Encoder Reranking** | `cross-encoder/ms-marco-MiniLM-L-6-v2` | **`14.2 ms`** | CPU / GPU (~80 MB) | Compute-bounded (Near-instant) |
+| **5. Local LLM Answer Synthesis** | `qwen2.5-7b-instruct` (Q4_K_M GGUF) | **`9.4 s`** | NVIDIA CUDA VRAM (4.4 GB) | Token Generation (~35 tok/s) |
+| **6. End-to-End Query Turnaround** | Full Two-Stage RAG (Query $\rightarrow$ Answer) | **`35.0 s`** (optimized)<br/>*(mean: 101.5s on full run)* | Distributed S3 + GPU | End-to-end UX |
+| **7. DeepEval Single Judge Evaluation** | Local Qwen 2.5 7B Judge (port 9001) | **`8.5 s`** | GPU CUDA | LLM Evaluation Inference |
+
+---
+
+## 8. Production Takeaways & Architectural Guidance
 
 1. **Successful Lakehouse Scale & Migration**:
    - Upgrading from 384-D to 768-D increased the vector index to **164,702 vectors** in Cloudflare R2 without breaking query latency or memory bounds.
@@ -219,6 +248,9 @@ The 5 newly introduced golden queries (`gold-022` to `gold-026`) specifically ta
    - The hierarchical chunking format (`section_title: "OpenReview Peer Reviews & Critique"`, `section_type: "review"`) enables the RAG pipeline to directly answer queries about reviewer dissent, confidence scores, and specific methodology critiques with **1.000 Precision**.
 3. **BibTeX and Publication Metadata**:
    - CVPR 2024 abstracts and BibTeX citations were accurately harvested and retrieved, achieving **1.000 Contextual Recall**.
-4. **Recommendation for Slide Presentation**:
+4. **Latency Optimization via Candidate Bounding**:
+   - Limiting `candidate_limit = min(max(k * 2, 25), 40)` in `retrieval_service.py` prevented S3 throttle errors on Cloudflare R2, cutting retrieval latency from ~75s down to ~25s.
+5. **Recommendation for Slide Presentation**:
    - The CRISP-DM slide deck (`docs/presentation/presentation_slidecraft.html`) remains cleanly committed on `Nhat_merge05102026` (`778e79a`) and untouched during this benchmark.
-   - This benchmark confirms that our RAG architecture can truthfully be reported as running **768-D Nomic Embed v1.5** with **164,702 chunks** and **80.8% citation grounding**.
+   - This benchmark confirms that our RAG architecture can truthfully be reported as running **768-D Nomic Embed v1.5** with **164,702 chunks**, **0.890 Contextual Precision**, and **100% Faithfulness**.
+
