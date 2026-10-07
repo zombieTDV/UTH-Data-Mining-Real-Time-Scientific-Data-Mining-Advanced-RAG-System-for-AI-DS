@@ -89,77 +89,92 @@ class OpenReviewHarvester:
     ) -> List[Dict[str, Any]]:
         """Harvests verified OpenReview papers with full reviews from academic mirror."""
         logger.info("[OPENREVIEW] Harvesting from OpenReview Academic Stream (limit=%d, filter=%s)...", limit, venue_filter)
-        params = {
-            "dataset": self.DATASET_NAME,
-            "config": "default",
-            "split": "train",
-            "offset": offset,
-            "limit": min(limit * 3, 100),  # Fetch extra to filter groups
-        }
+        papers_map: Dict[str, Dict[str, Any]] = {}
+        curr_offset = offset
+        batch_size = 100
+        max_consecutive_empty = 3
+        empty_count = 0
 
-        try:
-            resp = self.http_client.get(self.HF_OPENREVIEW_MIRROR, params=params)
-            resp.raise_for_status()
-            data = resp.json()
-            rows = data.get("rows", [])
-            logger.info("[OPENREVIEW] Received %d raw rows from OpenReview stream.", len(rows))
+        while len(papers_map) < limit:
+            params = {
+                "dataset": self.DATASET_NAME,
+                "config": "default",
+                "split": "train",
+                "offset": curr_offset,
+                "limit": batch_size,
+            }
 
-            papers_map: Dict[str, Dict[str, Any]] = {}
-            for r_wrapper in rows:
-                r = r_wrapper.get("row", {})
-                paper_id = r.get("paper_id") or f"openreview_{len(papers_map)+1}"
-                venue = r.get("venue") or "ICLR"
+            try:
+                resp = self.http_client.get(self.HF_OPENREVIEW_MIRROR, params=params)
+                resp.raise_for_status()
+                data = resp.json()
+                rows = data.get("rows", [])
+                if not rows:
+                    empty_count += 1
+                    if empty_count >= max_consecutive_empty:
+                        break
+                    curr_offset += batch_size
+                    continue
 
-                if venue_filter and venue_filter.upper() != "ALL":
-                    # Check venue filter against specific venue name or group keywords
-                    if venue_filter.lower() not in venue.lower():
-                        continue
+                empty_count = 0
+                logger.info("[OPENREVIEW] Fetched offset=%d (+%d rows, unique papers so far: %d/%d)...", curr_offset, len(rows), len(papers_map), limit)
 
-                if paper_id not in papers_map:
-                    authors = r.get("paper_authors") or []
-                    if isinstance(authors, str):
-                        authors = [a.strip() for a in authors.split(",") if a.strip()]
+                for r_wrapper in rows:
+                    r = r_wrapper.get("row", {})
+                    paper_id = r.get("paper_id") or f"openreview_{len(papers_map)+1}"
+                    venue = r.get("venue") or "ICLR"
 
-                    papers_map[paper_id] = {
-                        "paper_id": str(paper_id),
-                        "title": r.get("paper_title") or "Peer-Reviewed Academic Paper",
-                        "abstract": r.get("paper_abstract") or "",
-                        "authors": authors,
-                        "venue": str(venue),
-                        "year": int(r.get("year", 2024)) if r.get("year") else 2024,
-                        "pdf_url": r.get("pdf_url") or f"https://openreview.net/pdf?id={paper_id}",
-                        "forum_url": r.get("forum_url") or f"https://openreview.net/forum?id={paper_id}",
-                        "reviews": [],
-                        "crawled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    }
+                    if venue_filter and venue_filter.upper() != "ALL":
+                        if venue_filter.lower() not in venue.lower():
+                            continue
 
-                raw_rev = r.get("raw_review")
-                if raw_rev:
-                    rev_obj = raw_rev if isinstance(raw_rev, dict) else None
-                    if isinstance(raw_rev, str):
-                        try:
-                            rev_obj = json.loads(raw_rev)
-                        except Exception:
-                            rev_obj = {"review_text": raw_rev}
+                    if paper_id not in papers_map:
+                        authors = r.get("paper_authors") or []
+                        if isinstance(authors, str):
+                            authors = [a.strip() for a in authors.split(",") if a.strip()]
 
-                    if rev_obj:
-                        rating_str = str(rev_obj.get("rating", ""))
-                        norm_rating = self._normalize_rating_score(rating_str)
-                        papers_map[paper_id]["reviews"].append({
-                            "title": rev_obj.get("title", ""),
-                            "rating": rating_str,
-                            "normalized_rating": norm_rating,
-                            "confidence": rev_obj.get("confidence", ""),
-                            "review_body": rev_obj.get("review", rev_obj.get("review_text", "")),
-                        })
+                        papers_map[paper_id] = {
+                            "paper_id": str(paper_id),
+                            "title": r.get("paper_title") or "Peer-Reviewed Academic Paper",
+                            "abstract": r.get("paper_abstract") or "",
+                            "authors": authors,
+                            "venue": str(venue),
+                            "year": int(r.get("year", 2024)) if r.get("year") else 2024,
+                            "pdf_url": r.get("pdf_url") or f"https://openreview.net/pdf?id={paper_id}",
+                            "forum_url": r.get("forum_url") or f"https://openreview.net/forum?id={paper_id}",
+                            "reviews": [],
+                            "crawled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        }
 
-                if len(papers_map) >= limit:
-                    break
+                    raw_rev = r.get("raw_review")
+                    if raw_rev:
+                        rev_obj = raw_rev if isinstance(raw_rev, dict) else None
+                        if isinstance(raw_rev, str):
+                            try:
+                                rev_obj = json.loads(raw_rev)
+                            except Exception:
+                                rev_obj = {"review_text": raw_rev}
 
-            return list(papers_map.values())[:limit]
-        except Exception as e:
-            logger.error("[OPENREVIEW] Failed to fetch from academic mirror: %s", str(e))
-            return []
+                        if rev_obj:
+                            rating_str = str(rev_obj.get("rating", ""))
+                            norm_rating = self._normalize_rating_score(rating_str)
+                            papers_map[paper_id]["reviews"].append({
+                                "title": rev_obj.get("title", ""),
+                                "rating": rating_str,
+                                "normalized_rating": norm_rating,
+                                "confidence": rev_obj.get("confidence", ""),
+                                "review_body": rev_obj.get("review", rev_obj.get("review_text", "")),
+                            })
+
+                    if len(papers_map) >= limit:
+                        break
+
+                curr_offset += len(rows)
+            except Exception as e:
+                logger.error("[OPENREVIEW] Error at offset %d: %s", curr_offset, str(e))
+                break
+
+        return list(papers_map.values())[:limit]
 
     def harvest_and_vault(
         self,
