@@ -125,6 +125,33 @@ class StorageService:
         delta_ingested = streaming_service.session_ingested
         delta_bytes = streaming_service.accumulated_bytes_delta
 
+        # Check actual live LanceDB vector count if available
+        try:
+            from src.indexing.lancedb_manager import LanceDBManager
+            l_mgr = LanceDBManager()
+            tbl = l_mgr.db.open_table("scientific_papers_gold")
+            live_rows = len(tbl)
+            if live_rows > 0:
+                self.base_active_gold_vectors = live_rows
+        except Exception:
+            pass
+
+        # Check actual conference papers (CVPR + OpenReview Silver)
+        try:
+            cvf_silver = settings.ROOT_DIR / "data" / "silver" / "cvf" / "cvpr2024.parquet"
+            or_silver = settings.ROOT_DIR / "data" / "silver" / "openreview" / "openreview_all.parquet"
+            conf_count = 0
+            if cvf_silver.exists():
+                import pyarrow.parquet as pq
+                conf_count += pq.read_metadata(cvf_silver).num_rows
+            if or_silver.exists():
+                import pyarrow.parquet as pq
+                conf_count += pq.read_metadata(or_silver).num_rows
+            if conf_count > 0:
+                self.base_conferences_count = conf_count
+        except Exception:
+            pass
+
         # Incremental streaming adjustments
         arxiv_html_count = self.base_arxiv_html_count + delta_ingested
         arxiv_html_bytes = self.base_arxiv_html_bytes + delta_bytes
@@ -165,6 +192,7 @@ class StorageService:
             silverParquetCount=self.base_silver_count,
             silverParquetSizeBytes=self.base_silver_bytes,
             silverParquetSizeMb=round(self.base_silver_bytes / (1024**2), 2),
+            conferenceCount=self.base_conferences_count,
             activeLanceDbVectors=active_gold_vectors,
             activeLanceDbSizeBytes=active_gold_bytes,
             activeLanceDbSizeMb=round(active_gold_bytes / (1024**2), 2),

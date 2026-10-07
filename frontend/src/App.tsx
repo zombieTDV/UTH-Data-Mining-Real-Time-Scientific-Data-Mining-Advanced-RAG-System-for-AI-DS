@@ -56,19 +56,27 @@ export default function App() {
       })
       .catch(() => {});
 
-    fetchStorageStats()
-      .then((data) => {
-        if (data?.activeLakehouse) {
-          const works = (data.activeLakehouse.arxivHtmlCount || 11660) + (data.activeLakehouse.openalexCount || 24754);
-          setTotalPapers(works);
-          if (data.activeLakehouse.activeLanceDbVectors) {
-            setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
+    const syncStorageStats = () => {
+      fetchStorageStats()
+        .then((data) => {
+          if (data?.activeLakehouse) {
+            const works =
+              (data.activeLakehouse.arxivHtmlCount || 11660) +
+              (data.activeLakehouse.openalexCount || 24754) +
+              (data.activeLakehouse.conferenceCount || 0);
+            setTotalPapers(works);
+            if (data.activeLakehouse.activeLanceDbVectors) {
+              setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
+            }
+          } else if (data?.zones?.goldChunkCount) {
+            setTotalVectors(data.zones.goldChunkCount);
           }
-        } else if (data?.zones?.goldChunkCount) {
-          setTotalVectors(data.zones.goldChunkCount);
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    };
+
+    syncStorageStats();
+    const statsInterval = setInterval(syncStorageStats, 4000);
 
     const unsubscribeTelemetry = subscribeTelemetry(
       (data) => {
@@ -84,6 +92,7 @@ export default function App() {
     const unsubscribeStream = initializeStream();
 
     return () => {
+      clearInterval(statsInterval);
       unsubscribeTelemetry();
       unsubscribeStream();
     };

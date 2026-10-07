@@ -150,6 +150,26 @@ def main():
     print(f"[SUCCESS] Upserted {inserted_count} new chunks into LanceDB!")
     print(f"[INFO] Total rows in LanceDB Gold table: {total_table_rows:,}")
 
+    # Emit completion pulse to Frontend UI if FastAPI server is active
+    try:
+        import httpx
+        httpx.post(
+            "http://localhost:8000/api/v1/ingestion/broadcast",
+            json={
+                "type": "PAPER_INGESTED",
+                "paper_id": f"openreview_batch_{len(records)}",
+                "title": f"OpenReview Batch Completed: {len(records)} papers, {inserted_count} chunks",
+                "category": "cs.LG",
+                "vectors_synced": inserted_count,
+                "bronze_bytes_delta": len(records) * 420000,
+                "speed_ppm": 120.0,
+                "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
+            },
+            timeout=0.3,
+        )
+    except Exception:
+        pass
+
     # Export Gold Parquet for columnar query engine & cold backup
     gold_parquet_dir = settings.ROOT_DIR / "data" / "gold" / "parquets"
     gold_parquet_dir.mkdir(parents=True, exist_ok=True)

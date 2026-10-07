@@ -242,6 +242,7 @@ export interface ActiveLakehouseInfo {
   silverParquetCount: number;
   silverParquetSizeBytes: number;
   silverParquetSizeMb: number;
+  conferenceCount?: number;
   activeLanceDbVectors: number;
   activeLanceDbSizeBytes: number;
   activeLanceDbSizeMb: number;
