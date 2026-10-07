@@ -69,7 +69,6 @@ def run_phase1_harvest(
     target_papers: int,
     delay: float,
     reset_checkpoint: bool,
-    from_date: str,
     r2: R2Client,
     engine: DuckDBEngine,
     logger: logging.Logger,
@@ -92,7 +91,6 @@ def run_phase1_harvest(
         harvester = ArxivBatchHarvester(r2_client=r2, request_delay=delay)
         total_ingested = harvester.harvest_large_corpus(
             total_target=target_papers,
-            from_date=from_date,
             reset_checkpoint=reset_checkpoint,
         )
         print(f"[SUCCESS] Phase 1 hoan tat: Tong so bai bao trong Silver dat {total_ingested:,} bai.")
@@ -290,20 +288,7 @@ def run_phase3_gold_indexing(
 
         chunk_texts = [c["context_text"] for c in all_chunks]
         embed_start = time.time()
-        embeddings = []
-        embed_batch_size = 64
-        total_batches = (len(chunk_texts) + embed_batch_size - 1) // embed_batch_size
-        for b_idx in range(total_batches):
-            s_i = b_idx * embed_batch_size
-            e_i = min(s_i + embed_batch_size, len(chunk_texts))
-            sub_vecs = embedder.embed_documents(chunk_texts[s_i:e_i], batch_size=batch_size)
-            embeddings.extend(sub_vecs)
-            elapsed = time.time() - embed_start
-            pct = (e_i / len(chunk_texts)) * 100
-            spd = e_i / max(0.1, elapsed)
-            sys.stdout.write(f"\r[EMBEDDING] Tien do: {e_i:,}/{len(chunk_texts):,} ({pct:.1f}%) | Toc do: {spd:.1f} chunks/s | Thoi gian: {elapsed:.1f}s")
-            sys.stdout.flush()
-        print()
+        embeddings = embedder.embed_documents(chunk_texts, batch_size=batch_size)
         embed_time = time.time() - embed_start
         print(f"[INFO] Sinh {len(embeddings):,} vectors (768 chieu) trong {embed_time:.2f}s ({len(embeddings)/max(1, embed_time):.1f} chunks/s).")
 
@@ -363,47 +348,37 @@ def run_phase3_gold_indexing(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Master Pipeline: Chay tron goi tu Bronze, Silver, HTML den LanceDB Gold trong 1 lenh duy nhat."
+        description="Master Pipeline: Chay toan bo quy trinh tu Bronze, Silver den Gold trong 1 lenh duy nhat."
     )
     parser.add_argument(
-        "count",
-        nargs="?",
-        type=int,
-        default=None,
-        help="So luong bai bao can thu thap tron goi (mac dinh: 3000 bai).",
-    )
-    parser.add_argument(
-        "--target",
-        "-t",
         "--target-papers",
-        dest="target",
         type=int,
-        default=3000,
-        help="Tong so bai bao can thu thap tron goi (mac dinh: 3000 bai).",
+        default=10000,
+        help="Tong so bai bao can thu thap o Phase 1 (mac dinh: 10,000 bai).",
     )
     parser.add_argument(
         "--enrich-html-limit",
         type=int,
-        default=None,
-        help="So luong bai bao can cao va boc tach HTML toan van o Phase 2 (mac dinh: dong bo voi target).",
+        default=100,
+        help="So luong bai bao can cao va boc tach HTML toan van o Phase 2 (mac dinh: 100 bai, 0 = tat ca).",
     )
     parser.add_argument(
         "--gold-limit",
         type=int,
-        default=None,
-        help="So luong bai bao can index vao LanceDB Gold o Phase 3 (mac dinh: dong bo voi target).",
+        default=500,
+        help="So luong bai bao can index vao LanceDB Gold o Phase 3 (mac dinh: 500 bai, 0 = tat ca).",
     )
     parser.add_argument(
         "--delay-oai",
         type=float,
-        default=5.0,
-        help="Delay giua cac trang OAI-PMH (mac dinh: 5.0s).",
+        default=10.0,
+        help="Delay giua cac trang OAI-PMH (mac dinh: 10.0s).",
     )
     parser.add_argument(
         "--delay-html",
         type=float,
-        default=0.5,
-        help="Delay giua cac lan tai HTML (mac dinh: 0.5s).",
+        default=1.0,
+        help="Delay giua cac lan tai HTML (mac dinh: 1.0s).",
     )
     parser.add_argument(
         "--batch-size-embed",
@@ -412,37 +387,24 @@ def main():
         help="Batch size embedding Nomic v1.5 (mac dinh: 32).",
     )
     parser.add_argument(
-        "--from-date",
-        type=str,
-        default="2025-01-01",
-        help="Moc thoi gian bat dau lay bai bao (mac dinh: 2025-01-01).",
-    )
-    parser.add_argument(
         "--reset-checkpoint",
         action="store_true",
-        default=True,
-        help="Bo qua checkpoint cu va bat dau cao moi (mac dinh: True).",
-    )
-    parser.add_argument(
-        "--no-reset-checkpoint",
-        action="store_false",
-        dest="reset_checkpoint",
-        help="Khong xoa checkpoint cu.",
+        help="Xoa checkpoint cu de cao moi Phase 1 tu dau.",
     )
     parser.add_argument(
         "--skip-phase1",
         action="store_true",
-        help="Bo qua Phase 1.",
+        help="Bo qua Phase 1 (neu da co du lieu Silver).",
     )
     parser.add_argument(
         "--skip-phase2",
         action="store_true",
-        help="Bo qua Phase 2.",
+        help="Bo qua Phase 2 (khong cao HTML).",
     )
     parser.add_argument(
         "--skip-phase3",
         action="store_true",
-        help="Bo qua Phase 3.",
+        help="Bo qua Phase 3 (khong xay dung Gold).",
     )
     parser.add_argument(
         "--skip-r2-sync",
@@ -450,14 +412,6 @@ def main():
         help="Bo qua buoc dong bo Gold len R2.",
     )
     args = parser.parse_args()
-
-    # Dong bo so luong target giua cac Phase
-    target = args.count if args.count is not None else args.target
-    args.target_papers = target
-    if args.enrich_html_limit is None:
-        args.enrich_html_limit = target
-    if args.gold_limit is None:
-        args.gold_limit = target
 
     # Khoi tao Logging tap trung theo timestamp
     logger, log_file = setup_pipeline_logging(pipeline_name="master_pipeline")
@@ -494,7 +448,6 @@ def main():
             target_papers=args.target_papers,
             delay=args.delay_oai,
             reset_checkpoint=args.reset_checkpoint,
-            from_date=args.from_date,
             r2=r2,
             engine=engine,
             logger=logger,

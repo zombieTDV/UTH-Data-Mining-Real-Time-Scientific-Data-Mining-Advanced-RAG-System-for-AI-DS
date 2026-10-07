@@ -8,10 +8,12 @@ Integrates LanceDB Gold Lakehouse retrieval with local/remote LLM inference.
 import asyncio
 import time
 import logging
-from typing import AsyncIterator, List, Tuple
+from typing import AsyncIterator, List, Tuple, Union
+from backend.app.core.config import settings
 from backend.app.schemas.chat import ChatRequest, ChatResponse
 from backend.app.schemas.search import ChunkDto, SearchRequest
 from backend.app.services.retrieval_service import retrieval_service
+from backend.app.services.reranker_service import reranker_service
 from backend.app.services.llm_client import llm_client
 
 logger = logging.getLogger("rag_service")
@@ -19,17 +21,25 @@ logger = logging.getLogger("rag_service")
 
 class RagService:
     def _build_prompt_and_context(self, req: ChatRequest) -> Tuple[List[dict], List[ChunkDto], List[str]]:
-        """Retrieves chunks from LanceDB and constructs grounded academic prompts."""
-        # 1. Retrieve top-k chunks from LanceDB
+        """Retrieves candidates from LanceDB, reranks with cross-encoder, and constructs strictly grounded academic prompts."""
+        # 1. Retrieve wider candidate pool from LanceDB (Hybrid mode)
+        candidate_k = settings.RERANKER_CANDIDATE_K if settings.RERANKER_ENABLED else max(req.top_k or 5, 15)
         search_req = SearchRequest(
             query=req.query,
-            top_k=req.top_k or 5,
+            top_k=candidate_k,
             category=req.category,
-            mode="fts",
+            mode="hybrid",
         )
-        chunks = retrieval_service.search(search_req)
+        candidates = retrieval_service.search(search_req)
 
-        # 2. Extract citations and format context
+        # 2. Cross-Encoder reranking (bge-reranker-base)
+        if settings.RERANKER_ENABLED and candidates:
+            final_k = req.top_k or settings.RERANKER_TOP_K
+            chunks = reranker_service.rerank(req.query, candidates, top_k=final_k)
+        else:
+            chunks = candidates[: (req.top_k or 5)]
+
+        # 3. Extract citations and format context
         citations: List[str] = []
         context_parts: List[str] = []
 
@@ -48,17 +58,28 @@ class RagService:
                 f"{chunk_body}\n"
             )
 
-        # 3. Construct System and User messages
+        # 4. Check for graph authority nodes and rule expansions
+        top_auth_chunk = next((c for c in chunks if c.authority_score and c.authority_author), None)
+        authority_note = ""
+        if top_auth_chunk:
+            authority_note = (
+                f"\n6. Graph PageRank Authority: Paper [Paper: {top_auth_chunk.paper_id}] is authored by high-impact "
+                f"citation network influencer '{top_auth_chunk.authority_author}' (Normalized PageRank: {top_auth_chunk.authority_score:.2f}). "
+                "Highlight this authoritative foundation when synthesizing comparative insights."
+            )
+
+        # 5. Construct System and User messages with strict negative constraints
         system_prompt = (
-            "You are an expert scientific researcher and academic AI assistant specializing in Machine Learning and Computer Science.\n"
-            "Your task is to answer the user question accurately, thoroughly, and comprehensively based strictly on the retrieved scientific literature below.\n\n"
-            "Rules:\n"
-            "1. Ground your answer strictly in the provided paper excerpts.\n"
-            "2. Always cite specific papers using [Paper: {paper_id}, Section: {section}] when discussing methods, formulas, or results.\n"
-            "3. If multiple papers discuss related concepts, synthesize and compare their approaches.\n"
-            "4. If mathematical formulas are discussed, preserve LaTeX notation like $...$ or $$...$$.\n"
-            "5. If the retrieved literature does not contain sufficient details to address the question, clearly state the limitation.\n"
-            "6. Maintain an objective, formal academic tone."
+            "You are a strictly grounded scientific research assistant specializing in Machine Learning and Computer Science.\n"
+            "Your mission is to provide rigorous, truthful, and accurate technical answers based EXCLUSIVELY on the retrieved scientific literature excerpts below.\n\n"
+            "CRITICAL OPERATIONAL RULES:\n"
+            "1. STRICT FACTUAL GROUNDING: Rely SOLELY and EXCLUSIVELY on facts explicitly stated in the provided paper excerpts. DO NOT extrapolate, assume, or utilize pre-trained parametric memory for empirical values, hyperparameter settings, author claims, or ablation results.\n"
+            "2. MISSING INFORMATION PROTOCOL: If the provided excerpts do not explicitly contain the necessary information to address any part of the user's question, you MUST explicitly state: \"The provided literature does not contain sufficient details regarding [specific aspect].\" NEVER invent, approximate, or extrapolate missing facts.\n"
+            "3. MANDATORY CITATIONS: Every substantive technical claim, architectural detail, and performance metric must cite the exact paper using `[Paper: {paper_id}]`.\n"
+            "4. DIRECT & CONCISE: Answer directly, concisely, and formally without introductory conversational pleasantries, filler, or unrequested tangential background.\n"
+            "5. PRESERVE LATEX: If mathematical formulas are discussed, preserve exact LaTeX notation like $...$ or $$...$$.\n"
+            "6. ORIGIN & DERIVED WORK ACCURACY: When a paper applies, adapts, or extends a well-known methodology (e.g., Classifier-Free Guidance, LoRA, FlashAttention), explicitly clarify that the paper applies or extends the technique to its domain, rather than claiming it invented the foundational method.\n"
+            f"7. OBJECTIVE SYNTHESIS: When multiple papers discuss related concepts, compare their approaches objectively.{authority_note}"
         )
 
         context_text = "\n".join(context_parts)
@@ -126,6 +147,7 @@ class RagService:
                 similarity_score="0.0000",
                 generation_time=f"{elapsed}s",
                 context_chunks_used=0,
+                retrieval_context=[],
             )
 
         # Generate answer with real LLM
@@ -141,6 +163,7 @@ class RagService:
 
         elapsed = round(time.time() - t0, 2)
         top_score = f"{chunks[0].score:.4f}" if chunks[0].score else "0.8500"
+        top_auth = next((c for c in chunks if c.authority_author), None)
 
         return ChatResponse(
             query=req.query,
@@ -149,15 +172,29 @@ class RagService:
             similarity_score=top_score,
             generation_time=f"{elapsed}s",
             context_chunks_used=len(chunks),
+            authority_boosted=bool(top_auth),
+            top_influencer_author=top_auth.authority_author if top_auth else None,
+            rule_expansions=chunks[0].rule_expansions if (chunks and chunks[0].rule_expansions) else None,
+            retrieval_context=[c.text for c in chunks],
         )
 
-    async def answer_query_stream(self, req: ChatRequest) -> AsyncIterator[str]:
-        """Streams LLM tokens generated for the grounded RAG query."""
+    async def answer_query_stream(self, req: ChatRequest) -> AsyncIterator[Union[str, dict]]:
+        """Streams LLM tokens generated for the grounded RAG query, yielding an initial metadata dict."""
         messages, chunks, _ = self._build_prompt_and_context(req)
 
         if not chunks:
             yield "No matching scientific literature found in the Gold lakehouse for the given query."
             return
+
+        top_score = f"{chunks[0].score:.4f}" if chunks[0].score else "0.8500"
+        top_auth = next((c for c in chunks if c.authority_author), None)
+        yield {
+            "similarity_score": top_score,
+            "context_chunks_used": len(chunks),
+            "authority_boosted": bool(top_auth),
+            "top_influencer_author": top_auth.authority_author if top_auth else None,
+            "rule_expansions": chunks[0].rule_expansions if (chunks and chunks[0].rule_expansions) else None,
+        }
 
         has_tokens = False
         async for token in llm_client.generate_stream(messages, temperature=req.temperature):

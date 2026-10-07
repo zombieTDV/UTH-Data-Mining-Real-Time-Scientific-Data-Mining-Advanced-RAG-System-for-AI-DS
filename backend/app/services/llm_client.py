@@ -64,8 +64,12 @@ class LlmClient:
             return requested_tokens
 
     def preload(self):
-        """Warm-up and preload local model into Apple Silicon Metal GPU memory at startup."""
-        logger.info("[LLM STARTUP] Preloading Qwen2.5-7B GGUF with Apple Metal GPU offloading...")
+        """Warm-up and preload local model into GPU memory at startup."""
+        active = self._get_active_endpoint()
+        if active:
+            logger.info("[LLM STARTUP] External LLM microservice detected (%s), skipping in-process GGUF loading.", active)
+            return
+        logger.info("[LLM STARTUP] Preloading Qwen2.5-7B GGUF...")
         llm = self._get_local_llm()
         if llm:
             logger.info("[LLM STARTUP] Qwen2.5-7B is fully preloaded in GPU memory (n_ctx=%d) and ready.", llm.n_ctx())
@@ -110,12 +114,22 @@ class LlmClient:
         """Probes external endpoints to find if any HTTP LLM service is running."""
         endpoints = [
             (self.node_llm_url, "Node-Llama-CPP (:9001)"),
+            (self.node_llm_url.replace("localhost", "127.0.0.1"), "Node-Llama-CPP-IP (:9001)"),
             (self.ollama_url, "Ollama (:11434)"),
+            (self.ollama_url.replace("localhost", "127.0.0.1"), "Ollama-IP (:11434)"),
         ]
+        # Deduplicate while preserving order
+        unique_endpoints = []
+        seen = set()
         for url, name in endpoints:
+            if url not in seen:
+                seen.add(url)
+                unique_endpoints.append((url, name))
+
+        for url, name in unique_endpoints:
             try:
                 base_probe = url.replace("/chat/completions", "/models")
-                with httpx.Client(timeout=0.4) as client:
+                with httpx.Client(timeout=2.0) as client:
                     resp = client.get(base_probe)
                     if resp.status_code in (200, 404, 405):
                         return url
@@ -134,7 +148,7 @@ class LlmClient:
         temperature: Optional[float] = None,
     ) -> Optional[str]:
         """Synchronous chat completion with automatic failover."""
-        tokens = max_tokens or settings.LLM_MAX_TOKENS
+        tokens = max_tokens or min(settings.LLM_MAX_TOKENS, 512)
         temp = temperature if temperature is not None else settings.LLM_TEMPERATURE
 
         # 1. Try external HTTP endpoint if active
@@ -153,9 +167,11 @@ class LlmClient:
             try:
                 with httpx.Client(timeout=60.0) as client:
                     resp = client.post(active_url, json=payload, headers=headers)
-                    if resp.status_code == 200:
+                    if resp.status_code in (200, 201):
                         data = resp.json()
                         return data["choices"][0]["message"]["content"]
+                    else:
+                        logger.warning("[LLM] External endpoint %s returned HTTP %d: %s", active_url, resp.status_code, resp.text[:200])
             except Exception as e:
                 logger.warning("[LLM] External endpoint %s failed: %s", active_url, str(e))
 
@@ -217,7 +233,7 @@ class LlmClient:
             try:
                 async with httpx.AsyncClient(timeout=httpx.Timeout(connect=2.0, read=120.0, write=5.0, pool=5.0)) as client:
                     async with client.stream("POST", active_url, json=payload, headers=headers) as response:
-                        if response.status_code == 200:
+                        if response.status_code in (200, 201):
                             async for line in response.aiter_lines():
                                 if line.startswith("data: "):
                                     data_str = line[6:].strip()

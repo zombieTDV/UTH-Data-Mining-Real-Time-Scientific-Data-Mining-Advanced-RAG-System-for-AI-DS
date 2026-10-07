@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     LANCEDB_URI: str = str(PROJECT_ROOT / "data" / "gold" / "lancedb")
     LANCEDB_TABLE: str = "scientific_papers_gold"
     MINING_ARTIFACTS_DIR: Path = PROJECT_ROOT / "data" / "gold" / "mining"
+    EMBEDDING_MODEL_PATH: str = str(PROJECT_ROOT / "models" / "nomic-embed-text-v1.5")
 
     # LLM Settings
     LLM_MODE: str = "local"  # "local", "ollama", "groq", "mock"
@@ -48,6 +49,23 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 1536
     LLM_TEMPERATURE: float = 0.7
     GROQ_API_KEY: str = ""
+
+    # DeepEval Benchmarking Settings
+    DEEPEVAL_JUDGE_MODEL: str = "local"  # "local", "deepseek", "groq", "openai"
+    DEEPEVAL_LOCAL_URL: str = "http://localhost:9001/v1"
+    DEEPEVAL_LOCAL_MODEL: str = "qwen2.5-7b-instruct"
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+    OPENAI_API_KEY: str = ""
+    CONFIDENT_AI_API_KEY: str = ""
+
+    # Cross-Encoder Reranker Settings (deep semantic reranking)
+    RERANKER_ENABLED: bool = True
+    RERANKER_MODEL_NAME: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    RERANKER_FALLBACK_MODEL: str = "BAAI/bge-reranker-base"
+    RERANKER_TOP_K: int = 3
+    RERANKER_CANDIDATE_K: int = 15
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE) if ENV_FILE.exists() else None,

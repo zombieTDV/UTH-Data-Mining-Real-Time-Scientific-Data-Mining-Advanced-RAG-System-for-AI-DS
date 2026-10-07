@@ -54,7 +54,24 @@ class MiningService:
         return AssociationRulesResponse(**raw)
 
     def get_clusters(self) -> ClustersResponse:
-        raw = self._load_json("clusters.json")
+        raw = dict(self._load_json("clusters.json"))
+        cluster_topic_meta = {
+            0: ("Large Language Models & In-Context Reasoning", "Prompt engineering, emergent reasoning, fine-tuning"),
+            1: ("Diffusion Models & High-Resolution Image Synthesis", "Score-based generative models, latent diffusion, UNet"),
+            2: ("PAC-Bayes, SGLD Generalization & Optimization", "Generalization bounds, non-convex loss, Langevin dynamics"),
+            3: ("Reinforcement Learning & Autonomous Robotics", "Policy gradients, reward modeling, embodied agents"),
+            4: ("Graph Neural Networks & Symbolic Knowledge Graphs", "Message passing, graph transformers, relational inductive bias"),
+            5: ("Zero-Shot Vision-Language Multimodal Transformers", "Contrastive learning, cross-modal alignment, CLIP-like architectures"),
+        }
+        profiles = []
+        for p in raw.get("cluster_profiles", []):
+            cid = p.get("cluster_id", 0)
+            meta = cluster_topic_meta.get(cid, (f"Topic Cluster #{cid}", "Machine Learning Research"))
+            p_enriched = dict(p)
+            p_enriched["topic_label"] = p.get("topic_label") or meta[0]
+            p_enriched["topic_subtitle"] = p.get("topic_subtitle") or meta[1]
+            profiles.append(p_enriched)
+        raw["cluster_profiles"] = profiles
         return ClustersResponse(**raw)
 
     def get_graph(self) -> GraphResponse:

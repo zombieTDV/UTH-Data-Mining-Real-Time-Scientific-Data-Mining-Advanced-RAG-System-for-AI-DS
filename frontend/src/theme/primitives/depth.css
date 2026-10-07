@@ -1,0 +1,83 @@
+.depth-1 {
+  box-shadow: var(--shadow-3d-1);
+}
+
+.depth-2 {
+  box-shadow: var(--shadow-3d-2);
+}
+
+.depth-3 {
+  box-shadow: var(--shadow-3d-3);
+}
+
+.depth-4 {
+  box-shadow: var(--shadow-3d-4);
+}
+
+.depth-lifted {
+  box-shadow: var(--shadow-lifted);
+}
+
+.depth-pressed {
+  box-shadow: var(--shadow-pressed);
+}
+
+.depth-glow-silver {
+  box-shadow: var(--shadow-3d-2), var(--shadow-glow-silver);
+}
+
+.depth-glow-bronze {
+  box-shadow: var(--shadow-3d-2), var(--shadow-glow-bronze);
+}
+
+.depth-glow-gold {
+  box-shadow: var(--shadow-3d-2), var(--shadow-glow-gold);
+}
+
+.depth-glow-emerald {
+  box-shadow: var(--shadow-3d-2), var(--shadow-glow-emerald);
+}
+
+.depth-glow-violet {
+  box-shadow: var(--shadow-3d-2), var(--shadow-glow-violet);
+}
+
+.tilt-3d {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.tilt-3d--near {
+  perspective: var(--perspective-near);
+}
+
+.tilt-3d--mid {
+  perspective: var(--perspective-mid);
+}
+
+.tilt-3d--far {
+  perspective: var(--perspective-far);
+}
+
+.tilt-3d--active {
+  transform: perspective(var(--perspective-far)) rotateX(var(--tilt-rx, 0deg))
+    rotateY(var(--tilt-ry, 0deg)) translateZ(var(--translate-z-hover)) scale(1.02);
+  box-shadow: var(--shadow-3d-4), var(--shadow-glow-silver);
+}
+
+.tilt-3d--rest {
+  transform: perspective(var(--perspective-far)) rotateX(0deg) rotateY(0deg)
+    scale(1);
+}
+
+.raise-z {
+  transform: translateZ(var(--depth-md));
+}
+
+.raise-z--sm {
+  transform: translateZ(var(--depth-sm));
+}
+
+.raise-z--lg {
+  transform: translateZ(var(--depth-lg));
+}

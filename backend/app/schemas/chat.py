@@ -6,7 +6,7 @@ class ChatRequest(BaseModel):
     query: str = Field(..., examples=["What is the role of sampling z_t in conditional diffusion distillation?"])
     top_k: int = Field(5, ge=1, le=20)
     category: Optional[str] = Field(None)
-    temperature: float = Field(0.7, ge=0.0, le=1.0)
+    temperature: float = Field(0.1, ge=0.0, le=1.0)
 
 
 class ChatResponse(BaseModel):
@@ -16,3 +16,7 @@ class ChatResponse(BaseModel):
     similarity_score: str
     generation_time: str
     context_chunks_used: int
+    authority_boosted: Optional[bool] = None
+    top_influencer_author: Optional[str] = None
+    rule_expansions: Optional[List[str]] = None
+    retrieval_context: Optional[List[str]] = None

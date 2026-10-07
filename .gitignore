@@ -25,9 +25,12 @@ backend/node_modules/
 frontend/node_modules/
 backend/dist/
 frontend/dist/
+dist-ssr/
 coverage/
 *.tsbuildinfo
 npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
 # Secrets & Environment
 .env
@@ -36,6 +39,7 @@ npm-debug.log*
 !backend/.env.example
 !.env_example
 .deepeval
+.deepeval/
 
 # Medallion Lakehouse & Local Data Assets (stay local, never tracked)
 models/
@@ -48,8 +52,6 @@ data/
 /data/manifests/
 /data/processed/
 /data/external/
-/data/processed/
-/data/external/
 /data/*.tar.gz
 /data/*.zip
 /data/*.pt
@@ -58,6 +60,18 @@ data/
 
 # Downloaded Pre-trained Models
 /models/
+
+# Local Tools
+tools/
+!data_mining/tools/
+.kilo/
+
+# Application and Mining Runtime Logs
+*.log
+/logs/
+!logs/.gitkeep
+!frontend/src/components/logs/
+data_mining/logs/
 
 # Experiment outputs (track plots, results & scripts; ignore heavy weights & DBs)
 /experiments/checkpoints/*.pt
@@ -70,13 +84,8 @@ data/
 /experiments/*.db
 /experiments/*.sqlite
 
-# Logs
-logs/
-!logs/.gitkeep
-
 # IDE / OS / Tooling
 .gemini/
-.kilo/
 .vscode/
 .idea/
 *.swp

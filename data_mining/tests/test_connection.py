@@ -13,15 +13,10 @@ import sys
 import time
 from pathlib import Path
 
-# Thêm project root và package root vào sys.path để import nhất quán
-_current_file = Path(__file__).resolve()
-_repo_candidate = _current_file.parents[2]
-_pkg_candidate = _current_file.parents[1]
-PROJECT_ROOT = _repo_candidate if (_repo_candidate / ".env").exists() else _pkg_candidate
-
-for p in [str(_pkg_candidate), str(PROJECT_ROOT)]:
-    if p not in sys.path:
-        sys.path.insert(0, p)
+# Thêm project root vào sys.path để import nhất quán
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # Load biến môi trường từ .env
 try:

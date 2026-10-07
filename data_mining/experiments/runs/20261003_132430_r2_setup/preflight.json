@@ -1,0 +1,10 @@
+{
+  "existing_silver_objects": 1,
+  "restored_partitions": [
+    {
+      "key": "silver/papers/year=2026/papers.parquet",
+      "sha256": "625bc6d0b100b40bfb5357da14878a81fbdcc43e98c22b72083411739cf18377",
+      "bytes": 242986612
+    }
+  ]
+}

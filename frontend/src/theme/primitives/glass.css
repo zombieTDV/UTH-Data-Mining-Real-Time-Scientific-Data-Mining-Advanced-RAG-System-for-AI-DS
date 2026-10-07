@@ -1,0 +1,74 @@
+.glass {
+  position: relative;
+  isolation: isolate;
+  background: var(--glass-bg-default);
+  border: 1px solid var(--glass-border-subtle);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+}
+
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--glass-specular);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.glass--subtle {
+  background: var(--glass-bg-subtle);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate));
+}
+
+.glass--elevated {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-default);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate-high));
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate-high));
+}
+
+.glass--overlay {
+  background: var(--glass-bg-overlay);
+  border-color: var(--glass-border-default);
+  -webkit-backdrop-filter: blur(var(--glass-blur-xl)) saturate(var(--glass-saturate-high));
+  backdrop-filter: blur(var(--glass-blur-xl)) saturate(var(--glass-saturate-high));
+}
+
+.glass--strong-border {
+  border-color: var(--glass-border-highlight);
+}
+
+.glass--no-blur {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.glass__sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-120%) rotate(25deg);
+}
+
+.glass--interactive {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.glass--interactive:hover {
+  border-color: var(--glass-border-highlight);
+  background: var(--glass-bg-elevated);
+}
+
+.glass--interactive:focus-visible {
+  outline: 2px solid var(--glass-border-highlight);
+  outline-offset: 2px;
+}

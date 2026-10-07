@@ -1,0 +1,20 @@
+{
+  "fixture": "synthetic",
+  "embedding": "diagnostic token hashes; not semantic embeddings",
+  "created_at": "2026-10-02T15:04:54.969731+00:00",
+  "paper_count": 2,
+  "chunk_count": 4,
+  "silver_sha256": "09eafb83aca53f620f46ad0f10da7b11a0364d8ad62d6d76e271c2ca001ee99d",
+  "search_results": [
+    {
+      "chunk_id": "demo-0_sec0_0",
+      "paper_id": "demo-0",
+      "_distance": 0.35673248767852783
+    },
+    {
+      "chunk_id": "demo-0_abstract_0",
+      "paper_id": "demo-0",
+      "_distance": 0.4037150740623474
+    }
+  ]
+}
