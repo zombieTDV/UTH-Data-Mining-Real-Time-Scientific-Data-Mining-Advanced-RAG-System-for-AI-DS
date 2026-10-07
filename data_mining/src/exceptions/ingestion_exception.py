@@ -1,0 +1,2 @@
+class OpenAlexBudgetExceeded(RuntimeError):
+    pass

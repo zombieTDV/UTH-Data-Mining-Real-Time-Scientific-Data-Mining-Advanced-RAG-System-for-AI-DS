@@ -1,0 +1,1 @@
+FP-Growth tối ưu hơn Apriori vì dùng FP-Tree chỉ quét 2 lần. Lift > 2.5x khẳng định độ tin cậy.

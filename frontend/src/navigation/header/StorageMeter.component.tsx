@@ -1,0 +1,101 @@
+import type { FC } from 'react';
+
+export interface StorageMeterProps {
+  storageUsedGb: number;
+  storageUsedPct: number;
+  totalPapers?: number;
+}
+
+export const StorageMeter: FC<StorageMeterProps> = ({
+  storageUsedGb,
+  storageUsedPct,
+}) => {
+  const quotaGb = 10.0;
+  const pct = Math.min(100, Math.max(0, storageUsedPct));
+
+  // Visual state styling based on capacity tier
+  const isHigh = pct >= 90;
+  const isMed = pct >= 80;
+
+  const barGradient = isHigh
+    ? 'linear-gradient(90deg, #f43f5e, #dc2626)'
+    : isMed
+    ? 'linear-gradient(90deg, #f59e0b, #ea580c)'
+    : 'linear-gradient(90deg, #10b981, #06b6d4)';
+
+  const accentColor = isHigh ? '#ef4444' : isMed ? '#f59e0b' : '#34d399';
+
+  return (
+    <div
+      title={`Cloudflare R2 Storage Lens (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '9px',
+        padding: '0 12px',
+        height: '32px',
+        borderRadius: '8px',
+        backgroundColor: 'var(--badge-bg)',
+        border: '1px solid var(--badge-border)',
+        fontFamily: 'var(--font-mono)',
+        cursor: 'default',
+        boxSizing: 'border-box',
+        transition: 'all 0.15s ease',
+      }}
+    >
+      {/* Cloudflare R2 Identity Icon & Label */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ color: accentColor, flexShrink: 0 }}
+        >
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+        </svg>
+        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+          R2
+        </span>
+      </div>
+
+      {/* Sleek Mini Capacity Gauge */}
+      <div
+        style={{
+          width: '52px',
+          height: '5px',
+          backgroundColor: 'var(--bg-elevated)',
+          borderRadius: '9999px',
+          overflow: 'hidden',
+          border: '1px solid var(--border-subtle)',
+          position: 'relative',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            width: `${pct}%`,
+            height: '100%',
+            background: barGradient,
+            borderRadius: '9999px',
+            transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        />
+      </div>
+
+      {/* Storage Volume: Only GB Ratio (No redundant % badge) */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', fontSize: '11px', fontWeight: 800 }}>
+        <span style={{ color: 'var(--text-primary)' }}>
+          {storageUsedGb.toFixed(2)}
+        </span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '9.5px', fontWeight: 600 }}>
+          / 10 GB
+        </span>
+      </div>
+    </div>
+  );
+};

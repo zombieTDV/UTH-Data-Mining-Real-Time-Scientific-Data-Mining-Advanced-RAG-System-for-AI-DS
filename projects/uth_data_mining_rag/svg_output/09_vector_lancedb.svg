@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#F8FAFC"/>
+
+    <g id="header" data-pptx-bounds="80 50 1120 70">
+        <text x="80" y="65" font-size="12" font-weight="700" fill="#2563EB">5. TRUY XUẤT TRI THỨC</text>
+        <text x="80" y="98" font-size="26" font-weight="700" fill="#0F172A">Tầng Vector Embeddings &amp; LanceDB Gold Index</text>
+    </g>
+
+    <g id="stat-1" data-pptx-bounds="80 140 350 95">
+        <rect x="80" y="140" width="350" height="95" rx="10" fill="#1E293B"/>
+        <text x="105" y="175" font-size="22" font-weight="700" fill="#0EA5E9">143,523 VECTORS</text>
+        <text x="105" y="200" font-size="12" fill="#F8FAFC">LanceDB Table • 768 Chiều Không Gian</text>
+        <text x="105" y="218" font-size="11" fill="#64748B">Zero-Copy Columnar Format (Apache Arrow)</text>
+    </g>
+
+    <g id="stat-2" data-pptx-bounds="465 140 350 95">
+        <rect x="465" y="140" width="350" height="95" rx="10" fill="#1E293B"/>
+        <text x="490" y="175" font-size="22" font-weight="700" fill="#10B981">&lt; 15 ms / QUERY</text>
+        <text x="490" y="200" font-size="12" fill="#F8FAFC">Độ Trễ Truy Vấn ANN Cosine Similarity</text>
+        <text x="490" y="218" font-size="11" fill="#64748B">Truy xuất Top-5 đoạn văn bản liên quan nhất</text>
+    </g>
+
+    <g id="stat-3" data-pptx-bounds="850 140 350 95">
+        <rect x="850" y="140" width="350" height="95" rx="10" fill="#1E293B"/>
+        <text x="875" y="175" font-size="22" font-weight="700" fill="#F97316">NOMIC EMBED v1.5</text>
+        <text x="875" y="200" font-size="12" fill="#F8FAFC">Mô Hình Nhúng Chuyên Sâu Khoa Học</text>
+        <text x="875" y="218" font-size="11" fill="#64748B">Hỗ trợ Matryoshka &amp; Context 8192 Tokens</text>
+    </g>
+
+    <g id="chunking-box" data-pptx-bounds="80 260 530 390">
+        <rect x="80" y="260" width="530" height="390" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="110" y="300" font-size="17" font-weight="700" fill="#2563EB">Chiến Lược Phân Đoạn (Hierarchical Chunking)</text>
+        <text x="110" y="340" font-size="13" font-weight="700" fill="#0F172A">• Phân đoạn theo cấu trúc mục (Section-Aware):</text>
+        <text x="125" y="362" font-size="11.5" font-weight="normal" fill="#64748B">Chia nhỏ tài liệu dựa trên ranh giới tiêu đề mục</text>
+        <text x="125" y="382" font-size="11.5" font-weight="normal" fill="#64748B">(Section Titles) và đoạn văn, không cắt ngang giữa</text>
+        <text x="125" y="402" font-size="11.5" font-weight="normal" fill="#64748B">chừng các công thức toán học.</text>
+        <text x="110" y="420" font-size="13" font-weight="700" fill="#0F172A">• Kích thước chunk tối ưu:</text>
+        <text x="125" y="442" font-size="11.5" font-weight="normal" fill="#64748B">Kích thước: 512 - 768 tokens • Vùng chồng lấn</text>
+        <text x="125" y="462" font-size="11.5" font-weight="normal" fill="#64748B">(overlap): 64 tokens.</text>
+        <text x="110" y="490" font-size="13" font-weight="700" fill="#0F172A">• Gắn kèm Rich Metadata:</text>
+        <text x="125" y="512" font-size="11.5" font-weight="normal" fill="#64748B">Mỗi vector lưu kèm Paper ID, Title, Section Title,</text>
+        <text x="125" y="532" font-size="11.5" font-weight="normal" fill="#64748B">Authors, Category và chuỗi biểu diễn LaTeX công thức đi</text>
+        <text x="125" y="552" font-size="11.5" font-weight="normal" fill="#64748B">kèm.</text>
+    </g>
+
+    <g id="search-box" data-pptx-bounds="670 260 530 390">
+        <rect x="670" y="260" width="530" height="390" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="700" y="300" font-size="17" font-weight="700" fill="#10B981">Tìm Kiếm Tương Đồng Ngữ Nghĩa (ANN Search)</text>
+        <text x="700" y="340" font-size="13" font-weight="700" fill="#0F172A">• Kiến trúc LanceDB Serverless In-Memory:</text>
+        <text x="715" y="362" font-size="11.5" font-weight="normal" fill="#64748B">Nhúng trực tiếp vào tiến trình máy chủ, không cần cụm</text>
+        <text x="715" y="382" font-size="11.5" font-weight="normal" fill="#64748B">phân tán phức tạp, tận dụng tối đa băng thông bộ nhớ</text>
+        <text x="715" y="402" font-size="11.5" font-weight="normal" fill="#64748B">RAM nội bộ.</text>
+        <text x="700" y="420" font-size="13" font-weight="700" fill="#0F172A">• Khoảng cách Cosine Similarity:</text>
+        <text x="715" y="442" font-size="11.5" font-weight="normal" fill="#64748B">So khớp ngữ nghĩa giữa câu hỏi người dùng và các chunk</text>
+        <text x="715" y="462" font-size="11.5" font-weight="normal" fill="#64748B">khoa học, trả về top-k đoạn văn bản có độ tương quan</text>
+        <text x="715" y="482" font-size="11.5" font-weight="normal" fill="#64748B">cao nhất.</text>
+        <text x="700" y="490" font-size="13" font-weight="700" fill="#0F172A">• Bộ lọc lai ghép (Hybrid Filtering):</text>
+        <text x="715" y="512" font-size="11.5" font-weight="normal" fill="#64748B">Hỗ trợ kết hợp truy vấn vector với điều kiện lọc SQL</text>
+        <text x="715" y="532" font-size="11.5" font-weight="normal" fill="#64748B">metadata (ví dụ: chỉ tìm bài báo cs.AI công bố sau năm</text>
+        <text x="715" y="552" font-size="11.5" font-weight="normal" fill="#64748B">2024).</text>
+    </g>
+
+</svg>

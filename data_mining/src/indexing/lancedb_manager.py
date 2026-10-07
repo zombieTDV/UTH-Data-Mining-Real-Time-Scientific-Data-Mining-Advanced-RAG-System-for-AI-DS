@@ -77,37 +77,15 @@ class LanceDBManager:
         return search_query.to_pandas()
 
     def sync_to_r2(self, r2_prefix: str = "gold/lancedb/"):
-        """Đồng bộ thông minh các file mới/thay đổi của LanceDB lên Cloudflare R2 Gold zone."""
+        """Đồng bộ toàn bộ thư mục dữ liệu LanceDB lên Cloudflare R2 Gold zone."""
         r2 = self.r2 or R2Client()
         synced_count = 0
-        skipped_count = 0
-
-        # Lấy danh sách object hiện có trên R2 để kiểm tra delta
-        existing_objs = {}
-        try:
-            paginator = r2.s3.get_paginator("list_objects_v2")
-            for page in paginator.paginate(Bucket=r2.bucket_name, Prefix=r2_prefix.rstrip("/") + "/"):
-                for obj in page.get("Contents", []):
-                    existing_objs[obj["Key"]] = obj["Size"]
-        except Exception:
-            existing_objs = {}
 
         for file_path in self.db_path.rglob("*"):
             if file_path.is_file():
                 rel_path = file_path.relative_to(self.db_path)
                 r2_key = f"{r2_prefix.rstrip('/')}/{rel_path}"
-                file_size = file_path.stat().st_size
-
-                # Nếu file đã tồn tại và cùng dung lượng thì bỏ qua để tối ưu tốc độ
-                if r2_key in existing_objs and existing_objs[r2_key] == file_size:
-                    skipped_count += 1
-                    continue
-
                 r2.upload_file(file_path=file_path, key=r2_key)
                 synced_count += 1
 
-        return {
-            "synced_files": synced_count,
-            "skipped_files": skipped_count,
-            "r2_destination": f"s3://{r2.bucket_name}/{r2_prefix}",
-        }
+        return {"synced_files": synced_count, "r2_destination": f"s3://{r2.bucket_name}/{r2_prefix}"}

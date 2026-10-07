@@ -23,6 +23,9 @@ class ChunkDto(BaseModel):
     doi: Optional[str] = None
     score: Optional[float] = None
     source: Optional[str] = None
+    authority_score: Optional[float] = None
+    authority_author: Optional[str] = None
+    rule_expansions: Optional[List[str]] = None
 
 
 class SearchResponse(BaseModel):

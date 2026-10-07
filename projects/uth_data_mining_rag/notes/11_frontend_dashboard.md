@@ -1,0 +1,1 @@
+React 19 Dashboard chuyên nghiệp: KaTeX math, BibTeX export, Theater mode, và single-line streaming status.

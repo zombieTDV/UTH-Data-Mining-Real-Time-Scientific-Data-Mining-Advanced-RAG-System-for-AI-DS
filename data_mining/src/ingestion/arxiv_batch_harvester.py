@@ -27,7 +27,7 @@ from src.transformation.silver_writer import SilverLakehouseWriter
 class ArxivBatchHarvester:
     """Manages resilient bulk harvesting using the official arXiv OAI-PMH protocol."""
 
-    OAI_ENDPOINT = "https://oaipmh.arxiv.org/oai"
+    OAI_ENDPOINT = "https://export.arxiv.org/oai2"
 
     def __init__(
         self,

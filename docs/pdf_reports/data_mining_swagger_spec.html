@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Swagger API & Data Mining Specification - UTH Scientific Mining</title>
+<style>
+  @page {
+    size: A4;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+  body {
+    font-family: 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.45;
+    font-size: 11pt;
+    margin: 0;
+    padding: 0;
+  }
+  .header {
+    border-bottom: 3px solid #0284c7;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    margin: 0 0 6px 0;
+    font-size: 20pt;
+    color: #0f172a;
+    letter-spacing: -0.5px;
+  }
+  .header .subtitle {
+    font-size: 11pt;
+    color: #475569;
+    margin: 0;
+    font-weight: 500;
+  }
+  .badge-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-right: 6px;
+  }
+  .tag-get { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+  .tag-post { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+  .tag-sse { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+  
+  .section-title {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #0f172a;
+    border-left: 4px solid #0284c7;
+    padding-left: 10px;
+    margin-top: 24px;
+    margin-bottom: 12px;
+    background: #f8fafc;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .endpoint-card {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    page-break-inside: avoid;
+    background: #ffffff;
+  }
+  .endpoint-header {
+    padding: 10px 14px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+  }
+  .endpoint-method {
+    font-weight: 800;
+    font-size: 10.5pt;
+    padding: 3px 8px;
+    border-radius: 4px;
+    color: #ffffff;
+    margin-right: 10px;
+  }
+  .method-get { background: #0284c7; }
+  .method-post { background: #16a34a; }
+  .endpoint-path {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    font-size: 11pt;
+    color: #0f172a;
+  }
+  .endpoint-desc {
+    padding: 10px 14px 6px 14px;
+    font-size: 10pt;
+    color: #334155;
+  }
+  .endpoint-body {
+    padding: 6px 14px 12px 14px;
+  }
+
+  table.spec-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+    font-size: 9.5pt;
+  }
+  table.spec-table th {
+    background: #f8fafc;
+    color: #475569;
+    text-align: left;
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    font-weight: 700;
+  }
+  table.spec-table td {
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    vertical-align: top;
+  }
+  .field-name {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    color: #0369a1;
+  }
+  .field-type {
+    font-family: 'Courier New', Courier, monospace;
+    color: #7c3aed;
+    font-size: 8.5pt;
+  }
+
+  .meta-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    font-size: 9.5pt;
+  }
+  .meta-grid {
+    display: table;
+    width: 100%;
+  }
+  .meta-col {
+    display: table-cell;
+    width: 50%;
+  }
+
+  .pillar-badge {
+    background: #0f172a;
+    color: #ffffff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 8pt;
+    font-weight: bold;
+    margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>UTH Scientific Data Mining: Swagger API & Functional Specification</h1>
+  <p class="subtitle">Hệ thống Khai phá Dữ liệu Khoa học Thời gian thực & RAG Phục vụ AI/DS (FastAPI :8000/docs)</p>
+</div>
+
+<div class="meta-box">
+  <div class="meta-grid">
+    <div class="meta-col">
+      <strong>Quy mô Corpus:</strong> 10,000 - 13,000 bài báo khoa học (arXiv, OpenAlex)<br>
+      <strong>Lưu trữ Hồ Dữ liệu:</strong> Cloudflare R2 (Bronze), Parquet (Silver), LanceDB (Gold)<br>
+      <strong>Thời gian thực thi Mining:</strong> ~64.56 giây (Toàn bộ 4 Pillars)
+    </div>
+    <div class="meta-col">
+      <strong>Công thức Toán bóc tách:</strong> 2,220,938 biểu thức KaTeX<br>
+      <strong>Tổng từ vựng học thuật:</strong> 47,782,707 từ<br>
+      <strong>Cộng đồng trích dẫn:</strong> 35,117 tác giả / 130,082 liên kết
+    </div>
+  </div>
+</div>
+
+<div class="section-title">PHẦN 1: TỔNG QUAN KHÁM PHÁ DỮ LIỆU & KIỂM TRA HỆ THỐNG (EDA & TELEMETRY)</div>
+
+<!-- ENDPOINT 1: GET /api/mining/eda -->
+<div class="endpoint-card">
+  <div class="endpoint-header">
+    <span class="endpoint-method method-get">GET</span>
+    <span class="endpoint-path">/api/mining/eda</span>
+  </div>
+  <div class="endpoint-desc">
+    <strong>Mục đích:</strong> Trả về toàn bộ số liệu Khám phá Dữ liệu (Exploratory Data Analysis - EDA), cấu trúc bài báo, phân bố danh mục, tác giả tiêu biểu và mật độ công thức toán học.
+  </div>
+  <div class="endpoint-body">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Khối Dữ Liệu (Field)</th>
+          <th style="width: 20%;">Kiểu dữ liệu</th>
+          <th>Mô tả chi tiết & Chức năng cụ thể</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="field-name">dataset_overview</span></td>
+          <td><span class="field-type">Object (EdaOverview)</span></td>
+          <td>Tổng quan corpus: total_papers (10,000), enriched_html_papers (9,015 - tỷ lệ 90.15%), total_math_formulas (2.22M), total_words (47.78M), avg_math_per_paper (222 công thức/bài), khoảng thời gian xuất bản (2005 - 2024).</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">category_distribution</span></td>
+          <td><span class="field-type">Array[CategoryDistItem]</span></td>
+          <td>Phân bố chuyên ngành AI/DS: cs.AI, cs.LG, cs.CV, cs.CL, stat.ML kèm số lượng bài, tỷ lệ phần trăm, tổng số công thức toán và độ dài bài viết trung bình theo từng ngành.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">temporal_distribution</span></td>
+          <td><span class="field-type">Array[TemporalDistItem]</span></td>
+          <td>Phân bố số lượng bài báo theo trục thời gian (theo quý/năm) để quan sát sự bùng nổ của các nghiên cứu AI theo từng giai đoạn.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">top_authors</span></td>
+          <td><span class="field-type">Array[TopAuthorItem]</span></td>
+          <td>Bảng xếp hạng các tác giả có số lượng công trình nhiều nhất trong tập dữ liệu.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">category_cooccurrence</span></td>
+          <td><span class="field-type">Array[CategoryCooccur]</span></td>
+          <td>Ma trận đồng xuất hiện giữa các chuyên ngành (vd: cs.AI đi kèm cs.CV hoặc cs.LG), hỗ trợ vẽ biểu đồ Heatmap trên Frontend.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">math_and_content_stats</span></td>
+          <td><span class="field-type">Object</span></td>
+          <td>Thống kê phân vị mật độ công thức toán: min, 25%, median (50%), 75%, max và độ lệch chuẩn.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ENDPOINT 2: GET /api/mining/telemetry/stream -->
+<div class="endpoint-card">
+  <div class="endpoint-header">
+    <span class="endpoint-method method-get">GET</span>
+    <span class="endpoint-path">/api/mining/telemetry/stream</span>
+  </div>
+  <div class="endpoint-desc">
+    <strong>Mục đích:</strong> Kênh truyền dữ liệu thời gian thực Server-Sent Events (SSE) liên tục phát nhịp tim (heartbeat) CPU, RAM, trạng thái I/O của hồ dữ liệu về giao diện Dashboard.
+  </div>
+  <div class="endpoint-body">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Thuộc tính SSE Pulse</th>
+          <th style="width: 20%;">Kiểu dữ liệu</th>
+          <th>Mô tả chi tiết & Chức năng cụ thể</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="field-name">event: telemetry</span></td>
+          <td><span class="field-type">JSON String (1 pulse/sec)</span></td>
+          <td>Chứa cpu_usage_pct, memory_mb, active_threads, lakehouse_papers_count, sse_uptime_seconds phục vụ vẽ Live Telemetry Feed tại khay công cụ đáy (Drawer).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section-title">PHẦN 2: BỐN TRỤ CỘT KHAI PHÁ DỮ LIỆU KHOA HỌC (THE 4 MINING PILLARS)</div>
+
+<!-- PILLAR 1: GET /api/mining/pillars/association-rules -->
+<div class="endpoint-card">
+  <div class="endpoint-header">
+    <span class="endpoint-method method-get">GET</span>
+    <span class="endpoint-path">/api/mining/pillars/association-rules</span>
+  </div>
+  <div class="endpoint-desc">
+    <span class="pillar-badge">PILLAR 1</span> <strong>Khai phá Tập phổ biến & Luật kết hợp (FP-Growth Algorithm)</strong><br>
+    Thuật toán FP-Growth quét 11,404 giao dịch bài báo (87.7% corpus) để tìm ra các cặp công nghệ/danh mục luôn xuất hiện cùng nhau một cách có ý nghĩa thống kê cao.
+  </div>
+  <div class="endpoint-body">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Trường trả về</th>
+          <th style="width: 20%;">Kiểu dữ liệu</th>
+          <th>Ý nghĩa chỉ số thống kê & Ứng dụng</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="field-name">summary</span></td>
+          <td><span class="field-type">Object</span></td>
+          <td>Chứa total_transactions (11.4k), min_support (0.015), min_confidence (0.25), total_rules_found (22 luật chất lượng cao đã khử đối xứng).</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">frequent_itemsets</span></td>
+          <td><span class="field-type">Array[Itemset]</span></td>
+          <td>Danh sách các tập mục phổ biến (1-itemset, 2-itemset, 3-itemset) vượt qua ngưỡng Support tối thiểu.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">rules[].antecedents</span></td>
+          <td><span class="field-type">Array[String]</span></td>
+          <td>Vế điều kiện (X), ví dụ: ['tag:reinforcement-learning'] hoặc ['cat:cs.CL', 'cat:cs.AI'].</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">rules[].consequents</span></td>
+          <td><span class="field-type">Array[String]</span></td>
+          <td>Vế hệ quả suy ra (Y), ví dụ: ['tag:autonomous-agents'] hoặc ['tag:large-language-models'].</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">rules[].support</span></td>
+          <td><span class="field-type">Float (0.0 - 1.0)</span></td>
+          <td>Tần suất xuất hiện đồng thời cả X và Y trên toàn bộ tập dữ liệu (P(X ∩ Y)).</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">rules[].confidence</span></td>
+          <td><span class="field-type">Float (0.0 - 1.0)</span></td>
+          <td>Độ tin cậy: Xác suất bài báo có Y khi đã biết chắc chắn có X (P(Y|X)).</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">rules[].lift</span></td>
+          <td><span class="field-type">Float (&gt; 1.0)</span></td>
+          <td>Độ nâng (Lift): Mức độ tương quan thực sự. Lift &gt; 1 chứng minh sự kết hợp xảy ra vượt trội ngẫu nhiên (Vd: Lift đạt 6.33x đến 27.07x).</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">rules[].leverage & conviction</span></td>
+          <td><span class="field-type">Float</span></td>
+          <td>Hai chỉ số hiệu chỉnh đo lường sự chênh lệch xác suất độc lập và độ kháng lỗi suy luận.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PILLAR 2: GET /api/mining/pillars/clusters -->
+<div class="endpoint-card">
+  <div class="endpoint-header">
+    <span class="endpoint-method method-get">GET</span>
+    <span class="endpoint-path">/api/mining/pillars/clusters</span>
+  </div>
+  <div class="endpoint-desc">
+    <span class="pillar-badge">PILLAR 2</span> <strong>Phân cụm Chủ đề Ngữ nghĩa & Phân tích Mật độ (Semantic Topic Clustering)</strong><br>
+    Sử dụng MiniBatch K-Means (K=6) kết hợp mật độ DBSCAN trên không gian vector nhúng L2-normalized. Chiếu giảm chiều PCA 2D Centered để vẽ biểu đồ tọa độ không bị trôi tâm.
+  </div>
+  <div class="endpoint-body">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Trường trả về</th>
+          <th style="width: 20%;">Kiểu dữ liệu</th>
+          <th>Mô tả chi tiết & Chức năng cụ thể</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="field-name">validity_metrics</span></td>
+          <td><span class="field-type">Object</span></td>
+          <td>Các chỉ số kiểm định độ tin cậy phân cụm toán học: Silhouette Score (+0.0216), Davies-Bouldin Index (đo độ tách biệt giữa các cụm), Calinski-Harabasz Score.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">cluster_profiles</span></td>
+          <td><span class="field-type">Array[ClusterProfile]</span></td>
+          <td>Hồ sơ 6 cụm đề tài: cluster_id, size, percentage, danh mục áp đảo (dominant_categories), và 5 tiêu đề bài báo đại diện nhất cụm.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">scatter_2d</span></td>
+          <td><span class="field-type">Array[ScatterPoint]</span></td>
+          <td>Tập hợp tọa độ (x, y) sau khi chiếu PCA 2D cho từng bài báo, kèm cluster_id, category, title, paper_id để vẽ biểu đồ Manifold trực quan tương tác.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PILLAR 3: GET /api/mining/pillars/graph -->
+<div class="endpoint-card">
+  <div class="endpoint-header">
+    <span class="endpoint-method method-get">GET</span>
+    <span class="endpoint-path">/api/mining/pillars/graph</span>
+  </div>
+  <div class="endpoint-desc">
+    <span class="pillar-badge">PILLAR 3</span> <strong>Khai phá Đồ thị Đồng tác giả & Mạng lưới Trích dẫn (Citation & Graph Mining)</strong><br>
+    Mô hình hóa mạng lưới học thuật gồm 35,117 tác giả và 130,082 liên kết hợp tác. Ứng dụng Directed PageRank tìm các tác giả/bài báo trụ cột và thuật toán Louvain phát hiện 92 cộng đồng nghiên cứu.
+  </div>
+  <div class="endpoint-body">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Trường trả về</th>
+          <th style="width: 20%;">Kiểu dữ liệu</th>
+          <th>Mô tả chi tiết & Chức năng cụ thể</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="field-name">network_summary</span></td>
+          <td><span class="field-type">Object</span></td>
+          <td>Chỉ số cấu trúc đồ thị: total_nodes, total_edges, graph_density, average_degree, số lượng cộng đồng phát hiện (92 modularity communities).</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">top_influencers</span></td>
+          <td><span class="field-type">Array[Influencer]</span></td>
+          <td>Bảng xếp hạng Top học giả dẫn đầu dựa trên điểm Directed PageRank và Degree Centrality (số liên kết cộng tác).</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">communities</span></td>
+          <td><span class="field-type">Array[Community]</span></td>
+          <td>Danh sách các nhóm nghiên cứu (Louvain clusters), quy mô thành viên và các chủ đề cốt lõi mà cộng đồng tập trung.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">graph_export</span></td>
+          <td><span class="field-type">Object (Nodes & Links)</span></td>
+          <td>Định dạng JSON D3.js tương thích cao gồm nodes[] (id, label, pagerank, community) và links[] (source, target, weight) để dựng mạng lưới trực quan tương tác.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PILLAR 4: GET /api/mining/pillars/trends -->
+<div class="endpoint-card">
+  <div class="endpoint-header">
+    <span class="endpoint-method method-get">GET</span>
+    <span class="endpoint-path">/api/mining/pillars/trends</span>
+  </div>
+  <div class="endpoint-desc">
+    <span class="pillar-badge">PILLAR 4</span> <strong>Đo lường Vận tốc Xu hướng & Phát hiện Dị biệt Đột phá (Trends & Anomalies)</strong><br>
+    Ứng dụng thuật toán Isolation Forest đa chiều để bóc tách 30 công trình có cấu trúc dị biệt cực đoan (độ dài, mật độ toán, số lượng tác giả). Đo lường Share-Normalized Growth Velocity để phân loại động lượng ngành.
+  </div>
+  <div class="endpoint-body">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Trường trả về</th>
+          <th style="width: 20%;">Kiểu dữ liệu</th>
+          <th>Mô tả chi tiết & Chức năng cụ thể</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="field-name">trend_velocity</span></td>
+          <td><span class="field-type">Array[TrendVelocityItem]</span></td>
+          <td>Vận tốc tăng trưởng từng ngành: recent_quarter_papers, previous_quarter_papers, growth_rate_pct, all_time_papers và nhãn động lượng momentum (SURGING: tăng vọt, STABLE: ổn định, DECLINING: suy giảm).</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">anomalies</span></td>
+          <td><span class="field-type">Array[AnomalyItem]</span></td>
+          <td>Top 30 bài báo dị biệt: paper_id, title, anomaly_score (điểm cô lập Isolation Forest), math_count, word_count, author_count, kèm lý do định tính (outlier_reasons).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section-title">PHẦN 3: ĐIỀU KHIỂN & THEO DÕI VẬN HÀNH (ORCHESTRATION & CONTROL)</div>
+
+<!-- ENDPOINT 7: GET /api/mining/manifest -->
+<div class="endpoint-card">
+  <div class="endpoint-header">
+    <span class="endpoint-method method-get">GET</span>
+    <span class="endpoint-path">/api/mining/manifest</span>
+  </div>
+  <div class="endpoint-desc">
+    <strong>Mục đích:</strong> Trích xuất bảng kê khai thực thi (Execution Manifest) của lần chạy gần nhất: mốc thời gian, nguồn dữ liệu Parquet/LanceDB, và thời gian thực thi (elapsed_seconds) của từng module thuật toán.
+  </div>
+</div>
+
+<!-- ENDPOINT 8: POST /api/mining/trigger -->
+<div class="endpoint-card">
+  <div class="endpoint-header">
+    <span class="endpoint-method method-post">POST</span>
+    <span class="endpoint-path">/api/mining/trigger</span>
+  </div>
+  <div class="endpoint-desc">
+    <strong>Mục đích:</strong> Lệnh gọi bất đồng bộ (Background Task) kích hoạt lại toàn bộ Master Mining Engine (`MiningEngine.run_all(upload_to_r2=True)`) trên máy chủ để tính toán lại 4 trụ cột khi có dữ liệu mới. Trả về status: "QUEUED".
+  </div>
+</div>
+
+</body>
+</html>

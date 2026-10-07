@@ -1,0 +1,1 @@
+Kính chào Thầy Trần Thế Vinh và các bạn! Nhóm em xin báo cáo đồ án Khai phá Dữ liệu Nghiên cứu Khoa học và Hệ thống Grounded RAG.

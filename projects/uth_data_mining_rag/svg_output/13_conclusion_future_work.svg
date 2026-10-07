@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#F8FAFC"/>
+
+    <g id="header" data-pptx-bounds="80 50 1120 70">
+        <text x="80" y="65" font-size="12" font-weight="700" fill="#2563EB">9. TỔNG KẾT &amp; TRIỂN VỌNG</text>
+        <text x="80" y="98" font-size="26" font-weight="700" fill="#0F172A">Kết Luận &amp; Hướng Phát Triển Đề Tài</text>
+    </g>
+
+    <g id="left-concl" data-pptx-bounds="80 140 530 510">
+        <rect x="80" y="140" width="530" height="510" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="110" y="185" font-size="18" font-weight="700" fill="#2563EB">1. Những Đóng Góp Chính Của Đề Tài</text>
+        <text x="110" y="225" font-size="14" font-weight="700" fill="#10B981">✔ Xây dựng thành công nền tảng Data Lakehouse:</text>
+        <text x="130" y="250" font-size="11.5" font-weight="normal" fill="#64748B">Vận hành theo mô hình Medallion phân tầng (Bronze -&gt;</text>
+        <text x="130" y="270" font-size="11.5" font-weight="normal" fill="#64748B">Silver -&gt; Gold) quản lý hơn 13,000 bài báo và 2.76</text>
+        <text x="130" y="290" font-size="11.5" font-weight="normal" fill="#64748B">triệu công thức toán học.</text>
+        <text x="110" y="310" font-size="14" font-weight="700" fill="#10B981">✔ Hiện thực hóa trọn vẹn 4 Trụ cột Khai phá:</text>
+        <text x="130" y="335" font-size="11.5" font-weight="normal" fill="#64748B">Ứng dụng thành công các thuật toán FP-Growth, KMeans,</text>
+        <text x="130" y="355" font-size="11.5" font-weight="normal" fill="#64748B">DBSCAN, Directed PageRank, Louvain Modularity và</text>
+        <text x="130" y="375" font-size="11.5" font-weight="normal" fill="#64748B">Isolation Forest.</text>
+        <text x="110" y="395" font-size="14" font-weight="700" fill="#10B981">✔ Tiên phong giải pháp Grounded RAG Cục bộ:</text>
+        <text x="130" y="420" font-size="11.5" font-weight="normal" fill="#64748B">Offload mô hình Qwen2.5-7B lên Apple Metal GPU, loại</text>
+        <text x="130" y="440" font-size="11.5" font-weight="normal" fill="#64748B">bỏ hoàn toàn ảo giác trong trích dẫn khoa học với</text>
+        <text x="130" y="460" font-size="11.5" font-weight="normal" fill="#64748B">Dossier Drawer đối chiếu tức thì.</text>
+        <text x="110" y="480" font-size="14" font-weight="700" fill="#10B981">✔ Sản phẩm ứng dụng trực quan hoàn thiện:</text>
+        <text x="130" y="505" font-size="11.5" font-weight="normal" fill="#64748B">Bộ Dashboard React 19 tương tác cao, phục vụ thiết</text>
+        <text x="130" y="525" font-size="11.5" font-weight="normal" fill="#64748B">thực cho hoạt động tra cứu và nghiên cứu khoa học của</text>
+        <text x="130" y="545" font-size="11.5" font-weight="normal" fill="#64748B">sinh viên và giảng viên UTH.</text>
+    </g>
+
+    <g id="right-future" data-pptx-bounds="670 140 530 510">
+        <rect x="670" y="140" width="530" height="510" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="700" y="185" font-size="18" font-weight="700" fill="#10B981">2. Hướng Mở Rộng Trong Tương Lai</text>
+        <text x="700" y="225" font-size="14" font-weight="700" fill="#2563EB">➜ Mở rộng nguồn dữ liệu đa thư viện:</text>
+        <text x="720" y="250" font-size="11.5" font-weight="normal" fill="#64748B">Tích hợp thêm các kho học thuật lớn như IEEE Xplore,</text>
+        <text x="720" y="270" font-size="11.5" font-weight="normal" fill="#64748B">ACM Digital Library, PubMed và Springer Nature.</text>
+        <text x="700" y="310" font-size="14" font-weight="700" fill="#2563EB">➜ Nâng cấp lên Graph RAG (Knowledge Graph RAG):</text>
+        <text x="720" y="335" font-size="11.5" font-weight="normal" fill="#64748B">Kết hợp cơ sở dữ liệu đồ thị tri thức với vector</text>
+        <text x="720" y="355" font-size="11.5" font-weight="normal" fill="#64748B">search để trả lời các câu hỏi suy luận logic phức tạp</text>
+        <text x="720" y="375" font-size="11.5" font-weight="normal" fill="#64748B">qua nhiều bước (multi-hop reasoning).</text>
+        <text x="700" y="395" font-size="14" font-weight="700" fill="#2563EB">➜ Tự động sinh Slide Báo Cáo (Auto-Slide Engine):</text>
+        <text x="720" y="420" font-size="11.5" font-weight="normal" fill="#64748B">Tích hợp kỹ thuật sinh PowerPoint native (tương tự PPT</text>
+        <text x="720" y="440" font-size="11.5" font-weight="normal" fill="#64748B">Master) để tự động xuất bài thuyết trình hội thảo từ</text>
+        <text x="720" y="460" font-size="11.5" font-weight="normal" fill="#64748B">bất kỳ bài báo nào.</text>
+        <text x="700" y="480" font-size="14" font-weight="700" fill="#2563EB">➜ Đóng gói Docker &amp; Kubernetes:</text>
+        <text x="720" y="505" font-size="11.5" font-weight="normal" fill="#64748B">Hỗ trợ triển khai diện rộng trên hệ thống máy chủ tính</text>
+        <text x="720" y="525" font-size="11.5" font-weight="normal" fill="#64748B">toán hiệu năng cao của Trường ĐH Giao thông Vận tải</text>
+        <text x="720" y="545" font-size="11.5" font-weight="normal" fill="#64748B">TP.HCM.</text>
+    </g>
+
+</svg>

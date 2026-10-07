@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#F8FAFC"/>
+
+    <g id="header" data-pptx-bounds="80 50 1120 70">
+        <text x="80" y="65" font-size="12" font-weight="700" fill="#2563EB">8. KẾT QUẢ THỰC NGHIỆM</text>
+        <text x="80" y="98" font-size="26" font-weight="700" fill="#0F172A">Đánh Giá Thực Nghiệm &amp; Các Chỉ Số Hiệu Năng</text>
+    </g>
+
+    <g id="kpis" data-pptx-bounds="80 140 1120 95">
+        <rect x="80" y="140" width="260" height="95" rx="8" fill="#1E293B"/>
+        <text x="96" y="168" font-size="11" font-weight="700" fill="#0EA5E9">QUY MÔ BÀI BÁO THỰC TẾ</text>
+        <text x="96" y="202" font-size="24" font-weight="700" fill="#F8FAFC">13,000+</text>
+        <text x="96" y="220" font-size="11" fill="#64748B">Bản ghi chuẩn hóa trong Lakehouse</text>
+
+        <rect x="365" y="140" width="260" height="95" rx="8" fill="#1E293B"/>
+        <text x="381" y="168" font-size="11" font-weight="700" fill="#10B981">CÔNG THỨC TOÁN HỌC</text>
+        <text x="381" y="202" font-size="24" font-weight="700" fill="#F8FAFC">2.76 Triệu</text>
+        <text x="381" y="220" font-size="11" fill="#64748B">Trích xuất chuẩn sang LaTeX/MathML</text>
+
+        <rect x="650" y="140" width="260" height="95" rx="8" fill="#1E293B"/>
+        <text x="666" y="168" font-size="11" font-weight="700" fill="#F97316">TỐC ĐỘ SINH TOKEN (METAL)</text>
+        <text x="666" y="202" font-size="24" font-weight="700" fill="#F8FAFC">~38 tok/s</text>
+        <text x="666" y="220" font-size="11" fill="#64748B">Thông lượng mượt mà trên Apple Silicon</text>
+
+        <rect x="935" y="140" width="265" height="95" rx="8" fill="#1E293B"/>
+        <text x="951" y="168" font-size="11" font-weight="700" fill="#0EA5E9">ĐỘ XÁC THỰC TRÍCH DẪN</text>
+        <text x="951" y="202" font-size="24" font-weight="700" fill="#F8FAFC">100%</text>
+        <text x="951" y="220" font-size="11" fill="#64748B">100% trích dẫn đối soát tồn tại thật</text>
+    </g>
+
+    <g id="perf-box" data-pptx-bounds="80 260 1120 390">
+        <rect x="80" y="260" width="1120" height="390" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="110" y="300" font-size="17" font-weight="700" fill="#0F172A">Bảng Đo Đạc &amp; Đánh Giá Hiệu Năng Thực Tế Hệ Thống</text>
+
+        <rect x="110" y="325" width="1060" height="60" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="130" y="348" font-size="13" font-weight="700" fill="#2563EB">Tốc độ quét dữ liệu dạng cột (DuckDB OLAP): ~18 ms</text>
+        <text x="130" y="365" font-size="11.5" font-weight="normal" fill="#64748B">Thực hiện quét tổng hợp thống kê trên 13,000 bài báo nhanh gấp 15 lần so với các hệ quản trị cơ sở dữ liệu</text>
+        <text x="130" y="385" font-size="11.5" font-weight="normal" fill="#64748B">quan hệ truyền thống.</text>
+
+        <rect x="110" y="400" width="1060" height="60" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="130" y="423" font-size="13" font-weight="700" fill="#10B981">Độ trễ tìm kiếm vector tương đồng (LanceDB ANN): 12 - 15 ms</text>
+        <text x="130" y="440" font-size="11.5" font-weight="normal" fill="#64748B">Truy xuất top-5 đoạn văn bản liên quan nhất từ 143,523 vector 768 chiều nhờ kiến trúc bộ nhớ zero-copy của</text>
+        <text x="130" y="460" font-size="11.5" font-weight="normal" fill="#64748B">Apache Arrow.</text>
+
+        <rect x="110" y="475" width="1060" height="60" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="130" y="498" font-size="13" font-weight="700" fill="#F97316">Thời gian phản hồi token đầu tiên (TTFT): &lt; 1.2 giây</text>
+        <text x="130" y="515" font-size="11.5" font-weight="normal" fill="#64748B">Nhờ cơ chế Server Warmup nạp sẵn trọng số Qwen2.5-7B vào VRAM GPU Metal, người dùng gần như không cảm nhận độ</text>
+        <text x="130" y="535" font-size="11.5" font-weight="normal" fill="#64748B">trễ.</text>
+
+        <rect x="110" y="550" width="1060" height="60" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+        <text x="130" y="573" font-size="13" font-weight="700" fill="#6366F1">Chống ảo giác tuyệt đối (Citation Grounding Precision): 100%</text>
+        <text x="130" y="590" font-size="11.5" font-weight="normal" fill="#64748B">Tất cả bài báo và mục trích dẫn được mô hình đề cập đều được kiểm tra đối chiếu tồn tại hợp lệ trong kho dữ</text>
+        <text x="130" y="610" font-size="11.5" font-weight="normal" fill="#64748B">liệu Parquet.</text>
+    </g>
+
+</svg>

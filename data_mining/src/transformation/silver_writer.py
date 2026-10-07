@@ -109,28 +109,11 @@ class SilverLakehouseWriter:
 
         # Nếu file đã tồn tại cục bộ, hợp nhất (idempotent upsert by paper_id)
         if local_parquet_path.exists():
-            existing_table = pq.read_table(local_parquet_path, partitioning=None)
+            existing_table = pq.read_table(local_parquet_path)
             existing_df = existing_table.to_pandas()
-            if "year" in existing_df.columns:
-                existing_df = existing_df.drop(columns=["year"])
-            if "year" in df.columns:
-                df = df.drop(columns=["year"])
-
             combined_df = pd.concat([existing_df, df], ignore_index=True)
             combined_df = combined_df.drop_duplicates(subset=["paper_id"], keep="last")
-            schema_cols = [f.name for f in schema]
-            for col in schema_cols:
-                if col not in combined_df.columns:
-                    combined_df[col] = None
-            combined_df = combined_df[schema_cols]
             table = pa.Table.from_pandas(combined_df, schema=schema, preserve_index=False)
-        else:
-            schema_cols = [f.name for f in schema]
-            for col in schema_cols:
-                if col not in df.columns:
-                    df[col] = None
-            df = df[schema_cols]
-            table = pa.Table.from_pandas(df, schema=schema, preserve_index=False)
 
         pq.write_table(table, local_parquet_path, compression="zstd")
 
