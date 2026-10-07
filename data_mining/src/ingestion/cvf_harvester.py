@@ -57,15 +57,41 @@ class CvfHarvester:
         )
 
     def fetch_papers_listing(self, venue: str = "CVPR2024") -> List[Dict[str, Any]]:
-        """Scrapes the main conference proceedings directory for all accepted papers."""
-        url = f"{self.BASE_URL}/{venue}?day=all"
-        logger.info("[CVF HARVESTER] Fetching paper listings from: %s", url)
+        """Scrapes the main conference proceedings directory with local disk caching and retries."""
+        cache_file = self.bronze_dir / f"{venue.lower()}_listing_cache.html"
+
+        html_content = ""
+        if cache_file.exists() and cache_file.stat().st_size > 100000:
+            logger.info("[CVF HARVESTER] Loading cached listing from: %s (%d bytes)", cache_file, cache_file.stat().st_size)
+            try:
+                html_content = cache_file.read_text(encoding="utf-8")
+            except Exception as e:
+                logger.warning("[CVF HARVESTER] Cache read failed (%s), will re-download.", e)
+
+        if not html_content:
+            url = f"{self.BASE_URL}/{venue}?day=all"
+            logger.info("[CVF HARVESTER] Downloading paper listings from: %s (timeout=120s)...", url)
+
+            # Retry up to 3 times for large ~7.5MB chunked payload
+            for attempt in range(1, 4):
+                try:
+                    with httpx.Client(timeout=120.0, follow_redirects=True, headers=self.http_client.headers) as client:
+                        resp = client.get(url)
+                        resp.raise_for_status()
+                        html_content = resp.text
+                        cache_file.write_text(html_content, encoding="utf-8")
+                        logger.info("[CVF HARVESTER] Successfully downloaded and cached %d bytes.", len(html_content))
+                        break
+                except Exception as e:
+                    logger.warning("[CVF HARVESTER] Attempt %d failed: %s", attempt, str(e))
+                    if attempt < 3:
+                        time.sleep(2.0)
+                    else:
+                        logger.error("[CVF HARVESTER] All 3 attempts failed to fetch CVF listings.")
+                        return []
 
         try:
-            resp = self.http_client.get(url)
-            resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "html.parser")
-
+            soup = BeautifulSoup(html_content, "html.parser")
             dt_tags = soup.select("dt.ptitle")
             logger.info("[CVF HARVESTER] Found %d total accepted papers in %s.", len(dt_tags), venue)
 
@@ -123,7 +149,7 @@ class CvfHarvester:
 
             return papers
         except Exception as e:
-            logger.error("[CVF HARVESTER] Failed to fetch CVF listings: %s", str(e))
+            logger.error("[CVF HARVESTER] Failed to parse CVF listings: %s", str(e))
             return []
 
     def enrich_abstract(self, html_url: str) -> str:
@@ -131,7 +157,7 @@ class CvfHarvester:
         if not html_url:
             return ""
         try:
-            resp = self.http_client.get(html_url)
+            resp = self.http_client.get(html_url, timeout=10.0)
             if resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "html.parser")
                 abs_div = soup.select_one("div#abstract")
@@ -146,8 +172,9 @@ class CvfHarvester:
         total_limit: int = 25,
         venue: str = "CVPR2024",
         enrich_abstract: bool = True,
+        max_workers: int = 8,
     ) -> List[Dict[str, Any]]:
-        """Harvests CVF papers, enriches abstracts, vaults raw to Bronze, and writes Silver Parquet."""
+        """Harvests CVF papers, enriches abstracts concurrently, vaults raw to Bronze, and writes Silver Parquet."""
         logger.info("================================================================================")
         logger.info("[CVF HARVESTER] STARTING OFFICIAL COMPUTER VISION INGESTION PIPELINE")
         logger.info("[CVF HARVESTER] Target Venue: %s | Target Limit: %d", venue, total_limit)
@@ -159,14 +186,23 @@ class CvfHarvester:
             return []
 
         selected = all_papers[:total_limit]
-        logger.info("[CVF HARVESTER] Enriching abstracts for top %d papers...", len(selected))
 
-        for idx, p in enumerate(selected, 1):
-            if enrich_abstract and p.get("html_url"):
-                p["abstract"] = self.enrich_abstract(p["html_url"])
-                logger.info("  [%d/%d] Enriched: %s (%d words in abstract)", idx, len(selected), p["title"][:50], len(p["abstract"].split()))
-                if self.request_delay > 0:
-                    time.sleep(self.request_delay)
+        # Parallel abstract enrichment using ThreadPoolExecutor
+        if enrich_abstract:
+            import concurrent.futures
+            logger.info("[CVF HARVESTER] Concurrently enriching abstracts for %d papers (workers=%d)...", len(selected), max_workers)
+
+            def _enrich_task(item):
+                if item.get("html_url"):
+                    item["abstract"] = self.enrich_abstract(item["html_url"])
+                return item
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                list(executor.map(_enrich_task, selected))
+
+            enriched_count = sum(1 for p in selected if p.get("abstract"))
+            logger.info("[CVF HARVESTER] Completed enrichment: %d/%d papers have abstracts.", enriched_count, len(selected))
+
 
         # 1. Vault raw JSON to Bronze Layer
         timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
