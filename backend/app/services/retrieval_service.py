@@ -5,7 +5,7 @@ Vector and Full-Text Retrieval Service wrapping LanceDB Gold Table.
 """
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 import lancedb
 from backend.app.core.config import settings
 from backend.app.schemas.search import ChunkDto, SearchRequest
@@ -199,10 +199,12 @@ class RetrievalService:
                     target_table = None
                     if settings.LANCEDB_TABLE in table_names:
                         target_table = settings.LANCEDB_TABLE
-                    elif "academic_chunks" in table_names:
-                        target_table = "academic_chunks"
+                    elif settings.LANCEDB_URI.startswith("s3://"):
+                        logger.info("[RETRIEVAL] Target table '%s' not found locally. Connecting to remote Cloudflare R2...", settings.LANCEDB_TABLE)
                     elif "scientific_papers_gold" in table_names:
                         target_table = "scientific_papers_gold"
+                    elif "academic_chunks" in table_names:
+                        target_table = "academic_chunks"
                     elif table_names:
                         target_table = table_names[0]
 

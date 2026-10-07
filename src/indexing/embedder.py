@@ -16,13 +16,14 @@ from src.config.settings import settings
 class NomicEmbedder:
     """Offline Embedding model running locally with Nomic-embed-text-v1.5."""
 
-    def __init__(self, model_path: Union[str, Path, None] = None, device: str = "auto"):
-        self.model_path = Path(model_path or settings.EMBEDDING_MODEL_PATH)
-        if not self.model_path.exists():
-            raise FileNotFoundError(
-                f"Thư mục mô hình không tồn tại tại: {self.model_path}. "
-                "Vui lòng kiểm tra lại đường dẫn models/nomic-embed-text-v1.5"
-            )
+        raw_path = model_path or settings.EMBEDDING_MODEL_PATH
+        target_path = Path(raw_path)
+        if target_path.exists():
+            self.model_path = target_path
+            load_identifier = str(target_path)
+        else:
+            self.model_path = target_path
+            load_identifier = "nomic-ai/nomic-embed-text-v1.5"
 
         # Tự động nhận diện phần cứng (Ưu tiên Apple Silicon MPS -> CUDA -> CPU)
         if device == "auto":
@@ -36,8 +37,8 @@ class NomicEmbedder:
             self.device = torch.device(device)
 
         # Khởi tạo Tokenizer và Model
-        self.tokenizer = AutoTokenizer.from_pretrained(str(self.model_path))
-        self.model = AutoModel.from_pretrained(str(self.model_path), trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(load_identifier)
+        self.model = AutoModel.from_pretrained(load_identifier, trust_remote_code=True)
         self.model.to(self.device)
         self.model.eval()
 
