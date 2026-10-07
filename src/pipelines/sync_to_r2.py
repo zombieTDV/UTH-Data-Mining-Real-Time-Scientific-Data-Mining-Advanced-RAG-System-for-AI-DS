@@ -1,8 +1,8 @@
 """
 src/pipelines/sync_to_r2.py
 ---------------------------
-Sync local Bronze raw payloads and Silver Parquet tables for CVPR and OpenReview
-directly to Cloudflare R2 Lakehouse.
+Sync local Bronze raw payloads, Silver Parquet tables, and Gold LanceDB vector index
+for CVPR and OpenReview directly to Cloudflare R2 Lakehouse.
 """
 
 import logging
@@ -18,6 +18,7 @@ def sync_multi_source_lakehouse_to_r2():
     r2 = R2Client()
     logger.info("[R2 SYNC] Connecting to Cloudflare R2 bucket '%s'...", r2.bucket_name)
 
+    # 1. Sync Bronze & Silver files
     files_to_sync = [
         # Bronze Raw Payloads
         ("data/raw/cvf/cvpr2024_20261007_163212.json", "bronze/cvf/cvpr2024_20261007_163212.json", "application/json"),
@@ -42,7 +43,32 @@ def sync_multi_source_lakehouse_to_r2():
         else:
             logger.warning("[SKIP] Local file not found: %s", p)
 
-    logger.info("[ALL DONE] Synced %d multi-source Lakehouse files (%.2f MB) to R2!", synced_count, total_bytes / (1024 * 1024))
+    # 2. Sync LanceDB Gold vector table incrementally
+    local_gold = settings.ROOT_DIR / "data" / "gold" / "lancedb" / "scientific_papers_gold.lance"
+    if local_gold.exists():
+        logger.info("[GOLD SYNC] Scanning LanceDB Gold files for R2 sync...")
+        local_files = [f.relative_to(local_gold.parent) for f in local_gold.rglob("*") if f.is_file()]
+        r2_objs = r2.list_objects(prefix="gold/lancedb/scientific_papers_gold.lance/", max_keys=1000)
+        r2_keys = {o["key"] for o in r2_objs}
+
+        missing_on_r2 = []
+        for rel in local_files:
+            r2_key = f"gold/lancedb/{rel}"
+            if r2_key not in r2_keys:
+                missing_on_r2.append((local_gold.parent / rel, r2_key))
+
+        if missing_on_r2:
+            logger.info("[GOLD SYNC] Uploading %d new/updated LanceDB Gold files...", len(missing_on_r2))
+            for loc, r2_key in missing_on_r2:
+                sz = loc.stat().st_size
+                r2.upload_file(loc, r2_key)
+                synced_count += 1
+                total_bytes += sz
+            logger.info("  [SUCCESS] LanceDB Gold vector index is 100%% synced with Cloudflare R2!")
+        else:
+            logger.info("[GOLD SYNC] LanceDB Gold is already up-to-date on Cloudflare R2.")
+
+    logger.info("[ALL DONE] Synced %d Lakehouse files (%.2f MB) to Cloudflare R2!", synced_count, total_bytes / (1024 * 1024))
 
 
 if __name__ == "__main__":
