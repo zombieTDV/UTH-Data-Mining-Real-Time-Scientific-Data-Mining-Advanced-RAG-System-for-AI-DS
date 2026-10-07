@@ -24,6 +24,8 @@ export function StorageInspector() {
   const {
     sessionIngested,
     storageStats,
+    storageUsedGb,
+    storageUsedPct,
     viewMode,
     setViewMode,
     refreshStorageStats,
@@ -58,10 +60,12 @@ export function StorageInspector() {
   };
 
   useEffect(() => {
-    fetchStorageStats()
-      .then((data) => setStats(data))
-      .catch((err) => console.error('[StorageInspector] Failed to load live stats:', err));
-  }, []);
+    refreshStorageStats();
+    const interval = setInterval(() => {
+      refreshStorageStats();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [refreshStorageStats]);
 
   const activeStats = storageStats || stats;
   const isTotalView = viewMode === 'total';
@@ -79,8 +83,8 @@ export function StorageInspector() {
   const goldMb = (activeData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
   const backupGb = (backupData?.totalSizeGb ?? 3.069).toFixed(3);
 
-  const activeGb = (activeData?.totalSizeGb ?? 8.073).toFixed(3);
-  const activePct = (activeData?.usedPercentage ?? 80.73).toFixed(1);
+  const activeGb = (storageUsedGb || Number(activeData?.totalSizeGb ?? 8.073)).toFixed(3);
+  const activePct = (storageUsedPct || Number(activeData?.usedPercentage ?? 80.73)).toFixed(1);
   const totalGb = (totalBucket?.totalSizeGb ?? 11.142).toFixed(3);
   const totalPct = (totalBucket?.usedPercentage ?? 111.42).toFixed(1);
 

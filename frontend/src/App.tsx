@@ -22,6 +22,7 @@ export default function App() {
     storageUsedGb,
     storageUsedPct,
     initializeStream,
+    refreshStorageStats,
   } = useLakehouseStreamStore();
 
   const [activeTab, setActiveTab] = useState<AppTab>('schematic');
@@ -57,6 +58,7 @@ export default function App() {
       .catch(() => {});
 
     const syncStorageStats = () => {
+      refreshStorageStats();
       fetchStorageStats()
         .then((data) => {
           if (data?.activeLakehouse) {
@@ -76,7 +78,7 @@ export default function App() {
     };
 
     syncStorageStats();
-    const statsInterval = setInterval(syncStorageStats, 4000);
+    const statsInterval = setInterval(syncStorageStats, 3000);
 
     const unsubscribeTelemetry = subscribeTelemetry(
       (data) => {

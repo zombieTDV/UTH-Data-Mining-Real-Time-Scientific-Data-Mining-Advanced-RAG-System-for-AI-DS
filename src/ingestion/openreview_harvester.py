@@ -174,7 +174,7 @@ class OpenReviewHarvester:
                     if papers_map:
                         p_sample = list(papers_map.values())[-1]
                         self.http_client.post(
-                            "http://localhost:8000/api/v1/ingestion/broadcast",
+                            "http://localhost:8000/api/ingestion/broadcast",
                             json={
                                 "type": "PAPER_INGESTED",
                                 "paper_id": str(p_sample.get("paper_id", "")),

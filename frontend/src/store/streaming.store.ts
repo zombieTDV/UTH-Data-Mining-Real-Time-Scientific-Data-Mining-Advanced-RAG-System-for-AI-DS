@@ -206,23 +206,43 @@ export function initializeLakehouseStream(): () => void {
           const updatedGb = event.storage_total_gb ?? +(state.storageUsedGb + paperDelta / (1024 ** 3)).toFixed(3);
           const updatedPct = event.storage_used_pct ?? +(state.storageUsedPct + (paperDelta / (10 * 1024 ** 3)) * 100).toFixed(2);
 
-          updateState((prev) => ({
-            isStreaming: true,
-            totalCorpus: event.total_corpus || prev.totalCorpus + 1,
-            sessionIngested: event.session_ingested || prev.sessionIngested + 1,
-            streamSpeed: event.speed_ppm || prev.streamSpeed,
-            storageUsedGb: updatedGb,
-            storageUsedPct: updatedPct,
-            storageTotalBytes: event.storage_total_bytes ?? prev.storageTotalBytes + paperDelta,
-            lastPaperDeltaBytes: paperDelta,
-            lastIngestedPaper: {
-              paperId: event.paper_id || '',
-              title: event.title || '',
-              category: event.category || '',
-              vectorsSynced: event.vectors_synced || 0,
-              latencyMs: event.latency_ms || 0,
-            },
-          }));
+          updateState((prev) => {
+            const nextSession = event.session_ingested || prev.sessionIngested + 1;
+            const updatedActive = prev.storageStats?.activeLakehouse
+              ? {
+                  ...prev.storageStats.activeLakehouse,
+                  activeLanceDbVectors:
+                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) +
+                    (event.vectors_synced || 2),
+                  totalSizeGb: updatedGb,
+                  usedPercentage: updatedPct,
+                }
+              : null;
+
+            return {
+              isStreaming: true,
+              totalCorpus: event.total_corpus || prev.totalCorpus + 1,
+              sessionIngested: nextSession,
+              streamSpeed: event.speed_ppm || prev.streamSpeed,
+              storageUsedGb: updatedGb,
+              storageUsedPct: updatedPct,
+              storageTotalBytes: event.storage_total_bytes ?? prev.storageTotalBytes + paperDelta,
+              lastPaperDeltaBytes: paperDelta,
+              storageStats: prev.storageStats && updatedActive ? {
+                ...prev.storageStats,
+                activeLakehouse: updatedActive,
+                total_size_gb: updatedGb,
+                used_percentage: updatedPct,
+              } : prev.storageStats,
+              lastIngestedPaper: {
+                paperId: event.paper_id || '',
+                title: event.title || '',
+                category: event.category || '',
+                vectorsSynced: event.vectors_synced || 0,
+                latencyMs: event.latency_ms || 0,
+              },
+            };
+          });
 
           appendStreamLog({
             time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),

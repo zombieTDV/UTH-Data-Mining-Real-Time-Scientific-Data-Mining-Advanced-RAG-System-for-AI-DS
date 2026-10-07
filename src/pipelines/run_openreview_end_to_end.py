@@ -154,7 +154,7 @@ def main():
     try:
         import httpx
         httpx.post(
-            "http://localhost:8000/api/v1/ingestion/broadcast",
+            "http://localhost:8000/api/ingestion/broadcast",
             json={
                 "type": "PAPER_INGESTED",
                 "paper_id": f"openreview_batch_{len(records)}",

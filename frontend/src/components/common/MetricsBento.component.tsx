@@ -7,6 +7,8 @@ export const MetricsBento: FC = () => {
   const {
     sessionIngested,
     storageStats,
+    storageUsedGb,
+    storageUsedPct,
     viewMode,
     setViewMode,
   } = useLakehouseStreamStore();
@@ -22,14 +24,15 @@ export const MetricsBento: FC = () => {
   const arxivGb = activeData?.arxivHtmlSizeGb ?? 3.763;
   const openalexCount = activeData?.openalexCount ?? 24754;
   const openalexGb = activeData?.openalexSizeGb ?? 3.971;
-  const silverMb = activeData?.silverParquetSizeMb ?? 316.06;
-  const activeVectors = (activeData?.activeLanceDbVectors ?? 143523) + (sessionIngested * 16);
-  const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 121.21;
+  const conferenceCount = activeData?.conferenceCount ?? 2000;
+  const silverMb = activeData?.silverParquetSizeMb ?? 321.68;
+  const activeVectors = (activeData?.activeLanceDbVectors ?? 164702) + (sessionIngested * 16);
+  const activeVectorMb = (activeData?.activeLanceDbSizeMb ?? 211.26) + (sessionIngested * 0.04);
   const backupGb = backupData?.totalSizeGb ?? 3.069;
 
-  // Active vs Total calculations
-  const activeGb = activeData?.totalSizeGb ?? 8.073;
-  const activePct = activeData?.usedPercentage ?? 80.73;
+  // Active vs Total calculations linked directly to real-time storageUsedGb
+  const activeGb = storageUsedGb || (activeData?.totalSizeGb ?? 8.073);
+  const activePct = storageUsedPct || (activeData?.usedPercentage ?? 80.73);
   const totalGb = totalBucket?.totalSizeGb ?? 11.142;
   const totalPct = totalBucket?.usedPercentage ?? 111.42;
 
@@ -57,9 +60,9 @@ export const MetricsBento: FC = () => {
         label="Corpus Scale"
         badge="Medallion Lakehouse"
         badgeColor="var(--accent-emerald)"
-        value={<AnimatedCounter value={arxivCount + openalexCount} />}
+        value={<AnimatedCounter value={arxivCount + openalexCount + conferenceCount} />}
         unit="works"
-        description="arXiv Primary Preprints + OpenAlex Extended Works"
+        description="arXiv HTML5 + OpenAlex + CVPR / OpenReview Conferences"
         footerLeft={<>arXiv HTML5: <AnimatedCounter value={arxivCount} /></>}
         footerRight={<>OpenAlex: <AnimatedCounter value={openalexCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
