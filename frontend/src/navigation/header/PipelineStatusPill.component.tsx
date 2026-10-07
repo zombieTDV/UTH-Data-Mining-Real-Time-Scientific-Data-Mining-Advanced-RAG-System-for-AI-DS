@@ -18,7 +18,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
   streamActive,
   totalPapers,
   totalFormulas = 2220938,
-  totalVectors = 143523,
+  totalVectors = 164702,
   streamSpeed = 0,
   sessionIngested = 0,
 }) => {

@@ -158,10 +158,11 @@ def main():
             json={
                 "type": "PAPER_INGESTED",
                 "paper_id": f"openreview_batch_{len(records)}",
-                "title": f"OpenReview Batch Completed: {len(records)} papers, {inserted_count} chunks",
+                "title": f"OpenReview Gold Sync: {len(records)} papers, {inserted_count} vectors",
                 "category": "cs.LG",
+                "stage": "GOLD",
                 "vectors_synced": inserted_count,
-                "bronze_bytes_delta": len(records) * 420000,
+                "bronze_bytes_delta": 0,
                 "speed_ppm": 120.0,
                 "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
             },

@@ -490,8 +490,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const liveVectors = isPipelineRunning && simulationStage !== 'completed'
     ? vectorsIndexed
-    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 143523) + (streamSessionCount * 14);
-  const liveFormulas = (formulasExtracted || 2220938) + (streamSessionCount * 170);
+    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702);
+  const liveFormulas = (formulasExtracted || 2220938);
 
   const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
@@ -740,8 +740,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${((storageStats?.zones?.goldChunkCount ?? 143523) + streamSessionCount * 16).toLocaleString()} Vectors Indexed`,
-          secondaryMetric: `768 Dimensions · ${(127.10 + streamSessionCount * 0.04).toFixed(2)} MB Index`,
+          primaryMetric: `${(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702).toLocaleString()} Vectors Indexed`,
+          secondaryMetric: `768 Dimensions · ${(storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2)} MB Index`,
         }
       };
     }
@@ -2804,7 +2804,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · 26.42 MB)
                         </div>
                         <div style={{ color: isDark ? '#34d399' : '#059669' }}>
-                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.zones?.goldChunkCount ?? 143523).toLocaleString()} vectors)
+                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702).toLocaleString()} vectors)
                         </div>
                       </div>
                     </div>

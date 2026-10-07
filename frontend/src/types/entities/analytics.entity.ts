@@ -320,6 +320,7 @@ export interface IngestionEvent {
   title?: string;
   category?: string;
   session_ingested?: number;
+  stage?: 'BRONZE' | 'SILVER' | 'GOLD' | string;
   vectors_synced?: number;
   latency_ms?: number;
   bronze_bytes_delta?: number;

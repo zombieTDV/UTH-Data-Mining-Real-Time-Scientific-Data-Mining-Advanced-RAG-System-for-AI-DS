@@ -208,12 +208,12 @@ export function initializeLakehouseStream(): () => void {
 
           updateState((prev) => {
             const nextSession = event.session_ingested || prev.sessionIngested + 1;
+            const vectorsDelta = typeof event.vectors_synced === 'number' ? event.vectors_synced : 0;
             const updatedActive = prev.storageStats?.activeLakehouse
               ? {
                   ...prev.storageStats.activeLakehouse,
                   activeLanceDbVectors:
-                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) +
-                    (event.vectors_synced || 2),
+                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) + vectorsDelta,
                   totalSizeGb: updatedGb,
                   usedPercentage: updatedPct,
                 }
@@ -238,17 +238,20 @@ export function initializeLakehouseStream(): () => void {
                 paperId: event.paper_id || '',
                 title: event.title || '',
                 category: event.category || '',
-                vectorsSynced: event.vectors_synced || 0,
+                vectorsSynced: vectorsDelta,
                 latencyMs: event.latency_ms || 0,
               },
             };
           });
 
+          const isGold = event.stage === 'GOLD' || (typeof event.vectors_synced === 'number' && event.vectors_synced > 0 && (event.bronze_bytes_delta === 0 || !event.bronze_bytes_delta));
           appendStreamLog({
             time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
             level: 'SUCCESS',
-            tag: 'STREAM-CDC',
-            msg: `[STREAM 2025/2026] arXiv:${event.paper_id} (${event.category}) -> "${(event.title || '').slice(0, 48)}..." -> Appended Silver Parquet -> Synced ${event.vectors_synced} vectors (${event.latency_ms}ms, +${Math.round(paperDelta / 1024)} KB to R2)`,
+            tag: isGold ? 'GOLD-VECTOR' : 'STREAM-CDC',
+            msg: isGold
+              ? `[GOLD ZONE] Upserted ${(event.vectors_synced || 0).toLocaleString()} vectors to LanceDB Lakehouse ('scientific_papers_gold')`
+              : `[BRONZE HARVEST] ${event.paper_id} (${event.category}) -> "${(event.title || '').slice(0, 48)}..." -> (+${Math.round(paperDelta / 1024)} KB raw payload)`,
           });
         } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
           if (event.status === 'STREAMING') {

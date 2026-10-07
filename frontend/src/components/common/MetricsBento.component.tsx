@@ -26,8 +26,8 @@ export const MetricsBento: FC = () => {
   const openalexGb = activeData?.openalexSizeGb ?? 3.971;
   const conferenceCount = activeData?.conferenceCount ?? 2000;
   const silverMb = activeData?.silverParquetSizeMb ?? 321.68;
-  const activeVectors = (activeData?.activeLanceDbVectors ?? 164702) + (sessionIngested * 16);
-  const activeVectorMb = (activeData?.activeLanceDbSizeMb ?? 211.26) + (sessionIngested * 0.04);
+  const activeVectors = activeData?.activeLanceDbVectors ?? 164702;
+  const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 211.26;
   const backupGb = backupData?.totalSizeGb ?? 3.069;
 
   // Active vs Total calculations linked directly to real-time storageUsedGb
@@ -40,7 +40,7 @@ export const MetricsBento: FC = () => {
   const displayPct = isTotalView ? totalPct : activePct;
   const remainingFreeGb = Math.max(0, 10.0 - activeGb).toFixed(3);
 
-  const currentFormulas = 2220938 + (sessionIngested * 24);
+  const currentFormulas = 2220938;
 
   // Segment widths relative to 10GB Free Tier
   const arxivBarPct = Math.min(100, (arxivGb / 10.0) * 100);

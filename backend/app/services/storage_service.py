@@ -152,11 +152,12 @@ class StorageService:
         except Exception:
             pass
 
-        # Incremental streaming adjustments
+        # Incremental streaming adjustments (Raw Bronze crawling increments paper count & bytes)
         arxiv_html_count = self.base_arxiv_html_count + delta_ingested
         arxiv_html_bytes = self.base_arxiv_html_bytes + delta_bytes
-        active_gold_vectors = self.base_active_gold_vectors + (delta_ingested * 16)
-        active_gold_bytes = self.base_active_gold_bytes + (delta_ingested * 40_000)
+        # Gold vectors strictly reflect true indexed vectors in LanceDB (never falsely multiplied during Step 1 Bronze)
+        active_gold_vectors = self.base_active_gold_vectors
+        active_gold_bytes = self.base_active_gold_bytes
 
         # 1. Primary Active Lakehouse metrics
         active_objects = (

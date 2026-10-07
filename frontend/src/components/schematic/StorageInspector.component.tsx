@@ -79,7 +79,7 @@ export function StorageInspector() {
   const openalexCount = (activeData?.openalexCount ?? 24754).toLocaleString();
   const openalexGb = (activeData?.openalexSizeGb ?? 3.971).toFixed(3);
   const silverMb = (activeData?.silverParquetSizeMb ?? 321.68).toFixed(2);
-  const goldChunks = ((activeData?.activeLanceDbVectors ?? 164702) + (sessionIngested * 16)).toLocaleString();
+  const goldChunks = (activeData?.activeLanceDbVectors ?? 164702).toLocaleString();
   const goldMb = (activeData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
   const backupGb = (backupData?.totalSizeGb ?? 3.069).toFixed(3);
 
