@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { AnimatedCounter } from '../../components/common';
 
 export interface StorageMeterProps {
   storageUsedGb: number;
@@ -82,7 +83,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
             height: '100%',
             background: barGradient,
             borderRadius: '9999px',
-            transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         />
       </div>
@@ -90,7 +91,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
       {/* Storage Volume: Only GB Ratio (No redundant % badge) */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', fontSize: '11px', fontWeight: 800 }}>
         <span style={{ color: 'var(--text-primary)' }}>
-          {storageUsedGb.toFixed(2)}
+          <AnimatedCounter value={storageUsedGb} decimals={2} />
         </span>
         <span style={{ color: 'var(--text-muted)', fontSize: '9.5px', fontWeight: 600 }}>
           / 10 GB

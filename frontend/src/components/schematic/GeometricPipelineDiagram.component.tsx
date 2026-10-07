@@ -35,12 +35,12 @@ export function GeometricPipelineDiagram() {
     : (storageStats?.zones?.bronzeCount ?? 11660) + sessionIngested;
   const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
   const currentBatchesCount = 12;
-  const currentVectors = (storageStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
-  const currentFormulas = 2220938 + (sessionIngested * 24);
+  const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
+    ?? storageStats?.zones?.goldChunkCount 
+    ?? 164702;
+  const currentFormulas = 2220938;
   const currentEnriched = currentBronzeCount;
-  const currentGoldMb = storageStats?.activeLakehouse
-    ? (storageStats.activeLakehouse.activeLanceDbSizeMb + (sessionIngested * 0.04)).toFixed(2)
-    : (121.21 + (sessionIngested * 0.04)).toFixed(2);
+  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
 
   const [statusText, setStatusText] = useState<string>(
     `PIPELINE READY · ${currentCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`

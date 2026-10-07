@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#0F172A"/>
+
+    <g id="qa-center" data-pptx-bounds="80 180 1120 330">
+        <text x="640" y="220" text-anchor="middle" font-size="34" font-weight="700" fill="#F8FAFC">XIN CHÂN THÀNH CẢM ƠN THẦY VÀ CÁC BẠN</text>
+        <text x="640" y="270" text-anchor="middle" font-size="34" font-weight="700" fill="#0EA5E9">ĐÃ LẮNG NGHE BÀI BÁO CÁO!</text>
+        <text x="640" y="330" text-anchor="middle" font-size="16" fill="#64748B">Nhóm nghiên cứu rất mong nhận được những góp ý quý báu từ TS. Trần Thế Vinh</text>
+        <text x="640" y="360" text-anchor="middle" font-size="16" fill="#64748B">để đề tài tiếp tục được hoàn thiện và phát triển hơn nữa.</text>
+        <rect x="440" y="420" width="400" height="60" rx="10" fill="#2563EB"/>
+        <text x="640" y="457" text-anchor="middle" font-size="16" font-weight="700" fill="#FFFFFF">DEMO TRỰC TIẾP HỆ THỐNG &amp; HỎI ĐÁP (Q&amp;A)</text>
+    </g>
+
+    <g id="qa-footer" data-pptx-bounds="80 620 1120 40">
+        <text x="640" y="640" text-anchor="middle" font-size="12" fill="#64748B">Bộ môn Khoa học Dữ liệu &amp; AI • Trường Đại học Giao thông Vận tải TP.HCM (UTH)</text>
+    </g>
+
+</svg>

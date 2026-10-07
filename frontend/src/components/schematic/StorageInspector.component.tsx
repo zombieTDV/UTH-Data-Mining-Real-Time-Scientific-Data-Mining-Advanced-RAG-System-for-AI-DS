@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchStorageStats, syncR2Storage, resetStorageSession } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
+import { AnimatedCounter } from '../common';
 import type { StorageStatsResponse } from '../../types';
 
 export interface LakehouseLayer {
@@ -23,6 +24,8 @@ export function StorageInspector() {
   const {
     sessionIngested,
     storageStats,
+    storageUsedGb,
+    storageUsedPct,
     viewMode,
     setViewMode,
     refreshStorageStats,
@@ -57,10 +60,12 @@ export function StorageInspector() {
   };
 
   useEffect(() => {
-    fetchStorageStats()
-      .then((data) => setStats(data))
-      .catch((err) => console.error('[StorageInspector] Failed to load live stats:', err));
-  }, []);
+    refreshStorageStats();
+    const interval = setInterval(() => {
+      refreshStorageStats();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [refreshStorageStats]);
 
   const activeStats = storageStats || stats;
   const isTotalView = viewMode === 'total';
@@ -73,13 +78,13 @@ export function StorageInspector() {
   const arxivGb = (activeData?.arxivHtmlSizeGb ?? 3.763).toFixed(3);
   const openalexCount = (activeData?.openalexCount ?? 24754).toLocaleString();
   const openalexGb = (activeData?.openalexSizeGb ?? 3.971).toFixed(3);
-  const silverMb = (activeData?.silverParquetSizeMb ?? 316.06).toFixed(2);
-  const goldChunks = ((activeData?.activeLanceDbVectors ?? 143523) + (sessionIngested * 16)).toLocaleString();
-  const goldMb = (activeData?.activeLanceDbSizeMb ?? 121.21).toFixed(2);
+  const silverMb = (activeData?.silverParquetSizeMb ?? 321.68).toFixed(2);
+  const goldChunks = (activeData?.activeLanceDbVectors ?? 164702).toLocaleString();
+  const goldMb = (activeData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
   const backupGb = (backupData?.totalSizeGb ?? 3.069).toFixed(3);
 
-  const activeGb = (activeData?.totalSizeGb ?? 8.073).toFixed(3);
-  const activePct = (activeData?.usedPercentage ?? 80.73).toFixed(1);
+  const activeGb = (storageUsedGb || Number(activeData?.totalSizeGb ?? 8.073)).toFixed(3);
+  const activePct = (storageUsedPct || Number(activeData?.usedPercentage ?? 80.73)).toFixed(1);
   const totalGb = (totalBucket?.totalSizeGb ?? 11.142).toFixed(3);
   const totalPct = (totalBucket?.usedPercentage ?? 111.42).toFixed(1);
 
@@ -122,29 +127,29 @@ export function StorageInspector() {
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy)',
-      itemsCount: '9 Partitions (36,414 works)',
+      itemsCount: '11 Partitions (38,414 works)',
       sizeBytes: `${silverMb} MB`,
-      r2Location: 's3://uth-scientific-lakehouse/silver/papers/',
+      r2Location: 's3://uth-scientific-lakehouse/silver/ (papers, cvf, openreview)',
       color: '#10b981',
-      description: 'Deduplicated, schema-enforced columnar Parquet tables with 2,220,938 extracted LaTeX mathematical equations.'
+      description: 'Deduplicated, schema-enforced columnar Parquet tables across arXiv, OpenAlex, CVPR 2024, and OpenReview.'
     },
     {
       zone: 'GOLD',
       name: 'Contextual Vector Lakehouse (Active Cache)',
       storageType: 'Local SSD NVMe Serving Index',
-      format: 'Lance Columnar (.lance)',
+      format: 'Lance Columnar (.lance) & Parquet',
       itemsCount: `${goldChunks} vectors`,
       sizeBytes: `${goldMb} MB`,
-      r2Location: 'data/gold/lancedb/scientific_papers_gold.lance',
+      r2Location: 'data/gold/ & s3://uth-scientific-lakehouse/gold/ (lancedb, cvf, openreview)',
       color: '#eab308',
-      description: 'Contextualized 768-dimensional dense embeddings optimized for sub-15ms cosine ANN similarity search.'
+      description: 'Contextualized 768-dimensional dense embeddings and Gold parquets spanning CVPR, OpenReview, and arXiv.'
     },
     {
       zone: 'BACKUP',
       name: 'Cloud Disaster Recovery Vector Replica',
       storageType: 'Cloudflare R2 Cold Snapshots',
       format: 'LanceDB Multi-Segment Archives',
-      itemsCount: '28 chunk segments',
+      itemsCount: '32 chunk segments',
       sizeBytes: `${backupGb} GB`,
       r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
       color: '#f59e0b',
@@ -209,7 +214,7 @@ export function StorageInspector() {
                 transition: 'all 0.15s ease',
               }}
             >
-              Active ({activeGb} GB)
+              Active (<AnimatedCounter value={Number(activeGb)} decimals={3} /> GB)
             </button>
             <button
               type="button"
@@ -225,7 +230,7 @@ export function StorageInspector() {
                 transition: 'all 0.15s ease',
               }}
             >
-              Total Bucket ({totalGb} GB)
+              Total Bucket (<AnimatedCounter value={Number(totalGb)} decimals={3} /> GB)
             </button>
           </div>
 
@@ -306,7 +311,10 @@ export function StorageInspector() {
             PRIMARY ACTIVE LAKEHOUSE
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-            {activeGb} GB <span style={{ fontSize: '13px', color: 'var(--accent-emerald)', fontWeight: 500 }}>({activePct}% Free Quota)</span>
+            <AnimatedCounter value={Number(activeGb)} decimals={3} suffix=" GB" />{' '}
+            <span style={{ fontSize: '13px', color: 'var(--accent-emerald)', fontWeight: 500 }}>
+              (<AnimatedCounter value={Number(activePct)} decimals={1} suffix="% Free Quota" />)
+            </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             arXiv HTML5 (3.76 GB) + OpenAlex (3.97 GB) + Parquet (316 MB)
@@ -324,7 +332,8 @@ export function StorageInspector() {
             DISASTER RECOVERY SNAPSHOTS
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>
-            {backupGb} GB <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>(28 segments)</span>
+            <AnimatedCounter value={Number(backupGb)} decimals={3} suffix=" GB" />{' '}
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>(28 segments)</span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             Gold LanceDB cloud replica on R2 for instant cold recovery
@@ -342,7 +351,10 @@ export function StorageInspector() {
             TOTAL CLOUDFLARE R2 BUCKET
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-            {totalGb} GB <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 500 }}>({totalPct}%)</span>
+            <AnimatedCounter value={Number(totalGb)} decimals={3} suffix=" GB" />{' '}
+            <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 500 }}>
+              (<AnimatedCounter value={Number(totalPct)} decimals={1} suffix="%" />)
+            </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             36,673 files · 1.14 GB overage (~$0.017/month / 400 VND)

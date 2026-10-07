@@ -194,6 +194,34 @@ button:active {
   100% { transform: translateX(20px); opacity: 0; }
 }
 
+@keyframes laserDataStream {
+  0% {
+    left: -40%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 105%;
+    opacity: 0;
+  }
+}
+
+@keyframes ragBeaconGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.45), 0 0 40px rgba(99, 102, 241, 0.2);
+    border-color: #6366f1;
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(99, 102, 241, 0.8), 0 0 60px rgba(129, 140, 248, 0.45);
+    border-color: #818cf8;
+  }
+}
+
 @keyframes stageGlowOrange {
   0%, 100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.2); }
   50% { box-shadow: 0 0 16px 4px rgba(234, 88, 12, 0.45); }
@@ -500,4 +528,39 @@ button:active {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* Real-Time Animated Counter Pulse Effects */
+@keyframes counterGlowEmerald {
+  0% {
+    color: #10b981;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4);
+    transform: translateY(-0.5px);
+  }
+  50% {
+    color: #34d399;
+    text-shadow: 0 0 14px rgba(52, 211, 153, 0.9), 0 0 24px rgba(16, 185, 129, 0.5);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+@keyframes counterGlowRuby {
+  0% {
+    color: #ef4444;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.4);
+    transform: translateY(0.5px);
+  }
+  50% {
+    color: #f87171;
+    text-shadow: 0 0 14px rgba(248, 113, 113, 0.9), 0 0 24px rgba(239, 68, 68, 0.5);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+    transform: translateY(0);
+  }
 }

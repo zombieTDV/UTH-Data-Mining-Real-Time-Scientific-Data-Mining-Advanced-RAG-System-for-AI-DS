@@ -5,7 +5,7 @@ Vector and Full-Text Retrieval Service wrapping LanceDB Gold Table.
 """
 
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 import lancedb
 from backend.app.core.config import settings
 from backend.app.schemas.search import ChunkDto, SearchRequest

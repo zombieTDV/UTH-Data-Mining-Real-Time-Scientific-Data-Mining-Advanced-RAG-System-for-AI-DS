@@ -1,11 +1,14 @@
 import type { FC } from 'react';
 import { StatCard } from './StatCard.component';
+import { AnimatedCounter } from './AnimatedCounter.component';
 import { useLakehouseStreamStore } from '../../store';
 
 export const MetricsBento: FC = () => {
   const {
     sessionIngested,
     storageStats,
+    storageUsedGb,
+    storageUsedPct,
     viewMode,
     setViewMode,
   } = useLakehouseStreamStore();
@@ -21,14 +24,15 @@ export const MetricsBento: FC = () => {
   const arxivGb = activeData?.arxivHtmlSizeGb ?? 3.763;
   const openalexCount = activeData?.openalexCount ?? 24754;
   const openalexGb = activeData?.openalexSizeGb ?? 3.971;
-  const silverMb = activeData?.silverParquetSizeMb ?? 316.06;
-  const activeVectors = (activeData?.activeLanceDbVectors ?? 143523) + (sessionIngested * 16);
-  const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 121.21;
+  const conferenceCount = activeData?.conferenceCount ?? 2000;
+  const silverMb = activeData?.silverParquetSizeMb ?? 321.68;
+  const activeVectors = activeData?.activeLanceDbVectors ?? 164702;
+  const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 211.26;
   const backupGb = backupData?.totalSizeGb ?? 3.069;
 
-  // Active vs Total calculations
-  const activeGb = activeData?.totalSizeGb ?? 8.073;
-  const activePct = activeData?.usedPercentage ?? 80.73;
+  // Active vs Total calculations linked directly to real-time storageUsedGb
+  const activeGb = storageUsedGb || (activeData?.totalSizeGb ?? 8.073);
+  const activePct = storageUsedPct || (activeData?.usedPercentage ?? 80.73);
   const totalGb = totalBucket?.totalSizeGb ?? 11.142;
   const totalPct = totalBucket?.usedPercentage ?? 111.42;
 
@@ -36,7 +40,7 @@ export const MetricsBento: FC = () => {
   const displayPct = isTotalView ? totalPct : activePct;
   const remainingFreeGb = Math.max(0, 10.0 - activeGb).toFixed(3);
 
-  const currentFormulas = 2220938 + (sessionIngested * 24);
+  const currentFormulas = 2220938;
 
   // Segment widths relative to 10GB Free Tier
   const arxivBarPct = Math.min(100, (arxivGb / 10.0) * 100);
@@ -56,11 +60,11 @@ export const MetricsBento: FC = () => {
         label="Corpus Scale"
         badge="Medallion Lakehouse"
         badgeColor="var(--accent-emerald)"
-        value={(arxivCount + openalexCount).toLocaleString()}
+        value={<AnimatedCounter value={arxivCount + openalexCount + conferenceCount} />}
         unit="works"
-        description="arXiv Primary Preprints + OpenAlex Extended Works"
-        footerLeft={`arXiv HTML5: ${arxivCount.toLocaleString()}`}
-        footerRight={`OpenAlex: ${openalexCount.toLocaleString()}`}
+        description="arXiv HTML5 + OpenAlex + CVPR / OpenReview Conferences"
+        footerLeft={<>arXiv HTML5: <AnimatedCounter value={arxivCount} /></>}
+        footerRight={<>OpenAlex: <AnimatedCounter value={openalexCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
       />
 
@@ -69,10 +73,10 @@ export const MetricsBento: FC = () => {
         label="Gold Zone Vector Lakehouse"
         badge="768 Dim"
         badgeColor="var(--accent-gold)"
-        value={activeVectors.toLocaleString()}
+        value={<AnimatedCounter value={activeVectors} />}
         description="LanceDB Contextual Chunks (Fast ANN Search)"
-        footerLeft={`NVMe Serving: ${activeVectorMb} MB`}
-        footerRight={`Cloud Backup: ${backupGb} GB`}
+        footerLeft={<>NVMe Serving: <AnimatedCounter value={activeVectorMb} decimals={2} suffix=" MB" /></>}
+        footerRight={<>Cloud Backup: <AnimatedCounter value={backupGb} decimals={3} suffix=" GB" /></>}
         glowColor="rgba(234, 179, 8, 0.08)"
       />
 
@@ -157,7 +161,7 @@ export const MetricsBento: FC = () => {
           {/* Value Display */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
             <span style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              {displayGb.toFixed(3)}
+              <AnimatedCounter value={displayGb} decimals={3} />
             </span>
             <span style={{ fontSize: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>
               GB
@@ -173,7 +177,15 @@ export const MetricsBento: FC = () => {
               color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)',
               border: `1px solid ${isTotalView ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
             }}>
-              {isTotalView ? '111.4% (w/ Backup)' : `${displayPct.toFixed(1)}% Free Tier`}
+              {isTotalView ? (
+                <>
+                  <AnimatedCounter value={displayPct} decimals={1} suffix="%" /> (w/ Backup)
+                </>
+              ) : (
+                <>
+                  <AnimatedCounter value={displayPct} decimals={1} suffix="% Free Tier" />
+                </>
+              )}
             </span>
           </div>
 
@@ -277,7 +289,13 @@ export const MetricsBento: FC = () => {
           fontFamily: 'var(--font-mono)',
           color: 'var(--text-muted)',
         }}>
-          <span>{isTotalView ? 'Egress: $0.00 (Zero Fee)' : `Free Left: ${remainingFreeGb} GB`}</span>
+          <span>
+            {isTotalView ? (
+              'Egress: $0.00 (Zero Fee)'
+            ) : (
+              <>Free Left: <AnimatedCounter value={Number(remainingFreeGb)} decimals={3} suffix=" GB" /></>
+            )}
+          </span>
           <span style={{ color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)' }}>
             {isTotalView ? `Backup: +${backupGb} GB` : 'Safe in 10GB Quota'}
           </span>
@@ -289,7 +307,7 @@ export const MetricsBento: FC = () => {
         label="Mathematical Extraction Engine"
         badge="LaTeX Parser"
         badgeColor="var(--accent-violet)"
-        value={`${currentFormulas.toLocaleString()} Formulas`}
+        value={<><AnimatedCounter value={currentFormulas} /> Formulas</>}
         description="Cleaned and normalized into pure LaTeX syntax across Silver & Gold"
         footerLeft="Dual-Pass Regex + MathML"
         footerRight="Formula AST Tokenizer"

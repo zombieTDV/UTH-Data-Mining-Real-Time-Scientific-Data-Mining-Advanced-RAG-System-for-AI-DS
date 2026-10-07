@@ -1,0 +1,1 @@
+Đối chiếu giữa KMeans và DBSCAN: Silhouette Score thấp do đặc thù liên ngành, DBSCAN tìm ra 53.5% điểm ranh giới.

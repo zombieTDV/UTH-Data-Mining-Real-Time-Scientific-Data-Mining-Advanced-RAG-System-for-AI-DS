@@ -106,7 +106,7 @@ class RagService:
         title_0 = top_chunk.title or "Academic Paper"
 
         synthesis_lines = [
-            f"Based on retrieved literature from the LanceDB Gold Lakehouse (**143,523 vector embeddings**):\n",
+            f"Based on retrieved literature from the LanceDB Gold Lakehouse (**164,702 vector embeddings**):\n",
             f"### 1. Primary Theoretical Foundation",
             f"According to [{cite_0}] (*\"{title_0}\"*):\n",
             f"> \"{top_chunk.text.strip()}\"\n",

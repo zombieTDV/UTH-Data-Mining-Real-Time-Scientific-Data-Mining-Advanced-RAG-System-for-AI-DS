@@ -29,6 +29,7 @@ export interface LakehouseStreamState {
     latencyMs: number;
   } | null;
   storageStats: StorageStatsResponse | null;
+  activePipelineStage: 'idle' | 'harvest' | 'bronze' | 'duckdb' | 'silver' | 'embedding' | 'parallel' | 'gold' | 'r2_sync' | 'completed';
   connectionStatus: 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED';
   viewMode: 'active' | 'total';
   logs: StreamingLogEntry[];
@@ -64,6 +65,7 @@ let state: LakehouseStreamState = {
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
   storageStats: null,
+  activePipelineStage: 'idle',
   connectionStatus: 'DISCONNECTED',
   viewMode: getStoredViewMode(),
   logs: getStoredLogs(),
@@ -96,11 +98,35 @@ export async function refreshStorageStats(): Promise<void> {
       const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 8.073);
       const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 80.73);
       const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 8668472480);
+
+      // Merge storageStats but never let polling overwrite HIGHER numbers already pushed via SSE.
+      // This prevents the "numbers jump up then reset" bug caused by stale API responses.
+      const mergedActiveLakehouse = data.activeLakehouse && state.storageStats?.activeLakehouse
+        ? {
+            ...data.activeLakehouse,
+            // Gold vectors: take the higher of API response vs current state (SSE may have pushed it higher)
+            activeLanceDbVectors: Math.max(
+              data.activeLakehouse.activeLanceDbVectors ?? 0,
+              state.storageStats.activeLakehouse.activeLanceDbVectors ?? 0,
+            ),
+            // ArXiv HTML count: take higher value
+            arxivHtmlCount: Math.max(
+              data.activeLakehouse.arxivHtmlCount ?? 0,
+              state.storageStats.activeLakehouse.arxivHtmlCount ?? 0,
+            ),
+            // Conference count: take higher value (pipeline may have added more)
+            conferenceCount: Math.max(
+              data.activeLakehouse.conferenceCount ?? 0,
+              state.storageStats.activeLakehouse.conferenceCount ?? 0,
+            ),
+          }
+        : data.activeLakehouse;
+
       updateState({
-        storageStats: data,
-        storageUsedGb: gb,
-        storageUsedPct: pct,
-        storageTotalBytes: bytes,
+        storageStats: data.activeLakehouse ? { ...data, activeLakehouse: mergedActiveLakehouse } : data,
+        storageUsedGb: Math.max(gb, state.storageUsedGb),
+        storageUsedPct: Math.max(pct, state.storageUsedPct),
+        storageTotalBytes: Math.max(bytes, state.storageTotalBytes),
       });
     }
   } catch (e) {
@@ -206,29 +232,89 @@ export function initializeLakehouseStream(): () => void {
           const updatedGb = event.storage_total_gb ?? +(state.storageUsedGb + paperDelta / (1024 ** 3)).toFixed(3);
           const updatedPct = event.storage_used_pct ?? +(state.storageUsedPct + (paperDelta / (10 * 1024 ** 3)) * 100).toFixed(2);
 
-          updateState((prev) => ({
-            isStreaming: true,
-            totalCorpus: event.total_corpus || prev.totalCorpus + 1,
-            sessionIngested: event.session_ingested || prev.sessionIngested + 1,
-            streamSpeed: event.speed_ppm || prev.streamSpeed,
-            storageUsedGb: updatedGb,
-            storageUsedPct: updatedPct,
-            storageTotalBytes: event.storage_total_bytes ?? prev.storageTotalBytes + paperDelta,
-            lastPaperDeltaBytes: paperDelta,
-            lastIngestedPaper: {
-              paperId: event.paper_id || '',
-              title: event.title || '',
-              category: event.category || '',
-              vectorsSynced: event.vectors_synced || 0,
-              latencyMs: event.latency_ms || 0,
-            },
-          }));
+          const stageKey = (event.stage || 'harvest').toLowerCase() as any;
+          updateState((prev) => {
+            const nextSession = event.session_ingested || prev.sessionIngested + 1;
+            const vectorsDelta = typeof event.vectors_synced === 'number' ? event.vectors_synced : 0;
+            const updatedActive = prev.storageStats?.activeLakehouse
+              ? {
+                  ...prev.storageStats.activeLakehouse,
+                  activeLanceDbVectors:
+                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) + vectorsDelta,
+                  totalSizeGb: updatedGb,
+                  usedPercentage: updatedPct,
+                }
+              : null;
 
+            return {
+              isStreaming: true,
+              activePipelineStage: stageKey,
+              totalCorpus: event.total_corpus || prev.totalCorpus + 1,
+              sessionIngested: nextSession,
+              streamSpeed: event.speed_ppm || prev.streamSpeed,
+              storageUsedGb: updatedGb,
+              storageUsedPct: updatedPct,
+              storageTotalBytes: event.storage_total_bytes ?? prev.storageTotalBytes + paperDelta,
+              lastPaperDeltaBytes: paperDelta,
+              storageStats: prev.storageStats && updatedActive ? {
+                ...prev.storageStats,
+                activeLakehouse: updatedActive,
+                total_size_gb: updatedGb,
+                used_percentage: updatedPct,
+              } : prev.storageStats,
+              lastIngestedPaper: {
+                paperId: event.paper_id || '',
+                title: event.title || '',
+                category: event.category || '',
+                vectorsSynced: vectorsDelta,
+                latencyMs: event.latency_ms || 0,
+              },
+            };
+          });
+
+          const isGold = event.stage?.toUpperCase() === 'GOLD' || (typeof event.vectors_synced === 'number' && event.vectors_synced > 0 && (event.bronze_bytes_delta === 0 || !event.bronze_bytes_delta));
           appendStreamLog({
             time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
             level: 'SUCCESS',
-            tag: 'STREAM-CDC',
-            msg: `[STREAM 2025/2026] arXiv:${event.paper_id} (${event.category}) -> "${(event.title || '').slice(0, 48)}..." -> Appended Silver Parquet -> Synced ${event.vectors_synced} vectors (${event.latency_ms}ms, +${Math.round(paperDelta / 1024)} KB to R2)`,
+            tag: isGold ? 'GOLD-VECTOR' : 'STREAM-CDC',
+            msg: isGold
+              ? `[GOLD ZONE] Upserted ${(event.vectors_synced || 0).toLocaleString()} vectors to LanceDB Lakehouse ('scientific_papers_gold')`
+              : `[BRONZE HARVEST] ${event.paper_id} (${event.category}) -> "${(event.title || '').slice(0, 48)}..." -> (+${Math.round(paperDelta / 1024)} KB raw payload)`,
+          });
+        } else if (event.type === 'STAGE_CHANGE') {
+          const rawStage = (event.stage || '').toLowerCase();
+          const targetStage: any = rawStage === 'embedding' ? 'parallel' : rawStage;
+          updateState((prev) => {
+            const vectorsDelta = typeof event.vectors_synced === 'number' ? event.vectors_synced : 0;
+            const updatedActive = prev.storageStats?.activeLakehouse && vectorsDelta > 0
+              ? {
+                  ...prev.storageStats.activeLakehouse,
+                  activeLanceDbVectors:
+                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) + vectorsDelta,
+                }
+              : prev.storageStats?.activeLakehouse;
+
+            return {
+              isStreaming: targetStage !== 'completed',
+              activePipelineStage: targetStage,
+              storageStats: prev.storageStats && updatedActive ? {
+                ...prev.storageStats,
+                activeLakehouse: updatedActive,
+              } : prev.storageStats,
+            };
+          });
+
+          if (rawStage === 'completed') {
+            setTimeout(() => {
+              updateState({ activePipelineStage: 'idle', isStreaming: false });
+            }, 6000);
+          }
+
+          appendStreamLog({
+            time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
+            level: 'INFO',
+            tag: 'PIPELINE-STEP',
+            msg: `[FLOW STAGE: ${rawStage.toUpperCase()}] ${event.title || 'Pipeline transition triggered.'}`,
           });
         } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
           if (event.status === 'STREAMING') {

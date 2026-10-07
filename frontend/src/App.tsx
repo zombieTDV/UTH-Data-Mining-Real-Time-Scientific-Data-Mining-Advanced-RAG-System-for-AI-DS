@@ -21,7 +21,9 @@ export default function App() {
     streamSpeed,
     storageUsedGb,
     storageUsedPct,
+    storageStats,
     initializeStream,
+    refreshStorageStats,
   } = useLakehouseStreamStore();
 
   const [activeTab, setActiveTab] = useState<AppTab>('schematic');
@@ -30,10 +32,10 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 36,414 works, 2.22M formulas, 143,523 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(36414);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 38,414 works, 164,702 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(38414);
   const [totalFormulas, setTotalFormulas] = useState<number>(2220938);
-  const [totalVectors, setTotalVectors] = useState<number>(143523);
+  const [totalVectors, setTotalVectors] = useState<number>(164702);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 
@@ -56,19 +58,28 @@ export default function App() {
       })
       .catch(() => {});
 
-    fetchStorageStats()
-      .then((data) => {
-        if (data?.activeLakehouse) {
-          const works = (data.activeLakehouse.arxivHtmlCount || 11660) + (data.activeLakehouse.openalexCount || 24754);
-          setTotalPapers(works);
-          if (data.activeLakehouse.activeLanceDbVectors) {
-            setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
+    const syncStorageStats = () => {
+      refreshStorageStats();
+      fetchStorageStats()
+        .then((data) => {
+          if (data?.activeLakehouse) {
+            const works =
+              (data.activeLakehouse.arxivHtmlCount || 11660) +
+              (data.activeLakehouse.openalexCount || 24754) +
+              (data.activeLakehouse.conferenceCount || 0);
+            setTotalPapers(works);
+            if (data.activeLakehouse.activeLanceDbVectors) {
+              setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
+            }
+          } else if (data?.zones?.goldChunkCount) {
+            setTotalVectors(data.zones.goldChunkCount);
           }
-        } else if (data?.zones?.goldChunkCount) {
-          setTotalVectors(data.zones.goldChunkCount);
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    };
+
+    syncStorageStats();
+    const statsInterval = setInterval(syncStorageStats, 3000);
 
     const unsubscribeTelemetry = subscribeTelemetry(
       (data) => {
@@ -84,6 +95,7 @@ export default function App() {
     const unsubscribeStream = initializeStream();
 
     return () => {
+      clearInterval(statsInterval);
       unsubscribeTelemetry();
       unsubscribeStream();
     };
@@ -126,9 +138,11 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = totalCorpus || totalPapers || 36414;
-  const effectiveTotalVectors = totalVectors + (sessionIngested * 14);
-  const effectiveTotalFormulas = totalFormulas;
+  const effectiveTotalPapers = (totalCorpus || totalPapers || 38414) + sessionIngested;
+  const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164702;
+  const effectiveTotalFormulas = totalFormulas || 2220938;
+  const effectiveStorageGb = storageUsedGb || 8.073;
+  const effectiveStoragePct = storageUsedPct || Math.min(100, (effectiveStorageGb / 10.0) * 100);
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>
@@ -160,8 +174,8 @@ export default function App() {
           totalVectors={effectiveTotalVectors}
           sessionIngested={sessionIngested}
           streamSpeed={streamSpeed}
-          storageUsedGb={storageUsedGb}
-          storageUsedPct={storageUsedPct}
+          storageUsedGb={effectiveStorageGb}
+          storageUsedPct={effectiveStoragePct}
           onTriggerPipeline={handleTriggerPipeline}
         />
         <main

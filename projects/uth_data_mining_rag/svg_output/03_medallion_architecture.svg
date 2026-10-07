@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#F8FAFC"/>
+
+    <g id="header" data-pptx-bounds="80 50 1120 70">
+        <text x="80" y="65" font-size="12" font-weight="700" fill="#2563EB">2. THIẾT KẾ HỆ THỐNG</text>
+        <text x="80" y="98" font-size="26" font-weight="700" fill="#0F172A">Kiến Trúc Phân Tầng Medallion Data Lakehouse (ELT)</text>
+    </g>
+
+    <g id="layer-bronze" data-pptx-bounds="80 140 260 510">
+        <rect x="80" y="140" width="260" height="510" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <rect x="80" y="140" width="260" height="6" rx="3" fill="#F97316"/>
+        <text x="100" y="180" font-size="15" font-weight="700" fill="#F97316">BRONZE VAULT</text>
+        <text x="100" y="200" font-size="11" fill="#64748B">Cloudflare R2 Storage</text>
+        <rect x="100" y="225" width="220" height="50" rx="6" fill="#FFF7ED" stroke="#FED7AA" stroke-width="1"/>
+        <text x="110" y="247" font-size="11" font-weight="700" fill="#9A3412">9,022 HTML Papers</text>
+        <text x="110" y="263" font-size="10" fill="#C2410C">arXiv ar5iv full-text feeds</text>
+        <text x="100" y="310" font-size="11" font-weight="700" fill="#0F172A">Đặc tả kỹ thuật:</text>
+        <text x="100" y="335" font-size="11" fill="#64748B">• Bất biến (Immutable Storage)</text>
+        <text x="100" y="360" font-size="11" fill="#64748B">• Zero Egress Cost (Cloudflare)</text>
+        <text x="100" y="385" font-size="11" fill="#64748B">• Sổ cái SHA-256 Provenance</text>
+        <text x="100" y="410" font-size="11" fill="#64748B">• OAI-PMH Harvester Crawler</text>
+    </g>
+
+    <g id="layer-silver" data-pptx-bounds="365 140 260 510">
+        <rect x="365" y="140" width="260" height="510" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <rect x="365" y="140" width="260" height="6" rx="3" fill="#2563EB"/>
+        <text x="385" y="180" font-size="15" font-weight="700" fill="#2563EB">SILVER LAKEHOUSE</text>
+        <text x="385" y="200" font-size="11" fill="#64748B">DuckDB SIMD Columnar</text>
+        <rect x="385" y="225" width="220" height="50" rx="6" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+        <text x="395" y="247" font-size="11" font-weight="700" fill="#1E40AF">13,000 Clean Parquet</text>
+        <text x="395" y="263" font-size="10" fill="#2563EB">2.76M Formulas • 441k Cites</text>
+        <text x="385" y="310" font-size="11" font-weight="700" fill="#0F172A">Đặc tả kỹ thuật:</text>
+        <text x="385" y="335" font-size="11" fill="#64748B">• Định dạng Parquet nén ZSTD</text>
+        <text x="385" y="360" font-size="11" fill="#64748B">• Arrow Zero-Copy In-Memory</text>
+        <text x="385" y="385" font-size="11" fill="#64748B">• Chuẩn hóa LaTeX &amp; MathML</text>
+        <text x="385" y="410" font-size="11" fill="#64748B">• Quét OLAP siêu tốc ~18ms</text>
+    </g>
+
+    <g id="layer-gold" data-pptx-bounds="650 140 260 510">
+        <rect x="650" y="140" width="260" height="510" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <rect x="650" y="140" width="260" height="6" rx="3" fill="#10B981"/>
+        <text x="670" y="180" font-size="15" font-weight="700" fill="#10B981">GOLD MARTS</text>
+        <text x="670" y="200" font-size="11" fill="#64748B">LanceDB &amp; Mining Marts</text>
+        <rect x="670" y="225" width="220" height="50" rx="6" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1"/>
+        <text x="680" y="247" font-size="11" font-weight="700" fill="#065F46">143,523 Vectors (768-D)</text>
+        <text x="680" y="263" font-size="10" fill="#059669">Nomic Embed v1.5 ANN Index</text>
+        <text x="670" y="310" font-size="11" font-weight="700" fill="#0F172A">4 Trụ cột Khai phá:</text>
+        <text x="670" y="335" font-size="11" fill="#64748B">• Pillar 1: FP-Growth Rules</text>
+        <text x="670" y="360" font-size="11" fill="#64748B">• Pillar 2: KMeans &amp; DBSCAN</text>
+        <text x="670" y="385" font-size="11" fill="#64748B">• Pillar 3: PageRank Citation</text>
+        <text x="670" y="410" font-size="11" fill="#64748B">• Pillar 4: Isolation Forest</text>
+    </g>
+
+    <g id="layer-serving" data-pptx-bounds="935 140 265 510">
+        <rect x="935" y="140" width="265" height="510" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <rect x="935" y="140" width="265" height="6" rx="3" fill="#0EA5E9"/>
+        <text x="955" y="180" font-size="15" font-weight="700" fill="#0EA5E9">SERVING LAYER</text>
+        <text x="955" y="200" font-size="11" fill="#64748B">FastAPI + Metal GPU + React</text>
+        <rect x="955" y="225" width="225" height="50" rx="6" fill="#F0F9FF" stroke="#BAE6FD" stroke-width="1"/>
+        <text x="965" y="247" font-size="11" font-weight="700" fill="#0369A1">Qwen2.5-7B Metal GPU</text>
+        <text x="965" y="263" font-size="10" fill="#0284C7">React 19 Interactive Dashboard</text>
+        <text x="955" y="310" font-size="11" font-weight="700" fill="#0F172A">Đặc tả kỹ thuật:</text>
+        <text x="955" y="335" font-size="11" fill="#64748B">• SSE Token Streaming tức thì</text>
+        <text x="955" y="360" font-size="11" fill="#64748B">• Trích dẫn kiểm chứng [Paper:ID]</text>
+        <text x="955" y="385" font-size="11" fill="#64748B">• Dossier Drawer xem bản gốc</text>
+        <text x="955" y="410" font-size="11" fill="#64748B">• KaTeX Math &amp; Theater Mode</text>
+    </g>
+
+</svg>

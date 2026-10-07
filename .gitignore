@@ -57,7 +57,9 @@ data/
 /data/*.pt
 /data/*.json
 /data/*.parquet
-*.tar.gz
+
+# Downloaded Pre-trained Models
+/models/
 
 # Local Tools
 tools/

@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720"
+     font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+     font-size="12" lang="vi-VN">
+    <!-- Background Canvas -->
+    <rect width="1280" height="720" fill="#F8FAFC"/>
+
+    <g id="header" data-pptx-bounds="80 50 1120 70">
+        <text x="80" y="65" font-size="12" font-weight="700" fill="#2563EB">4. CÁC TRỤ CỘT KHAI PHÁ DỮ LIỆU</text>
+        <text x="80" y="98" font-size="26" font-weight="700" fill="#0F172A">Trụ Cột 3: Khai Phá Mạng Đồ Thị Trích Dẫn &amp; Đồng Tác Giả</text>
+    </g>
+
+    <g id="pagerank-box" data-pptx-bounds="80 140 530 510">
+        <rect x="80" y="140" width="530" height="510" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="110" y="185" font-size="18" font-weight="700" fill="#2563EB">1. Đồ Thị Trích Dẫn &amp; Directed PageRank</text>
+        <text x="110" y="225" font-size="13" font-weight="700" fill="#0F172A">• Quy mô đồ thị có hướng (Directed Graph):</text>
+        <text x="125" y="245" font-size="11.5" font-weight="normal" fill="#64748B">Gồm 8,892 bài báo (nodes) và 86,295 liên kết trích dẫn</text>
+        <text x="125" y="265" font-size="11.5" font-weight="normal" fill="#64748B">nội bộ (edges).</text>
+        <text x="110" y="285" font-size="13" font-weight="700" fill="#0F172A">• Thuật toán Directed PageRank (alpha = 0.85):</text>
+        <text x="125" y="305" font-size="11.5" font-weight="normal" fill="#64748B">Không chỉ đếm số trích dẫn thô sơ mà tính toán uy tín</text>
+        <text x="125" y="325" font-size="11.5" font-weight="normal" fill="#64748B">lan truyền, định vị chính xác các công trình học thuật</text>
+        <text x="125" y="345" font-size="11.5" font-weight="normal" fill="#64748B">có tầm ảnh hưởng lớn nhất.</text>
+        <rect x="110" y="355" width="470" height="80" rx="8" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+        <text x="126" y="381" font-size="13" font-weight="700" fill="#1E40AF">Tự động phát hiện các Landmark Papers:</text>
+        <text x="126" y="403" font-size="11.5" fill="#0F172A">• Attention Is All You Need (Vaswani et al. - Kiến trúc Transformer)</text>
+        <text x="126" y="423" font-size="11.5" fill="#0F172A">• Deep Residual Learning for Image Recognition (ResNet)</text>
+        <text x="110" y="465" font-size="13" font-weight="700" fill="#0F172A">• Phân tích HITS (Hubs &amp; Authorities):</text>
+        <text x="125" y="485" font-size="11.5" font-weight="normal" fill="#64748B">Tách biệt bài báo mang tính khảo sát tổng quan (Survey</text>
+        <text x="125" y="505" font-size="11.5" font-weight="normal" fill="#64748B">Hubs) và bài báo phát minh thuật toán nền tảng</text>
+        <text x="125" y="525" font-size="11.5" font-weight="normal" fill="#64748B">(Algorithmic Authorities).</text>
+    </g>
+
+    <g id="author-box" data-pptx-bounds="670 140 530 510">
+        <rect x="670" y="140" width="530" height="510" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="700" y="185" font-size="18" font-weight="700" fill="#10B981">2. Mạng Đồng Tác Giả &amp; Louvain Modularity</text>
+        <text x="700" y="225" font-size="13" font-weight="700" fill="#0F172A">• Mô hình đồ thị hợp tác (Co-authorship Network):</text>
+        <text x="715" y="245" font-size="11.5" font-weight="normal" fill="#64748B">Biểu diễn mạng lưới các nhà khoa học đồng xuất bản bài</text>
+        <text x="715" y="265" font-size="11.5" font-weight="normal" fill="#64748B">báo.</text>
+        <rect x="700" y="280" width="470" height="75" rx="8" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1"/>
+        <text x="716" y="306" font-size="13" font-weight="700" fill="#065F46">Thuật toán phân cụm cộng đồng Louvain (Q Modularity)</text>
+        <text x="716" y="325" font-size="11.5" font-weight="normal" fill="#64748B">Phân rã mạng lưới học thuật thành 92 cộng đồng nghiên</text>
+        <text x="716" y="345" font-size="11.5" font-weight="normal" fill="#64748B">cứu độc lập, nhận diện rõ ranh giới các Lab: DeepMind,</text>
+        <text x="716" y="365" font-size="11.5" font-weight="normal" fill="#64748B">OpenAI, Stanford, Berkeley...</text>
+        <text x="700" y="380" font-size="13" font-weight="700" fill="#0F172A">• Trực quan hóa đồ thị động trên Web Dashboard:</text>
+        <text x="715" y="420" font-size="11.5" font-weight="normal" fill="#64748B">Cho phép chuyển đổi linh hoạt giữa 2 bố cục tương tác:</text>
+        <text x="715" y="440" font-size="11.5" font-weight="normal" fill="#64748B">Force-Directed Layout (lực hút vật lý) và Circular</text>
+        <text x="715" y="460" font-size="11.5" font-weight="normal" fill="#64748B">Layout (vòng tròn).</text>
+        <text x="700" y="475" font-size="13" font-weight="700" fill="#0F172A">• Giá trị thực tiễn:</text>
+        <text x="715" y="495" font-size="11.5" font-weight="normal" fill="#64748B">Giúp người dùng biết ngay nhóm nghiên cứu nào đang dẫn</text>
+        <text x="715" y="515" font-size="11.5" font-weight="normal" fill="#64748B">đầu thế giới trong một chuyên đề cụ thể.</text>
+    </g>
+
+</svg>

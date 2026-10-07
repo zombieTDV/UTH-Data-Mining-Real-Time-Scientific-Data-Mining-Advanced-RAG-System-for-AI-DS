@@ -1,0 +1,1 @@
+Nhấn mạnh với Thầy về bùng nổ ấn phẩm AI và nguy cơ ảo giác của LLMs thương mại khi trích dẫn công thức.

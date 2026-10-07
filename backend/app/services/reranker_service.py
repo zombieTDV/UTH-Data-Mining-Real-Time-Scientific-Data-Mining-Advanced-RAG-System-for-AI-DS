@@ -3,12 +3,15 @@ backend/app/services/reranker_service.py
 ----------------------------------------
 Cross-Encoder Reranking Service for deep semantic relevance scoring.
 Reranks initial candidate chunks using full transformer cross-attention
-(BAAI/bge-reranker-base with ms-marco-MiniLM fallback).
+(cross-encoder/ms-marco-MiniLM-L-6-v2 or BAAI/bge-reranker-base).
 """
 
 import math
 import logging
 from typing import List, Optional
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
 from backend.app.core.config import settings
 from backend.app.schemas.search import ChunkDto
 
@@ -19,7 +22,9 @@ class RerankerService:
     """Manages lazy-loaded CrossEncoder model for deep candidate reranking."""
 
     def __init__(self):
+        self.tokenizer = None
         self.model = None
+        self.device = None
         self._ready = False
         self._model_name = settings.RERANKER_MODEL_NAME
 
@@ -28,24 +33,34 @@ class RerankerService:
             return
 
         try:
-            logger.info("[RERANKER] Loading primary CrossEncoder model: %s...", settings.RERANKER_MODEL_NAME)
-            from sentence_transformers import CrossEncoder
-            self.model = CrossEncoder(settings.RERANKER_MODEL_NAME)
+            logger.info("[RERANKER] Loading CrossEncoder model: %s...", self._model_name)
+            if torch.backends.mps.is_available():
+                self.device = torch.device("mps")
+            elif torch.cuda.is_available():
+                self.device = torch.device("cuda")
+            else:
+                self.device = torch.device("cpu")
+
+            self.tokenizer = AutoTokenizer.from_pretrained(self._model_name)
+            self.model = AutoModelForSequenceClassification.from_pretrained(self._model_name)
+            self.model.to(self.device)
+            self.model.eval()
             self._ready = True
-            self._model_name = settings.RERANKER_MODEL_NAME
-            logger.info("[RERANKER] [SUCCESS] Primary CrossEncoder loaded: %s", self._model_name)
+            logger.info("[RERANKER] [SUCCESS] CrossEncoder loaded on %s: %s", self.device, self._model_name)
         except Exception as e:
             logger.warning(
                 "[RERANKER] Failed to load primary model %s: %s. Attempting fallback: %s...",
-                settings.RERANKER_MODEL_NAME,
+                self._model_name,
                 str(e),
                 settings.RERANKER_FALLBACK_MODEL,
             )
             try:
-                from sentence_transformers import CrossEncoder
-                self.model = CrossEncoder(settings.RERANKER_FALLBACK_MODEL)
-                self._ready = True
                 self._model_name = settings.RERANKER_FALLBACK_MODEL
+                self.tokenizer = AutoTokenizer.from_pretrained(self._model_name)
+                self.model = AutoModelForSequenceClassification.from_pretrained(self._model_name)
+                self.model.to(self.device)
+                self.model.eval()
+                self._ready = True
                 logger.info("[RERANKER] [SUCCESS] Fallback CrossEncoder loaded: %s", self._model_name)
             except Exception as e2:
                 logger.error("[RERANKER] [ERROR] Fallback CrossEncoder also failed: %s. Reranking disabled.", str(e2))
@@ -79,7 +94,6 @@ class RerankerService:
             return chunks[:k]
 
         try:
-            # Construct (query, passage) pairs
             pairs = []
             for c in chunks:
                 title_prefix = f"Title: {c.title}. " if c.title else ""
@@ -87,10 +101,26 @@ class RerankerService:
                 passage = f"{title_prefix}{section_prefix}{c.text}"
                 pairs.append([query, passage])
 
-            # Predict cross-encoder relevance logits
-            raw_scores = self.model.predict(pairs)
+            inputs = self.tokenizer(
+                pairs,
+                padding=True,
+                truncation=True,
+                max_length=512,
+                return_tensors="pt",
+            ).to(self.device)
 
-            # Apply sigmoid normalization to bring logits into (0, 1) probability scale
+            with torch.no_grad():
+                logits = self.model(**inputs).logits
+                if logits.dim() > 1 and logits.size(-1) == 1:
+                    raw_scores = logits.squeeze(-1).cpu().tolist()
+                elif logits.dim() > 1 and logits.size(-1) > 1:
+                    raw_scores = logits[:, -1].cpu().tolist()
+                else:
+                    raw_scores = logits.cpu().tolist()
+
+            if isinstance(raw_scores, float):
+                raw_scores = [raw_scores]
+
             for chunk, score in zip(chunks, raw_scores):
                 s = float(score)
                 # Numerical stability for sigmoid

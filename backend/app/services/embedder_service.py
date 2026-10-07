@@ -1,33 +1,47 @@
 """
 backend/app/services/embedder_service.py
 ----------------------------------------
-Local Embedding Service for Dense Retrieval wrapping sentence-transformers/all-MiniLM-L6-v2.
-Provides 384-dimensional normalized dense vectors matching LanceDB Gold Lakehouse schema.
+Local Embedding Service for Dense Retrieval wrapping Nomic Embed Text v1.5.
+Provides 768-dimensional normalized dense vectors matching LanceDB Gold Lakehouse schema.
 """
 
 import logging
+from pathlib import Path
 from typing import List, Optional
+import torch
+import torch.nn.functional as F
+from transformers import AutoModel, AutoTokenizer
+
+from backend.app.core.config import settings
 
 logger = logging.getLogger("embedder_service")
 
 
 class EmbedderService:
-    """Manages offline embedding generation using nomic-ai/nomic-embed-text-v1.5 (768-D)."""
+    """Manages offline embedding generation using Nomic-embed-text-v1.5 (768-D)."""
 
-    def __init__(self, model_name: str = "nomic-ai/nomic-embed-text-v1.5"):
-        self.model_name = model_name
+    def __init__(self, model_path: Optional[str] = None):
+        self.model_path = model_path or getattr(settings, "EMBEDDING_MODEL_PATH", "nomic-ai/nomic-embed-text-v1.5")
         self.tokenizer = None
         self.model = None
+        self.device = None
         self._ready = False
 
     def _lazy_init(self):
         if self._ready:
             return
         try:
-            logger.info("[EMBEDDER] Loading embedding model %s...", self.model_name)
-            import torch
-            import torch.nn.functional as F
-            from transformers import AutoTokenizer, AutoModel, PreTrainedModel
+            logger.info("[EMBEDDER] Loading 768-D embedding model from %s...", self.model_path)
+            model_target = self.model_path if Path(self.model_path).exists() else "nomic-ai/nomic-embed-text-v1.5"
+
+            if torch.backends.mps.is_available():
+                self.device = torch.device("mps")
+            elif torch.cuda.is_available():
+                self.device = torch.device("cuda")
+            else:
+                self.device = torch.device("cpu")
+
+            from transformers import PreTrainedModel
 
             def _patch_extended_mask(self_m, attention_mask, input_shape, device=None, dtype=None):
                 if dtype is None:
@@ -43,13 +57,12 @@ class EmbedderService:
 
             PreTrainedModel.get_extended_attention_mask = _patch_extended_mask
 
-            self._torch = torch
-            self._F = F
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self.model = AutoModel.from_pretrained(self.model_name, trust_remote_code=True)
+            self.tokenizer = AutoTokenizer.from_pretrained(str(model_target))
+            self.model = AutoModel.from_pretrained(str(model_target), trust_remote_code=True)
+            self.model.to(self.device)
             self.model.eval()
             self._ready = True
-            logger.info("[EMBEDDER] Embedding model loaded successfully (dim=768).")
+            logger.info("[EMBEDDER] [SUCCESS] Embedding model loaded successfully on %s (dim=768).", self.device)
         except Exception as e:
             logger.warning("[EMBEDDER] Failed to load embedding model: %s. Dense search will fall back to FTS.", str(e))
             self._ready = False
@@ -68,12 +81,16 @@ class EmbedderService:
                 truncation=True,
                 max_length=2048,
                 return_tensors="pt",
-            )
-            with self._torch.no_grad():
+            ).to(self.device)
+
+            with torch.no_grad():
                 out = self.model(**inputs)
-                input_mask = inputs["attention_mask"].unsqueeze(-1).expand(out[0].size()).float()
-                emb = self._torch.sum(out[0] * input_mask, 1) / self._torch.clamp(input_mask.sum(1), min=1e-9)
-                emb = self._F.normalize(emb, p=2, dim=1).cpu().tolist()[0]
+                token_embeddings = out[0]
+                input_mask_expanded = inputs["attention_mask"].unsqueeze(-1).expand(token_embeddings.size()).float()
+                sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
+                sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+                emb = sum_embeddings / sum_mask
+                emb = F.normalize(emb, p=2, dim=1).cpu().tolist()[0]
                 return emb
         except Exception as e:
             logger.error("[EMBEDDER] Error embedding query: %s", str(e))

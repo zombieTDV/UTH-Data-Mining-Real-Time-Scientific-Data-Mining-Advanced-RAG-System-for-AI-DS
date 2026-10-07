@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     LANCEDB_URI: str = str(PROJECT_ROOT / "data" / "gold" / "lancedb")
     LANCEDB_TABLE: str = "scientific_papers_gold"
     MINING_ARTIFACTS_DIR: Path = PROJECT_ROOT / "data" / "gold" / "mining"
+    EMBEDDING_MODEL_PATH: str = str(PROJECT_ROOT / "models" / "nomic-embed-text-v1.5")
 
     # LLM Settings
     LLM_MODE: str = "local"  # "local", "ollama", "groq", "mock"
