@@ -591,6 +591,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     return false;
   };
 
+  const isGroundedRagReady = effectiveStage === 'completed' || activePipelineStage === 'completed' || simulationStage === 'completed';
+
   const handleOpenInspector = (nodeId: string) => {
     setSelectedNodeId(nodeId);
     setDrawerOpen(true);
@@ -979,19 +981,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Horizontal Connector 1 */}
-          <div style={{ width: '42px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: '42px',
+            height: '2px',
+            backgroundColor: isStageActive('harvest') ? 'rgba(124, 58, 237, 0.4)' : themeStyles.wire,
+            position: 'relative',
+            flexShrink: 0,
+            overflow: 'hidden',
+            boxShadow: isStageActive('harvest') ? '0 0 10px rgba(124, 58, 237, 0.6)' : 'none',
+            transition: 'all 0.3s ease',
+          }}>
             {isStageActive('harvest') && (
               <div
                 style={{
                   position: 'absolute',
-                  top: '-3px',
-                  left: '0',
-                  width: '16px',
-                  height: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#7c3aed',
-                  boxShadow: '0 0 8px #7c3aed',
-                  animation: 'pulseFlowHorizontal 0.8s infinite',
+                  top: 0,
+                  height: '100%',
+                  width: '32px',
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(168, 85, 247, 0.4) 30%, #c084fc 80%, #ffffff 100%)',
+                  boxShadow: '0 0 10px #c084fc, 0 0 4px #ffffff',
+                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                 }}
               />
             )}
@@ -1189,19 +1198,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Horizontal Connector 2 */}
-          <div style={{ width: '42px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: '42px',
+            height: '2px',
+            backgroundColor: isStageActive('bronze') ? 'rgba(225, 29, 72, 0.4)' : themeStyles.wire,
+            position: 'relative',
+            flexShrink: 0,
+            overflow: 'hidden',
+            boxShadow: isStageActive('bronze') ? '0 0 10px rgba(225, 29, 72, 0.6)' : 'none',
+            transition: 'all 0.3s ease',
+          }}>
             {isStageActive('bronze') && (
               <div
                 style={{
                   position: 'absolute',
-                  top: '-3px',
-                  left: '0',
-                  width: '16px',
-                  height: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#e11d48',
-                  boxShadow: '0 0 8px #e11d48',
-                  animation: 'pulseFlowHorizontal 0.8s infinite',
+                  top: 0,
+                  height: '100%',
+                  width: '32px',
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(244, 63, 94, 0.4) 30%, #fb7185 80%, #ffffff 100%)',
+                  boxShadow: '0 0 10px #fb7185, 0 0 4px #ffffff',
+                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                 }}
               />
             )}
@@ -1359,19 +1375,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Horizontal Connector 3 into Red Split Node */}
-          <div style={{ width: '36px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: '36px',
+            height: '2px',
+            backgroundColor: isStageActive('duckdb') ? 'rgba(245, 158, 11, 0.4)' : themeStyles.wire,
+            position: 'relative',
+            flexShrink: 0,
+            overflow: 'hidden',
+            boxShadow: isStageActive('duckdb') ? '0 0 10px rgba(245, 158, 11, 0.6)' : 'none',
+            transition: 'all 0.3s ease',
+          }}>
             {isStageActive('duckdb') && (
               <div
                 style={{
                   position: 'absolute',
-                  top: '-3px',
-                  left: '0',
-                  width: '16px',
-                  height: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#f59e0b',
-                  boxShadow: '0 0 8px #f59e0b',
-                  animation: 'pulseFlowHorizontal 0.8s infinite',
+                  top: 0,
+                  height: '100%',
+                  width: '30px',
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.4) 30%, #fbbf24 80%, #ffffff 100%)',
+                  boxShadow: '0 0 10px #fbbf24, 0 0 4px #ffffff',
+                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                 }}
               />
             )}
@@ -1675,109 +1698,153 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Merge Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
             </div>
 
-            {/* Orange Convergence Anchor Ring */}
+            {/* Convergence Anchor Ring */}
             <div
               style={{
                 width: '22px',
                 height: '22px',
                 borderRadius: '50%',
                 backgroundColor: isDark ? '#0b0f19' : '#ffffff',
-                border: '4px solid #ea580c',
-                boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
+                border: isGroundedRagReady ? '4px solid #6366f1' : '4px solid #ea580c',
+                boxShadow: isGroundedRagReady ? '0 0 16px rgba(99, 102, 241, 0.85), 0 0 6px #818cf8' : '0 2px 6px rgba(234, 88, 12, 0.3)',
                 flexShrink: 0,
                 zIndex: 10,
+                transition: 'all 0.4s ease',
               }}
               title="Parallel Convergence Anchor"
             />
 
             {/* Final Horizontal Connector into Grounded RAG */}
-            <div style={{ width: '36px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
-              {simulationStage === 'completed' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '-3px',
-                    left: '0',
-                    width: '16px',
-                    height: '8px',
-                    borderRadius: '4px',
-                    backgroundColor: '#6366f1',
-                    boxShadow: '0 0 8px #6366f1',
-                    animation: 'pulseFlowHorizontal 0.8s infinite',
-                  }}
-                />
-              )}
-            </div>
+            <div style={{
+                    width: '36px',
+                    height: '2px',
+                    backgroundColor: isGroundedRagReady ? 'rgba(99, 102, 241, 0.5)' : themeStyles.wire,
+                    position: 'relative',
+                    flexShrink: 0,
+                    overflow: 'hidden',
+                    boxShadow: isGroundedRagReady ? '0 0 10px rgba(99, 102, 241, 0.7)' : 'none',
+                    transition: 'all 0.3s ease',
+                  }}>
+                    {isGroundedRagReady && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          height: '100%',
+                          width: '30px',
+                          background: 'linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.4) 30%, #818cf8 80%, #ffffff 100%)',
+                          boxShadow: '0 0 10px #818cf8, 0 0 4px #ffffff',
+                          animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                        }}
+                      />
+                    )}
+                  </div>
 
-            {/* ============================================================== */}
-            {/* STAGE 5: Grounded RAG Console (Indigo) */}
-            {/* ============================================================== */}
-            <div
-              onClick={() => handleOpenInspector('grounded-rag')}
-              style={{
-                width: '240px',
-                backgroundColor: themeStyles.cardBg,
-                borderRadius: '14px',
-                padding: '14px 16px',
-                border: simulationStage === 'completed'
-                  ? '2px solid #6366f1'
-                  : selectedNodeId === 'grounded-rag' && drawerOpen
-                  ? '2px solid #6366f1'
-                  : `1px solid ${themeStyles.cardBorder}`,
-                boxShadow: isDark
-                  ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                  : '0 4px 16px rgba(99, 102, 241, 0.1)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                flexShrink: 0,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {/* ============================================================== */}
+                  {/* STAGE 5: Grounded RAG Console (Indigo) */}
+                  {/* ============================================================== */}
                   <div
+                    onClick={() => handleOpenInspector('grounded-rag')}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '9px',
-                      backgroundColor: '#6366f1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#ffffff',
-                      boxShadow: '0 2px 6px rgba(99, 102, 241, 0.3)',
+                      width: '240px',
+                      backgroundColor: isGroundedRagReady
+                        ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#f5f3ff')
+                        : themeStyles.cardBg,
+                      borderRadius: '14px',
+                      padding: '14px 16px',
+                      border: isGroundedRagReady
+                        ? '2px solid #6366f1'
+                        : selectedNodeId === 'grounded-rag' && drawerOpen
+                        ? '2px solid #6366f1'
+                        : `1px solid ${themeStyles.cardBorder}`,
+                      boxShadow: isGroundedRagReady
+                        ? (isDark
+                            ? '0 0 32px rgba(99, 102, 241, 0.75), 0 0 12px rgba(129, 140, 248, 0.5)'
+                            : '0 0 24px rgba(99, 102, 241, 0.45), 0 4px 16px rgba(99, 102, 241, 0.2)')
+                        : isDark
+                        ? '0 4px 16px rgba(0, 0, 0, 0.45)'
+                        : '0 4px 16px rgba(99, 102, 241, 0.1)',
+                      animation: isGroundedRagReady ? 'ragBeaconGlow 2.4s infinite' : 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
                       flexShrink: 0,
                     }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                  </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '9px',
+                            backgroundColor: '#6366f1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#ffffff',
+                            boxShadow: isGroundedRagReady
+                              ? '0 0 14px rgba(99, 102, 241, 0.8)'
+                              : '0 2px 6px rgba(99, 102, 241, 0.3)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                        </div>
 
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
-                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
-                  </div>
-                </div>
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
+                          <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
+                        </div>
+                      </div>
 
-                <span style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  color: isDark ? '#a5b4fc' : '#6366f1',
-                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe',
-                  border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
-                  padding: '1px 5px',
-                  borderRadius: '4px',
-                }}>
-                  Metal
-                </span>
-              </div>
+                      <span style={{
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        color: isGroundedRagReady ? '#ffffff' : (isDark ? '#a5b4fc' : '#6366f1'),
+                        backgroundColor: isGroundedRagReady ? '#6366f1' : (isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe'),
+                        border: `1px solid ${isGroundedRagReady ? '#818cf8' : (isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent')}`,
+                        boxShadow: isGroundedRagReady ? '0 0 12px rgba(99, 102, 241, 0.65)' : 'none',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}>
+                        {isGroundedRagReady && (
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
+                        )}
+                        {isGroundedRagReady ? '● READY FOR RAG' : 'Metal'}
+                      </span>
+                    </div>
+
+                    {isGroundedRagReady && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '4px 8px',
+                        borderRadius: '5px',
+                        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.12)',
+                        border: '1px solid rgba(99, 102, 241, 0.4)',
+                        color: isDark ? '#c7d2fe' : '#4338ca',
+                        fontSize: '9.5px',
+                        fontWeight: 800,
+                        fontFamily: 'var(--font-mono)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                      }}>
+                        <span style={{ color: '#10b981' }}>✔</span> PIPELINE PRIMED · READY TO QUERY
+                      </div>
+                    )}
 
               <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>

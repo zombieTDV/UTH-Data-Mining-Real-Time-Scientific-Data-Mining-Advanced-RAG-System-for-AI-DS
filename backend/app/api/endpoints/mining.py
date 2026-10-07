@@ -9,7 +9,6 @@ from backend.app.schemas.mining import (
     TrendsResponse,
 )
 from backend.app.services.mining_service import mining_service
-from data_mining.src.mining.mining_engine import MiningEngine
 
 router = APIRouter(prefix="/mining", tags=["Data Mining & Modeling"])
 
@@ -75,6 +74,9 @@ async def telemetry_event_stream():
 async def trigger_mining_execution(background_tasks: BackgroundTasks) -> Dict[str, str]:
     """Triggers background re-execution of the Python Data Mining Engine across the 10,000 papers."""
     def run_mining():
+        import sys, os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../../data_mining"))
+        from data_mining.src.mining.mining_engine import MiningEngine
         engine = MiningEngine()
         engine.run_all(upload_to_r2=True)
 

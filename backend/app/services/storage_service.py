@@ -49,6 +49,7 @@ class StorageService:
 
         self.manifest_file = settings.DATA_DIR / "lakehouse" / "r2_manifest.json"
         self._load_cached_manifest()
+        self._bootstrap_from_local_files()
 
     def _load_cached_manifest(self):
         """Loads cached R2 manifest if available."""
@@ -61,9 +62,77 @@ class StorageService:
                     self.base_openalex_count = data.get("openalex_count", self.base_openalex_count)
                     self.base_openalex_bytes = data.get("openalex_bytes", self.base_openalex_bytes)
                     self.base_backup_gold_bytes = data.get("backup_gold_bytes", self.base_backup_gold_bytes)
+                    # Also persist dynamically updated fields
+                    self.base_conferences_count = data.get("conferences_count", self.base_conferences_count)
+                    self.base_conferences_bytes = data.get("conferences_bytes", self.base_conferences_bytes)
+                    self.base_active_gold_vectors = data.get("active_gold_vectors", self.base_active_gold_vectors)
+                    self.base_active_gold_bytes = data.get("active_gold_bytes", self.base_active_gold_bytes)
+                    self.base_silver_count = data.get("silver_count", self.base_silver_count)
+                    self.base_silver_bytes = data.get("silver_bytes", self.base_silver_bytes)
                     logger.info("[STORAGE] Loaded cached R2 manifest successfully.")
         except Exception as e:
             logger.warning(f"[STORAGE] Failed to load cached manifest: {e}")
+
+    def _bootstrap_from_local_files(self):
+        """Bootstrap accurate counts from local files at startup (conference parquet, LanceDB)."""
+        # Conference papers from local silver parquet
+        try:
+            cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
+            or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
+            conf_count = 0
+            conf_bytes = 0
+            import pyarrow.parquet as pq
+            if cvf_silver.exists():
+                meta = pq.read_metadata(cvf_silver)
+                conf_count += meta.num_rows
+                conf_bytes += cvf_silver.stat().st_size
+            if or_silver.exists():
+                meta = pq.read_metadata(or_silver)
+                conf_count += meta.num_rows
+                conf_bytes += or_silver.stat().st_size
+            if conf_count > 0:
+                self.base_conferences_count = conf_count
+                self.base_conferences_bytes = max(conf_bytes, self.base_conferences_bytes)
+                logger.info(f"[STORAGE] Bootstrap conferences from local parquet: {conf_count} rows")
+        except Exception as e:
+            logger.warning(f"[STORAGE] Bootstrap conferences error: {e}")
+
+        # Gold vectors from local LanceDB
+        try:
+            from src.indexing.lancedb_manager import LanceDBManager
+            l_mgr = LanceDBManager()
+            tbl = l_mgr.db.open_table("scientific_papers_gold")
+            live_rows = len(tbl)
+            if live_rows > 0 and live_rows > self.base_active_gold_vectors:
+                self.base_active_gold_vectors = live_rows
+                logger.info(f"[STORAGE] Bootstrap gold vectors from LanceDB: {live_rows}")
+        except Exception:
+            pass
+
+        self._save_manifest()
+
+    def _save_manifest(self):
+        """Persists all key metrics to manifest file so they survive backend restarts."""
+        try:
+            self.manifest_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.manifest_file, "w", encoding="utf-8") as f:
+                json.dump({
+                    "arxiv_html_count": self.base_arxiv_html_count,
+                    "arxiv_html_bytes": self.base_arxiv_html_bytes,
+                    "openalex_count": self.base_openalex_count,
+                    "openalex_bytes": self.base_openalex_bytes,
+                    "backup_gold_bytes": self.base_backup_gold_bytes,
+                    "conferences_count": self.base_conferences_count,
+                    "conferences_bytes": self.base_conferences_bytes,
+                    "active_gold_vectors": self.base_active_gold_vectors,
+                    "active_gold_bytes": self.base_active_gold_bytes,
+                    "silver_count": self.base_silver_count,
+                    "silver_bytes": self.base_silver_bytes,
+                }, f, indent=2)
+        except Exception as e:
+            logger.warning(f"[STORAGE] Failed to save manifest: {e}")
+
+
 
     def sync_live_from_r2(self) -> Dict[str, Any]:
         """Performs a background live scan of Cloudflare R2 bucket and updates manifest cache."""
@@ -103,16 +172,8 @@ class StorageService:
             if backup_gold_bytes > 0:
                 self.base_backup_gold_bytes = backup_gold_bytes
 
-            # Save to manifest
-            self.manifest_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.manifest_file, "w", encoding="utf-8") as f:
-                json.dump({
-                    "arxiv_html_count": self.base_arxiv_html_count,
-                    "arxiv_html_bytes": self.base_arxiv_html_bytes,
-                    "openalex_count": self.base_openalex_count,
-                    "openalex_bytes": self.base_openalex_bytes,
-                    "backup_gold_bytes": self.base_backup_gold_bytes,
-                }, f, indent=2)
+            # Save to manifest (includes all dynamic fields)
+            self._save_manifest()
 
             return {"status": "SUCCESS", "message": "Synced latest R2 storage metrics."}
         except Exception as e:
@@ -126,31 +187,37 @@ class StorageService:
         delta_bytes = streaming_service.accumulated_bytes_delta
 
         # Check actual live LanceDB vector count if available
+        manifest_dirty = False
         try:
             from src.indexing.lancedb_manager import LanceDBManager
             l_mgr = LanceDBManager()
             tbl = l_mgr.db.open_table("scientific_papers_gold")
             live_rows = len(tbl)
-            if live_rows > 0:
+            if live_rows > 0 and live_rows != self.base_active_gold_vectors:
                 self.base_active_gold_vectors = live_rows
+                manifest_dirty = True
         except Exception:
             pass
 
         # Check actual conference papers (CVPR + OpenReview Silver)
         try:
-            cvf_silver = settings.ROOT_DIR / "data" / "silver" / "cvf" / "cvpr2024.parquet"
-            or_silver = settings.ROOT_DIR / "data" / "silver" / "openreview" / "openreview_all.parquet"
+            cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
+            or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
             conf_count = 0
+            import pyarrow.parquet as pq
             if cvf_silver.exists():
-                import pyarrow.parquet as pq
                 conf_count += pq.read_metadata(cvf_silver).num_rows
             if or_silver.exists():
-                import pyarrow.parquet as pq
                 conf_count += pq.read_metadata(or_silver).num_rows
-            if conf_count > 0:
+            if conf_count > 0 and conf_count != self.base_conferences_count:
                 self.base_conferences_count = conf_count
+                manifest_dirty = True
         except Exception:
             pass
+
+        # Persist updated metrics if anything changed
+        if manifest_dirty:
+            self._save_manifest()
 
         # Incremental streaming adjustments (Raw Bronze crawling increments paper count & bytes)
         arxiv_html_count = self.base_arxiv_html_count + delta_ingested

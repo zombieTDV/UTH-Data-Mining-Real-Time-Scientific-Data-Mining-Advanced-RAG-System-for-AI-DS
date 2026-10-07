@@ -98,11 +98,35 @@ export async function refreshStorageStats(): Promise<void> {
       const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 8.073);
       const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 80.73);
       const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 8668472480);
+
+      // Merge storageStats but never let polling overwrite HIGHER numbers already pushed via SSE.
+      // This prevents the "numbers jump up then reset" bug caused by stale API responses.
+      const mergedActiveLakehouse = data.activeLakehouse && state.storageStats?.activeLakehouse
+        ? {
+            ...data.activeLakehouse,
+            // Gold vectors: take the higher of API response vs current state (SSE may have pushed it higher)
+            activeLanceDbVectors: Math.max(
+              data.activeLakehouse.activeLanceDbVectors ?? 0,
+              state.storageStats.activeLakehouse.activeLanceDbVectors ?? 0,
+            ),
+            // ArXiv HTML count: take higher value
+            arxivHtmlCount: Math.max(
+              data.activeLakehouse.arxivHtmlCount ?? 0,
+              state.storageStats.activeLakehouse.arxivHtmlCount ?? 0,
+            ),
+            // Conference count: take higher value (pipeline may have added more)
+            conferenceCount: Math.max(
+              data.activeLakehouse.conferenceCount ?? 0,
+              state.storageStats.activeLakehouse.conferenceCount ?? 0,
+            ),
+          }
+        : data.activeLakehouse;
+
       updateState({
-        storageStats: data,
-        storageUsedGb: gb,
-        storageUsedPct: pct,
-        storageTotalBytes: bytes,
+        storageStats: data.activeLakehouse ? { ...data, activeLakehouse: mergedActiveLakehouse } : data,
+        storageUsedGb: Math.max(gb, state.storageUsedGb),
+        storageUsedPct: Math.max(pct, state.storageUsedPct),
+        storageTotalBytes: Math.max(bytes, state.storageTotalBytes),
       });
     }
   } catch (e) {
