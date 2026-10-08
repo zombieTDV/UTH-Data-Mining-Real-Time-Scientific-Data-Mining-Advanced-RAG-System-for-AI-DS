@@ -1,4 +1,4 @@
-import type { FC } from 'react';
+import { useState, type FC } from 'react';
 import { AnimatedCounter } from '../../components/common';
 import { useTranslation } from '../../hooks';
 
@@ -6,13 +6,16 @@ export interface StorageMeterProps {
   storageUsedGb: number;
   storageUsedPct: number;
   totalPapers?: number;
+  onClick?: () => void;
 }
 
 export const StorageMeter: FC<StorageMeterProps> = ({
   storageUsedGb,
   storageUsedPct,
+  onClick,
 }) => {
   const { language } = useTranslation();
+  const [isHovered, setIsHovered] = useState(false);
   const quotaGb = 10.0;
   const pct = Math.min(100, Math.max(0, storageUsedPct));
 
@@ -29,25 +32,41 @@ export const StorageMeter: FC<StorageMeterProps> = ({
   const accentColor = isHigh ? '#ef4444' : isMed ? '#f59e0b' : '#34d399';
 
   const tooltipText = language === 'vi'
-    ? `Cloudflare R2 Storage Lens (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)`
-    : `Cloudflare R2 Storage Lens (Free Tier Quota: 10.00 GB)\n• Used: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Available: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Zero Egress Fees`;
+    ? `Cloudflare R2 Storage Lens (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)\n• Bấm hoặc nhấn phím S để mở Lăng Kính Lưu Trữ & Bộ Lập Lịch`
+    : `Cloudflare R2 Storage Lens (Free Tier Quota: 10.00 GB)\n• Used: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Available: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Zero Egress Fees\n• Click or press S to open Storage Lens & Scheduler`;
 
   return (
     <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       title={tooltipText}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '9px',
-        padding: '0 12px',
+        gap: '8px',
+        padding: '0 10px',
         height: '32px',
         borderRadius: '8px',
-        backgroundColor: 'var(--badge-bg)',
-        border: '1px solid var(--badge-border)',
+        backgroundColor: onClick && isHovered
+          ? (isHovered ? 'rgba(245, 158, 11, 0.12)' : 'var(--badge-bg)')
+          : 'var(--badge-bg)',
+        border: onClick && isHovered
+          ? '1px solid rgba(245, 158, 11, 0.6)'
+          : '1px solid var(--badge-border)',
         fontFamily: 'var(--font-mono)',
-        cursor: 'default',
+        cursor: onClick ? 'pointer' : 'default',
         boxSizing: 'border-box',
         transition: 'all 0.15s ease',
+        userSelect: 'none',
       }}
     >
       {/* Cloudflare R2 Identity Icon & Label */}
@@ -73,7 +92,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
       {/* Sleek Mini Capacity Gauge */}
       <div
         style={{
-          width: '52px',
+          width: '48px',
           height: '5px',
           backgroundColor: 'var(--bg-elevated)',
           borderRadius: '9999px',
@@ -94,7 +113,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
         />
       </div>
 
-      {/* Storage Volume: Only GB Ratio (No redundant % badge) */}
+      {/* Storage Volume: Only GB Ratio */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', fontSize: '11px', fontWeight: 800 }}>
         <span style={{ color: 'var(--text-primary)' }}>
           <AnimatedCounter value={storageUsedGb} decimals={2} />
@@ -103,6 +122,33 @@ export const StorageMeter: FC<StorageMeterProps> = ({
           / 10 GB
         </span>
       </div>
+
+      {/* Interactive Lens Badge */}
+      {onClick && (
+        <span
+          style={{
+            fontSize: '9px',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 800,
+            padding: '2px 5px',
+            borderRadius: '4px',
+            backgroundColor: isHovered ? '#f59e0b' : 'rgba(245, 158, 11, 0.16)',
+            color: isHovered ? '#000000' : '#f59e0b',
+            border: `1px solid ${isHovered ? '#f59e0b' : 'rgba(245, 158, 11, 0.4)'}`,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px',
+            letterSpacing: '0.02em',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>LENS (S)</span>
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="15 3 21 3 21 9" />
+            <line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+        </span>
+      )}
     </div>
   );
 };

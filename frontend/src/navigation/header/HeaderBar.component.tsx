@@ -20,6 +20,7 @@ export interface HeaderBarProps {
   storageUsedGb: number;
   storageUsedPct: number;
   onTriggerPipeline: () => void;
+  onOpenStorageLens?: () => void;
 }
 
 export const HeaderBar: FC<HeaderBarProps> = ({
@@ -35,6 +36,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
   storageUsedGb,
   storageUsedPct,
   onTriggerPipeline,
+  onOpenStorageLens,
 }) => {
   const { language } = useTranslation();
 
@@ -111,6 +113,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
           storageUsedGb={storageUsedGb}
           storageUsedPct={storageUsedPct}
           totalPapers={totalPapers}
+          onClick={onOpenStorageLens}
         />
         <LanguageToggle />
         <RunPipelineButton pipelineStatus={pipelineStatus} onClick={onTriggerPipeline} />

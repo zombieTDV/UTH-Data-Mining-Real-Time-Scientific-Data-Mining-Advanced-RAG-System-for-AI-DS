@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavRail } from './navigation/rail';
 import { HeaderBar } from './navigation/header';
 import { SchematicScreen, EdaScreen, PillarsScreen, RagScreen, LogsScreen } from './screens';
+import { StorageInspector } from './components/schematic';
 import {
   fetchHealth,
   subscribeTelemetry,
@@ -10,10 +11,13 @@ import {
   fetchEdaSummary,
 } from './services';
 import { useThemeStore, useLakehouseStreamStore } from './store';
+import { useTranslation } from './hooks';
 import type { AppTab, PipelineStatus, BackendStatus, SchematicViewMode } from './types';
 
 export default function App() {
   const { theme, toggleTheme } = useThemeStore();
+  const { language } = useTranslation();
+  const isDark = theme === 'dark';
   const {
     isStreaming,
     totalCorpus,
@@ -30,6 +34,7 @@ export default function App() {
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('IDLE');
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
+  const [isStorageOpen, setIsStorageOpen] = useState<boolean>(false);
 
   // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 36,414 works, 164,702 vectors)
   const [totalPapers, setTotalPapers] = useState<number>(36414);
@@ -105,7 +110,11 @@ export default function App() {
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
         return;
       }
-      if (e.altKey && e.key === '1') setActiveTab('pillars');
+      if (e.key === 'Escape') {
+        setIsStorageOpen(false);
+      } else if (!e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 's' || e.key === 'S')) {
+        setIsStorageOpen((prev) => !prev);
+      } else if (e.altKey && e.key === '1') setActiveTab('pillars');
       else if (e.altKey && e.key === '2') setActiveTab('eda');
       else if (e.altKey && e.key === '3') setActiveTab('rag');
       else if (e.altKey && e.key === '4') setActiveTab('schematic');
@@ -176,6 +185,7 @@ export default function App() {
           storageUsedGb={effectiveStorageGb}
           storageUsedPct={effectiveStoragePct}
           onTriggerPipeline={handleTriggerPipeline}
+          onOpenStorageLens={() => setIsStorageOpen((prev) => !prev)}
         />
         <main
           style={{
@@ -197,6 +207,7 @@ export default function App() {
               pipelineStatus={pipelineStatus}
               onNavigateTab={setActiveTab}
               onTriggerPipeline={handleTriggerPipeline}
+              onOpenStorageLens={() => setIsStorageOpen((prev) => !prev)}
             />
           )}
 
@@ -219,6 +230,107 @@ export default function App() {
           {activeTab === 'logs' && <LogsScreen />}
         </main>
       </div>
+
+      {/* Global Storage Lens & Multi-Tier Inspector Modal */}
+      {isStorageOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setIsStorageOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(10px)',
+            zIndex: 9999,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '24px',
+            animation: 'fadeIn 0.15s ease',
+          }}
+        >
+          {/* Modal Container */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '1380px',
+              width: '100%',
+              maxHeight: '90vh',
+              backgroundColor: isDark ? '#0b1120' : '#ffffff',
+              border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.18)' : '#cbd5e1'}`,
+              borderRadius: '16px',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.65)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                height: '56px',
+                padding: '0 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
+                flexShrink: 0,
+              }}
+            >
+              {/* Left Title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>🗄️</span>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                    {language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG & BỘ LẬP LỊCH TỰ HÀNH' : 'MULTI-TIER STORAGE LENS & AUTONOMOUS SCHEDULER'}
+                  </div>
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {language === 'vi' ? 'Cây thư mục R2, bảng Parquet nén Snappy 4.2x và điều khiển Daemon cào' : 'R2 object tree, Snappy 4.2x Parquets, and crawl daemon'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Close Button */}
+              <button
+                type="button"
+                onClick={() => setIsStorageOpen(false)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1'}`,
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+                  color: 'var(--text-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  transition: 'all 0.15s ease',
+                }}
+                title={language === 'vi' ? 'Đóng (Phím Escape hoặc S)' : 'Close (Escape or S)'}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content Body */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '24px',
+                backgroundColor: isDark ? '#0b1120' : '#ffffff',
+              }}
+            >
+              <StorageInspector />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

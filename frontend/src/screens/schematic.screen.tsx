@@ -1,5 +1,5 @@
-import { useState, useEffect, type FC } from 'react';
-import { InteractiveWorkflowCanvas, StorageInspector } from '../components/schematic';
+import { type FC } from 'react';
+import { InteractiveWorkflowCanvas } from '../components/schematic';
 import { useLakehouseStreamStore } from '../store';
 import { useTranslation } from '../hooks';
 import type { AppTab, AppTheme, PipelineStatus, SchematicViewMode } from '../types';
@@ -11,6 +11,7 @@ export interface SchematicScreenProps {
   pipelineStatus?: PipelineStatus;
   onNavigateTab?: (tab: AppTab) => void;
   onTriggerPipeline?: () => void;
+  onOpenStorageLens?: () => void;
 }
 
 export const SchematicScreen: FC<SchematicScreenProps> = ({
@@ -18,28 +19,10 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   pipelineStatus = 'IDLE',
   onNavigateTab,
   onTriggerPipeline,
+  onOpenStorageLens,
 }) => {
   const { language } = useTranslation();
   const { storageUsedGb, isStreaming } = useLakehouseStreamStore();
-  const isDark = theme === 'dark';
-
-  const [isStorageOpen, setIsStorageOpen] = useState<boolean>(false);
-
-  // Keyboard shortcut listener: Escape to close modal, S for Storage
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
-        return;
-      }
-      if (e.key === 'Escape') {
-        setIsStorageOpen(false);
-      } else if (e.key === 's' || e.key === 'S') {
-        setIsStorageOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   return (
     <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
@@ -89,6 +72,15 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
             {/* Micro Badges */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
               <span
+                role={onOpenStorageLens ? 'button' : undefined}
+                tabIndex={onOpenStorageLens ? 0 : undefined}
+                onClick={onOpenStorageLens}
+                onKeyDown={(e) => {
+                  if (onOpenStorageLens && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    onOpenStorageLens();
+                  }
+                }}
                 style={{
                   fontSize: '9.5px',
                   fontFamily: 'var(--font-mono)',
@@ -99,9 +91,15 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                   border: '1px solid rgba(56, 189, 248, 0.25)',
                   fontWeight: 700,
                   whiteSpace: 'nowrap',
+                  cursor: onOpenStorageLens ? 'pointer' : 'default',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
+                title={language === 'vi' ? 'Xem lăng kính lưu trữ R2 (Phím S)' : 'View R2 Storage Lens (Key S)'}
               >
-                R2: {(storageUsedGb || 8.28).toFixed(2)} GB / 10 GB
+                <span>R2: {(storageUsedGb || 8.28).toFixed(2)} GB / 10 GB</span>
+                {onOpenStorageLens && <span style={{ opacity: 0.7, fontSize: '8.5px' }}>↗</span>}
               </span>
               <span
                 style={{
@@ -139,38 +137,8 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Integrated Icon Triggers to Open Bento, Medallion, and Storage on top of Canvas */}
+        {/* Right Side: Quick Jump to RAG and Pipeline Trigger */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          {/* Integrated Tool Icons Group */}
-          {/* Storage Inspector Tool Button */}
-          <button
-            type="button"
-            onClick={() => setIsStorageOpen((prev) => !prev)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '5px 12px',
-              borderRadius: '6px',
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: isStorageOpen ? 800 : 600,
-              backgroundColor: isStorageOpen ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : (isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9'),
-              color: isStorageOpen ? '#f59e0b' : 'var(--text-primary)',
-              border: isStorageOpen ? '1px solid rgba(245, 158, 11, 0.6)' : '1px solid var(--border-subtle)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            title={language === 'vi' ? 'Bật/tắt lăng kính lưu trữ R2 & Điều phối (Phím S)' : 'Toggle Storage Inspector & Scheduler (Key S)'}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <ellipse cx="12" cy="5" rx="9" ry="3" />
-              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-            </svg>
-            <span>{language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ (S)' : 'STORAGE LENS (S)'}</span>
-          </button>
-
           {/* Quick Jump to RAG */}
           {onNavigateTab && (
             <button
@@ -237,107 +205,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           language={language}
         />
       </div>
-
-      {/* ============================================================== */}
-      {/* INTEGRATED SLIDE-OVER OVERLAY MODAL (STORAGE LENS & SCHEDULER)  */}
-      {/* ============================================================== */}
-      {isStorageOpen && (
-        <div
-          onClick={() => setIsStorageOpen(false)}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(10px)',
-            zIndex: 60,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '24px',
-            animation: 'fadeIn 0.15s ease',
-          }}
-        >
-          {/* Modal Container */}
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              maxWidth: '1380px',
-              width: '100%',
-              maxHeight: '90vh',
-              backgroundColor: isDark ? '#0b1120' : '#ffffff',
-              border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.18)' : '#cbd5e1'}`,
-              borderRadius: '16px',
-              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.65)',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Modal Header */}
-            <div
-              style={{
-                height: '56px',
-                padding: '0 24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                backgroundColor: isDark ? '#0f172a' : '#f8fafc',
-                borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
-                flexShrink: 0,
-              }}
-            >
-              {/* Left Title */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '18px' }}>🗄️</span>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                    {language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG & BỘ LẬP LỊCH TỰ HÀNH' : 'MULTI-TIER STORAGE LENS & AUTONOMOUS SCHEDULER'}
-                  </div>
-                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    {language === 'vi' ? 'Cây thư mục R2, bảng Parquet nén Snappy 4.2x và điều khiển Daemon cào' : 'R2 object tree, Snappy 4.2x Parquets, and crawl daemon'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Close Button */}
-              <button
-                type="button"
-                onClick={() => setIsStorageOpen(false)}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1'}`,
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  transition: 'all 0.15s ease',
-                }}
-                title={language === 'vi' ? 'Đóng (Phím Escape hoặc S)' : 'Close (Escape or S)'}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal Content Body */}
-            <div
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '24px',
-                backgroundColor: isDark ? '#0b1120' : '#ffffff',
-              }}
-            >
-              <StorageInspector />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
