@@ -36,9 +36,9 @@ export const SyncR2Button: FC<SyncR2ButtonProps> = ({ onSyncComplete }) => {
   const buttonLabel = isSyncing
     ? (language === 'vi' ? 'Đang sync R2...' : 'Syncing R2...')
     : feedback === 'success'
-    ? (language === 'vi' ? 'Đã sync R2' : 'Synced R2')
+    ? (language === 'vi' ? 'Đã sync R2 ✓' : 'Synced R2 ✓')
     : feedback === 'error'
-    ? (language === 'vi' ? 'Sync lỗi' : 'Sync Failed')
+    ? (language === 'vi' ? 'Sync lỗi ✕' : 'Sync Failed ✕')
     : (language === 'vi' ? 'Sync lên R2' : 'Sync Live R2');
 
   const tooltipText = language === 'vi'
@@ -89,46 +89,6 @@ export const SyncR2Button: FC<SyncR2ButtonProps> = ({ onSyncComplete }) => {
     ? '#f97316'
     : 'var(--text-primary)';
 
-  const badgeBg = isSyncing
-    ? 'rgba(56, 189, 248, 0.16)'
-    : isOk
-    ? 'rgba(16, 185, 129, 0.16)'
-    : isErr
-    ? 'rgba(239, 68, 68, 0.16)'
-    : 'rgba(249, 115, 22, 0.14)';
-
-  const badgeBorder = isSyncing
-    ? '1px solid rgba(56, 189, 248, 0.35)'
-    : isOk
-    ? '1px solid rgba(16, 185, 129, 0.35)'
-    : isErr
-    ? '1px solid rgba(239, 68, 68, 0.35)'
-    : '1px solid rgba(249, 115, 22, 0.3)';
-
-  const badgeText = isSyncing
-    ? '#38bdf8'
-    : isOk
-    ? '#10b981'
-    : isErr
-    ? '#ef4444'
-    : '#f97316';
-
-  const dotColor = isSyncing
-    ? '#38bdf8'
-    : isOk
-    ? '#10b981'
-    : isErr
-    ? '#ef4444'
-    : '#f97316';
-
-  const badgeLabel = isSyncing
-    ? 'LIVE'
-    : isOk
-    ? 'OK'
-    : isErr
-    ? 'ERR'
-    : 'R2';
-
   return (
     <button
       type="button"
@@ -146,7 +106,7 @@ export const SyncR2Button: FC<SyncR2ButtonProps> = ({ onSyncComplete }) => {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '7px',
-        padding: '0 11px',
+        padding: '0 12px',
         height: '32px',
         borderRadius: '8px',
         backgroundColor: 'var(--bg-elevated)',
@@ -237,38 +197,6 @@ export const SyncR2Button: FC<SyncR2ButtonProps> = ({ onSyncComplete }) => {
 
       {/* Button Text */}
       <span style={{ transition: 'color 0.15s ease' }}>{buttonLabel}</span>
-
-      {/* Micro Status Tag */}
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '3.5px',
-          padding: '1px 5px',
-          height: '16px',
-          borderRadius: '4px',
-          fontSize: '9px',
-          fontFamily: 'var(--font-mono)',
-          fontWeight: 800,
-          backgroundColor: badgeBg,
-          border: badgeBorder,
-          color: badgeText,
-          letterSpacing: '0.04em',
-          transition: 'all 0.18s ease',
-        }}
-      >
-        <span
-          style={{
-            width: '4px',
-            height: '4px',
-            borderRadius: '50%',
-            backgroundColor: dotColor,
-            boxShadow: `0 0 6px ${dotColor}`,
-            display: 'inline-block',
-          }}
-        />
-        {badgeLabel}
-      </span>
     </button>
   );
 };
