@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { useTranslation } from '../../hooks';
 
 export interface TrendingTopic {
   id: string;
@@ -15,7 +16,9 @@ export interface TrendingTopicCardProps {
 }
 
 export const TrendingTopicCard: FC<TrendingTopicCardProps> = ({ topic, onClick }) => {
+  const { language } = useTranslation();
   const isPositive = topic.growth >= 0;
+
   return (
     <button
       type="button"
@@ -60,7 +63,7 @@ export const TrendingTopicCard: FC<TrendingTopicCardProps> = ({ topic, onClick }
           color: 'var(--text-muted)',
           marginTop: '2px',
         }}>
-          {topic.category} · {topic.papers} papers
+          {topic.category} · {topic.papers} {language === 'vi' ? 'bài báo' : 'papers'}
         </div>
       </div>
       <span style={{

@@ -2,8 +2,10 @@ import type { FC } from 'react';
 import { StatCard } from './StatCard.component';
 import { AnimatedCounter } from './AnimatedCounter.component';
 import { useLakehouseStreamStore } from '../../store';
+import { useTranslation } from '../../hooks';
 
 export const MetricsBento: FC = () => {
+  const { language } = useTranslation();
   const {
     sessionIngested,
     storageStats,
@@ -57,12 +59,12 @@ export const MetricsBento: FC = () => {
     }}>
       {/* 1. Corpus Scale Card */}
       <StatCard
-        label="Corpus Scale"
-        badge="Medallion Lakehouse"
+        label={language === 'vi' ? 'Quy mô Corpus' : 'Corpus Scale'}
+        badge={language === 'vi' ? 'Hồ Medallion' : 'Medallion Lakehouse'}
         badgeColor="var(--accent-emerald)"
         value={<AnimatedCounter value={arxivCount + openalexCount + conferenceCount} />}
-        unit="works"
-        description="arXiv HTML5 + OpenAlex + CVPR / OpenReview Conferences"
+        unit={language === 'vi' ? 'bài' : 'works'}
+        description={language === 'vi' ? 'arXiv HTML5 + OpenAlex + Hội nghị CVPR / OpenReview' : 'arXiv HTML5 + OpenAlex + CVPR / OpenReview Conferences'}
         footerLeft={<>arXiv HTML5: <AnimatedCounter value={arxivCount} /></>}
         footerRight={<>OpenAlex: <AnimatedCounter value={openalexCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
@@ -70,13 +72,13 @@ export const MetricsBento: FC = () => {
 
       {/* 2. Gold Zone Vector Lakehouse */}
       <StatCard
-        label="Gold Zone Vector Lakehouse"
+        label={language === 'vi' ? 'Hồ Vector Tầng Gold' : 'Gold Zone Vector Lakehouse'}
         badge="768 Dim"
         badgeColor="var(--accent-gold)"
         value={<AnimatedCounter value={activeVectors} />}
-        description="LanceDB Contextual Chunks (Fast ANN Search)"
-        footerLeft={<>NVMe Serving: <AnimatedCounter value={activeVectorMb} decimals={2} suffix=" MB" /></>}
-        footerRight={<>Cloud Backup: <AnimatedCounter value={backupGb} decimals={3} suffix=" GB" /></>}
+        description={language === 'vi' ? 'Đoạn ngữ cảnh LanceDB (Tìm kiếm ANN tốc độ cao)' : 'LanceDB Contextual Chunks (Fast ANN Search)'}
+        footerLeft={<>{language === 'vi' ? 'Phục vụ NVMe: ' : 'NVMe Serving: '}<AnimatedCounter value={activeVectorMb} decimals={2} suffix=" MB" /></>}
+        footerRight={<>{language === 'vi' ? 'Sao lưu Cloud: ' : 'Cloud Backup: '}<AnimatedCounter value={backupGb} decimals={3} suffix=" GB" /></>}
         glowColor="rgba(234, 179, 8, 0.08)"
       />
 
@@ -110,7 +112,7 @@ export const MetricsBento: FC = () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Cloudflare R2 Storage Lens
+              {language === 'vi' ? 'Lăng kính Lưu trữ Cloudflare R2' : 'Cloudflare R2 Storage Lens'}
             </span>
 
             {/* Toggle switch between Active vs Total */}
@@ -137,7 +139,7 @@ export const MetricsBento: FC = () => {
                   transition: 'all 0.15s ease',
                 }}
               >
-                Active
+                {language === 'vi' ? 'Hoạt động' : 'Active'}
               </button>
               <button
                 type="button"
@@ -153,7 +155,7 @@ export const MetricsBento: FC = () => {
                   transition: 'all 0.15s ease',
                 }}
               >
-                Total
+                {language === 'vi' ? 'Tổng thể' : 'Total'}
               </button>
             </div>
           </div>
@@ -179,11 +181,11 @@ export const MetricsBento: FC = () => {
             }}>
               {isTotalView ? (
                 <>
-                  <AnimatedCounter value={displayPct} decimals={1} suffix="%" /> (w/ Backup)
+                  <AnimatedCounter value={displayPct} decimals={1} suffix="%" /> ({language === 'vi' ? 'kèm Sao lưu' : 'w/ Backup'})
                 </>
               ) : (
                 <>
-                  <AnimatedCounter value={displayPct} decimals={1} suffix="% Free Tier" />
+                  <AnimatedCounter value={displayPct} decimals={1} suffix={`% ${language === 'vi' ? 'Hạn mức' : 'Free Tier'}`} />
                 </>
               )}
             </span>
@@ -191,8 +193,12 @@ export const MetricsBento: FC = () => {
 
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {isTotalView
-              ? `Total Bucket: 36,673 files (${backupGb} GB LanceDB Cloud Snapshots)`
-              : `Active Pipeline: 36,619 files (Within 10 GB Free Tier)`}
+              ? (language === 'vi'
+                ? `Toàn bộ Bucket: 36,673 tệp (${backupGb} GB LanceDB Cloud Snapshots)`
+                : `Total Bucket: 36,673 files (${backupGb} GB LanceDB Cloud Snapshots)`)
+              : (language === 'vi'
+                ? `Pipeline Hoạt động: 36,619 tệp (Trong hạn mức 10 GB miễn phí)`
+                : `Active Pipeline: 36,619 files (Within 10 GB Free Tier)`)}
           </div>
 
           {/* Multi-Tier Segmented Progress Bar */}
@@ -232,7 +238,7 @@ export const MetricsBento: FC = () => {
                   background: '#10b981',
                 }}
               />
-              {/* Backup LanceDB Segment (Amber) - only displayed or highlighted */}
+              {/* Backup LanceDB Segment (Amber) */}
               {isTotalView && (
                 <div
                   title={`LanceDB Backup: ${backupGb} GB`}
@@ -270,7 +276,7 @@ export const MetricsBento: FC = () => {
               {isTotalView && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#f59e0b', display: 'inline-block' }} />
-                  Backup
+                  {language === 'vi' ? 'Sao lưu' : 'Backup'}
                 </span>
               )}
             </div>
@@ -291,26 +297,28 @@ export const MetricsBento: FC = () => {
         }}>
           <span>
             {isTotalView ? (
-              'Egress: $0.00 (Zero Fee)'
+              language === 'vi' ? 'Băng thông ra: $0.00 (Miễn phí)' : 'Egress: $0.00 (Zero Fee)'
             ) : (
-              <>Free Left: <AnimatedCounter value={Number(remainingFreeGb)} decimals={3} suffix=" GB" /></>
+              <>{language === 'vi' ? 'Còn trống: ' : 'Free Left: '}<AnimatedCounter value={Number(remainingFreeGb)} decimals={3} suffix=" GB" /></>
             )}
           </span>
           <span style={{ color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)' }}>
-            {isTotalView ? `Backup: +${backupGb} GB` : 'Safe in 10GB Quota'}
+            {isTotalView
+              ? `Backup: +${backupGb} GB`
+              : (language === 'vi' ? 'An toàn trong hạn mức 10GB' : 'Safe in 10GB Quota')}
           </span>
         </div>
       </div>
 
       {/* 4. Mathematical Extraction Engine */}
       <StatCard
-        label="Mathematical Extraction Engine"
-        badge="LaTeX Parser"
+        label={language === 'vi' ? 'Động cơ Trích xuất Công thức Toán học' : 'Mathematical Extraction Engine'}
+        badge={language === 'vi' ? 'Trình phân tích LaTeX' : 'LaTeX Parser'}
         badgeColor="var(--accent-violet)"
-        value={<><AnimatedCounter value={currentFormulas} /> Formulas</>}
-        description="Cleaned and normalized into pure LaTeX syntax across Silver & Gold"
+        value={<><AnimatedCounter value={currentFormulas} /> {language === 'vi' ? 'Công thức' : 'Formulas'}</>}
+        description={language === 'vi' ? 'Làm sạch và chuẩn hóa cú pháp LaTeX thuần túy qua các tầng Silver & Gold' : 'Cleaned and normalized into pure LaTeX syntax across Silver & Gold'}
         footerLeft="Dual-Pass Regex + MathML"
-        footerRight="Formula AST Tokenizer"
+        footerRight={language === 'vi' ? 'Bộ tách từ AST Công thức' : 'Formula AST Tokenizer'}
         gridColumn="span 6"
       >
         <div style={{
@@ -328,13 +336,13 @@ export const MetricsBento: FC = () => {
 
       {/* 5. Inference Infrastructure */}
       <StatCard
-        label="Inference Infrastructure"
-        badge="Zero Egress"
+        label={language === 'vi' ? 'Hạ tầng Suy luận & RAG' : 'Inference Infrastructure'}
+        badge={language === 'vi' ? 'Không phí Egress' : 'Zero Egress'}
         badgeColor="var(--accent-emerald)"
-        value="Unified MLOps & RAG"
-        description="Vector Dense ANN Retrieval · Fast LanceDB columnar disk access"
+        value={language === 'vi' ? 'MLOps & RAG Thống nhất' : 'Unified MLOps & RAG'}
+        description={language === 'vi' ? 'Truy hồi Dense ANN Vector · Truy cập đĩa dạng cột LanceDB tốc độ cao' : 'Vector Dense ANN Retrieval · Fast LanceDB columnar disk access'}
         footerLeft="Cloudflare R2 S3 API"
-        footerRight="Sub-50ms Latency"
+        footerRight={language === 'vi' ? 'Độ trễ <50ms' : 'Sub-50ms Latency'}
         gridColumn="span 6"
       >
         <div style={{
@@ -347,8 +355,8 @@ export const MetricsBento: FC = () => {
           color: 'var(--accent-emerald)',
           textAlign: 'right',
         }}>
-          <div>10.00 GB Free Tier</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Class A/B Unlimited Egress</div>
+          <div>{language === 'vi' ? 'Hạn mức miễn phí 10.00 GB' : '10.00 GB Free Tier'}</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{language === 'vi' ? 'Class A/B Egress Không giới hạn' : 'Class A/B Unlimited Egress'}</div>
         </div>
       </StatCard>
     </div>

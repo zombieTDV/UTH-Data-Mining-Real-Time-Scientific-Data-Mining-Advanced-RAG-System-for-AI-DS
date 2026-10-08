@@ -343,6 +343,14 @@ export const LiveTelemetryFeed: FC = () => {
           {(['ALL', 'SUCCESS', 'STORAGE', 'INFO', 'QUERY', 'WARN'] as const).map((lvl) => {
             const isSelected = filterLevel === lvl;
             const count = countsByLevel[lvl as keyof typeof countsByLevel] ?? 0;
+            const lvlLabels: Record<string, { vi: string; en: string }> = {
+              ALL: { vi: 'TẤT CẢ', en: 'ALL' },
+              SUCCESS: { vi: 'THÀNH CÔNG', en: 'SUCCESS' },
+              STORAGE: { vi: 'LƯU TRỮ', en: 'STORAGE' },
+              INFO: { vi: 'THÔNG TIN', en: 'INFO' },
+              QUERY: { vi: 'TRUY VẤN', en: 'QUERY' },
+              WARN: { vi: 'CẢNH BÁO', en: 'WARN' },
+            };
             return (
               <button
                 key={lvl}
@@ -363,7 +371,7 @@ export const LiveTelemetryFeed: FC = () => {
                   transition: 'all 0.15s ease',
                 }}
               >
-                <span>{language === 'vi' && lvl === 'ALL' ? 'TẤT CẢ' : lvl}</span>
+                <span>{language === 'vi' ? lvlLabels[lvl]?.vi || lvl : lvlLabels[lvl]?.en || lvl}</span>
                 <span
                   style={{
                     fontSize: '10px',
@@ -573,9 +581,9 @@ export const LiveTelemetryFeed: FC = () => {
                   title={language === 'vi' ? 'Sao chép dòng này' : 'Copy this line'}
                 >
                   {copiedId === log.id ? (
-                    <span style={{ color: '#10b981', fontWeight: 800 }}>✓ COPIED</span>
+                    <span style={{ color: '#10b981', fontWeight: 800 }}>{language === 'vi' ? '✓ ĐÃ CHÉP' : '✓ COPIED'}</span>
                   ) : (
-                    <span>COPY</span>
+                    <span>{language === 'vi' ? 'CHÉP' : 'COPY'}</span>
                   )}
                 </button>
               </div>
@@ -615,7 +623,7 @@ export const LiveTelemetryFeed: FC = () => {
                   cursor: 'pointer',
                 }}
               >
-                {copiedId === selectedLog.id ? '✓ COPIED JSON' : 'COPY JSON'}
+                {copiedId === selectedLog.id ? (language === 'vi' ? '✓ ĐÃ CHÉP JSON' : '✓ COPIED JSON') : (language === 'vi' ? 'CHÉP JSON' : 'COPY JSON')}
               </button>
               <button
                 type="button"
@@ -681,7 +689,9 @@ export const LiveTelemetryFeed: FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span>{language === 'vi' ? 'BẤM DÒNG ĐỂ XEM CHI TIẾT' : 'CLICK ROW TO INSPECT PAYLOAD'}</span>
           <span style={{ color: 'var(--border-subtle)' }}>•</span>
-          <span style={{ color: '#10b981', fontWeight: 700 }}>REAL-TIME LAKEHOUSE CDC PULSE ACTIVE</span>
+          <span style={{ color: '#10b981', fontWeight: 700 }}>
+            {language === 'vi' ? 'XUNG NHỊP CDC LAKEHOUSE HOẠT ĐỘNG' : 'REAL-TIME LAKEHOUSE CDC PULSE ACTIVE'}
+          </span>
         </div>
       </div>
     </div>

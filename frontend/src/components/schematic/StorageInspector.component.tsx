@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchStorageStats, syncR2Storage, resetStorageSession } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
+import { useTranslation } from '../../hooks';
 import { AnimatedCounter } from '../common';
 import type { StorageStatsResponse } from '../../types';
 
@@ -17,6 +18,7 @@ export interface LakehouseLayer {
 }
 
 export function StorageInspector() {
+  const { language } = useTranslation();
   const [stats, setStats] = useState<StorageStatsResponse | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -33,15 +35,15 @@ export function StorageInspector() {
 
   const handleSyncR2 = async () => {
     setIsSyncing(true);
-    setSyncMessage('Scanning Cloudflare R2 bucket objects...');
+    setSyncMessage(language === 'vi' ? 'Đang quét các đối tượng bucket Cloudflare R2...' : 'Scanning Cloudflare R2 bucket objects...');
     try {
       const res = await syncR2Storage();
       await refreshStorageStats();
       const updated = await fetchStorageStats();
       setStats(updated);
-      setSyncMessage(res.message || 'R2 storage stats synchronized successfully.');
+      setSyncMessage(res.message || (language === 'vi' ? 'Đã đồng bộ thống kê lưu trữ R2 thành công.' : 'R2 storage stats synchronized successfully.'));
     } catch (e: any) {
-      setSyncMessage(`Sync failed: ${e.message}`);
+      setSyncMessage(`${language === 'vi' ? 'Đồng bộ thất bại:' : 'Sync failed:'} ${e.message}`);
     } finally {
       setIsSyncing(false);
       setTimeout(() => setSyncMessage(null), 4000);
@@ -49,7 +51,7 @@ export function StorageInspector() {
   };
 
   const handleResetSession = async () => {
-    if (confirm('Reset real-time ingestion session counter back to baseline?')) {
+    if (confirm(language === 'vi' ? 'Đặt lại bộ đếm phiên nhập thời gian thực về mốc chuẩn?' : 'Reset real-time ingestion session counter back to baseline?')) {
       try {
         await resetStorageSession();
         await refreshStorageStats();
@@ -91,69 +93,81 @@ export function StorageInspector() {
   const layers: LakehouseLayer[] = [
     {
       zone: 'BRONZE',
-      name: 'Raw arXiv Academic HTML5',
-      storageType: 'Cloudflare R2 Object Store & Disk',
+      name: language === 'vi' ? 'Dữ liệu arXiv HTML5 học thuật thô' : 'Raw arXiv Academic HTML5',
+      storageType: language === 'vi' ? 'Lưu trữ đối tượng Cloudflare R2 & Đĩa' : 'Cloudflare R2 Object Store & Disk',
       format: 'W3C HTML5 (.html)',
-      itemsCount: `${arxivCount.toLocaleString()} files`,
+      itemsCount: `${arxivCount.toLocaleString()} ${language === 'vi' ? 'tệp' : 'files'}`,
       sizeBytes: `${arxivGb} GB`,
       r2Location: 's3://uth-scientific-lakehouse/bronze/arxiv/raw_html/',
       color: '#3b82f6',
-      description: 'Raw web-crawled HTML5 preprints from arXiv containing full academic sections, tables, math tags, and bibliography.'
+      description: language === 'vi'
+        ? 'Bản thảo HTML5 thu thập thô từ arXiv chứa đầy đủ các phần học thuật, bảng biểu, thẻ toán học và thư mục trích dẫn.'
+        : 'Raw web-crawled HTML5 preprints from arXiv containing full academic sections, tables, math tags, and bibliography.'
     },
     {
       zone: 'BRONZE',
-      name: 'OpenAlex Scientific Extended Corpus',
-      storageType: 'Cloudflare R2 Object Store',
-      format: 'JSON / Metadata Records',
-      itemsCount: `${openalexCount} works`,
+      name: language === 'vi' ? 'Kho dữ liệu mở rộng khoa học OpenAlex' : 'OpenAlex Scientific Extended Corpus',
+      storageType: language === 'vi' ? 'Lưu trữ đối tượng Cloudflare R2' : 'Cloudflare R2 Object Store',
+      format: language === 'vi' ? 'JSON / Bản ghi siêu dữ liệu' : 'JSON / Metadata Records',
+      itemsCount: `${openalexCount} ${language === 'vi' ? 'bài' : 'works'}`,
       sizeBytes: `${openalexGb} GB`,
       r2Location: 's3://uth-scientific-lakehouse/bronze/openalex/',
       color: '#8b5cf6',
-      description: 'Global scientific catalog records with citation graphs, author affiliations, and open-access PDF links.'
+      description: language === 'vi'
+        ? 'Danh mục khoa học toàn cầu với đồ thị trích dẫn, cơ quan liên kết của tác giả và liên kết PDF truy cập mở.'
+        : 'Global scientific catalog records with citation graphs, author affiliations, and open-access PDF links.'
     },
     {
       zone: 'BRONZE',
-      name: 'OAI-PMH Harvest Batches',
-      storageType: 'Cloudflare R2 Object Store',
-      format: 'Compressed JSON Bundles',
-      itemsCount: '12 batch bundles',
+      name: language === 'vi' ? 'Các gói lô thu hoạch OAI-PMH' : 'OAI-PMH Harvest Batches',
+      storageType: language === 'vi' ? 'Lưu trữ đối tượng Cloudflare R2' : 'Cloudflare R2 Object Store',
+      format: language === 'vi' ? 'Gói nén JSON' : 'Compressed JSON Bundles',
+      itemsCount: language === 'vi' ? '12 gói lô' : '12 batch bundles',
       sizeBytes: '21.24 MB',
       r2Location: 's3://uth-scientific-lakehouse/bronze/arxiv/batches/',
       color: '#60a5fa',
-      description: 'Raw metadata harvesting batches retrieved through arXiv OAI-PMH protocol across 5 AI/DS categories.'
+      description: language === 'vi'
+        ? 'Các gói siêu dữ liệu thô thu thập qua giao thức arXiv OAI-PMH trên 5 danh mục AI/DS.'
+        : 'Raw metadata harvesting batches retrieved through arXiv OAI-PMH protocol across 5 AI/DS categories.'
     },
     {
       zone: 'SILVER',
-      name: 'Curated Canonical Lakehouse',
+      name: language === 'vi' ? 'Lakehouse chuẩn hóa chọn lọc' : 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy)',
-      itemsCount: '11 Partitions (36,414 works)',
+      itemsCount: language === 'vi' ? '11 Phân vùng (36,414 bài)' : '11 Partitions (36,414 works)',
       sizeBytes: `${silverMb} MB`,
       r2Location: 's3://uth-scientific-lakehouse/silver/ (papers, cvf, openreview)',
       color: '#10b981',
-      description: 'Deduplicated, schema-enforced columnar Parquet tables across arXiv, OpenAlex, CVPR 2024, and OpenReview.'
+      description: language === 'vi'
+        ? 'Các bảng Parquet dạng cột đã khử trùng lặp và tuân thủ schema từ arXiv, OpenAlex, CVPR 2024 và OpenReview.'
+        : 'Deduplicated, schema-enforced columnar Parquet tables across arXiv, OpenAlex, CVPR 2024, and OpenReview.'
     },
     {
       zone: 'GOLD',
-      name: 'Contextual Vector Lakehouse (Active Cache)',
-      storageType: 'Local SSD NVMe Serving Index',
+      name: language === 'vi' ? 'Hồ Vector Ngữ Cảnh (Bộ nhớ đệm hoạt động)' : 'Contextual Vector Lakehouse (Active Cache)',
+      storageType: language === 'vi' ? 'Chỉ mục phục vụ trên SSD NVMe cục bộ' : 'Local SSD NVMe Serving Index',
       format: 'Lance Columnar (.lance) & Parquet',
       itemsCount: `${goldChunks} vectors`,
       sizeBytes: `${goldMb} MB`,
       r2Location: 'data/gold/ & s3://uth-scientific-lakehouse/gold/ (lancedb, cvf, openreview)',
       color: '#eab308',
-      description: 'Contextualized 768-dimensional dense embeddings and Gold parquets spanning CVPR, OpenReview, and arXiv.'
+      description: language === 'vi'
+        ? 'Các vector nhúng 768 chiều theo ngữ cảnh và parquet tầng Gold trải dài qua CVPR, OpenReview và arXiv.'
+        : 'Contextualized 768-dimensional dense embeddings and Gold parquets spanning CVPR, OpenReview, and arXiv.'
     },
     {
       zone: 'BACKUP',
-      name: 'Cloud Disaster Recovery Vector Replica',
-      storageType: 'Cloudflare R2 Cold Snapshots',
-      format: 'LanceDB Multi-Segment Archives',
-      itemsCount: '32 chunk segments',
+      name: language === 'vi' ? 'Bản sao lưu Vector phục hồi thảm họa' : 'Cloud Disaster Recovery Vector Replica',
+      storageType: language === 'vi' ? 'Bản chụp nguội Cloudflare R2' : 'Cloudflare R2 Cold Snapshots',
+      format: language === 'vi' ? 'Kho lưu trữ LanceDB đa phân đoạn' : 'LanceDB Multi-Segment Archives',
+      itemsCount: language === 'vi' ? '32 phân đoạn chunk' : '32 chunk segments',
       sizeBytes: `${backupGb} GB`,
       r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
       color: '#f59e0b',
-      description: 'Disaster recovery cloud backup replica enabling instant cluster reconstitution with zero egress fees.'
+      description: language === 'vi'
+        ? 'Bản sao lưu đám mây phục hồi thảm họa cho phép tái tạo tức thì cụm dữ liệu với chi phí egress bằng không.'
+        : 'Disaster recovery cloud backup replica enabling instant cluster reconstitution with zero egress fees.'
     }
   ];
 
@@ -169,7 +183,7 @@ export function StorageInspector() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-              Cloudflare R2 Multi-Tier Storage Lens
+              {language === 'vi' ? 'Lăng kính Lưu trữ Đa tầng Cloudflare R2' : 'Cloudflare R2 Multi-Tier Storage Lens'}
             </h3>
             <span style={{
               fontSize: '10px',
@@ -180,11 +194,11 @@ export function StorageInspector() {
               color: 'var(--accent-emerald)',
               border: '1px solid rgba(16, 185, 129, 0.3)',
             }}>
-              Zero Egress Fees
+              {language === 'vi' ? 'Không phí Egress' : 'Zero Egress Fees'}
             </span>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
-            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{activeStats?.bucket || 'uth-scientific-lakehouse'}</code> · S3 Endpoint: Cloudflare Global Edge
+            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{activeStats?.bucket || 'uth-scientific-lakehouse'}</code> · {language === 'vi' ? 'Điểm cuối S3: Mạng biên toàn cầu Cloudflare' : 'S3 Endpoint: Cloudflare Global Edge'}
           </p>
         </div>
 
@@ -214,7 +228,7 @@ export function StorageInspector() {
                 transition: 'all 0.15s ease',
               }}
             >
-              Active (<AnimatedCounter value={Number(activeGb)} decimals={3} /> GB)
+              {language === 'vi' ? 'Hoạt động' : 'Active'} (<AnimatedCounter value={Number(activeGb)} decimals={3} /> GB)
             </button>
             <button
               type="button"
@@ -230,7 +244,7 @@ export function StorageInspector() {
                 transition: 'all 0.15s ease',
               }}
             >
-              Total Bucket (<AnimatedCounter value={Number(totalGb)} decimals={3} /> GB)
+              {language === 'vi' ? 'Toàn bộ Bucket' : 'Total Bucket'} (<AnimatedCounter value={Number(totalGb)} decimals={3} /> GB)
             </button>
           </div>
 
@@ -253,7 +267,7 @@ export function StorageInspector() {
               gap: '6px',
             }}
           >
-            {isSyncing ? 'Syncing...' : 'Sync Live R2'}
+            {isSyncing ? (language === 'vi' ? 'Đang đồng bộ...' : 'Syncing...') : (language === 'vi' ? 'Đồng bộ Live R2' : 'Sync Live R2')}
           </button>
 
           {/* Reset Session Button */}
@@ -272,7 +286,7 @@ export function StorageInspector() {
                 cursor: 'pointer',
               }}
             >
-              Reset Session (+{sessionIngested})
+              {language === 'vi' ? 'Đặt lại phiên' : 'Reset Session'} (+{sessionIngested})
             </button>
           )}
         </div>
@@ -308,12 +322,12 @@ export function StorageInspector() {
           border: '1px solid var(--border-subtle)',
         }}>
           <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-            PRIMARY ACTIVE LAKEHOUSE
+            {language === 'vi' ? 'HỒ DỮ LIỆU HOẠT ĐỘNG CHÍNH' : 'PRIMARY ACTIVE LAKEHOUSE'}
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
             <AnimatedCounter value={Number(activeGb)} decimals={3} suffix=" GB" />{' '}
             <span style={{ fontSize: '13px', color: 'var(--accent-emerald)', fontWeight: 500 }}>
-              (<AnimatedCounter value={Number(activePct)} decimals={1} suffix="% Free Quota" />)
+              (<AnimatedCounter value={Number(activePct)} decimals={1} suffix={`% ${language === 'vi' ? 'Hạn mức' : 'Free Quota'}`} />)
             </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
@@ -329,14 +343,14 @@ export function StorageInspector() {
           border: '1px solid var(--border-subtle)',
         }}>
           <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-            DISASTER RECOVERY SNAPSHOTS
+            {language === 'vi' ? 'BẢN SAO LƯU PHỤC HỒI THẢM HỌA' : 'DISASTER RECOVERY SNAPSHOTS'}
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>
             <AnimatedCounter value={Number(backupGb)} decimals={3} suffix=" GB" />{' '}
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>(28 segments)</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>(28 {language === 'vi' ? 'phân đoạn' : 'segments'})</span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Gold LanceDB cloud replica on R2 for instant cold recovery
+            {language === 'vi' ? 'Bản sao lưu đám mây LanceDB tầng Gold trên R2 phục hồi nhanh' : 'Gold LanceDB cloud replica on R2 for instant cold recovery'}
           </div>
         </div>
 
@@ -348,7 +362,7 @@ export function StorageInspector() {
           border: '1px solid var(--border-subtle)',
         }}>
           <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-            TOTAL CLOUDFLARE R2 BUCKET
+            {language === 'vi' ? 'TỔNG LƯU TRỮ BUCKET CLOUDFLARE R2' : 'TOTAL CLOUDFLARE R2 BUCKET'}
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
             <AnimatedCounter value={Number(totalGb)} decimals={3} suffix=" GB" />{' '}
@@ -357,7 +371,7 @@ export function StorageInspector() {
             </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            36,673 files · 1.14 GB overage (~$0.017/month / 400 VND)
+            {language === 'vi' ? '36,673 tệp · 1.14 GB vượt mức (~0.017$/tháng / 400 VNĐ)' : '36,673 files · 1.14 GB overage (~$0.017/month / 400 VND)'}
           </div>
         </div>
       </div>
@@ -379,12 +393,12 @@ export function StorageInspector() {
               textTransform: 'uppercase',
               letterSpacing: '0.05em'
             }}>
-              <th style={{ padding: '10px 14px' }}>Zone</th>
-              <th style={{ padding: '10px 14px' }}>Dataset Name</th>
-              <th style={{ padding: '10px 14px' }}>Format</th>
-              <th style={{ padding: '10px 14px' }}>Count</th>
-              <th style={{ padding: '10px 14px' }}>Volume</th>
-              <th style={{ padding: '10px 14px' }}>Lakehouse Prefix</th>
+              <th style={{ padding: '10px 14px' }}>{language === 'vi' ? 'Tầng' : 'Zone'}</th>
+              <th style={{ padding: '10px 14px' }}>{language === 'vi' ? 'Tên Tập Dữ Liệu' : 'Dataset Name'}</th>
+              <th style={{ padding: '10px 14px' }}>{language === 'vi' ? 'Định Dạng' : 'Format'}</th>
+              <th style={{ padding: '10px 14px' }}>{language === 'vi' ? 'Số Lượng' : 'Count'}</th>
+              <th style={{ padding: '10px 14px' }}>{language === 'vi' ? 'Dung Lượng' : 'Volume'}</th>
+              <th style={{ padding: '10px 14px' }}>{language === 'vi' ? 'Tiền Tố Lakehouse' : 'Lakehouse Prefix'}</th>
             </tr>
           </thead>
           <tbody>

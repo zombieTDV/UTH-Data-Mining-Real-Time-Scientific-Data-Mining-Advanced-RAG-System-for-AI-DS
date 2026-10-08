@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { useTranslation } from '../../hooks';
 
 export interface PaperCardProps {
   paperId: string;
@@ -21,6 +22,8 @@ export const PaperCard: FC<PaperCardProps> = ({
   wordCount,
   onClick,
 }) => {
+  const { language } = useTranslation();
+
   return (
     <div
       onClick={() => onClick?.(paperId)}
@@ -75,8 +78,8 @@ export const PaperCard: FC<PaperCardProps> = ({
         color: 'var(--text-muted)',
       }}>
         <span>{publishedDate}</span>
-        <span>{mathCount} formulas</span>
-        <span>{wordCount} words</span>
+        <span>{mathCount} {language === 'vi' ? 'công thức' : 'formulas'}</span>
+        <span>{wordCount} {language === 'vi' ? 'từ' : 'words'}</span>
       </div>
     </div>
   );

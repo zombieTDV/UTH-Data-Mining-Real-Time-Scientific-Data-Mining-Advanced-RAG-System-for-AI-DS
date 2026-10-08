@@ -1,4 +1,5 @@
 import type { FC, ReactNode } from 'react';
+import { useTranslation } from '../../hooks';
 
 export interface ChatBubbleProps {
   isUser: boolean;
@@ -15,6 +16,8 @@ export const ChatBubble: FC<ChatBubbleProps> = ({
   children,
   footer,
 }) => {
+  const { language } = useTranslation();
+
   return (
     <div
       style={{
@@ -42,7 +45,7 @@ export const ChatBubble: FC<ChatBubbleProps> = ({
             : '0 3px 10px rgba(255, 87, 34, 0.35)',
         }}
       >
-        {isUser ? 'ME' : 'RAG'}
+        {isUser ? (language === 'vi' ? 'BẠN' : 'YOU') : 'RAG'}
       </div>
 
       <div

@@ -917,8 +917,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>Source Ingest</div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Federated Crawlers</div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>
+                    {language === 'vi' ? 'Thu Thập Nguồn' : 'Source Ingest'}
+                  </div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                    {language === 'vi' ? 'Bộ Cào Phân Tán' : 'Federated Crawlers'}
+                  </div>
                 </div>
               </div>
 
@@ -944,7 +948,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <AnimatedCounter value={displayWorks} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  {isStreaming ? (language === 'vi' ? `+${streamSessionCount} mới (${streamSpeed}/m)` : `+${streamSessionCount} new (${streamSpeed}/m)`) : 'Works Ingested'}
+                  {isStreaming ? (language === 'vi' ? `+${streamSessionCount} mới (${streamSpeed}/m)` : `+${streamSessionCount} new (${streamSpeed}/m)`) : (language === 'vi' ? 'Bài Đã Thu Thập' : 'Works Ingested')}
                 </span>
               </div>
 
@@ -1024,7 +1028,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 cursor: 'pointer',
               }}
             >
-              INSPECT TOOL
+              {language === 'vi' ? 'XEM CÔNG CỤ' : 'INSPECT TOOL'}
             </button>
           </div>
 
@@ -1102,7 +1106,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48' }}>Cloudflare R2</div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Bronze Lake</div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                    {language === 'vi' ? 'Hồ Dữ Liệu Bronze' : 'Bronze Lake'}
+                  </div>
                 </div>
               </div>
 
@@ -1118,7 +1124,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 padding: '1px 5px',
                 borderRadius: '4px',
               }}>
-                {isStreaming ? '● SYNCING R2' : 'S3 API'}
+                {isStreaming ? (language === 'vi' ? '● ĐỒNG BỘ R2' : '● SYNCING R2') : 'S3 API'}
               </span>
             </div>
 
@@ -1133,7 +1139,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontFamily: 'var(--font-mono)',
                   color: 'var(--text-muted)',
                 }}>
-                  Primary Lake
+                  {language === 'vi' ? 'Hồ Dữ Liệu Chính' : 'Primary Lake'}
                 </span>
               </div>
 
@@ -1241,7 +1247,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 cursor: 'pointer',
               }}
             >
-              INSPECT TOOL
+              {language === 'vi' ? 'XEM CÔNG CỤ' : 'INSPECT TOOL'}
             </button>
           </div>
 
@@ -1321,7 +1327,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706' }}>DuckDB</div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>In-Process OLAP</div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                    {language === 'vi' ? 'OLAP Trong Tiến Trình' : 'In-Process OLAP'}
+                  </div>
                 </div>
               </div>
 
@@ -1345,7 +1353,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <AnimatedCounter value={liveFormulas} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  Formulas Parsed
+                  {language === 'vi' ? 'Công thức Đã Phân Tích' : 'Formulas Parsed'}
                 </span>
               </div>
 
@@ -1418,7 +1426,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 cursor: 'pointer',
               }}
             >
-              INSPECT TOOL
+              {language === 'vi' ? 'XEM CÔNG CỤ' : 'INSPECT TOOL'}
             </button>
           </div>
 
@@ -1467,7 +1475,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 zIndex: 10,
                 flexShrink: 0,
               }}
-              title="Parallel Fork: Columnar Storage & Vector Embeddings"
+              title={language === 'vi' ? 'Nhánh Song Song: Lưu Trữ Cột & Vector Nhúng' : 'Parallel Fork: Columnar Storage & Vector Embeddings'}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <rect x="3" y="3" width="6" height="6" rx="1" />
@@ -1535,7 +1543,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#34d399' : '#047857' }}>Apache Parquet</div>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Silver Columnar</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                        {language === 'vi' ? 'Dữ Liệu Cột Silver' : 'Silver Columnar'}
+                      </div>
                     </div>
                   </div>
 
@@ -1578,7 +1588,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       gap: '4px',
                     }}>
                       <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                      {liveSilverPartitions} Partitions
+                      {liveSilverPartitions} {language === 'vi' ? 'Phân vùng' : 'Partitions'}
                     </span>
 
                     <span style={{
@@ -1662,7 +1672,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#60a5fa' : '#1d4ed8' }}>LanceDB Vectors</div>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Gold Vector Store</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                        {language === 'vi' ? 'Kho Vector Gold' : 'Gold Vector Store'}
+                      </div>
                     </div>
                   </div>
 
@@ -1686,7 +1698,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <AnimatedCounter value={liveVectors} />
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                      Gold Vectors
+                      {language === 'vi' ? 'Vector Gold' : 'Gold Vectors'}
                     </span>
                   </div>
 
@@ -1870,7 +1882,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         {isGroundedRagReady && (
                           <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
                         )}
-                        {isGroundedRagReady ? '● READY FOR RAG' : 'Metal'}
+                        {isGroundedRagReady ? (language === 'vi' ? '● SẴN SÀNG CHO RAG' : '● READY FOR RAG') : 'Metal'}
                       </span>
                     </div>
 
@@ -1890,17 +1902,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         justifyContent: 'center',
                         gap: '5px',
                       }}>
-                        <span style={{ color: '#10b981' }}>✔</span> PIPELINE PRIMED · READY TO QUERY
+                        <span style={{ color: '#10b981' }}>✔</span> {language === 'vi' ? 'PIPELINE ĐÃ SẴN SÀNG · CÓ THỂ TRUY VẤN' : 'PIPELINE PRIMED · READY TO QUERY'}
                       </div>
                     )}
 
               <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                    Verified Citations
+                    {language === 'vi' ? 'Trích Dẫn Xác Thực' : 'Verified Citations'}
                   </span>
                   <span style={{ fontSize: '10px', fontWeight: 700, color: isDark ? '#a5b4fc' : '#6366f1' }}>
-                    100% Grounded
+                    {language === 'vi' ? '100% Có Căn Cứ' : '100% Grounded'}
                   </span>
                 </div>
 
@@ -1972,7 +1984,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                INSPECT TOOL
+                {language === 'vi' ? 'XEM CÔNG CỤ' : 'INSPECT TOOL'}
               </button>
             </div>
           </div>
@@ -2150,7 +2162,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <polyline points="4 17 10 11 4 5" />
                   <line x1="12" y1="19" x2="20" y2="19" />
                 </svg>
-                TERMINAL LOGS
+                {language === 'vi' ? 'NHẬT KÝ TERMINAL' : 'TERMINAL LOGS'}
                 <span
                   style={{
                     fontSize: '10px',
@@ -3231,7 +3243,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       borderRadius: '8px',
                       padding: '10px 12px',
                     }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>PRIMARY VOLUME</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                        {language === 'vi' ? 'KHỐI LƯỢNG CHÍNH' : 'PRIMARY VOLUME'}
+                      </div>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '3px' }}>
                         {selectedTool.telemetrySummary.primaryMetric}
                       </div>
@@ -3243,7 +3257,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       borderRadius: '8px',
                       padding: '10px 12px',
                     }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>SCOPE &amp; SPECS</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                        {language === 'vi' ? 'PHẠM VI & THÔNG SỐ' : 'SCOPE & SPECS'}
+                      </div>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: themeStyles.textPrimary, marginTop: '3px' }}>
                         {selectedTool.telemetrySummary.secondaryMetric}
                       </div>
@@ -3255,7 +3271,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       borderRadius: '8px',
                       padding: '10px 12px',
                     }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>LATENCY BENCHMARK</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                        {language === 'vi' ? 'CHUẨN ĐỘ TRỄ' : 'LATENCY BENCHMARK'}
+                      </div>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#34d399' : '#059669', marginTop: '3px' }}>
                         {selectedTool.telemetrySummary.latency}
                       </div>
@@ -3267,7 +3285,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       borderRadius: '8px',
                       padding: '10px 12px',
                     }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>THROUGHPUT / EGRESS</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                        {language === 'vi' ? 'THÔNG LƯỢNG / BĂNG THÔNG' : 'THROUGHPUT / EGRESS'}
+                      </div>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '3px' }}>
                         {selectedTool.telemetrySummary.throughput}
                       </div>
@@ -3277,7 +3297,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   {/* Capabilities Checklist Chips (replaces raw bullet list from Screenshot 0) */}
                   <div>
                     <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
-                      TÍNH NĂNG KIẾN TRÚC CỐT LÕI (CAPABILITY CHECKLIST)
+                      {language === 'vi' ? 'TÍNH NĂNG KIẾN TRÚC CỐT LÕI' : 'CORE ARCHITECTURAL CAPABILITIES'}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {(selectedTool.features || []).map((feature: string, idx: number) => (
@@ -3573,7 +3593,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           cursor: 'pointer',
                         }}
                       >
-                        XÓA
+                        {language === 'vi' ? 'XÓA' : 'CLEAR'}
                       </button>
                     </div>
                   </div>
@@ -3634,7 +3654,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                      VIỄN THÁM THỜI GIAN THỰC
+                      {language === 'vi' ? 'VIỄN THÁM THỜI GIAN THỰC' : 'REAL-TIME TELEMETRY'}
                     </span>
                     <span style={{
                       fontSize: '9.5px',
@@ -3664,7 +3684,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>CDC INGESTION (ARXIV)</div>
                         <div style={{ fontSize: '12px', fontWeight: 800, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary, marginTop: '2px' }}>
-                          {isStreaming ? (language === 'vi' ? `${streamSpeed} bài/phút` : `${streamSpeed} papers/min`) : 'STANDBY (Ready)'}
+                          {isStreaming ? (language === 'vi' ? `${streamSpeed} bài/phút` : `${streamSpeed} papers/min`) : (language === 'vi' ? 'CHỜ SẴN' : 'STANDBY (Ready)')}
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>

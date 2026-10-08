@@ -1,6 +1,7 @@
 import { type FC, useMemo, useState, type MouseEvent } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import { useTranslation } from '../../hooks';
 
 export interface ScientificMathProps {
   math: string;
@@ -15,6 +16,7 @@ export const ScientificMath: FC<ScientificMathProps> = ({
   className = '',
   theme = 'dark',
 }) => {
+  const { language } = useTranslation();
   const [copied, setCopied] = useState<boolean>(false);
   const isDark = theme === 'dark';
 
@@ -58,7 +60,7 @@ export const ScientificMath: FC<ScientificMathProps> = ({
         <button
           type="button"
           onClick={handleCopy}
-          title="Copy LaTeX source"
+          title={language === 'vi' ? 'Sao chép mã nguồn LaTeX' : 'Copy LaTeX source'}
           style={{
             position: 'absolute',
             top: '6px',
@@ -75,7 +77,7 @@ export const ScientificMath: FC<ScientificMathProps> = ({
             transition: 'opacity 0.15s ease',
           }}
         >
-          {copied ? 'Copied' : 'TeX'}
+          {copied ? (language === 'vi' ? 'Đã sao chép' : 'Copied') : 'TeX'}
         </button>
       </div>
     );
