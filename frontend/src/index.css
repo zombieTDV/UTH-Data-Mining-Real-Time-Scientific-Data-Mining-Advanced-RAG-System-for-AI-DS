@@ -316,6 +316,67 @@ button:active {
   }
 }
 
+@keyframes chevronFlow {
+  0% {
+    transform: translateX(-16px);
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(16px);
+    opacity: 0.35;
+  }
+}
+
+@keyframes anchorShockwave {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(1.8);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes pinPortGlow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 6px currentColor;
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 12px currentColor, 0 0 4px #ffffff;
+  }
+}
+
+@keyframes payloadOrbGlide {
+  0% {
+    left: -10%;
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  85% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    left: 110%;
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(100%);
