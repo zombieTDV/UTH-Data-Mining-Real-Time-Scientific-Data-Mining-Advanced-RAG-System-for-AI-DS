@@ -124,8 +124,8 @@ export default function App() {
       await triggerMiningPipeline();
       setTimeout(() => {
         setPipelineStatus('COMPLETED');
-        setTimeout(() => setPipelineStatus('IDLE'), 6000);
-      }, 5000);
+        setTimeout(() => setPipelineStatus('IDLE'), 12000);
+      }, 6500);
     } catch {
       setPipelineStatus('IDLE');
     }

@@ -9,6 +9,7 @@ import {
 import { useLakehouseStreamStore, appendStreamLog, clearStreamLogs } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { AnimatedCounter } from '../common/AnimatedCounter.component';
+import { PipelineExecutionStepper } from './PipelineExecutionStepper.component';
 
 export type PipelineStageKey =
   | 'idle'
@@ -246,6 +247,7 @@ export interface InteractiveWorkflowCanvasProps {
 }
 
 export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
+  onNavigateTab,
   isPipelineRunning = false,
   onTriggerPipeline,
   theme = 'dark',
@@ -465,7 +467,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   }, [language]);
 
   // Pan and Zoom Canvas State
-  const [zoom, setZoom] = useState<number>(1.0);
+  const [zoom, setZoom] = useState<number>(0.94);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -629,13 +631,21 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   }, [isPipelineRunning]);
 
   const effectiveStage = (activePipelineStage && activePipelineStage !== 'idle') ? activePipelineStage : simulationStage;
+  const normalizedStage: PipelineStageKey = useMemo(() => {
+    if (effectiveStage === 'completed') return 'completed';
+    if (effectiveStage === 'harvest') return 'harvest';
+    if (effectiveStage === 'bronze' || effectiveStage === 'r2_sync') return 'bronze';
+    if (effectiveStage === 'duckdb') return 'duckdb';
+    if (effectiveStage === 'parallel' || effectiveStage === 'silver' || effectiveStage === 'gold' || effectiveStage === 'embedding') return 'parallel';
+    if (simulationStage !== 'idle') return simulationStage;
+    return 'idle';
+  }, [effectiveStage, simulationStage]);
+
   const isStageActive = (stage: string) => {
+    if (isStreaming && (stage === 'harvest' || stage === 'bronze')) return true;
     if (effectiveStage === 'completed') return false;
     if (effectiveStage === stage) return true;
-    if ((effectiveStage === 'harvest' || effectiveStage === 'bronze') && (stage === 'harvest' || stage === 'bronze')) return true;
-    if ((effectiveStage === 'duckdb' || effectiveStage === 'silver') && (stage === 'duckdb' || stage === 'silver')) return true;
-    if ((effectiveStage === 'parallel' || effectiveStage === 'gold' || effectiveStage === 'embedding') && (stage === 'parallel' || stage === 'gold' || stage === 'silver')) return true;
-    if (effectiveStage === 'r2_sync' && (stage === 'bronze' || stage === 'silver' || stage === 'gold')) return true;
+    if (effectiveStage === 'parallel' && (stage === 'parallel' || stage === 'silver' || stage === 'gold')) return true;
     return false;
   };
 
@@ -846,6 +856,31 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       }}
     >
 
+      {/* Top Floating Pipeline Execution Stepper (HUD) */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '12px',
+          left: '20px',
+          right: '20px',
+          zIndex: 35,
+          pointerEvents: 'auto',
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <PipelineExecutionStepper
+          currentStage={normalizedStage}
+          isPipelineRunning={isPipelineRunning}
+          onTriggerPipeline={onTriggerPipeline}
+          onSelectStageNode={handleOpenInspector}
+          selectedNodeId={selectedNodeId}
+          theme={theme}
+          language={language}
+          isStreaming={isStreaming}
+        />
+      </div>
+
       {/* ============================================================== */}
       {/* HORIZONTAL DATA MINING PIPELINE (Centered in Viewport & Zoomable) */}
       {/* ============================================================== */}
@@ -855,11 +890,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
+          paddingTop: '60px',
         }}
       >
         <div
           style={{
-            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -130 : 0)}px) scale(${zoom})`,
+            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -145 : 15)}px) scale(${zoom})`,
             transformOrigin: 'center center',
             transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
             display: 'flex',
@@ -884,15 +920,43 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 ? '2px solid #7c3aed'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('harvest')
-                ? '0 0 20px rgba(139, 92, 246, 0.35)'
+                ? '0 0 24px rgba(139, 92, 246, 0.45)'
                 : isDark
                 ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                 : '0 4px 16px rgba(0, 0, 0, 0.05)',
+              animation: isStageActive('harvest') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               flexShrink: 0,
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
+            {/* Stage Micro Progress Bar */}
+            {isStageActive('harvest') && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.25)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    backgroundColor: '#8b5cf6',
+                    boxShadow: '0 0 8px #c084fc',
+                    animation: 'conduitParticleStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                    width: '60%',
+                  }}
+                />
+              </div>
+            )}
+
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div
@@ -929,22 +993,39 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <span style={{
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                color: isStreaming ? (isDark ? '#34d399' : '#059669') : (isDark ? '#c084fc' : '#7c3aed'),
-                backgroundColor: isStreaming
+                fontWeight: 800,
+                color: isStageActive('harvest')
+                  ? '#ffffff'
+                  : isStreaming
+                  ? (isDark ? '#34d399' : '#059669')
+                  : (isDark ? '#c084fc' : '#7c3aed'),
+                backgroundColor: isStageActive('harvest')
+                  ? '#8b5cf6'
+                  : isStreaming
                   ? (isDark ? 'rgba(16, 185, 129, 0.18)' : '#ecfdf5')
                   : (isDark ? 'rgba(124, 58, 237, 0.18)' : '#f5f3ff'),
-                border: `1px solid ${isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent') : (isDark ? 'rgba(124, 58, 237, 0.3)' : 'transparent')}`,
-                padding: '1px 5px',
+                border: `1px solid ${isStageActive('harvest') ? '#a78bfa' : isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent') : (isDark ? 'rgba(124, 58, 237, 0.3)' : 'transparent')}`,
+                boxShadow: isStageActive('harvest') ? '0 0 10px rgba(139, 92, 246, 0.6)' : 'none',
+                padding: '2px 6px',
                 borderRadius: '4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
               }}>
-                {isStreaming ? '● STREAMING' : 'v2.0'}
+                {isStageActive('harvest') && (
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                )}
+                {isStageActive('harvest')
+                  ? (language === 'vi' ? '⚡ ĐANG THU THẬP' : '⚡ INGESTING')
+                  : isStreaming
+                  ? '● STREAMING'
+                  : (effectiveStage === 'completed' ? '✔ SYNCED' : 'v2.0')}
               </span>
             </div>
 
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 900, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: (isStreaming || isStageActive('harvest')) ? (isDark ? '#c084fc' : '#7c3aed') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
                   <AnimatedCounter value={displayWorks} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
@@ -1036,25 +1117,40 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           <div style={{
             width: '42px',
             height: '2px',
-            backgroundColor: isStageActive('harvest') ? 'rgba(124, 58, 237, 0.4)' : themeStyles.wire,
+            backgroundColor: (isStageActive('harvest') || isStreaming) ? 'rgba(139, 92, 246, 0.5)' : themeStyles.wire,
             position: 'relative',
             flexShrink: 0,
             overflow: 'hidden',
-            boxShadow: isStageActive('harvest') ? '0 0 10px rgba(124, 58, 237, 0.6)' : 'none',
+            boxShadow: (isStageActive('harvest') || isStreaming) ? '0 0 10px rgba(139, 92, 246, 0.7)' : 'none',
             transition: 'all 0.3s ease',
           }}>
-            {isStageActive('harvest') && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  height: '100%',
-                  width: '32px',
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(168, 85, 247, 0.4) 30%, #c084fc 80%, #ffffff 100%)',
-                  boxShadow: '0 0 10px #c084fc, 0 0 4px #ffffff',
-                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-                }}
-              />
+            {(isStageActive('harvest') || isStreaming) && (
+              <>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    height: '100%',
+                    width: '32px',
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(168, 85, 247, 0.4) 30%, #c084fc 80%, #ffffff 100%)',
+                    boxShadow: '0 0 10px #c084fc, 0 0 4px #ffffff',
+                    animation: 'conduitParticleStream 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    boxShadow: '0 0 8px #c084fc, 0 0 4px #ffffff',
+                    animation: 'conduitParticleStream 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                    animationDelay: '0.2s',
+                  }}
+                />
+              </>
             )}
           </div>
 
@@ -1074,15 +1170,43 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 ? '2px solid #e11d48'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('bronze')
-                ? '0 0 20px rgba(225, 29, 72, 0.35)'
+                ? '0 0 24px rgba(225, 29, 72, 0.45)'
                 : isDark
                 ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                 : '0 4px 16px rgba(0, 0, 0, 0.05)',
+              animation: isStageActive('bronze') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               flexShrink: 0,
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
+            {/* Stage Micro Progress Bar */}
+            {isStageActive('bronze') && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  backgroundColor: 'rgba(225, 29, 72, 0.25)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    backgroundColor: '#e11d48',
+                    boxShadow: '0 0 8px #fb7185',
+                    animation: 'conduitParticleStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                    width: '60%',
+                  }}
+                />
+              </div>
+            )}
+
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div
@@ -1115,22 +1239,39 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <span style={{
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                color: isStreaming ? '#34d399' : (isDark ? '#fb7185' : '#e11d48'),
-                backgroundColor: isStreaming
+                fontWeight: 800,
+                color: isStageActive('bronze')
+                  ? '#ffffff'
+                  : isStreaming
+                  ? '#34d399'
+                  : (isDark ? '#fb7185' : '#e11d48'),
+                backgroundColor: isStageActive('bronze')
+                  ? '#e11d48'
+                  : isStreaming
                   ? (isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5')
                   : (isDark ? 'rgba(225, 29, 72, 0.20)' : '#fff1f2'),
-                border: `1px solid ${isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent') : (isDark ? 'rgba(225, 29, 72, 0.35)' : 'transparent')}`,
-                padding: '1px 5px',
+                border: `1px solid ${isStageActive('bronze') ? '#f43f5e' : isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent') : (isDark ? 'rgba(225, 29, 72, 0.35)' : 'transparent')}`,
+                boxShadow: isStageActive('bronze') ? '0 0 10px rgba(225, 29, 72, 0.6)' : 'none',
+                padding: '2px 6px',
                 borderRadius: '4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
               }}>
-                {isStreaming ? (language === 'vi' ? '● ĐỒNG BỘ R2' : '● SYNCING R2') : 'S3 API'}
+                {isStageActive('bronze') && (
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                )}
+                {isStageActive('bronze')
+                  ? (language === 'vi' ? '⚡ TẢI LÊN R2' : '⚡ UPLOADING')
+                  : isStreaming
+                  ? (language === 'vi' ? '● ĐỒNG BỘ R2' : '● SYNCING R2')
+                  : 'S3 API'}
               </span>
             </div>
 
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: isStageActive('bronze') ? (isDark ? '#fb7185' : '#e11d48') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
                   <AnimatedCounter value={storageUsedGb} decimals={3} suffix=" GB" />
                 </span>
                 <span style={{
@@ -1255,25 +1396,40 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           <div style={{
             width: '42px',
             height: '2px',
-            backgroundColor: isStageActive('bronze') ? 'rgba(225, 29, 72, 0.4)' : themeStyles.wire,
+            backgroundColor: (isStageActive('bronze') || isStreaming) ? 'rgba(225, 29, 72, 0.5)' : themeStyles.wire,
             position: 'relative',
             flexShrink: 0,
             overflow: 'hidden',
-            boxShadow: isStageActive('bronze') ? '0 0 10px rgba(225, 29, 72, 0.6)' : 'none',
+            boxShadow: (isStageActive('bronze') || isStreaming) ? '0 0 10px rgba(225, 29, 72, 0.7)' : 'none',
             transition: 'all 0.3s ease',
           }}>
-            {isStageActive('bronze') && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  height: '100%',
-                  width: '32px',
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(244, 63, 94, 0.4) 30%, #fb7185 80%, #ffffff 100%)',
-                  boxShadow: '0 0 10px #fb7185, 0 0 4px #ffffff',
-                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-                }}
-              />
+            {(isStageActive('bronze') || isStreaming) && (
+              <>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    height: '100%',
+                    width: '32px',
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(244, 63, 94, 0.4) 30%, #fb7185 80%, #ffffff 100%)',
+                    boxShadow: '0 0 10px #fb7185, 0 0 4px #ffffff',
+                    animation: 'conduitParticleStream 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    boxShadow: '0 0 8px #fb7185, 0 0 4px #ffffff',
+                    animation: 'conduitParticleStream 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                    animationDelay: '0.25s',
+                  }}
+                />
+              </>
             )}
           </div>
 
@@ -1293,15 +1449,43 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 ? '2px solid #f59e0b'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('duckdb')
-                ? '0 0 20px rgba(245, 158, 11, 0.35)'
+                ? '0 0 24px rgba(245, 158, 11, 0.45)'
                 : isDark
                 ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                 : '0 4px 16px rgba(0, 0, 0, 0.05)',
+              animation: isStageActive('duckdb') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               flexShrink: 0,
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
+            {/* Stage Micro Progress Bar */}
+            {isStageActive('duckdb') && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.25)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    backgroundColor: '#f59e0b',
+                    boxShadow: '0 0 8px #fbbf24',
+                    animation: 'conduitParticleStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                    width: '60%',
+                  }}
+                />
+              </div>
+            )}
+
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div
@@ -1336,20 +1520,31 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <span style={{
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                color: isDark ? '#fbbf24' : '#d97706',
-                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.20)' : '#fef3c7',
-                border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : 'transparent'}`,
-                padding: '1px 5px',
+                fontWeight: 800,
+                color: isStageActive('duckdb') ? '#ffffff' : (isDark ? '#fbbf24' : '#d97706'),
+                backgroundColor: isStageActive('duckdb')
+                  ? '#f59e0b'
+                  : (isDark ? 'rgba(245, 158, 11, 0.20)' : '#fef3c7'),
+                border: `1px solid ${isStageActive('duckdb') ? '#fbbf24' : (isDark ? 'rgba(245, 158, 11, 0.35)' : 'transparent')}`,
+                boxShadow: isStageActive('duckdb') ? '0 0 10px rgba(245, 158, 11, 0.6)' : 'none',
+                padding: '2px 6px',
                 borderRadius: '4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
               }}>
-                SIMD
+                {isStageActive('duckdb') && (
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                )}
+                {isStageActive('duckdb')
+                  ? (language === 'vi' ? '⚡ SIMD ĐANG TÁCH' : '⚡ SIMD PARSING')
+                  : 'SIMD'}
               </span>
             </div>
 
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: isStageActive('duckdb') ? (isDark ? '#fbbf24' : '#d97706') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
                   <AnimatedCounter value={liveFormulas} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
@@ -1434,25 +1629,40 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           <div style={{
             width: '36px',
             height: '2px',
-            backgroundColor: isStageActive('duckdb') ? 'rgba(245, 158, 11, 0.4)' : themeStyles.wire,
+            backgroundColor: isStageActive('duckdb') ? 'rgba(245, 158, 11, 0.5)' : themeStyles.wire,
             position: 'relative',
             flexShrink: 0,
             overflow: 'hidden',
-            boxShadow: isStageActive('duckdb') ? '0 0 10px rgba(245, 158, 11, 0.6)' : 'none',
+            boxShadow: isStageActive('duckdb') ? '0 0 10px rgba(245, 158, 11, 0.7)' : 'none',
             transition: 'all 0.3s ease',
           }}>
             {isStageActive('duckdb') && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  height: '100%',
-                  width: '30px',
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.4) 30%, #fbbf24 80%, #ffffff 100%)',
-                  boxShadow: '0 0 10px #fbbf24, 0 0 4px #ffffff',
-                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-                }}
-              />
+              <>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    height: '100%',
+                    width: '30px',
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.4) 30%, #fbbf24 80%, #ffffff 100%)',
+                    boxShadow: '0 0 10px #fbbf24, 0 0 4px #ffffff',
+                    animation: 'conduitParticleStream 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    boxShadow: '0 0 8px #fbbf24, 0 0 4px #ffffff',
+                    animation: 'conduitParticleStream 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                    animationDelay: '0.2s',
+                  }}
+                />
+              </>
             )}
           </div>
 
@@ -1471,7 +1681,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#ffffff',
-                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.35)',
+                boxShadow: isStageActive('parallel')
+                  ? '0 0 16px rgba(239, 68, 68, 0.75)'
+                  : '0 2px 8px rgba(239, 68, 68, 0.35)',
+                animation: isStageActive('parallel') ? 'stageActiveRadarPulse 2s ease-in-out infinite' : 'none',
                 zIndex: 10,
                 flexShrink: 0,
               }}
@@ -1487,10 +1700,40 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Split Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '72px', left: '0', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', top: '72px', left: '0', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? 'rgba(245, 158, 11, 0.6)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 6px rgba(245, 158, 11, 0.5)' : 'none' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: isStageActive('parallel') ? 'rgba(56, 189, 248, 0.6)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 6px rgba(56, 189, 248, 0.4)' : 'none' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? '#10b981' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 6px #10b981' : 'none' }} />
+              <div style={{ position: 'absolute', bottom: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? '#2563eb' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 6px #2563eb' : 'none' }} />
+              {isStageActive('parallel') && (
+                <>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '16px',
+                      left: '12px',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: '#34d399',
+                      boxShadow: '0 0 8px #34d399',
+                      animation: 'conduitVerticalParticleUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '16px',
+                      left: '12px',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: '#60a5fa',
+                      boxShadow: '0 0 8px #60a5fa',
+                      animation: 'conduitVerticalParticleDown 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                    }}
+                  />
+                </>
+              )}
             </div>
 
             {/* Parallel Cards: Apache Parquet (Top) & LanceDB (Bottom) */}
@@ -1509,14 +1752,42 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     ? '2px solid #10b981'
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
-                    ? '0 0 20px rgba(16, 185, 129, 0.35)'
+                    ? '0 0 24px rgba(16, 185, 129, 0.45)'
                     : isDark
                     ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                     : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                  animation: isStageActive('parallel') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}
               >
+                {/* Stage Micro Progress Bar */}
+                {isStageActive('parallel') && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.25)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        backgroundColor: '#10b981',
+                        boxShadow: '0 0 8px #34d399',
+                        animation: 'conduitParticleStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                        width: '60%',
+                      }}
+                    />
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div
@@ -1552,14 +1823,25 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <span style={{
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    color: isDark ? '#34d399' : '#059669',
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5',
-                    border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent'}`,
-                    padding: '1px 5px',
+                    fontWeight: 800,
+                    color: isStageActive('parallel') ? '#ffffff' : (isDark ? '#34d399' : '#059669'),
+                    backgroundColor: isStageActive('parallel')
+                      ? '#10b981'
+                      : (isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5'),
+                    border: `1px solid ${isStageActive('parallel') ? '#34d399' : (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent')}`,
+                    boxShadow: isStageActive('parallel') ? '0 0 10px rgba(16, 185, 129, 0.6)' : 'none',
+                    padding: '2px 6px',
                     borderRadius: '4px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
                   }}>
-                    Snappy
+                    {isStageActive('parallel') && (
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                    )}
+                    {isStageActive('parallel')
+                      ? (language === 'vi' ? '⚡ NÉN SNAPPY' : '⚡ SNAPPY COMPRESS')
+                      : 'Snappy'}
                   </span>
                 </div>
 
@@ -1640,14 +1922,42 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     ? '2px solid #2563eb'
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
-                    ? '0 0 20px rgba(37, 99, 235, 0.35)'
+                    ? '0 0 24px rgba(37, 99, 235, 0.45)'
                     : isDark
                     ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                     : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                  animation: isStageActive('parallel') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}
               >
+                {/* Stage Micro Progress Bar */}
+                {isStageActive('parallel') && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      backgroundColor: 'rgba(37, 99, 235, 0.25)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        backgroundColor: '#2563eb',
+                        boxShadow: '0 0 8px #60a5fa',
+                        animation: 'conduitParticleStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                        width: '60%',
+                      }}
+                    />
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div
@@ -1681,20 +1991,31 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <span style={{
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    color: isDark ? '#60a5fa' : '#2563eb',
-                    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.20)' : '#eff6ff',
-                    border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.35)' : 'transparent'}`,
-                    padding: '1px 5px',
+                    fontWeight: 800,
+                    color: isStageActive('parallel') ? '#ffffff' : (isDark ? '#60a5fa' : '#2563eb'),
+                    backgroundColor: isStageActive('parallel')
+                      ? '#2563eb'
+                      : (isDark ? 'rgba(37, 99, 235, 0.20)' : '#eff6ff'),
+                    border: `1px solid ${isStageActive('parallel') ? '#60a5fa' : (isDark ? 'rgba(37, 99, 235, 0.35)' : 'transparent')}`,
+                    boxShadow: isStageActive('parallel') ? '0 0 10px rgba(37, 99, 235, 0.6)' : 'none',
+                    padding: '2px 6px',
                     borderRadius: '4px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
                   }}>
-                    Nomic AI
+                    {isStageActive('parallel') && (
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                    )}
+                    {isStageActive('parallel')
+                      ? (language === 'vi' ? '⚡ ĐÁNH CHỈ MỤC' : '⚡ ANN INDEXING')
+                      : 'Nomic AI'}
                   </span>
                 </div>
 
                 <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
+                    <span style={{ fontSize: '13px', fontWeight: 900, color: isStageActive('parallel') ? (isDark ? '#60a5fa' : '#2563eb') : themeStyles.textPrimary }}>
                       <AnimatedCounter value={liveVectors} />
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
@@ -1758,10 +2079,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Merge Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(16, 185, 129, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(16, 185, 129, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(37, 99, 235, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(37, 99, 235, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.7)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.5)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.8)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.6)' : 'none', transition: 'all 0.3s ease' }} />
             </div>
 
             {/* Convergence Anchor Ring */}
@@ -1782,129 +2103,201 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Final Horizontal Connector into Grounded RAG */}
             <div style={{
-                    width: '36px',
-                    height: '2px',
-                    backgroundColor: isGroundedRagReady ? 'rgba(99, 102, 241, 0.5)' : themeStyles.wire,
-                    position: 'relative',
-                    flexShrink: 0,
-                    overflow: 'hidden',
-                    boxShadow: isGroundedRagReady ? '0 0 10px rgba(99, 102, 241, 0.7)' : 'none',
-                    transition: 'all 0.3s ease',
-                  }}>
-                    {isGroundedRagReady && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          height: '100%',
-                          width: '30px',
-                          background: 'linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.4) 30%, #818cf8 80%, #ffffff 100%)',
-                          boxShadow: '0 0 10px #818cf8, 0 0 4px #ffffff',
-                          animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-                        }}
-                      />
-                    )}
-                  </div>
-
-                  {/* ============================================================== */}
-                  {/* STAGE 5: Grounded RAG Console (Indigo) */}
-                  {/* ============================================================== */}
+              width: '36px',
+              height: '2px',
+              backgroundColor: isGroundedRagReady ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire,
+              position: 'relative',
+              flexShrink: 0,
+              overflow: 'hidden',
+              boxShadow: isGroundedRagReady ? '0 0 10px rgba(99, 102, 241, 0.8)' : 'none',
+              transition: 'all 0.3s ease',
+            }}>
+              {isGroundedRagReady && (
+                <>
                   <div
-                    onClick={() => handleOpenInspector('grounded-rag')}
                     style={{
-                      width: '240px',
-                      backgroundColor: isGroundedRagReady
-                        ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#f5f3ff')
-                        : themeStyles.cardBg,
-                      borderRadius: '14px',
-                      padding: '14px 16px',
-                      border: isGroundedRagReady
-                        ? '2px solid #6366f1'
-                        : selectedNodeId === 'grounded-rag' && drawerOpen
-                        ? '2px solid #6366f1'
-                        : `1px solid ${themeStyles.cardBorder}`,
+                      position: 'absolute',
+                      top: 0,
+                      height: '100%',
+                      width: '30px',
+                      background: 'linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.4) 30%, #818cf8 80%, #ffffff 100%)',
+                      boxShadow: '0 0 10px #818cf8, 0 0 4px #ffffff',
+                      animation: 'conduitParticleStream 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '-2px',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: '#ffffff',
+                      boxShadow: '0 0 8px #818cf8, 0 0 4px #ffffff',
+                      animation: 'conduitParticleStream 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                      animationDelay: '0.2s',
+                    }}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* ============================================================== */}
+            {/* STAGE 5: Grounded RAG Console (Indigo) */}
+            {/* ============================================================== */}
+            <div
+              onClick={() => handleOpenInspector('grounded-rag')}
+              style={{
+                width: '240px',
+                backgroundColor: isGroundedRagReady
+                  ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#f5f3ff')
+                  : themeStyles.cardBg,
+                borderRadius: '14px',
+                padding: '14px 16px',
+                border: isGroundedRagReady
+                  ? '2px solid #6366f1'
+                  : selectedNodeId === 'grounded-rag' && drawerOpen
+                  ? '2px solid #6366f1'
+                  : `1px solid ${themeStyles.cardBorder}`,
+                boxShadow: isGroundedRagReady
+                  ? (isDark
+                      ? '0 0 32px rgba(99, 102, 241, 0.75), 0 0 12px rgba(129, 140, 248, 0.5)'
+                      : '0 0 24px rgba(99, 102, 241, 0.45), 0 4px 16px rgba(99, 102, 241, 0.2)')
+                  : isDark
+                  ? '0 4px 16px rgba(0, 0, 0, 0.45)'
+                  : '0 4px 16px rgba(99, 102, 241, 0.1)',
+                animation: isGroundedRagReady ? 'ragBeaconGlow 2.4s infinite' : 'none',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                flexShrink: 0,
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Stage Micro Progress Bar */}
+              {isGroundedRagReady && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '3px',
+                    backgroundColor: 'rgba(99, 102, 241, 0.35)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      height: '100%',
+                      backgroundColor: '#6366f1',
+                      boxShadow: '0 0 8px #818cf8',
+                      width: '100%',
+                    }}
+                  />
+                </div>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '9px',
+                      backgroundColor: '#6366f1',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
                       boxShadow: isGroundedRagReady
-                        ? (isDark
-                            ? '0 0 32px rgba(99, 102, 241, 0.75), 0 0 12px rgba(129, 140, 248, 0.5)'
-                            : '0 0 24px rgba(99, 102, 241, 0.45), 0 4px 16px rgba(99, 102, 241, 0.2)')
-                        : isDark
-                        ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                        : '0 4px 16px rgba(99, 102, 241, 0.1)',
-                      animation: isGroundedRagReady ? 'ragBeaconGlow 2.4s infinite' : 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
+                        ? '0 0 14px rgba(99, 102, 241, 0.8)'
+                        : '0 2px 6px rgba(99, 102, 241, 0.3)',
                       flexShrink: 0,
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div
-                          style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '9px',
-                            backgroundColor: '#6366f1',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#ffffff',
-                            boxShadow: isGroundedRagReady
-                              ? '0 0 14px rgba(99, 102, 241, 0.8)'
-                              : '0 2px 6px rgba(99, 102, 241, 0.3)',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                          </svg>
-                        </div>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </div>
 
-                        <div>
-                          <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
-                          <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
-                        </div>
-                      </div>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
+                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
+                  </div>
+                </div>
 
-                      <span style={{
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 800,
-                        color: isGroundedRagReady ? '#ffffff' : (isDark ? '#a5b4fc' : '#6366f1'),
-                        backgroundColor: isGroundedRagReady ? '#6366f1' : (isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe'),
-                        border: `1px solid ${isGroundedRagReady ? '#818cf8' : (isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent')}`,
-                        boxShadow: isGroundedRagReady ? '0 0 12px rgba(99, 102, 241, 0.65)' : 'none',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                      }}>
-                        {isGroundedRagReady && (
-                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
-                        )}
-                        {isGroundedRagReady ? (language === 'vi' ? '● SẴN SÀNG CHO RAG' : '● READY FOR RAG') : 'Metal'}
-                      </span>
-                    </div>
+                <span style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  color: isGroundedRagReady ? '#ffffff' : (isDark ? '#a5b4fc' : '#6366f1'),
+                  backgroundColor: isGroundedRagReady ? '#6366f1' : (isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe'),
+                  border: `1px solid ${isGroundedRagReady ? '#818cf8' : (isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent')}`,
+                  boxShadow: isGroundedRagReady ? '0 0 12px rgba(99, 102, 241, 0.65)' : 'none',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}>
+                  {isGroundedRagReady && (
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
+                  )}
+                  {isGroundedRagReady ? (language === 'vi' ? '● SẴN SÀNG CHO RAG' : '● READY FOR RAG') : 'Metal'}
+                </span>
+              </div>
 
-                    {isGroundedRagReady && (
-                      <div style={{
-                        marginTop: '8px',
-                        padding: '4px 8px',
-                        borderRadius: '5px',
-                        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.12)',
-                        border: '1px solid rgba(99, 102, 241, 0.4)',
-                        color: isDark ? '#c7d2fe' : '#4338ca',
-                        fontSize: '9.5px',
-                        fontWeight: 800,
-                        fontFamily: 'var(--font-mono)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '5px',
-                      }}>
-                        <span style={{ color: '#10b981' }}>✔</span> {language === 'vi' ? 'PIPELINE ĐÃ SẴN SÀNG · CÓ THỂ TRUY VẤN' : 'PIPELINE PRIMED · READY TO QUERY'}
-                      </div>
-                    )}
+              {isGroundedRagReady && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                  <div style={{
+                    padding: '4px 8px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.12)',
+                    border: '1px solid rgba(99, 102, 241, 0.4)',
+                    color: isDark ? '#c7d2fe' : '#4338ca',
+                    fontSize: '9.5px',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
+                  }}>
+                    <span style={{ color: '#10b981' }}>✔</span> {language === 'vi' ? 'PIPELINE ĐÃ SẴN SÀNG' : 'PIPELINE PRIMED'}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigateTab?.('rag');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: isDark ? '#4f46e5' : '#6366f1',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      boxShadow: '0 0 14px rgba(99, 102, 241, 0.65)',
+                      fontSize: '10.5px',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-mono)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease',
+                    }}
+                    title={language === 'vi' ? 'Chuyển sang màn hình Grounded RAG để đặt câu hỏi học thuật' : 'Switch to Grounded RAG to ask academic questions'}
+                  >
+                    <span>{language === 'vi' ? 'TRUY VẤN RAG NGAY' : 'QUERY RAG NOW'}</span>
+                    <span style={{ fontSize: '13px' }}>→</span>
+                  </button>
+                </div>
+              )}
 
               <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
