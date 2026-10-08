@@ -131,12 +131,95 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   );
 
   return (
-    <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
-      {viewMode === 'canvas' ? (
-        <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
-          <div style={{ position: 'absolute', top: '14px', right: '22px', zIndex: 40 }}>
-            {renderSwitcher()}
+    <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {/* Top Schematic Mode Control Bar (Anchored, 100% Fixed Position, Zero Jumping, Zero Wrapping) */}
+      <div
+        style={{
+          height: '46px',
+          padding: '0 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: 'var(--bg-surface)',
+          borderBottom: '1px solid var(--border-subtle)',
+          flexShrink: 0,
+          zIndex: 30,
+          gap: '16px',
+        }}
+      >
+        {/* Left Side: Title & Badges */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, overflow: 'hidden' }}>
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: '#10b981',
+              boxShadow: '0 0 8px #10b981',
+              flexShrink: 0,
+            }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: '12.5px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-primary)',
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {viewMode === 'canvas'
+                ? (language === 'vi' ? 'SƠ ĐỒ LUỒNG PIPELINE LAKEHOUSE' : 'LAKEHOUSE WORKFLOW PIPELINE CANVAS')
+                : (language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG LAKEHOUSE' : 'LAKEHOUSE MULTI-TIER STORAGE LENS')}
+            </span>
+
+            {/* Micro Badges */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                  color: '#38bdf8',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {language === 'vi' ? 'ZERO EGRESS R2' : 'ZERO EGRESS R2'}
+              </span>
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {language === 'vi' ? 'ĐỒNG BỘ THỜI GIAN THỰC' : 'REAL-TIME SYNCED'}
+              </span>
+            </div>
           </div>
+        </div>
+
+        {/* Right Side: Segmented Mode Switcher (Always at the exact same position, never wraps) */}
+        <div style={{ flexShrink: 0 }}>
+          {renderSwitcher()}
+        </div>
+      </div>
+
+      {/* Main Viewport Content */}
+      {viewMode === 'canvas' ? (
+        <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <InteractiveWorkflowCanvas
             onNavigateTab={onNavigateTab}
             isPipelineRunning={pipelineStatus === 'RUNNING'}
@@ -148,76 +231,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
       ) : (
         <div style={{ flex: 1, width: '100%', overflowY: 'auto', padding: '16px 24px 32px' }}>
           <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Bento Tab Context Header */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '12px',
-                padding: '10px 18px',
-                background: 'var(--bg-surface)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                boxShadow: 'var(--card-shadow)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#10b981',
-                    boxShadow: '0 0 8px #10b981',
-                  }}
-                />
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                    {language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG LAKEHOUSE' : 'LAKEHOUSE MULTI-TIER STORAGE LENS'}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    {language === 'vi'
-                      ? 'Kiểm chứng liên tục: Cloudflare R2 S3 Object Lake • Apache Arrow / DuckDB OLAP • LanceDB Vector Store'
-                      : 'Continuous Verification: Cloudflare R2 S3 Object Lake • Apache Arrow / DuckDB OLAP • LanceDB Vector Store'}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <span
-                  style={{
-                    fontSize: '10.5px',
-                    fontFamily: 'var(--font-mono)',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                    color: '#38bdf8',
-                    border: '1px solid rgba(56, 189, 248, 0.25)',
-                    fontWeight: 700,
-                  }}
-                >
-                  {language === 'vi' ? 'ZERO EGRESS R2 HOẠT ĐỘNG' : 'ZERO EGRESS R2 ACTIVE'}
-                </span>
-                <span
-                  style={{
-                    fontSize: '10.5px',
-                    fontFamily: 'var(--font-mono)',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                    color: '#10b981',
-                    border: '1px solid rgba(16, 185, 129, 0.25)',
-                    fontWeight: 700,
-                  }}
-                >
-                  {language === 'vi' ? 'ĐỒNG BỘ THỜI GIAN THỰC' : 'REAL-TIME SYNCED'}
-                </span>
-                {renderSwitcher()}
-              </div>
-            </div>
-
             <MetricsBento />
             <StorageInspector />
           </div>
