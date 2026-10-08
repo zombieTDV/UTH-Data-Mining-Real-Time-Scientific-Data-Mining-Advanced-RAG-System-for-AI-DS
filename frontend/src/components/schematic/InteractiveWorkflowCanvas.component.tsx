@@ -1110,7 +1110,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
       >
         <div
           style={{
-            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -45 : 15)}px) scale(${zoom})`,
+            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -85 : 15)}px) scale(${drawerOpen ? Math.min(zoom, 0.85) : zoom})`,
             transformOrigin: 'center center',
             transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
             display: 'flex',
@@ -3464,7 +3464,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             bottom: 0,
             left: '58px',   // Aligned beside the 58px sidebar rail
             right: 0,
-            height: drawerExpanded ? 'calc(100vh - 120px)' : '360px',
+            height: drawerExpanded ? 'calc(100vh - 120px)' : 'clamp(460px, 50vh, 540px)',
             backgroundColor: themeStyles.drawerBg,
             borderTop: `2px solid ${themeStyles.drawerBorder}`,
             boxShadow: isDark ? '0 -10px 32px rgba(0, 0, 0, 0.55)' : '0 -10px 32px rgba(0, 0, 0, 0.12)',
@@ -3594,35 +3594,171 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             <div>
                 {/* 1. 4-Source Harvester & Adaptive Scheduler Controls */}
                 {selectedTool.id === 'start-flow' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {/* Live Adaptive Scheduler Control Center */}
-                    <AdaptiveSchedulerControl />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '16px', alignItems: 'start' }}>
+                    {/* Left Column: Autonomous Adaptive Scheduler (4 Academic Sources) */}
+                    <div>
+                      <AdaptiveSchedulerControl />
+                    </div>
 
-                    {/* arXiv Direct Harvesting & Fine-Tuning Controls */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '20px' }}>
-                    {/* Left Form Controls */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      {/* Categories Section */}
+                    {/* Right Column: Ingestion Controller & Parameters */}
+                    <div
+                      style={{
+                        backgroundColor: themeStyles.drawerSectionBg,
+                        border: `1px solid ${themeStyles.drawerSectionBorder}`,
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}
+                    >
+                      {/* UNIFIED HARVESTER & STREAMING CONTROLLER (Primary Action Front & Center) */}
+                      <div
+                        style={{
+                          padding: '12px 14px',
+                          backgroundColor: isDark ? (isStreaming ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.04)') : (isStreaming ? '#fef2f2' : '#f8fafc'),
+                          border: `1px solid ${isDark ? (isStreaming ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.12)') : (isStreaming ? '#fca5a5' : '#e2e8f0')}`,
+                          borderRadius: '10px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '10px',
+                          boxShadow: isStreaming ? '0 0 16px rgba(239, 68, 68, 0.15)' : 'none',
+                        }}
+                      >
+                        {/* Header: Mode & Real-time Live Status */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: isStreaming ? '#ef4444' : '#10b981',
+                                boxShadow: isStreaming ? '0 0 10px #ef4444' : '0 0 6px #10b981',
+                                animation: isStreaming ? 'stageGlowOrange 1.2s infinite' : 'none',
+                                display: 'inline-block',
+                              }}
+                            />
+                            <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#f1f5f9' : '#0f172a' }}>
+                              {language === 'vi' ? 'BỘ ĐIỀU KHIỂN THU THẬP DỮ LIỆU' : 'DATA INGESTION CONTROLLER'}
+                            </span>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontFamily: 'var(--font-mono)',
+                              color: isStreaming ? '#ef4444' : (isDark ? '#34d399' : '#059669'),
+                              backgroundColor: isStreaming ? (isDark ? 'rgba(239, 68, 68, 0.18)' : '#fee2e2') : (isDark ? 'rgba(16, 185, 129, 0.15)' : '#dcfce7'),
+                              padding: '2px 8px',
+                              borderRadius: '9999px',
+                              fontWeight: 800,
+                            }}
+                          >
+                            {isStreaming ? (language === 'vi' ? `● ĐANG CÀO (${streamSpeed} bài/phút)` : `● STREAMING (${streamSpeed} ppm)`) : (language === 'vi' ? '● CHẾ ĐỘ CHỜ (STANDBY)' : '● STANDBY')}
+                          </span>
+                        </div>
+
+                        {/* Target Limit Selector */}
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                            {language === 'vi' ? 'Mục tiêu đợt cào:' : 'Ingestion Target:'}
+                          </span>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            {[1000, 3000, 5000, 10000].map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => setStreamTarget(t)}
+                                disabled={isStreaming}
+                                style={{
+                                  fontSize: '10px',
+                                  fontFamily: 'var(--font-mono)',
+                                  padding: '3px 8px',
+                                  borderRadius: '5px',
+                                  border: streamTarget === t ? '1px solid #10b981' : `1px solid ${themeStyles.cardBorder}`,
+                                  backgroundColor: streamTarget === t ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#dcfce7') : (isDark ? 'rgba(255, 255, 255, 0.05)' : '#ffffff'),
+                                  color: streamTarget === t ? (isDark ? '#34d399' : '#166534') : themeStyles.textMuted,
+                                  fontWeight: streamTarget === t ? 800 : 500,
+                                  cursor: isStreaming ? 'not-allowed' : 'pointer',
+                                  transition: 'all 0.12s ease',
+                                }}
+                              >
+                                {t >= 1000 ? `${t / 1000}k` : t}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* SINGLE UNIFIED PRIMARY ACTION BUTTON (START / STOP) */}
+                        <button
+                          type="button"
+                          onClick={handleToggleStreaming}
+                          style={{
+                            width: '100%',
+                            backgroundColor: isStreaming ? '#dc2626' : '#059669',
+                            backgroundImage: isStreaming
+                              ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                              : 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '10px 0',
+                            fontSize: '12px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            boxShadow: isStreaming
+                              ? '0 4px 16px rgba(239, 68, 68, 0.45)'
+                              : '0 4px 16px rgba(16, 185, 129, 0.35)',
+                            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                          }}
+                        >
+                          {isStreaming ? (
+                            <>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+                              </svg>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="6" y="4" width="4" height="16" rx="1" />
+                                <rect x="14" y="4" width="4" height="16" rx="1" />
+                              </svg>
+                              <span>{language === 'vi' ? `⏸ DỪNG THU THẬP (+${streamSessionCount.toLocaleString()} BÀI ĐÃ CÀO)` : `⏸ STOP INGESTION (+${streamSessionCount.toLocaleString()} PAPERS HARVESTED)`}</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                                <polygon points="5 3 19 12 5 21 5 3" />
+                              </svg>
+                              <span>{language === 'vi' ? `▶ BẮT ĐẦU THU THẬP (${streamTarget.toLocaleString()} BÀI MỚI)` : `▶ START INGESTION (${streamTarget.toLocaleString()} NEW PAPERS)`}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Categories Selector */}
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
                             {language === 'vi' ? 'DANH MỤC THU THẬP' : 'HARVEST CATEGORIES'}
                           </span>
                           <span style={{ fontSize: '10px', color: isDark ? '#c084fc' : '#7c3aed', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                             {harvestCategories.length} {language === 'vi' ? 'đã chọn' : 'selected'}
                           </span>
                         </div>
-
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                           {[
-                            { key: 'cs.AI', label: 'cs.AI (Artificial Intelligence)' },
-                            { key: 'cs.LG', label: 'cs.LG (Machine Learning)' },
-                            { key: 'cs.CV', label: 'cs.CV (Computer Vision)' },
-                            { key: 'cs.CL', label: 'cs.CL (Computation & Language)' },
-                            { key: 'stat.ML', label: 'stat.ML (Machine Learning Stats)' },
-                            { key: 'cs.RO', label: 'cs.RO (Robotics)' },
-                            { key: 'cs.CR', label: 'cs.CR (Cryptography & Security)' },
-                            { key: 'cs.NE', label: 'cs.NE (Neural & Evolutionary)' },
+                            { key: 'cs.AI', label: 'cs.AI' },
+                            { key: 'cs.LG', label: 'cs.LG' },
+                            { key: 'cs.CV', label: 'cs.CV' },
+                            { key: 'cs.CL', label: 'cs.CL' },
+                            { key: 'stat.ML', label: 'stat.ML' },
+                            { key: 'cs.RO', label: 'cs.RO' },
+                            { key: 'cs.CR', label: 'cs.CR' },
+                            { key: 'cs.NE', label: 'cs.NE' },
                           ].map((cat) => {
                             const isSelected = harvestCategories.includes(cat.key);
                             return (
@@ -3631,9 +3767,9 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                                 type="button"
                                 onClick={() => handleToggleCategory(cat.key)}
                                 style={{
-                                  padding: '4px 10px',
-                                  borderRadius: '6px',
-                                  fontSize: '11px',
+                                  padding: '3px 8px',
+                                  borderRadius: '5px',
+                                  fontSize: '10.5px',
                                   fontFamily: 'var(--font-mono)',
                                   fontWeight: 700,
                                   cursor: 'pointer',
@@ -3642,7 +3778,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                                   color: isSelected ? '#ffffff' : themeStyles.btnInspectText,
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '4px',
+                                  gap: '3px',
                                   transition: 'all 0.15s ease',
                                 }}
                               >
@@ -3654,13 +3790,13 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                         </div>
                       </div>
 
-                      {/* Limit & Rate Limit */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      {/* Ingestion Limit, Policy & Formats */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                         <div>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '4px' }}>
                             {language === 'vi' ? 'GIỚI HẠN THU THẬP' : 'INGESTION LIMIT'}
                           </span>
-                          <div style={{ display: 'flex', gap: '6px' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
                             {[1000, 5000, 10000, 25000].map((limitVal) => (
                               <button
                                 key={limitVal}
@@ -3668,9 +3804,9 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                                 onClick={() => setHarvestLimit(limitVal)}
                                 style={{
                                   flex: 1,
-                                  padding: '5px 0',
-                                  borderRadius: '6px',
-                                  fontSize: '11px',
+                                  padding: '4px 0',
+                                  borderRadius: '5px',
+                                  fontSize: '10px',
                                   fontFamily: 'var(--font-mono)',
                                   fontWeight: harvestLimit === limitVal ? 800 : 600,
                                   border: harvestLimit === limitVal ? '1px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
@@ -3679,21 +3815,21 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                                   cursor: 'pointer',
                                 }}
                               >
-                                {limitVal.toLocaleString()}
+                                {limitVal >= 1000 ? `${limitVal / 1000}k` : limitVal}
                               </button>
                             ))}
                           </div>
                         </div>
 
                         <div>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '4px' }}>
                             {language === 'vi' ? 'CHÍNH SÁCH RATE-LIMIT' : 'RATE-LIMIT POLICY'}
                           </span>
-                          <div style={{ display: 'flex', gap: '6px' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
                             {[
-                              { val: 3.0, label: language === 'vi' ? '3.0s Nhanh' : '3.0s Fast' },
-                              { val: 6.0, label: language === 'vi' ? '6.0s Chuẩn arXiv' : '6.0s arXiv Policy' },
-                              { val: 10.0, label: language === 'vi' ? '10.0s An toàn' : '10.0s Safe' },
+                              { val: 3.0, label: '3s Fast' },
+                              { val: 6.0, label: '6s Policy' },
+                              { val: 10.0, label: '10s Safe' },
                             ].map((d) => (
                               <button
                                 key={d.val}
@@ -3701,8 +3837,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                                 onClick={() => setHarvestDelay(d.val)}
                                 style={{
                                   flex: 1,
-                                  padding: '5px 0',
-                                  borderRadius: '6px',
+                                  padding: '4px 0',
+                                  borderRadius: '5px',
                                   fontSize: '10px',
                                   fontFamily: 'var(--font-mono)',
                                   fontWeight: harvestDelay === d.val ? 800 : 600,
@@ -3719,228 +3855,55 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                         </div>
                       </div>
 
-                      {/* Format checkmarks */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>{language === 'vi' ? 'ĐỊNH DẠNG:' : 'FORMAT:'}</span>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={harvestFormats.includes('HTML5')}
-                            onChange={() => handleToggleFormat('HTML5')}
-                            style={{ accentColor: '#7c3aed' }}
-                          />
-                          <span>ar5iv HTML5 Full-Text (Math &amp; Sections)</span>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={harvestFormats.includes('OAI-XML')}
-                            onChange={() => handleToggleFormat('OAI-XML')}
-                            style={{ accentColor: '#7c3aed' }}
-                          />
-                          <span>arXiv OAI-PMH XML Metadata</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Right Ingestion Action Card */}
-                    <div
-                      style={{
-                        backgroundColor: themeStyles.drawerSectionBg,
-                        border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                        borderRadius: '10px',
-                        padding: '14px 16px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '8px' }}>
-                          {language === 'vi' ? 'TRẠNG THÁI VÀ BẢN GHI ĐÍCH' : 'STATUS & TARGET RECORDS'}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: themeStyles.textMuted }}>Target Bucket:</span>
-                            <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>s3://uth-scientific-lakehouse</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: themeStyles.textMuted }}>Partition Scheme:</span>
-                            <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>bronze/raw_html/year=2026/</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: themeStyles.textMuted }}>Integrity Check:</span>
-                            <span style={{ fontWeight: 700, color: isDark ? '#34d399' : '#059669' }}>SHA-256 Digest Required</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: themeStyles.textMuted }}>Concurrent Workers:</span>
-                            <span style={{ fontWeight: 700, color: isDark ? '#60a5fa' : '#2563eb' }}>4 Async HTTPX Clients</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {/* UNIFIED HARVESTER & STREAMING CONTROLLER */}
-                        <div
-                          style={{
-                            padding: '12px 14px',
-                            backgroundColor: isDark ? (isStreaming ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.04)') : (isStreaming ? '#fef2f2' : '#f8fafc'),
-                            border: `1px solid ${isDark ? (isStreaming ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.12)') : (isStreaming ? '#fca5a5' : '#e2e8f0')}`,
-                            borderRadius: '10px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '10px',
-                            boxShadow: isStreaming ? '0 0 16px rgba(239, 68, 68, 0.15)' : 'none',
-                          }}
-                        >
-                          {/* Header: Mode & Real-time Live Status */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span
-                                style={{
-                                  width: '8px',
-                                  height: '8px',
-                                  borderRadius: '50%',
-                                  backgroundColor: isStreaming ? '#ef4444' : '#10b981',
-                                  boxShadow: isStreaming ? '0 0 10px #ef4444' : '0 0 6px #10b981',
-                                  animation: isStreaming ? 'stageGlowOrange 1.2s infinite' : 'none',
-                                  display: 'inline-block',
-                                }}
-                              />
-                              <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#f1f5f9' : '#0f172a' }}>
-                                {language === 'vi' ? 'BỘ ĐIỀU KHIỂN THU THẬP DỮ LIỆU' : 'DATA INGESTION CONTROLLER'}
-                              </span>
-                            </div>
-                            <span
-                              style={{
-                                fontSize: '10px',
-                                fontFamily: 'var(--font-mono)',
-                                color: isStreaming ? '#ef4444' : (isDark ? '#34d399' : '#059669'),
-                                backgroundColor: isStreaming ? (isDark ? 'rgba(239, 68, 68, 0.18)' : '#fee2e2') : (isDark ? 'rgba(16, 185, 129, 0.15)' : '#dcfce7'),
-                                padding: '2px 8px',
-                                borderRadius: '9999px',
-                                fontWeight: 800,
-                              }}
-                            >
-                              {isStreaming ? (language === 'vi' ? `● ĐANG CÀO (${streamSpeed} bài/phút)` : `● STREAMING (${streamSpeed} ppm)`) : (language === 'vi' ? '● CHẾ ĐỘ CHỜ (STANDBY)' : '● STANDBY')}
-                            </span>
-                          </div>
-
-                          {/* Target Limit Selector */}
-                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                              {language === 'vi' ? 'Mục tiêu đợt cào:' : 'Ingestion Target:'}
-                            </span>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              {[1000, 3000, 5000, 10000].map((t) => (
-                                <button
-                                  key={t}
-                                  type="button"
-                                  onClick={() => setStreamTarget(t)}
-                                  disabled={isStreaming}
-                                  style={{
-                                    fontSize: '10px',
-                                    fontFamily: 'var(--font-mono)',
-                                    padding: '3px 8px',
-                                    borderRadius: '5px',
-                                    border: streamTarget === t ? '1px solid #10b981' : `1px solid ${themeStyles.cardBorder}`,
-                                    backgroundColor: streamTarget === t ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#dcfce7') : (isDark ? 'rgba(255, 255, 255, 0.05)' : '#ffffff'),
-                                    color: streamTarget === t ? (isDark ? '#34d399' : '#166534') : themeStyles.textMuted,
-                                    fontWeight: streamTarget === t ? 800 : 500,
-                                    cursor: isStreaming ? 'not-allowed' : 'pointer',
-                                    transition: 'all 0.12s ease',
-                                  }}
-                                >
-                                  {t >= 1000 ? `${t / 1000}k` : t}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* SINGLE UNIFIED PRIMARY ACTION BUTTON (START / STOP) */}
-                          <button
-                            type="button"
-                            onClick={handleToggleStreaming}
-                            style={{
-                              width: '100%',
-                              backgroundColor: isStreaming ? '#dc2626' : '#059669',
-                              backgroundImage: isStreaming
-                                ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
-                                : 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '8px',
-                              padding: '10px 0',
-                              fontSize: '12px',
-                              fontFamily: 'var(--font-mono)',
-                              fontWeight: 800,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '8px',
-                              boxShadow: isStreaming
-                                ? '0 4px 16px rgba(239, 68, 68, 0.45)'
-                                : '0 4px 16px rgba(16, 185, 129, 0.35)',
-                              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                            }}
-                          >
-                            {isStreaming ? (
-                              <>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                                </svg>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                  <rect x="6" y="4" width="4" height="16" rx="1" />
-                                  <rect x="14" y="4" width="4" height="16" rx="1" />
-                                </svg>
-                                <span>{language === 'vi' ? `⏸ DỪNG THU THẬP (+${streamSessionCount.toLocaleString()} BÀI ĐÃ CÀO)` : `⏸ STOP INGESTION (+${streamSessionCount.toLocaleString()} PAPERS HARVESTED)`}</span>
-                              </>
-                            ) : (
-                              <>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                                  <polygon points="5 3 19 12 5 21 5 3" />
-                                </svg>
-                                <span>{language === 'vi' ? `▶ BẮT ĐẦU THU THẬP (${streamTarget.toLocaleString()} BÀI MỚI)` : `▶ START INGESTION (${streamTarget.toLocaleString()} NEW PAPERS)`}</span>
-                              </>
-                            )}
-                          </button>
+                      {/* Format checkmarks & Target status summary */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={harvestFormats.includes('HTML5')}
+                              onChange={() => handleToggleFormat('HTML5')}
+                              style={{ accentColor: '#7c3aed' }}
+                            />
+                            <span>ar5iv HTML5 Full-Text</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={harvestFormats.includes('OAI-XML')}
+                              onChange={() => handleToggleFormat('OAI-XML')}
+                              style={{ accentColor: '#7c3aed' }}
+                            />
+                            <span>OAI-PMH XML</span>
+                          </label>
                         </div>
 
-                        {/* Direct Jump to Live Telemetry Feed */}
+                        {/* View Streaming Logs Button */}
                         <button
                           type="button"
                           onClick={() => onNavigateTab?.('logs')}
                           style={{
-                            width: '100%',
-                            backgroundColor: themeStyles.btnInspectBg,
-                            color: themeStyles.btnInspectText,
+                            backgroundColor: 'transparent',
+                            color: themeStyles.textSecondary,
                             border: `1px solid ${themeStyles.btnInspectBorder}`,
-                            borderRadius: '7px',
-                            padding: '7px 0',
-                            fontSize: '11px',
+                            borderRadius: '5px',
+                            padding: '3px 8px',
+                            fontSize: '10px',
                             fontFamily: 'var(--font-mono)',
                             fontWeight: 700,
                             cursor: 'pointer',
-                            textAlign: 'center',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'all 0.15s ease',
                           }}
                         >
-                          <span>{language === 'vi' ? 'XEM NHẬT KÝ STREAMING REAL-TIME →' : 'VIEW REAL-TIME STREAMING LOGS →'}</span>
+                          {language === 'vi' ? 'XEM NHẬT KÝ →' : 'VIEW LOGS →'}
                         </button>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
                 {/* 2. DuckDB SIMD Controls */}
                 {selectedTool.id === 'review-duckdb' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '14px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
@@ -4168,7 +4131,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
 
                 {/* 4A. Apache Parquet Columnar Storage Controls */}
                 {selectedTool.id === 'silver-parquet' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: '14px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
                         {language === 'vi' ? 'CẤU TRÚC BẢNG CỘT APACHE PARQUET (SILVER LAYER)' : 'APACHE PARQUET COLUMNAR SCHEMA (SILVER LAYER)'}
@@ -4251,7 +4214,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
 
                 {/* 4B. LanceDB Vector Search Controls */}
                 {(selectedTool.id === 'gold-lancedb' || selectedTool.id === 'lance-storage') && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
                         {language === 'vi' ? `TÌM KIẾM SEMANTIC VECTOR ANN (${liveVectors.toLocaleString()} EMBEDDINGS)` : `SEMANTIC VECTOR ANN SEARCH (${liveVectors.toLocaleString()} EMBEDDINGS)`}
@@ -4461,15 +4424,15 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   ];
 
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {/* Top Action & View Controller Bar */}
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         flexWrap: 'wrap',
-                        gap: '12px',
-                        paddingBottom: '12px',
+                        gap: '10px',
+                        paddingBottom: '8px',
                         borderBottom: `1px solid ${themeStyles.drawerSectionBorder}`,
                       }}>
                         {/* Left: Endpoint & Badges */}
@@ -4653,25 +4616,25 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                         </div>
                       )}
 
-                      {/* 3 Overview KPI Cards */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                      {/* 3 Compact Overview KPI Cards */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                         {/* Box 1 */}
                         <div style={{
                           backgroundColor: themeStyles.cardBg,
                           border: `1px solid ${themeStyles.cardBorder}`,
-                          borderRadius: '10px',
-                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
                         }}>
-                          <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
                             {language === 'vi' ? 'HỒ DỮ LIỆU HOẠT ĐỘNG CHÍNH' : 'PRIMARY ACTIVE LAKEHOUSE'}
                           </div>
-                          <div style={{ fontSize: '18px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '4px' }}>
+                          <div style={{ fontSize: '16px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
                             <AnimatedCounter value={Number(r2ActiveGb)} decimals={3} suffix=" GB" />{' '}
-                            <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
+                            <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>
                               ({r2ActivePct}% {language === 'vi' ? 'Hạn mức' : 'Quota'})
                             </span>
                           </div>
-                          <div style={{ fontSize: '11px', color: themeStyles.textSecondary, marginTop: '4px' }}>
+                          <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
                             arXiv HTML5 ({r2ArxivGb} GB) + OpenAlex ({r2OpenAlexGb} GB) + Parquet ({r2SilverMb} MB)
                           </div>
                         </div>
@@ -4680,17 +4643,17 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                         <div style={{
                           backgroundColor: themeStyles.cardBg,
                           border: `1px solid ${themeStyles.cardBorder}`,
-                          borderRadius: '10px',
-                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
                         }}>
-                          <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
                             {language === 'vi' ? 'BẢN SAO LƯU PHỤC HỒI THẢM HỌA' : 'DISASTER RECOVERY SNAPSHOTS'}
                           </div>
-                          <div style={{ fontSize: '18px', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>
+                          <div style={{ fontSize: '16px', fontWeight: 800, color: '#f59e0b', marginTop: '2px' }}>
                             <AnimatedCounter value={Number(r2BackupGb)} decimals={3} suffix=" GB" />{' '}
-                            <span style={{ fontSize: '12px', color: themeStyles.textMuted, fontWeight: 500 }}>(28 {language === 'vi' ? 'phân đoạn' : 'segments'})</span>
+                            <span style={{ fontSize: '11px', color: themeStyles.textMuted, fontWeight: 500 }}>(28 {language === 'vi' ? 'phân đoạn' : 'segments'})</span>
                           </div>
-                          <div style={{ fontSize: '11px', color: themeStyles.textSecondary, marginTop: '4px' }}>
+                          <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
                             {language === 'vi' ? 'Bản sao lưu LanceDB trên R2 phục hồi tức thì' : 'Gold LanceDB replica on R2 for instant recovery'}
                           </div>
                         </div>
@@ -4699,154 +4662,157 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                         <div style={{
                           backgroundColor: themeStyles.cardBg,
                           border: `1px solid ${themeStyles.cardBorder}`,
-                          borderRadius: '10px',
-                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
                         }}>
-                          <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
                             {language === 'vi' ? 'TỔNG LƯU TRỮ BUCKET CLOUDFLARE R2' : 'TOTAL CLOUDFLARE R2 BUCKET'}
                           </div>
-                          <div style={{ fontSize: '18px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '4px' }}>
+                          <div style={{ fontSize: '16px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
                             <AnimatedCounter value={Number(r2TotalGb)} decimals={3} suffix=" GB" />{' '}
-                            <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 600 }}>
+                            <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 600 }}>
                               ({r2TotalPct}%)
                             </span>
                           </div>
-                          <div style={{ fontSize: '11px', color: themeStyles.textSecondary, marginTop: '4px' }}>
+                          <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
                             {language === 'vi' ? '36,673 tệp · 1.14 GB vượt mức (~0.017$/tháng / 400 VNĐ)' : '36,673 files · 1.14 GB overage (~$0.017/mo / 400 VND)'}
                           </div>
                         </div>
                       </div>
 
-                      {/* Multi-Tier 10GB Allocation Bar */}
-                      <div style={{
-                        backgroundColor: themeStyles.cardBg,
-                        border: `1px solid ${themeStyles.cardBorder}`,
-                        borderRadius: '10px',
-                        padding: '12px 16px',
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary, textTransform: 'uppercase' }}>
-                              {language === 'vi' ? 'Phân bổ Dung lượng Hạn mức Miễn phí 10GB R2' : 'Cloudflare R2 10GB Free Tier Allocation'}
-                            </span>
-                            <span style={{
-                              fontSize: '10px',
-                              fontFamily: 'var(--font-mono)',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              background: isTotalView ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                              color: isTotalView ? '#f59e0b' : '#10b981',
-                              fontWeight: 700,
-                            }}>
-                              {isTotalView ? `${r2TotalPct}% (Kèm Backup)` : `${r2ActivePct}% Hạn mức`}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                            {isTotalView
-                              ? (language === 'vi' ? 'Băng thông Egress: $0.00 (Miễn phí)' : 'Egress Bandwidth: $0.00 (Zero Fee)')
-                              : (<>{language === 'vi' ? 'Còn trống trong hạn mức: ' : 'Free Quota Remaining: '}<strong>{r2RemainingFreeGb} GB</strong></>)}
-                          </div>
-                        </div>
-
-                        {/* Track */}
-                        <div style={{
-                          height: '9px',
-                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
-                          borderRadius: '5px',
-                          overflow: 'hidden',
-                          display: 'flex',
-                        }}>
-                          <div title={`arXiv HTML5: ${r2ArxivGb} GB`} style={{ width: `${r2ArxivBarPct}%`, height: '100%', background: '#3b82f6' }} />
-                          <div title={`OpenAlex: ${r2OpenAlexGb} GB`} style={{ width: `${r2OpenAlexBarPct}%`, height: '100%', background: '#8b5cf6' }} />
-                          <div title={`Silver Parquet: ${r2SilverMb} MB`} style={{ width: `${Math.max(1, r2SilverBarPct)}%`, height: '100%', background: '#10b981' }} />
-                          {isTotalView && (
-                            <div title={`LanceDB Backup: ${r2BackupGb} GB`} style={{ width: `${r2BackupBarPct}%`, height: '100%', background: '#f59e0b' }} />
-                          )}
-                        </div>
-
-                        {/* Legend */}
-                        <div style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginTop: '8px',
-                          fontSize: '10.5px',
-                          fontFamily: 'var(--font-mono)',
-                          color: themeStyles.textMuted,
-                          flexWrap: 'wrap',
-                          gap: '8px',
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#3b82f6', display: 'inline-block' }} />
-                              arXiv HTML5 ({r2ArxivGb} GB)
-                            </span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#8b5cf6', display: 'inline-block' }} />
-                              OpenAlex ({r2OpenAlexGb} GB)
-                            </span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }} />
-                              Silver Parquet ({r2SilverMb} MB)
-                            </span>
-                            {isTotalView && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} />
-                                LanceDB Backup ({r2BackupGb} GB)
-                              </span>
-                            )}
-                          </div>
-                          <span style={{ color: isTotalView ? '#f59e0b' : '#10b981', fontWeight: 700 }}>
-                            {isTotalView ? `+${r2BackupGb} GB Cold Snapshot` : (language === 'vi' ? 'An toàn trong hạn mức 10GB' : 'Within 10GB Free Tier')}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* S3 Partition Tree & Layers Table in Grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr', gap: '14px' }}>
-                        {/* Left: Partition Scheme Code Box */}
-                        <div>
-                          <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '6px' }}>
-                            {language === 'vi' ? 'CẤU TRÚC PHÂN VÙNG OBJECT STORAGE (S3 COMPATIBLE)' : 'OBJECT STORAGE PARTITION SCHEME (S3 COMPATIBLE)'}
-                          </div>
+                      {/* 2-Column Grid: Left (10GB Allocation Bar + S3 Partition Scheme) | Right (Granular Lakehouse Tiers Table) */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '12px', alignItems: 'start' }}>
+                        {/* Left Sub-Column */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {/* Multi-Tier 10GB Allocation Bar */}
                           <div style={{
-                            backgroundColor: themeStyles.codeBoxBg,
-                            color: themeStyles.textPrimary,
-                            padding: '12px',
+                            backgroundColor: themeStyles.cardBg,
+                            border: `1px solid ${themeStyles.cardBorder}`,
                             borderRadius: '8px',
-                            border: `1px solid ${themeStyles.codeBoxBorder}`,
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: '11px',
-                            lineHeight: 1.6,
+                            padding: '8px 12px',
                           }}>
-                            <div style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>s3://uth-scientific-lakehouse/</div>
-                            <div style={{ color: isDark ? '#fb7185' : '#e11d48' }}>
-                              ├── bronze/raw_html/year=2026/ ({r2ArxivCount.toLocaleString()} HTML5 · {r2ArxivGb} GB)
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary, textTransform: 'uppercase' }}>
+                                  {language === 'vi' ? 'Phân bổ Hạn mức 10GB R2' : '10GB Free Tier Allocation'}
+                                </span>
+                                <span style={{
+                                  fontSize: '9.5px',
+                                  fontFamily: 'var(--font-mono)',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  background: isTotalView ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                  color: isTotalView ? '#f59e0b' : '#10b981',
+                                  fontWeight: 700,
+                                }}>
+                                  {isTotalView ? `${r2TotalPct}%` : `${r2ActivePct}%`}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                                {isTotalView
+                                  ? (language === 'vi' ? 'Egress: $0.00' : 'Egress: $0.00')
+                                  : (<>{language === 'vi' ? 'Còn trống: ' : 'Free: '}<strong>{r2RemainingFreeGb} GB</strong></>)}
+                              </div>
                             </div>
-                            <div style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
-                              ├── bronze/openalex/year=2026/ ({r2OpenAlexCount} JSON · {r2OpenAlexGb} GB)
+
+                            {/* Track */}
+                            <div style={{
+                              height: '8px',
+                              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              display: 'flex',
+                            }}>
+                              <div title={`arXiv HTML5: ${r2ArxivGb} GB`} style={{ width: `${r2ArxivBarPct}%`, height: '100%', background: '#3b82f6' }} />
+                              <div title={`OpenAlex: ${r2OpenAlexGb} GB`} style={{ width: `${r2OpenAlexBarPct}%`, height: '100%', background: '#8b5cf6' }} />
+                              <div title={`Silver Parquet: ${r2SilverMb} MB`} style={{ width: `${Math.max(1, r2SilverBarPct)}%`, height: '100%', background: '#10b981' }} />
+                              {isTotalView && (
+                                <div title={`LanceDB Backup: ${r2BackupGb} GB`} style={{ width: `${r2BackupBarPct}%`, height: '100%', background: '#f59e0b' }} />
+                              )}
                             </div>
-                            <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>
-                              ├── bronze/arxiv/batches/ (12 bundles · 21.24 MB)
+
+                            {/* Legend */}
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginTop: '6px',
+                              fontSize: '9.5px',
+                              fontFamily: 'var(--font-mono)',
+                              color: themeStyles.textMuted,
+                              flexWrap: 'wrap',
+                              gap: '6px',
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <span style={{ width: '6px', height: '6px', borderRadius: '2px', background: '#3b82f6', display: 'inline-block' }} />
+                                  arXiv ({r2ArxivGb}G)
+                                </span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <span style={{ width: '6px', height: '6px', borderRadius: '2px', background: '#8b5cf6', display: 'inline-block' }} />
+                                  OpenAlex ({r2OpenAlexGb}G)
+                                </span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <span style={{ width: '6px', height: '6px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }} />
+                                  Parquet ({r2SilverMb}M)
+                                </span>
+                                {isTotalView && (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                    <span style={{ width: '6px', height: '6px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} />
+                                    Backup ({r2BackupGb}G)
+                                  </span>
+                                )}
+                              </div>
+                              <span style={{ color: isTotalView ? '#f59e0b' : '#10b981', fontWeight: 700 }}>
+                                {isTotalView ? `+${r2BackupGb} GB Snapshots` : (language === 'vi' ? 'Hạn mức 10GB OK' : '10GB Free Tier OK')}
+                              </span>
                             </div>
-                            <div style={{ color: isDark ? '#34d399' : '#059669' }}>
-                              ├── silver/papers.parquet (Snappy 4.2x · {r2SilverMb} MB)
+                          </div>
+
+                          {/* Left: S3 Partition Scheme Code Box */}
+                          <div>
+                            <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '4px' }}>
+                              {language === 'vi' ? 'CẤU TRÚC PHÂN VÙNG OBJECT STORAGE (S3 COMPATIBLE)' : 'OBJECT STORAGE PARTITION SCHEME (S3 COMPATIBLE)'}
                             </div>
-                            <div style={{ color: isDark ? '#f59e0b' : '#d97706' }}>
-                              └── gold/lancedb/ ({r2GoldChunks} vectors · {r2BackupGb} GB)
+                            <div style={{
+                              backgroundColor: themeStyles.codeBoxBg,
+                              color: themeStyles.textPrimary,
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              border: `1px solid ${themeStyles.codeBoxBorder}`,
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '10px',
+                              lineHeight: 1.5,
+                            }}>
+                              <div style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>s3://uth-scientific-lakehouse/</div>
+                              <div style={{ color: isDark ? '#fb7185' : '#e11d48' }}>
+                                ├── bronze/raw_html/year=2026/ ({r2ArxivCount.toLocaleString()} HTML5 · {r2ArxivGb} GB)
+                              </div>
+                              <div style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
+                                ├── bronze/openalex/year=2026/ ({r2OpenAlexCount} JSON · {r2OpenAlexGb} GB)
+                              </div>
+                              <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>
+                                ├── bronze/arxiv/batches/ (12 bundles · 21.24 MB)
+                              </div>
+                              <div style={{ color: isDark ? '#34d399' : '#059669' }}>
+                                ├── silver/papers.parquet (Snappy 4.2x · {r2SilverMb} MB)
+                              </div>
+                              <div style={{ color: isDark ? '#f59e0b' : '#d97706' }}>
+                                └── gold/lancedb/ ({r2GoldChunks} vectors · {r2BackupGb} GB)
+                              </div>
                             </div>
                           </div>
                         </div>
 
                         {/* Right: Granular Lakehouse Zones Table */}
                         <div style={{ overflowX: 'auto' }}>
-                          <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+                          <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '4px' }}>
                             {language === 'vi' ? 'CHI TIẾT PHÂN TẦNG DỮ LIỆU LAKEHOUSE' : 'GRANULAR LAKEHOUSE TIERS BREAKDOWN'}
                           </div>
                           <table style={{
                             width: '100%',
                             borderCollapse: 'collapse',
-                            fontSize: '11.5px',
+                            fontSize: '10.5px',
                             textAlign: 'left',
                           }}>
                             <thead>
@@ -4854,26 +4820,26 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                                 borderBottom: `1px solid ${themeStyles.drawerSectionBorder}`,
                                 color: themeStyles.textMuted,
                                 fontFamily: 'var(--font-mono)',
-                                fontSize: '10px',
+                                fontSize: '9.5px',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.04em',
                               }}>
-                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Tầng' : 'Zone'}</th>
-                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Tập Dữ Liệu' : 'Dataset'}</th>
-                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Định Dạng' : 'Format'}</th>
-                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Số Lượng' : 'Count'}</th>
-                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Dung Lượng' : 'Volume'}</th>
+                                <th style={{ padding: '4px 6px' }}>{language === 'vi' ? 'Tầng' : 'Zone'}</th>
+                                <th style={{ padding: '4px 6px' }}>{language === 'vi' ? 'Tập Dữ Liệu' : 'Dataset'}</th>
+                                <th style={{ padding: '4px 6px' }}>{language === 'vi' ? 'Định Dạng' : 'Format'}</th>
+                                <th style={{ padding: '4px 6px' }}>{language === 'vi' ? 'Số Lượng' : 'Count'}</th>
+                                <th style={{ padding: '4px 6px' }}>{language === 'vi' ? 'Dung Lượng' : 'Volume'}</th>
                               </tr>
                             </thead>
                             <tbody>
                               {layers.map((layer, idx) => (
                                 <tr key={idx} style={{ borderBottom: `1px solid ${themeStyles.cardDivider}` }}>
-                                  <td style={{ padding: '7px 8px' }}>
+                                  <td style={{ padding: '5px 6px' }}>
                                     <span style={{
-                                      fontSize: '9.5px',
+                                      fontSize: '9px',
                                       fontFamily: 'var(--font-mono)',
-                                      padding: '1px 5px',
-                                      borderRadius: '4px',
+                                      padding: '1px 4px',
+                                      borderRadius: '3px',
                                       backgroundColor: 'var(--badge-bg)',
                                       color: layer.color,
                                       border: '1px solid var(--badge-border)',
@@ -4882,16 +4848,16 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                                       {layer.zone}
                                     </span>
                                   </td>
-                                  <td style={{ padding: '7px 8px', fontWeight: 600, color: themeStyles.textPrimary }}>
+                                  <td style={{ padding: '5px 6px', fontWeight: 600, color: themeStyles.textPrimary }}>
                                     {layer.name}
                                   </td>
-                                  <td style={{ padding: '7px 8px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, fontSize: '11px' }}>
+                                  <td style={{ padding: '5px 6px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, fontSize: '10px' }}>
                                     {layer.format}
                                   </td>
-                                  <td style={{ padding: '7px 8px', fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, fontSize: '11px' }}>
+                                  <td style={{ padding: '5px 6px', fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, fontSize: '10px' }}>
                                     {layer.itemsCount}
                                   </td>
-                                  <td style={{ padding: '7px 8px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: layer.color, fontSize: '11px' }}>
+                                  <td style={{ padding: '5px 6px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: layer.color, fontSize: '10px' }}>
                                     {layer.sizeBytes}
                                   </td>
                                 </tr>
@@ -4906,7 +4872,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
 
                 {/* 5. Grounded RAG Controls & Attribution Dossier */}
                 {selectedTool.id === 'grounded-rag' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '14px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>

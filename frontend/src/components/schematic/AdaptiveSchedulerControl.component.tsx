@@ -165,11 +165,10 @@ export const AdaptiveSchedulerControl: FC = () => {
         background: 'var(--bg-surface-elevated, #162035)',
         border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
         borderRadius: '12px',
-        padding: '16px',
-        marginTop: '12px',
+        padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
+        gap: '10px',
       }}
     >
       {/* Top Header Row: Mission Title & Global Daemon Controller */}
@@ -336,8 +335,8 @@ export const AdaptiveSchedulerControl: FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-          gap: '12px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '8px',
         }}
       >
         {sourceKeys.map((key) => {
@@ -373,13 +372,13 @@ export const AdaptiveSchedulerControl: FC = () => {
                   : isEnabled
                   ? '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))'
                   : '1px dashed rgba(255, 255, 255, 0.15)',
-                borderRadius: '10px',
-                padding: '12px 14px',
+                borderRadius: '8px',
+                padding: '10px 12px',
                 opacity: isEnabled ? 1 : 0.6,
                 boxShadow: isRunning ? `0 0 16px ${meta.color}44` : 'none',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '8px',
+                gap: '6px',
                 transition: 'all 0.2s ease',
               }}
             >
