@@ -32,6 +32,7 @@ export function StorageInspector() {
     viewMode,
     setViewMode,
     refreshStorageStats,
+    resetSessionInStore,
   } = useLakehouseStreamStore();
 
   const handleSyncR2 = async () => {
@@ -55,9 +56,15 @@ export function StorageInspector() {
     if (confirm(language === 'vi' ? 'Đặt lại bộ đếm phiên nhập thời gian thực về mốc chuẩn?' : 'Reset real-time ingestion session counter back to baseline?')) {
       try {
         await resetStorageSession();
-        await refreshStorageStats();
+        resetSessionInStore();
+        await refreshStorageStats(true);
+        const updated = await fetchStorageStats();
+        setStats(updated);
+        setSyncMessage(language === 'vi' ? 'Đã đặt lại phiên cào về mốc cơ sở chuẩn (36,414 bài).' : 'Session counter reset to baseline (36,414 works).');
       } catch (e: any) {
         console.error('Failed to reset session:', e);
+      } finally {
+        setTimeout(() => setSyncMessage(null), 3500);
       }
     }
   };

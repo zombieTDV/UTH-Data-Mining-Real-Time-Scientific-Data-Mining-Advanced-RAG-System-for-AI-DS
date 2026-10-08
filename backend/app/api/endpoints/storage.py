@@ -26,10 +26,12 @@ async def get_storage_stats():
     return storage_service.get_stats()
 
 
+import asyncio
+
 @router.post("/storage/sync-r2", tags=["Storage & Lakehouse"])
 async def trigger_r2_sync():
     """Triggers background live scan of Cloudflare R2 bucket and updates manifest cache."""
-    return storage_service.sync_live_from_r2()
+    return await asyncio.to_thread(storage_service.sync_live_from_r2)
 
 
 @router.post("/storage/reset-session", tags=["Storage & Lakehouse"])

@@ -164,7 +164,7 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let retryCount = 0;
 let initialized = false;
 
-export async function refreshStorageStats(): Promise<void> {
+export async function refreshStorageStats(forceReset: boolean = false): Promise<void> {
   try {
     const data = await fetchStorageStats();
     if (data) {
@@ -173,22 +173,19 @@ export async function refreshStorageStats(): Promise<void> {
       const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 82.77);
       const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 8887884161);
 
-      // Merge storageStats but never let polling overwrite HIGHER numbers already pushed via SSE.
-      // This prevents the "numbers jump up then reset" bug caused by stale API responses.
-      const mergedActiveLakehouse = data.activeLakehouse && state.storageStats?.activeLakehouse
+      // Merge storageStats but never let polling overwrite HIGHER numbers already pushed via SSE,
+      // UNLESS a forceReset was explicitly triggered by user resetting the ingestion session.
+      const mergedActiveLakehouse = (!forceReset && data.activeLakehouse && state.storageStats?.activeLakehouse)
         ? {
             ...data.activeLakehouse,
-            // Gold vectors: take the higher of API response vs current state (SSE may have pushed it higher)
             activeLanceDbVectors: Math.max(
               data.activeLakehouse.activeLanceDbVectors ?? 0,
               state.storageStats.activeLakehouse.activeLanceDbVectors ?? 0,
             ),
-            // ArXiv HTML count: take higher value
             arxivHtmlCount: Math.max(
               data.activeLakehouse.arxivHtmlCount ?? 0,
               state.storageStats.activeLakehouse.arxivHtmlCount ?? 0,
             ),
-            // Conference count: take higher value (pipeline may have added more)
             conferenceCount: Math.max(
               data.activeLakehouse.conferenceCount ?? 0,
               state.storageStats.activeLakehouse.conferenceCount ?? 0,
@@ -201,6 +198,7 @@ export async function refreshStorageStats(): Promise<void> {
         storageUsedGb: gb,
         storageUsedPct: pct,
         storageTotalBytes: bytes,
+        ...(forceReset ? { sessionIngested: 0 } : {}),
       });
 
       if (typeof window !== 'undefined') {
@@ -467,6 +465,12 @@ function getSnapshot(): LakehouseStreamState {
   return state;
 }
 
+export function resetSessionInStore(): void {
+  updateState({
+    sessionIngested: 0,
+  });
+}
+
 export function useLakehouseStreamStore() {
   const storeState = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return {
@@ -475,6 +479,7 @@ export function useLakehouseStreamStore() {
     setStreamTarget,
     appendLog: appendStreamLog,
     refreshStorageStats,
+    resetSessionInStore,
     setViewMode,
   };
 }
