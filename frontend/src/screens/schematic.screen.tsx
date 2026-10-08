@@ -1,5 +1,5 @@
 import { useState, useEffect, type FC } from 'react';
-import { InteractiveWorkflowCanvas, PipelineFlow, StorageInspector } from '../components/schematic';
+import { InteractiveWorkflowCanvas, StorageInspector } from '../components/schematic';
 import { MetricsBento } from '../components/common';
 import { useLakehouseStreamStore } from '../store';
 import { useTranslation } from '../hooks';
@@ -14,7 +14,7 @@ export interface SchematicScreenProps {
   onTriggerPipeline?: () => void;
 }
 
-export type CanvasOverlayType = 'none' | 'bento' | 'medallion' | 'storage';
+export type CanvasOverlayType = 'none' | 'bento' | 'storage';
 
 export const SchematicScreen: FC<SchematicScreenProps> = ({
   theme = 'dark',
@@ -28,7 +28,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
 
   const [activeOverlay, setActiveOverlay] = useState<CanvasOverlayType>('none');
 
-  // Keyboard shortcut listener: Escape to close overlay, B for Bento, M for Medallion, S for Storage
+  // Keyboard shortcut listener: Escape to close overlay, B for Bento, S for Storage
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
@@ -38,8 +38,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
         setActiveOverlay('none');
       } else if (e.key === 'b' || e.key === 'B') {
         setActiveOverlay((prev) => (prev === 'bento' ? 'none' : 'bento'));
-      } else if (e.key === 'm' || e.key === 'M') {
-        setActiveOverlay((prev) => (prev === 'medallion' ? 'none' : 'medallion'));
       } else if (e.key === 's' || e.key === 'S') {
         setActiveOverlay((prev) => (prev === 'storage' ? 'none' : 'storage'));
       }
@@ -190,34 +188,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               <span>{language === 'vi' ? 'BENTO CHỈ SỐ' : 'BENTO METRICS'}</span>
             </button>
 
-            {/* 2. Medallion Flow Icon Button */}
-            <button
-              type="button"
-              onClick={() => setActiveOverlay((prev) => (prev === 'medallion' ? 'none' : 'medallion'))}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                borderRadius: '5px',
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: activeOverlay === 'medallion' ? 800 : 600,
-                backgroundColor: activeOverlay === 'medallion' ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#dcfce7') : 'transparent',
-                color: activeOverlay === 'medallion' ? '#10b981' : 'var(--text-secondary)',
-                border: activeOverlay === 'medallion' ? '1px solid rgba(16, 185, 129, 0.6)' : '1px solid transparent',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title={language === 'vi' ? 'Bật/tắt kiến trúc Medallion (Phím M)' : 'Toggle Medallion Flow (Key M)'}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
-              <span>{language === 'vi' ? 'KIẾN TRÚC MEDALLION' : 'MEDALLION FLOW'}</span>
-            </button>
-
-            {/* 3. Storage Inspector Icon Button */}
+            {/* 2. Storage Inspector Icon Button */}
             <button
               type="button"
               onClick={() => setActiveOverlay((prev) => (prev === 'storage' ? 'none' : 'storage'))}
@@ -365,21 +336,17 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               {/* Left Title */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '18px' }}>
-                  {activeOverlay === 'bento' ? '📊' : activeOverlay === 'medallion' ? '🏛️' : '🗄️'}
+                  {activeOverlay === 'bento' ? '📊' : '🗄️'}
                 </span>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
                     {activeOverlay === 'bento'
                       ? (language === 'vi' ? 'TỔNG QUAN QUY MÔ & DUNG LƯỢNG LƯU TRỮ' : 'LAKEHOUSE CAPACITY & METRICS BENTO')
-                      : activeOverlay === 'medallion'
-                      ? (language === 'vi' ? 'KIẾN TRÚC TIẾN TRÌNH MEDALLION (BRONZE • SILVER • GOLD • INFERENCE)' : 'MEDALLION PIPELINE ARCHITECTURE')
                       : (language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG & BỘ LẬP LỊCH TỰ HÀNH' : 'MULTI-TIER STORAGE LENS & AUTONOMOUS SCHEDULER')}
                   </div>
                   <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                     {activeOverlay === 'bento'
                       ? (language === 'vi' ? 'Hạn mức 10GB Cloudflare R2 • 36,414 công trình • 2.22M công thức toán' : '10GB Cloudflare R2 Quota • 36,414 Works • 2.22M LaTeX Formulas')
-                      : activeOverlay === 'medallion'
-                      ? (language === 'vi' ? 'Quy trình chuẩn Enterprise từ thu thập thô đến phục vụ RAG học thuật' : 'Enterprise 4-stage flow from raw harvest to academic RAG')
                       : (language === 'vi' ? 'Cây thư mục R2, bảng Parquet nén Snappy 4.2x và điều khiển Daemon cào' : 'R2 object tree, Snappy 4.2x Parquets, and crawl daemon')}
                   </div>
                 </div>
@@ -398,7 +365,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               >
                 {[
                   { id: 'bento' as const, label: language === 'vi' ? 'Bento Chỉ Số' : 'Bento Metrics' },
-                  { id: 'medallion' as const, label: language === 'vi' ? 'Tiến Trình Medallion' : 'Medallion Flow' },
                   { id: 'storage' as const, label: language === 'vi' ? 'Lăng Kính Lưu Trữ' : 'Storage Lens' },
                 ].map((tab) => {
                   const isCurrent = activeOverlay === tab.id;
@@ -462,7 +428,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               }}
             >
               {activeOverlay === 'bento' && <MetricsBento />}
-              {activeOverlay === 'medallion' && <PipelineFlow />}
               {activeOverlay === 'storage' && <StorageInspector />}
             </div>
           </div>
