@@ -40,6 +40,13 @@ from src.utils.hasher import compute_sha256
 from src.utils.logger import setup_pipeline_logging
 
 
+def broadcast_telemetry(payload: dict):
+    try:
+        httpx.post("http://localhost:8000/api/ingestion/broadcast", json=payload, timeout=0.25)
+    except Exception:
+        pass
+
+
 def get_silver_stats(engine: DuckDBEngine) -> Dict[str, Any]:
     """Lay thong ke hien tai cua tang Silver tu file Parquet."""
     silver_glob = str(settings.ROOT_DIR / "data" / "silver" / "**" / "*.parquet")
@@ -87,6 +94,8 @@ def run_phase1_harvest(
         print("[INFO] Bo qua thu thap moi. Chuyen truc tiep sang Phase tiep theo.")
         return current_count
 
+    broadcast_telemetry({"type": "STAGE_CHANGE", "stage": "harvest", "title": f"Starting arXiv harvesting (Target: {target_papers} papers)"})
+
     try:
         harvester = ArxivBatchHarvester(r2_client=r2, request_delay=delay)
         total_ingested = harvester.harvest_large_corpus(
@@ -94,6 +103,7 @@ def run_phase1_harvest(
             reset_checkpoint=reset_checkpoint,
         )
         print(f"[SUCCESS] Phase 1 hoan tat: Tong so bai bao trong Silver dat {total_ingested:,} bai.")
+        broadcast_telemetry({"type": "STAGE_CHANGE", "stage": "silver", "title": f"Phase 1 completed: Silver Lakehouse has {total_ingested:,} papers"})
         return total_ingested
     except Exception as e:
         err_msg = f"Phase 1 gap loi nghiem trong: {e}\n{traceback.format_exc()}"
@@ -305,6 +315,12 @@ def run_phase3_gold_indexing(
         lancedb_mgr = LanceDBManager(r2_client=r2)
         inserted = lancedb_mgr.insert_chunks(all_chunks)
         print(f"[INFO] Da nap {inserted:,} ban ghi vao LanceDB Table '{lancedb_mgr.DEFAULT_TABLE_NAME}'.")
+        broadcast_telemetry({
+            "type": "PAPER_INGESTED",
+            "stage": "gold",
+            "vectors_synced": inserted,
+            "title": f"Upserted {inserted:,} vectors into LanceDB Gold",
+        })
     except Exception as e:
         err_msg = f"Loi ghi vao LanceDB: {e}\n{traceback.format_exc()}"
         logger.error(err_msg)
