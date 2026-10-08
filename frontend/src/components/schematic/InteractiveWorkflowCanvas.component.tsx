@@ -3483,35 +3483,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               </div>
             </div>
 
-            {/* Center: Quick navigation to system logs */}
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('logs')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 12px',
-                  borderRadius: '6px',
-                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : '#e0f2fe',
-                  border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
-                  color: isDark ? '#38bdf8' : '#0284c7',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title={language === 'vi' ? 'Mở trang Nhật Ký Hệ Thống [Alt+5]' : 'Open System Telemetry Logs [Alt+5]'}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="4 17 10 11 4 5" />
-                  <line x1="12" y1="19" x2="20" y2="19" />
-                </svg>
-                <span>{language === 'vi' ? 'XEM NHẬT KÝ HỆ THỐNG [ALT+5] ↗' : 'VIEW SYSTEM LOGS [ALT+5] ↗'}</span>
-              </button>
-            )}
 
             {/* Right: Expand/Collapse toggle + Close button */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
