@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent, type F
 import type { ChatResponse } from '../../types';
 import { sendChatQuery, streamChatQuery, fetchPaper } from '../../services';
 import { ScientificMath } from '../common/ScientificMath.component';
+import { useTranslation } from '../../hooks';
 
 export interface GroundedRagChatProps {
   theme?: 'dark' | 'light';
@@ -36,43 +37,58 @@ interface InspectedPaperData {
   doi?: string;
 }
 
-const RESEARCH_PROMPT_SUGGESTIONS = [
+const getResearchPromptSuggestions = (lang: 'en' | 'vi') => [
   {
     label: 'Diffusion Distillation',
-    query: 'What is the role of sampling z_t in conditional diffusion distillation according to CoDi paper 2310.01407?',
+    query: lang === 'vi'
+      ? 'Vai trò của việc lấy mẫu z_t trong conditional diffusion distillation theo bài báo CoDi 2310.01407 là gì?'
+      : 'What is the role of sampling z_t in conditional diffusion distillation according to CoDi paper 2310.01407?',
     category: 'cs.CV',
   },
   {
     label: 'LoRA Efficiency',
-    query: 'How does low-rank adaptation (LoRA) reduce trainable parameters while preserving cross-entropy convergence?',
+    query: lang === 'vi'
+      ? 'Phương pháp Low-Rank Adaptation (LoRA) giảm tham số huấn luyện như thế nào mà vẫn đảm bảo độ hội tụ cross-entropy?'
+      : 'How does low-rank adaptation (LoRA) reduce trainable parameters while preserving cross-entropy convergence?',
     category: 'cs.CL',
   },
   {
     label: 'SGLD Generalization',
-    query: 'What are the empirical convergence bounds for Stochastic Gradient Langevin Dynamics (SGLD) optimization?',
+    query: lang === 'vi'
+      ? 'Các chặn hội tụ thực nghiệm cho tối ưu hóa Stochastic Gradient Langevin Dynamics (SGLD) là gì?'
+      : 'What are the empirical convergence bounds for Stochastic Gradient Langevin Dynamics (SGLD) optimization?',
     category: 'stat.ML',
   },
   {
     label: 'FlashAttention-2',
-    query: 'How does FlashAttention-2 optimize thread block memory layout to minimize HBM IO traffic?',
+    query: lang === 'vi'
+      ? 'FlashAttention-2 tối ưu hóa bố cục bộ nhớ thread block như thế nào để giảm thiểu lưu lượng HBM IO?'
+      : 'How does FlashAttention-2 optimize thread block memory layout to minimize HBM IO traffic?',
     category: 'cs.AI',
   },
 ];
 
-const RAG_STREAMING_STATUSES = [
-  'Querying LanceDB Gold Lakehouse (164,702 vectors 768-D)...',
-  'Verifying context & arXiv citations...',
-  'Qwen2.5-7B synthesizing academic response...',
-];
+const getStreamingStatuses = (lang: 'en' | 'vi') => {
+  if (lang === 'vi') {
+    return [
+      'Đang truy vấn LanceDB Gold Lakehouse (164,702 vectors 768-D)...',
+      'Đang đối chiếu ngữ cảnh & trích dẫn arXiv...',
+      'Qwen2.5-7B đang tổng hợp câu trả lời học thuật...',
+    ];
+  }
+  return [
+    'Querying LanceDB Gold Lakehouse (164,702 vectors 768-D)...',
+    'Verifying context & arXiv citations...',
+    'Qwen2.5-7B synthesizing academic response...',
+  ];
+};
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: 'msg-0',
-    sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **36,414 harvested works** (11,660 arXiv HTML5 preprints + 24,754 OpenAlex metadata records), **2.22M formulas** (2,220,938 LaTeX equations), and **143,523 LanceDB vector embeddings** (Nomic Embed 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?',
-    timestamp: '12:00:00',
-  },
-];
+const getInitialGreeting = (lang: 'en' | 'vi'): string => {
+  if (lang === 'vi') {
+    return 'Xin chào! Tôi là **Trợ lý RAG Khoa học UTH**.\n\nĐược vận hành bởi mô hình **Qwen2.5-7B-Instruct** và kết nối trực tiếp theo thời gian thực với Lakehouse học thuật gồm **36,414 bài báo khoa học** (11,660 arXiv HTML5 preprints + 24,754 OpenAlex metadata records), **2.22M công thức toán học** (2,220,938 phương trình LaTeX), cùng **164,702 vector embeddings** trên LanceDB (Nomic Embed 768-D). Mọi phản hồi đều được đối chiếu và trích dẫn chuẩn xác từ toàn văn bài báo. Bạn có câu hỏi nghiên cứu nào cần giải đáp hôm nay?';
+  }
+  return 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **36,414 harvested works** (11,660 arXiv HTML5 preprints + 24,754 OpenAlex metadata records), **2.22M formulas** (2,220,938 LaTeX equations), and **164,702 LanceDB vector embeddings** (Nomic Embed 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?';
+};
 
 export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   theme = 'dark',
@@ -80,12 +96,37 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   onClearInitialQuery,
 }) => {
   const isDark = theme === 'dark';
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const { language } = useTranslation();
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'msg-0',
+      sender: 'assistant',
+      text: getInitialGreeting('en'),
+      timestamp: '12:00:00',
+    },
+  ]);
   const [inputText, setInputText] = useState<string>(initialQuery);
   const [loading, setLoading] = useState<boolean>(false);
   const [useStreaming, setUseStreaming] = useState<boolean>(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [streamingStepIndex, setStreamingStepIndex] = useState<number>(0);
+
+  // Update initial greeting when language changes if only welcome message is present
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 1 && prev[0].id === 'msg-0') {
+        return [
+          {
+            id: 'msg-0',
+            sender: 'assistant',
+            text: getInitialGreeting(language),
+            timestamp: '12:00:00',
+          },
+        ];
+      }
+      return prev;
+    });
+  }, [language]);
 
   // Paper Dossier Drawer State
   const [inspectedPaper, setInspectedPaper] = useState<InspectedPaperData | null>(null);
@@ -93,6 +134,8 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const streamingStatuses = getStreamingStatuses(language);
 
   // Cycle streaming status text when waiting for the first token
   useEffect(() => {
@@ -103,11 +146,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     }
 
     const interval = setInterval(() => {
-      setStreamingStepIndex((prev) => (prev + 1) % RAG_STREAMING_STATUSES.length);
+      setStreamingStepIndex((prev) => (prev + 1) % streamingStatuses.length);
     }, 1400);
 
     return () => clearInterval(interval);
-  }, [messages]);
+  }, [messages, streamingStatuses.length]);
 
   useEffect(() => {
     if (initialQuery && initialQuery.trim()) {
@@ -353,7 +396,14 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   };
 
   const handleClearHistory = () => {
-    setMessages([INITIAL_MESSAGES[0]]);
+    setMessages([
+      {
+        id: 'msg-0',
+        sender: 'assistant',
+        text: getInitialGreeting(language),
+        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      },
+    ]);
   };
 
   const renderInlineContent = (rawText: string): React.ReactNode[] => {
@@ -589,14 +639,14 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
               }}
             />
             <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#38bdf8' : '#0f172a' }}>
-              SCIENTIFIC RAG RADAR
+              {language === 'vi' ? 'RADAR RAG KHOA HỌC' : 'SCIENTIFIC RAG RADAR'}
             </span>
           </div>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
           <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
-            36,414 Works · 143,523 LanceDB Vectors (Nomic 768-D)
+            36,414 {language === 'vi' ? 'Bài báo' : 'Works'} · 164,702 LanceDB Vectors (Nomic 768-D)
           </span>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
@@ -621,7 +671,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
               gap: '4px',
             }}
           >
-            <span>SSE STREAM: {useStreaming ? 'ON' : 'OFF'}</span>
+            <span>SSE STREAM: {useStreaming ? (language === 'vi' ? 'BẬT' : 'ON') : (language === 'vi' ? 'TẮT' : 'OFF')}</span>
           </button>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
@@ -629,7 +679,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <button
             type="button"
             onClick={handleClearHistory}
-            title="Reset conversation thread"
+            title={language === 'vi' ? 'Đặt lại đoạn hội thoại' : 'Reset conversation thread'}
             style={{
               fontSize: '11px',
               fontFamily: 'var(--font-mono)',
@@ -645,7 +695,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
             </svg>
-            <span>CLEAR</span>
+            <span>{language === 'vi' ? 'XÓA' : 'CLEAR'}</span>
           </button>
         </div>
       </div>
@@ -807,7 +857,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                             letterSpacing: '0.2px',
                           }}
                         >
-                          {RAG_STREAMING_STATUSES[streamingStepIndex]}
+                          {streamingStatuses[streamingStepIndex] || streamingStatuses[0]}
                         </span>
                       </div>
                     ) : (
@@ -1245,7 +1295,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
               paddingBottom: '2px',
             }}
           >
-            {RESEARCH_PROMPT_SUGGESTIONS.map((item, idx) => (
+            {getResearchPromptSuggestions(language).map((item, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -1289,7 +1339,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder="Ask any scientific inquiry across 36,414 academic works..."
+                placeholder={language === 'vi' ? 'Đặt câu hỏi nghiên cứu khoa học qua 36,414 bài báo...' : 'Ask any scientific inquiry across 36,414 academic works...'}
                 style={{
                   width: '100%',
                   border: 'none',
@@ -1306,7 +1356,9 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 }}
               />
               <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#64748b' : '#94a3b8' }}>
-                Grounded by LanceDB Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline
+                {language === 'vi'
+                  ? <>Được bảo chứng bởi LanceDB Gold · Nhấn <strong>Enter</strong> để gửi, <strong>Shift+Enter</strong> để xuống dòng</>
+                  : <>Grounded by LanceDB Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline</>}
               </div>
             </div>
 
@@ -1337,7 +1389,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
                     <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                   </svg>
-                  <span>RETRIEVING...</span>
+                  <span>{language === 'vi' ? 'ĐANG TÌM...' : 'RETRIEVING...'}</span>
                 </>
               ) : (
                 <>
@@ -1345,7 +1397,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                     <line x1="22" y1="2" x2="11" y2="13" />
                     <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
-                  <span>SEND</span>
+                  <span>{language === 'vi' ? 'GỬI' : 'SEND'}</span>
                 </>
               )}
             </button>

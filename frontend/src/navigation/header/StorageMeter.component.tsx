@@ -1,5 +1,6 @@
 import type { FC } from 'react';
 import { AnimatedCounter } from '../../components/common';
+import { useTranslation } from '../../hooks';
 
 export interface StorageMeterProps {
   storageUsedGb: number;
@@ -11,6 +12,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
   storageUsedGb,
   storageUsedPct,
 }) => {
+  const { language } = useTranslation();
   const quotaGb = 10.0;
   const pct = Math.min(100, Math.max(0, storageUsedPct));
 
@@ -26,9 +28,13 @@ export const StorageMeter: FC<StorageMeterProps> = ({
 
   const accentColor = isHigh ? '#ef4444' : isMed ? '#f59e0b' : '#34d399';
 
+  const tooltipText = language === 'vi'
+    ? `Cloudflare R2 Storage Lens (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)`
+    : `Cloudflare R2 Storage Lens (Free Tier Quota: 10.00 GB)\n• Used: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Available: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Zero Egress Fees`;
+
   return (
     <div
-      title={`Cloudflare R2 Storage Lens (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)`}
+      title={tooltipText}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

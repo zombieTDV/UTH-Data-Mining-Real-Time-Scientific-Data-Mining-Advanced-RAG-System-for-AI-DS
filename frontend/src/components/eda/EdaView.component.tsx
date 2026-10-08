@@ -3,7 +3,7 @@ import type { EdaResponse, CategoryDistItem } from '../../types';
 import { fetchEdaSummary, triggerMiningPipeline } from '../../services';
 import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
-import { useSvgPanZoom } from '../../hooks';
+import { useSvgPanZoom, useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 
 export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
@@ -332,6 +332,7 @@ const SCATTER_DATASET: ScatterPaperPoint[] = [
 
 export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) => {
   const isDark = theme === 'dark';
+  const { language } = useTranslation();
 
   const [data, setData] = useState<EdaResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -891,7 +892,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <h1 style={{ fontSize: isFocusMode ? '11px' : '12px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, letterSpacing: '-0.2px' }}>
-                SCIENTIFIC EDA WORKSPACE // POWERBI VISUALS
+                {language === 'vi' ? 'KHÔNG GIAN EDA KHOA HỌC // TRỰC QUAN HÓA' : 'SCIENTIFIC EDA WORKSPACE // POWERBI VISUALS'}
               </h1>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#059669', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)', padding: '1px 5px', borderRadius: '4px' }}>
                 ● DUCKDB OLAP
@@ -925,7 +926,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     boxShadow: isStreaming ? '0 0 6px #22c55e' : 'none',
                   }}
                 />
-                <span>LAKEHOUSE: {totalCorpus.toLocaleString()} WORKS {isStreaming ? `• ${streamSpeed.toFixed(1)} p/s` : '• ACTIVE'}</span>
+                <span>LAKEHOUSE: {totalCorpus.toLocaleString()} {language === 'vi' ? 'BÀI BÁO' : 'WORKS'} {isStreaming ? `• ${streamSpeed.toFixed(1)} p/s` : '• ACTIVE'}</span>
               </div>
 
               <button
@@ -947,7 +948,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   cursor: isSyncingMining ? 'wait' : 'pointer',
                   transition: 'all 0.15s ease',
                 }}
-                title="Đồng bộ kho bài báo Lakehouse và kích hoạt tái phân tích các chỉ số EDA"
+                title={language === 'vi' ? 'Đồng bộ kho bài báo Lakehouse và kích hoạt tái phân tích các chỉ số EDA' : 'Sync Lakehouse corpus and trigger re-analysis of EDA metrics'}
               >
                 <svg
                   width="10"
@@ -962,7 +963,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 >
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                 </svg>
-                <span>{isSyncingMining ? 'ĐANG ĐỒNG BỘ...' : 'SYNC LAKEHOUSE ML'}</span>
+                <span>{isSyncingMining ? (language === 'vi' ? 'ĐANG ĐỒNG BỘ...' : 'SYNCING...') : (language === 'vi' ? 'ĐỒNG BỘ LAKEHOUSE ML' : 'SYNC LAKEHOUSE ML')}</span>
               </button>
             </div>
           </div>
@@ -988,10 +989,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 gap: '4px',
                 transition: 'all 0.15s ease',
               }}
-              title="Nhấn phím F để bật / tắt chế độ phóng to biểu đồ"
+              title={language === 'vi' ? 'Nhấn phím F để bật / tắt chế độ phóng to biểu đồ' : 'Press F to toggle chart focus mode'}
             >
               <span>{isFocusMode ? '⤡' : '⤢'}</span>
-              <span>{isFocusMode ? 'THOÁT FOCUS' : 'FOCUS MODE'}</span>
+              <span>{isFocusMode ? (language === 'vi' ? 'THOÁT FOCUS' : 'EXIT FOCUS') : (language === 'vi' ? 'CHẾ ĐỘ FOCUS' : 'FOCUS MODE')}</span>
               <span style={{ opacity: 0.65, fontSize: '10px' }}>(F)</span>
             </button>
 
@@ -1013,7 +1014,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 alignItems: 'center',
                 gap: '3px',
               }}
-              title="Kích hoạt thử nghiệm phát hiện bài báo dị biệt đa biến (Z-Score > 3.5)"
+              title={language === 'vi' ? 'Kích hoạt thử nghiệm phát hiện bài báo dị biệt đa biến (Z-Score > 3.5)' : 'Simulate multivariate outlier detection test (Z-Score > 3.5)'}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -1042,12 +1043,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 }}
               >
                 <span>&times;</span>
-                <span>RESET</span>
+                <span>{language === 'vi' ? 'ĐẶT LẠI' : 'RESET'}</span>
               </button>
             )}
 
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, backgroundColor: themeStyles.cardSubtle, padding: '2px 7px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
-              Đang chọn: <strong style={{ color: themeStyles.textPrimary }}>{filteredKpi.totalPapers.toLocaleString()}</strong> bài ({filteredKpi.sharePercent}%)
+              {language === 'vi' ? 'Đang chọn:' : 'Selected:'} <strong style={{ color: themeStyles.textPrimary }}>{filteredKpi.totalPapers.toLocaleString()}</strong> {language === 'vi' ? 'bài' : 'papers'} ({filteredKpi.sharePercent}%)
             </div>
           </div>
         </div>
@@ -1073,7 +1074,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               cursor: 'pointer',
             }}
           >
-            TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'})
+            {language === 'vi' ? 'TẤT CẢ' : 'ALL'} ({overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'})
           </button>
 
           {categoryList.slice(0, 8).map((cat) => {
@@ -1108,7 +1109,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-              MẬT ĐỘ TOÁN:
+              {language === 'vi' ? 'MẬT ĐỘ TOÁN:' : 'MATH DENSITY:'}
             </span>
             {(['ALL', 'HIGH', 'MED', 'LOW'] as const).map((m) => (
               <button
@@ -1127,7 +1128,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   cursor: 'pointer',
                 }}
               >
-                {m === 'ALL' ? 'Tất cả' : m === 'HIGH' ? '> 300' : m === 'MED' ? '100-300' : '< 100'}
+                {m === 'ALL' ? (language === 'vi' ? 'Tất cả' : 'All') : m === 'HIGH' ? '> 300' : m === 'MED' ? '100-300' : '< 100'}
               </button>
             ))}
           </div>
@@ -1175,49 +1176,49 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', flexShrink: 0 }}>
           <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #f59e0b', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              TỔNG SỐ BÀI BÁO (PAPERS)
+              {language === 'vi' ? 'TỔNG SỐ BÀI BÁO (PAPERS)' : 'TOTAL CORPUS (PAPERS)'}
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px', lineHeight: 1.1 }}>
               {filteredKpi.totalPapers.toLocaleString()}
             </div>
             <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {selectedCategory === 'ALL' ? '100% Curated Parquet' : `Chiếm ${filteredKpi.sharePercent}% Lakehouse`}
+              {selectedCategory === 'ALL' ? (language === 'vi' ? '100% Curated Parquet' : '100% Curated Parquet') : (language === 'vi' ? `Chiếm ${filteredKpi.sharePercent}% Lakehouse` : `${filteredKpi.sharePercent}% of Lakehouse`)}
             </div>
           </div>
 
           <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #ea580c', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              CÔNG THỨC TOÁN (LATEX)
+              {language === 'vi' ? 'CÔNG THỨC TOÁN (LATEX)' : 'MATH FORMULAS (LATEX)'}
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#ea580c', marginTop: '2px', lineHeight: 1.1 }}>
               {filteredKpi.totalMath.toLocaleString()}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-              Trung bình <strong>{filteredKpi.avgMath}</strong> eq / bài
+              {language === 'vi' ? <>Trung bình <strong>{filteredKpi.avgMath}</strong> eq / bài</> : <>Avg <strong>{filteredKpi.avgMath}</strong> eq / paper</>}
             </div>
           </div>
 
           <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #10b981', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              HTML5 FULL-TEXT ENRICHED
+              {language === 'vi' ? 'TOÀN VĂN LÀM GIÀU HTML5' : 'HTML5 FULL-TEXT ENRICHED'}
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#059669', marginTop: '2px', lineHeight: 1.1 }}>
               {dataset_overview.enriched_html_papers.toLocaleString()}
             </div>
             <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {filteredKpi.enrichedRatio}% có Section &amp; KaTeX
+              {filteredKpi.enrichedRatio}% {language === 'vi' ? 'có Section & KaTeX' : 'with Sections & KaTeX'}
             </div>
           </div>
 
           <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #2563eb', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              DUNG LƯỢNG TỪ VỰNG (CORPUS)
+              {language === 'vi' ? 'DUNG LƯỢNG TỪ VỰNG (CORPUS)' : 'TEXT CORPUS VOLUME'}
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563eb', marginTop: '2px', lineHeight: 1.1 }}>
-              {(dataset_overview.total_words / 1_000_000).toFixed(2)}M từ
+              {(dataset_overview.total_words / 1_000_000).toFixed(2)}M {language === 'vi' ? 'từ' : 'words'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-              Trung bình <strong>{filteredKpi.avgWords}</strong> từ / bài
+              {language === 'vi' ? <>Trung bình <strong>{filteredKpi.avgWords}</strong> từ / bài</> : <>Avg <strong>{filteredKpi.avgWords}</strong> words / paper</>}
             </div>
           </div>
         </div>
@@ -1241,12 +1242,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         {/* Deck Capsules (6 Decks) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           {[
-            { id: 'combo' as DeckType, label: 'COMBO & TIMELINE', keyNum: '1' },
-            { id: 'scatter' as DeckType, label: '2D SCATTER PLOT', keyNum: '2' },
-            { id: 'taxonomy' as DeckType, label: 'TAXONOMY & HEATMAP', keyNum: '3' },
-            { id: 'authors' as DeckType, label: 'TOP AUTHORS & QUANTILES', keyNum: '4' },
-            { id: 'correlations' as DeckType, label: 'CORRELATIONS & ANOVA', keyNum: '5' },
-            { id: 'rag_audit' as DeckType, label: 'RAG QUALITY AUDIT', keyNum: '6' },
+            { id: 'combo' as DeckType, label: language === 'vi' ? 'COMBO & TIẾN TRÌNH' : 'COMBO & TIMELINE', keyNum: '1' },
+            { id: 'scatter' as DeckType, label: language === 'vi' ? 'BIỂU ĐỒ PHÂN TÁN 2D' : '2D SCATTER PLOT', keyNum: '2' },
+            { id: 'taxonomy' as DeckType, label: language === 'vi' ? 'PHÂN LOẠI & HEATMAP' : 'TAXONOMY & HEATMAP', keyNum: '3' },
+            { id: 'authors' as DeckType, label: language === 'vi' ? 'TÁC GIẢ & PHÂN VỊ' : 'TOP AUTHORS & QUANTILES', keyNum: '4' },
+            { id: 'correlations' as DeckType, label: language === 'vi' ? 'TƯƠNG QUAN & ANOVA' : 'CORRELATIONS & ANOVA', keyNum: '5' },
+            { id: 'rag_audit' as DeckType, label: language === 'vi' ? 'KIỂM TOÁN CHẤT LƯỢNG RAG' : 'RAG QUALITY AUDIT', keyNum: '6' },
           ].map((deck) => {
             const isActive = activeDeck === deck.id;
             return (
@@ -2161,15 +2162,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span className="telemetry-chip" style={{ color: '#ea580c' }}>
-                  {filteredScatterPoints.length} BÀI KHẢO SÁT &bull; Q1: 745 eq/p
+                  {filteredScatterPoints.length} {language === 'vi' ? 'BÀI KHẢO SÁT' : 'SAMPLED PAPERS'} &bull; Q1: 745 eq/p
                 </span>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Phân vị:</span>
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>{language === 'vi' ? 'Phân vị:' : 'Quadrant:'}</span>
                 {[
-                  { id: 'ALL' as const, label: 'Tất cả' },
-                  { id: 'Q1' as const, label: 'Q1 Lý thuyết (>300 eq)' },
-                  { id: 'Q2' as const, label: 'Q2 Khảo luận (>6k w)' },
-                  { id: 'Q3' as const, label: 'Q3 Ngắn' },
-                  { id: 'Q4' as const, label: 'Q4 LLMs' },
+                  { id: 'ALL' as const, label: language === 'vi' ? 'Tất cả' : 'All' },
+                  { id: 'Q1' as const, label: language === 'vi' ? 'Q1 Lý thuyết (>300 eq)' : 'Q1 Theory (>300 eq)' },
+                  { id: 'Q2' as const, label: language === 'vi' ? 'Q2 Khảo luận (>6k w)' : 'Q2 Comprehensive (>6k w)' },
+                  { id: 'Q3' as const, label: language === 'vi' ? 'Q3 Ngắn' : 'Q3 Short' },
+                  { id: 'Q4' as const, label: language === 'vi' ? 'Q4 Thực nghiệm LLMs' : 'Q4 Empirical LLMs' },
                 ].map((q) => {
                   const isQActive = selectedQuadrant === q.id;
                   return (

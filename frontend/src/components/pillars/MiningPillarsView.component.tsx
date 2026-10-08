@@ -16,7 +16,7 @@ import {
 } from '../../services';
 import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
-import { useSvgPanZoom } from '../../hooks';
+import { useSvgPanZoom, useTranslation } from '../../hooks';
 
 export interface MiningPillarsViewProps {
   theme?: 'dark' | 'light';
@@ -68,6 +68,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   onNavigateToRag,
 }) => {
   const isDark = theme === 'dark';
+  const { language } = useTranslation();
 
   // Active Viewport & Cockpit States
   const [activePillar, setActivePillar] = useState<1 | 2 | 3 | 4>(1);
@@ -776,11 +777,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 }}
               />
               <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary }}>
-                LAKEHOUSE CORPUS: {totalCorpus.toLocaleString()} WORKS
+                LAKEHOUSE CORPUS: {totalCorpus.toLocaleString()} {language === 'vi' ? 'BÀI BÁO' : 'WORKS'}
               </span>
               <span style={{ color: themeStyles.textMuted, fontSize: '11px' }}>&bull;</span>
               <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                4 PILLARS ML ENGINE (FP-GROWTH &bull; K-MEANS &bull; LOUVAIN &bull; ISOLATION FOREST)
+                {language === 'vi'
+                  ? 'ĐỘNG CƠ 4 TRỤ CỘT ML (FP-GROWTH • K-MEANS • LOUVAIN • ISOLATION FOREST)'
+                  : '4 PILLARS ML ENGINE (FP-GROWTH • K-MEANS • LOUVAIN • ISOLATION FOREST)'}
               </span>
             </div>
 
@@ -819,7 +822,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   cursor: isRecomputingPipeline ? 'wait' : 'pointer',
                   transition: 'all 0.15s ease',
                 }}
-                title="Kích hoạt tính toán lại toàn bộ 4 Trụ Cột Khai Phá trên dữ liệu Lakehouse mới nhất"
+                title={language === 'vi' ? 'Kích hoạt tính toán lại toàn bộ 4 Trụ Cột Khai Phá trên dữ liệu Lakehouse mới nhất' : 'Trigger recomputation of all 4 Mining Pillars on latest Lakehouse data'}
               >
                 <svg
                   width="11"
@@ -834,7 +837,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 >
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                 </svg>
-                <span>{isRecomputingPipeline ? 'ĐANG TÍNH TOÁN...' : 'RECOMPUTE 4 PILLARS'}</span>
+                <span>{isRecomputingPipeline ? (language === 'vi' ? 'ĐANG TÍNH TOÁN...' : 'RECOMPUTING...') : (language === 'vi' ? 'CHẠY LẠI 4 TRỤ CỘT' : 'RECOMPUTE 4 PILLARS')}</span>
               </button>
             </div>
           </div>
@@ -868,7 +871,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
-                TRỤ CỘT 01 [Phím 1]
+                {language === 'vi' ? 'TRỤ CỘT 01 [Phím 1]' : 'PILLAR 01 [Key 1]'}
               </span>
               <span
                 style={{
@@ -885,7 +888,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
-              LUẬT KẾT HỢP (RULES)
+              {language === 'vi' ? 'LUẬT KẾT HỢP (RULES)' : 'ASSOCIATION RULES'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
               {rulesData?.rules.length || 0} Rules &bull; Max Lift {maxLiftInCorpus.toFixed(1)}x
@@ -912,7 +915,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb' }}>
-                TRỤ CỘT 02 [Phím 2]
+                {language === 'vi' ? 'TRỤ CỘT 02 [Phím 2]' : 'PILLAR 02 [Key 2]'}
               </span>
               <span
                 style={{
@@ -929,10 +932,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
-              PHÂN CỤM NGỮ NGHĨA
+              {language === 'vi' ? 'PHÂN CỤM NGỮ NGHĨA' : 'SEMANTIC CLUSTERING'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              {clustersData?.cluster_profiles?.length || 6} Cụm &bull; {filteredClusterPoints.length.toLocaleString()} Vectors (Live)
+              {clustersData?.cluster_profiles?.length || 6} {language === 'vi' ? 'Cụm' : 'Clusters'} &bull; {filteredClusterPoints.length.toLocaleString()} Vectors (Live)
             </div>
           </button>
 
@@ -956,7 +959,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed' }}>
-                TRỤ CỘT 03 [Phím 3]
+                {language === 'vi' ? 'TRỤ CỘT 03 [Phím 3]' : 'PILLAR 03 [Key 3]'}
               </span>
               <span
                 style={{
@@ -973,7 +976,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
-              ĐỒ THỊ KHOA HỌC (GRAPH)
+              {language === 'vi' ? 'ĐỒ THỊ KHOA HỌC (GRAPH)' : 'SCIENTIFIC NETWORK'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
               {graphData?.graph_export?.nodes?.length || 120} Nodes &bull; {graphData?.graph_export?.links?.length || 243} Edges (Live)
@@ -1000,7 +1003,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
-                TRỤ CỘT 04 [Phím 4]
+                {language === 'vi' ? 'TRỤ CỘT 04 [Phím 4]' : 'PILLAR 04 [Key 4]'}
               </span>
               <span
                 style={{
@@ -1017,10 +1020,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
-              XU HƯỚNG &amp; DỊ BIỆT
+              {language === 'vi' ? 'XU HƯỚNG & DỊ BIỆT' : 'TRENDS & ANOMALIES'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              {trendsData?.anomalies?.length || 30} Dị biệt &bull; {topSurging?.category || 'Surge'} (+{topSurging?.growth_rate_pct || 5940}%)
+              {trendsData?.anomalies?.length || 30} {language === 'vi' ? 'Dị biệt' : 'Anomalies'} &bull; {topSurging?.category || 'Surge'} (+{topSurging?.growth_rate_pct || 5940}%)
             </div>
           </button>
 
@@ -1045,7 +1048,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               gap: '2px',
               minWidth: '65px',
             }}
-            title="Nhấn phím F để phóng to vùng biểu đồ"
+            title={language === 'vi' ? 'Nhấn phím F để phóng to vùng biểu đồ' : 'Press F to toggle chart focus'}
           >
             <span style={{ fontSize: '14px' }}>⤢</span>
             <span>Focus (F)</span>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { subscribeTelemetry } from '../../services';
 import { useLakehouseStreamStore, appendStreamLog, clearStreamLogs, type StreamingLogEntry } from '../../store';
+import { useTranslation } from '../../hooks';
 
 export interface LogLine {
   id: string;
@@ -11,6 +12,7 @@ export interface LogLine {
 }
 
 export function LiveTelemetryFeed() {
+  const { language } = useTranslation();
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export function LiveTelemetryFeed() {
             boxShadow: '0 0 8px rgba(16, 185, 129, 0.7)'
           }} />
           <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-            LAKEHOUSE REAL-TIME TELEMETRY FEED
+            {language === 'vi' ? 'NHẬT KÝ TELEMETRY THỜI GIAN THỰC LAKEHOUSE' : 'LAKEHOUSE REAL-TIME TELEMETRY FEED'}
           </span>
           <span style={{
             fontSize: '11px',
@@ -140,14 +142,14 @@ export function LiveTelemetryFeed() {
                   cursor: 'pointer'
                 }}
               >
-                {lvl}
+                {language === 'vi' && lvl === 'ALL' ? 'TẤT CẢ' : lvl}
               </button>
             ))}
           </div>
 
           <input
             type="text"
-            placeholder="Search log lines..."
+            placeholder={language === 'vi' ? 'Tìm kiếm dòng log...' : 'Search log lines...'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -178,9 +180,9 @@ export function LiveTelemetryFeed() {
               fontWeight: 700,
               transition: 'all 0.15s ease',
             }}
-            title="Reset telemetry log stream back to Lakehouse seed state"
+            title={language === 'vi' ? 'Đặt lại luồng log về trạng thái ban đầu của Lakehouse' : 'Reset telemetry log stream back to Lakehouse seed state'}
           >
-            RESET LOGS
+            {language === 'vi' ? 'ĐẶT LẠI LOG' : 'RESET LOGS'}
           </button>
         </div>
       </div>

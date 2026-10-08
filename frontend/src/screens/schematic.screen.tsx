@@ -2,6 +2,7 @@ import type { FC } from 'react';
 import { InteractiveWorkflowCanvas } from '../components/schematic';
 import { MetricsBento } from '../components/common';
 import { StorageInspector } from '../components/schematic';
+import { useTranslation } from '../hooks';
 import type { AppTab, AppTheme, PipelineStatus, SchematicViewMode } from '../types';
 
 export interface SchematicScreenProps {
@@ -21,6 +22,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   onNavigateTab,
   onTriggerPipeline,
 }) => {
+  const { language } = useTranslation();
   return (
     <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
       {/* High-Contrast Segmented View Mode Switcher */}
@@ -69,7 +71,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               <path d="M6.5 10v4" />
               <path d="M17.5 10v4" />
             </svg>
-            <span>FLOW CANVAS</span>
+            <span>{language === 'vi' ? 'SƠ ĐỒ LUỒNG' : 'FLOW CANVAS'}</span>
             {viewMode === 'canvas' && (
               <span
                 style={{
@@ -111,7 +113,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               <path d="M3 9h18" />
               <path d="M9 21V9" />
             </svg>
-            <span>BENTO &amp; STORAGE INSPECTOR</span>
+            <span>{language === 'vi' ? 'BENTO & GIÁM SÁT LƯU TRỮ' : 'BENTO & STORAGE INSPECTOR'}</span>
             <span
               style={{
                 fontSize: '9.5px',
@@ -167,10 +169,12 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                 />
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                    LAKEHOUSE MULTI-TIER STORAGE LENS
+                    {language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG LAKEHOUSE' : 'LAKEHOUSE MULTI-TIER STORAGE LENS'}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    Continuous Verification: Cloudflare R2 S3 Object Lake &bull; Apache Arrow / DuckDB OLAP &bull; LanceDB Vector Store
+                    {language === 'vi'
+                      ? 'Kiểm chứng liên tục: Cloudflare R2 S3 Object Lake • Apache Arrow / DuckDB OLAP • LanceDB Vector Store'
+                      : 'Continuous Verification: Cloudflare R2 S3 Object Lake • Apache Arrow / DuckDB OLAP • LanceDB Vector Store'}
                   </div>
                 </div>
               </div>
@@ -188,7 +192,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                     fontWeight: 700,
                   }}
                 >
-                  ZERO EGRESS R2 ACTIVE
+                  {language === 'vi' ? 'ZERO EGRESS R2 HOẠT ĐỘNG' : 'ZERO EGRESS R2 ACTIVE'}
                 </span>
                 <span
                   style={{
@@ -202,7 +206,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                     fontWeight: 700,
                   }}
                 >
-                  REAL-TIME SYNCED
+                  {language === 'vi' ? 'ĐỒNG BỘ THỜI GIAN THỰC' : 'REAL-TIME SYNCED'}
                 </span>
               </div>
             </div>
