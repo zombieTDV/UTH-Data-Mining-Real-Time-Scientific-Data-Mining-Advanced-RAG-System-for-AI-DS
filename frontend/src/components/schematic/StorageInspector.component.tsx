@@ -3,6 +3,7 @@ import { fetchStorageStats, syncR2Storage, resetStorageSession } from '../../ser
 import { useLakehouseStreamStore } from '../../store';
 import { AnimatedCounter } from '../common';
 import type { StorageStatsResponse } from '../../types';
+import { AdaptiveSchedulerControl } from './AdaptiveSchedulerControl.component';
 
 export interface LakehouseLayer {
   zone: 'BRONZE' | 'SILVER' | 'GOLD' | 'BACKUP';
@@ -60,11 +61,8 @@ export function StorageInspector() {
   };
 
   useEffect(() => {
+    // Initial fetch once on mount; all subsequent real-time updates flow via SSE reactive store
     refreshStorageStats();
-    const interval = setInterval(() => {
-      refreshStorageStats();
-    }, 3000);
-    return () => clearInterval(interval);
   }, [refreshStorageStats]);
 
   const activeStats = storageStats || stats;
@@ -431,6 +429,9 @@ export function StorageInspector() {
           </tbody>
         </table>
       </div>
+
+      {/* Adaptive Ingestion Scheduler & R2 Cost-Guard Controls */}
+      <AdaptiveSchedulerControl />
     </div>
   );
 }

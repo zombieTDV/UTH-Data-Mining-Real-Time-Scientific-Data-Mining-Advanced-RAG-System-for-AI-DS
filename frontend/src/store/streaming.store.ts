@@ -53,18 +53,30 @@ const getStoredLogs = (): StreamingLogEntry[] => {
   return [];
 };
 
+const getStoredStorageStats = (): StorageStatsResponse | null => {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('uth_lakehouse_storage_stats_cache');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+  }
+  return null;
+};
+
+const initialCachedStats = getStoredStorageStats();
+
 let state: LakehouseStreamState = {
   isStreaming: false,
   totalCorpus: 36414,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
-  storageUsedGb: 8.184,
-  storageUsedPct: 81.84,
-  storageTotalBytes: 8787548614,
+  storageUsedGb: initialCachedStats?.activeLakehouse?.totalSizeGb ?? 8.184,
+  storageUsedPct: initialCachedStats?.activeLakehouse?.usedPercentage ?? 81.84,
+  storageTotalBytes: initialCachedStats?.activeLakehouse?.totalSizeBytes ?? 8787548614,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
-  storageStats: null,
+  storageStats: initialCachedStats,
   activePipelineStage: 'idle',
   connectionStatus: 'DISCONNECTED',
   viewMode: getStoredViewMode(),
@@ -128,6 +140,12 @@ export async function refreshStorageStats(): Promise<void> {
         storageUsedPct: Math.max(pct, state.storageUsedPct),
         storageTotalBytes: Math.max(bytes, state.storageTotalBytes),
       });
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('uth_lakehouse_storage_stats_cache', JSON.stringify(data));
+        } catch {}
+      }
     }
   } catch (e) {
     console.warn('[StreamStore] Failed to refresh storage stats:', e);
