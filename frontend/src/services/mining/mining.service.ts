@@ -66,3 +66,20 @@ export async function resetStorageSession(): Promise<{ status: string; message: 
   if (!res.ok) throw new Error(`Reset session failed: ${res.statusText}`);
   return res.json();
 }
+
+export async function fetchSchedulerStatus(): Promise<any> {
+  const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.schedulerStatus}`);
+  if (!res.ok) throw new Error(`Failed to load scheduler status: ${res.statusText}`);
+  return res.json();
+}
+
+export async function triggerSchedulerHarvest(source: string, limit?: number, syncR2: boolean = true): Promise<any> {
+  const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.schedulerTrigger}/${encodeURIComponent(source)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ limit, sync_r2: syncR2 }),
+  });
+  if (!res.ok) throw new Error(`Failed to trigger harvest for ${source}: ${res.statusText}`);
+  return res.json();
+}
+
