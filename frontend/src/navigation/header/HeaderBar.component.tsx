@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import { StatusPill } from './StatusPill.component';
 import { PipelineStatusPill } from './PipelineStatusPill.component';
-import { StorageMeter } from './StorageMeter.component';
+import { SyncR2Button } from './SyncR2Button.component';
 import { RunPipelineButton } from './RunPipelineButton.component';
 import { LanguageToggle } from './LanguageToggle.component';
 import { useTranslation } from '../../hooks';
@@ -17,10 +17,7 @@ export interface HeaderBarProps {
   totalVectors?: number;
   sessionIngested?: number;
   streamSpeed: number;
-  storageUsedGb: number;
-  storageUsedPct: number;
   onTriggerPipeline: () => void;
-  onOpenStorageLens?: () => void;
 }
 
 export const HeaderBar: FC<HeaderBarProps> = ({
@@ -33,10 +30,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
   totalVectors = 164702,
   sessionIngested = 0,
   streamSpeed,
-  storageUsedGb,
-  storageUsedPct,
   onTriggerPipeline,
-  onOpenStorageLens,
 }) => {
   const { language } = useTranslation();
 
@@ -107,14 +101,9 @@ export const HeaderBar: FC<HeaderBarProps> = ({
         />
       </div>
 
-      {/* Right Controls: Visual Storage Meter + Segmented Language Switch + Pipeline Action */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-        <StorageMeter
-          storageUsedGb={storageUsedGb}
-          storageUsedPct={storageUsedPct}
-          totalPapers={totalPapers}
-          onClick={onOpenStorageLens}
-        />
+      {/* Right Controls: Sync Live R2 Button + Segmented Language Switch + Pipeline Action */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+        <SyncR2Button />
         <LanguageToggle />
         <RunPipelineButton pipelineStatus={pipelineStatus} onClick={onTriggerPipeline} />
       </div>

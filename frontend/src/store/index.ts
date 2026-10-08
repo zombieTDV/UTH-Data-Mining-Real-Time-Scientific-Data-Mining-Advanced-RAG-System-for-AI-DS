@@ -5,6 +5,8 @@ export {
   appendStreamLog,
   addTelemetryLog,
   clearStreamLogs,
+  resetSessionInStore,
   type StreamingLogEntry,
   type LakehouseStreamState,
 } from './streaming.store';
+

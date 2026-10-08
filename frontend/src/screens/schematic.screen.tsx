@@ -1,4 +1,4 @@
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { InteractiveWorkflowCanvas } from '../components/schematic';
 import { useLakehouseStreamStore } from '../store';
 import { useTranslation } from '../hooks';
@@ -11,7 +11,6 @@ export interface SchematicScreenProps {
   pipelineStatus?: PipelineStatus;
   onNavigateTab?: (tab: AppTab) => void;
   onTriggerPipeline?: () => void;
-  onOpenStorageLens?: () => void;
 }
 
 export const SchematicScreen: FC<SchematicScreenProps> = ({
@@ -19,10 +18,10 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   pipelineStatus = 'IDLE',
   onNavigateTab,
   onTriggerPipeline,
-  onOpenStorageLens,
 }) => {
   const { language } = useTranslation();
   const { storageUsedGb, isStreaming } = useLakehouseStreamStore();
+  const [inspectNodeTrigger, setInspectNodeTrigger] = useState<string | null>(null);
 
   return (
     <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
@@ -72,13 +71,13 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
             {/* Micro Badges */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
               <span
-                role={onOpenStorageLens ? 'button' : undefined}
-                tabIndex={onOpenStorageLens ? 0 : undefined}
-                onClick={onOpenStorageLens}
+                role="button"
+                tabIndex={0}
+                onClick={() => setInspectNodeTrigger('bronze-instance')}
                 onKeyDown={(e) => {
-                  if (onOpenStorageLens && (e.key === 'Enter' || e.key === ' ')) {
+                  if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    onOpenStorageLens();
+                    setInspectNodeTrigger('bronze-instance');
                   }
                 }}
                 style={{
@@ -91,15 +90,15 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                   border: '1px solid rgba(56, 189, 248, 0.25)',
                   fontWeight: 700,
                   whiteSpace: 'nowrap',
-                  cursor: onOpenStorageLens ? 'pointer' : 'default',
+                  cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
                 }}
-                title={language === 'vi' ? 'Xem lăng kính lưu trữ R2 (Phím S)' : 'View R2 Storage Lens (Key S)'}
+                title={language === 'vi' ? 'Xem chi tiết lưu trữ Cloudflare R2' : 'View Cloudflare R2 Storage Details'}
               >
                 <span>R2: {(storageUsedGb || 8.28).toFixed(2)} GB / 10 GB</span>
-                {onOpenStorageLens && <span style={{ opacity: 0.7, fontSize: '8.5px' }}>↗</span>}
+                <span style={{ opacity: 0.7, fontSize: '8.5px' }}>↗</span>
               </span>
               <span
                 style={{
@@ -203,6 +202,8 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           onTriggerPipeline={onTriggerPipeline}
           theme={theme}
           language={language}
+          inspectNodeTrigger={inspectNodeTrigger}
+          onClearInspectNodeTrigger={() => setInspectNodeTrigger(null)}
         />
       </div>
     </div>

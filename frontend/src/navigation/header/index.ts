@@ -8,6 +8,8 @@ export { StorageMeter } from './StorageMeter.component';
 export type { StorageMeterProps } from './StorageMeter.component';
 export { RunPipelineButton } from './RunPipelineButton.component';
 export type { RunPipelineButtonProps } from './RunPipelineButton.component';
+export { SyncR2Button } from './SyncR2Button.component';
+export type { SyncR2ButtonProps } from './SyncR2Button.component';
 export { LanguageToggle } from './LanguageToggle.component';
 export { StatusBar } from './StatusBar.component';
 export type { StatusBarProps } from './StatusBar.component';

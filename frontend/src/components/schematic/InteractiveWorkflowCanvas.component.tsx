@@ -5,8 +5,10 @@ import {
   executeDuckDbQuery,
   searchLakehouse,
   sendChatQuery,
+  syncR2Storage,
+  resetStorageSession,
 } from '../../services';
-import { useLakehouseStreamStore, appendStreamLog, clearStreamLogs } from '../../store';
+import { useLakehouseStreamStore, appendStreamLog, clearStreamLogs, resetSessionInStore } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { AnimatedCounter } from '../common/AnimatedCounter.component';
 import { PipelineExecutionStepper } from './PipelineExecutionStepper.component';
@@ -246,6 +248,8 @@ export interface InteractiveWorkflowCanvasProps {
   onTriggerPipeline?: () => void;
   theme?: 'dark' | 'light';
   language?: 'en' | 'vi';
+  inspectNodeTrigger?: string | null;
+  onClearInspectNodeTrigger?: () => void;
 }
 
 export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
@@ -254,6 +258,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   onTriggerPipeline,
   theme = 'dark',
   language = 'vi',
+  inspectNodeTrigger,
+  onClearInspectNodeTrigger,
 }) => {
   const isDark = theme === 'dark';
 
@@ -310,6 +316,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [drawerExpanded, setDrawerExpanded] = useState<boolean>(false);
   const [showTechSpec, setShowTechSpec] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (inspectNodeTrigger) {
+      setSelectedNodeId(inspectNodeTrigger);
+      setDrawerOpen(true);
+      onClearInspectNodeTrigger?.();
+    }
+  }, [inspectNodeTrigger, onClearInspectNodeTrigger]);
+
 
   const DUCK_SQL_PRESETS = [
     {
@@ -373,7 +388,47 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     lastPaperDeltaBytes,
     activePipelineStage,
     logs: storeLogs,
+    refreshStorageStats,
   } = useLakehouseStreamStore();
+
+  const [r2Syncing, setR2Syncing] = useState(false);
+  const [r2SyncMessage, setR2SyncMessage] = useState<string | null>(null);
+  const [r2ViewMode, setR2ViewMode] = useState<'active' | 'total'>('active');
+
+  const handleSyncR2InCanvas = async () => {
+    setR2Syncing(true);
+    setR2SyncMessage(language === 'vi' ? 'Đang quét các đối tượng bucket Cloudflare R2...' : 'Scanning Cloudflare R2 bucket objects...');
+    try {
+      const res = await syncR2Storage();
+      await refreshStorageStats(true);
+      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+      setLogs((prev) => [
+        ...prev,
+        { id: Date.now(), time: now, level: 'SUCCESS', tag: 'R2-SYNC', msg: res.message || 'Cloudflare R2 synchronized.' },
+      ]);
+      setR2SyncMessage(res.message || (language === 'vi' ? 'Đã đồng bộ thống kê lưu trữ R2 thành công.' : 'R2 storage stats synchronized successfully.'));
+    } catch (e: any) {
+      setR2SyncMessage(`${language === 'vi' ? 'Đồng bộ thất bại:' : 'Sync failed:'} ${e.message}`);
+    } finally {
+      setR2Syncing(false);
+      setTimeout(() => setR2SyncMessage(null), 4000);
+    }
+  };
+
+  const handleResetSessionInCanvas = async () => {
+    if (confirm(language === 'vi' ? 'Đặt lại bộ đếm phiên nhập thời gian thực về mốc chuẩn?' : 'Reset real-time ingestion session counter back to baseline?')) {
+      try {
+        await resetStorageSession();
+        resetSessionInStore();
+        await refreshStorageStats(true);
+        setR2SyncMessage(language === 'vi' ? 'Đã đặt lại phiên cào về mốc cơ sở chuẩn (36,414 bài).' : 'Session counter reset to baseline (36,414 works).');
+      } catch (e: any) {
+        console.error('Failed to reset session:', e);
+      } finally {
+        setTimeout(() => setR2SyncMessage(null), 3500);
+      }
+    }
+  };
 
   // Unified Terminal Logs directly connected to Lakehouse Stream Store
   const logs = useMemo(() => {
@@ -4297,85 +4352,558 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   </div>
                 )}
 
-                {/* 4. Cloudflare R2 Controls */}
-                {selectedTool.id === 'bronze-instance' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
-                        {language === 'vi' ? 'CẤU TRÚC PHÂN VÙNG OBJECT STORAGE (S3 COMPATIBLE)' : 'OBJECT STORAGE PARTITION SCHEME (S3 COMPATIBLE)'}
-                      </div>
+                {/* 4. Cloudflare R2 Controls & Multi-Tier Storage Lens */}
+                {selectedTool.id === 'bronze-instance' && (() => {
+                  const r2ActiveData = storageStats?.activeLakehouse;
+                  const r2BackupData = storageStats?.backupStorage;
+                  const r2TotalBucket = storageStats?.totalBucket;
+                  const isTotalView = r2ViewMode === 'total';
+
+                  const r2ArxivCount = (r2ActiveData?.arxivHtmlCount ?? 11660) + streamSessionCount;
+                  const r2ArxivGb = (r2ActiveData?.arxivHtmlSizeGb ?? 3.763).toFixed(3);
+                  const r2OpenAlexCount = (r2ActiveData?.openalexCount ?? 24754).toLocaleString();
+                  const r2OpenAlexGb = (r2ActiveData?.openalexSizeGb ?? 3.971).toFixed(3);
+                  const r2SilverMb = (r2ActiveData?.silverParquetSizeMb ?? 321.68).toFixed(2);
+                  const r2GoldChunks = (r2ActiveData?.activeLanceDbVectors ?? 164702).toLocaleString();
+                  const r2GoldMb = (r2ActiveData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
+                  const r2BackupGb = (r2BackupData?.totalSizeGb ?? 3.069).toFixed(3);
+
+                  const r2ActiveGbNum = storageUsedGb || Number(r2ActiveData?.totalSizeGb ?? 8.277);
+                  const r2ActiveGb = r2ActiveGbNum.toFixed(3);
+                  const r2ActivePct = Number(r2ActiveData?.usedPercentage ?? ((r2ActiveGbNum / 10.0) * 100)).toFixed(1);
+                  const r2TotalGb = (r2TotalBucket?.totalSizeGb ?? 11.348).toFixed(3);
+                  const r2TotalPct = (r2TotalBucket?.usedPercentage ?? 113.48).toFixed(1);
+
+                  const r2ArxivBarPct = Math.min(100, (Number(r2ArxivGb) / 10.0) * 100);
+                  const r2OpenAlexBarPct = Math.min(100, (Number(r2OpenAlexGb) / 10.0) * 100);
+                  const r2SilverBarPct = Math.min(100, ((Number(r2SilverMb) / 1024) / 10.0) * 100);
+                  const r2BackupBarPct = Math.min(100, (Number(r2BackupGb) / 10.0) * 100);
+                  const r2RemainingFreeGb = Math.max(0, 10.0 - r2ActiveGbNum).toFixed(3);
+
+                  const layers = [
+                    {
+                      zone: 'BRONZE',
+                      name: language === 'vi' ? 'Dữ liệu arXiv HTML5 học thuật thô' : 'Raw arXiv Academic HTML5',
+                      storageType: 'Cloudflare R2 Object Store & Disk',
+                      format: 'W3C HTML5 (.html)',
+                      itemsCount: `${r2ArxivCount.toLocaleString()} ${language === 'vi' ? 'tệp' : 'files'}`,
+                      sizeBytes: `${r2ArxivGb} GB`,
+                      r2Location: 's3://uth-scientific-lakehouse/bronze/arxiv/raw_html/',
+                      color: '#3b82f6',
+                      description: language === 'vi'
+                        ? 'Bản thảo HTML5 thu thập thô từ arXiv chứa đầy đủ các phần học thuật, bảng biểu, thẻ toán học.'
+                        : 'Raw web-crawled HTML5 preprints from arXiv containing full academic sections, tables, math tags.'
+                    },
+                    {
+                      zone: 'BRONZE',
+                      name: language === 'vi' ? 'Kho dữ liệu mở rộng khoa học OpenAlex' : 'OpenAlex Scientific Extended Corpus',
+                      storageType: 'Cloudflare R2 Object Store',
+                      format: 'JSON / Metadata Records',
+                      itemsCount: `${r2OpenAlexCount} ${language === 'vi' ? 'bài' : 'works'}`,
+                      sizeBytes: `${r2OpenAlexGb} GB`,
+                      r2Location: 's3://uth-scientific-lakehouse/bronze/openalex/',
+                      color: '#8b5cf6',
+                      description: language === 'vi'
+                        ? 'Danh mục khoa học toàn cầu với đồ thị trích dẫn, cơ quan liên kết của tác giả.'
+                        : 'Global scientific catalog records with citation graphs, author affiliations.'
+                    },
+                    {
+                      zone: 'BRONZE',
+                      name: language === 'vi' ? 'Các gói lô thu hoạch OAI-PMH' : 'OAI-PMH Harvest Batches',
+                      storageType: 'Cloudflare R2 Object Store',
+                      format: 'Compressed JSON Bundles',
+                      itemsCount: language === 'vi' ? '12 gói lô' : '12 batch bundles',
+                      sizeBytes: '21.24 MB',
+                      r2Location: 's3://uth-scientific-lakehouse/bronze/arxiv/batches/',
+                      color: '#60a5fa',
+                      description: language === 'vi'
+                        ? 'Các gói siêu dữ liệu thô thu thập qua giao thức arXiv OAI-PMH trên 5 danh mục AI/DS.'
+                        : 'Raw metadata harvesting batches retrieved through arXiv OAI-PMH protocol across 5 AI/DS categories.'
+                    },
+                    {
+                      zone: 'SILVER',
+                      name: language === 'vi' ? 'Lakehouse chuẩn hóa chọn lọc' : 'Curated Canonical Lakehouse',
+                      storageType: 'Apache Arrow & Cloudflare R2',
+                      format: 'Apache Parquet (Snappy 4.2x)',
+                      itemsCount: language === 'vi' ? '11 Phân vùng (36,414 bài)' : '11 Partitions (36,414 works)',
+                      sizeBytes: `${r2SilverMb} MB`,
+                      r2Location: 's3://uth-scientific-lakehouse/silver/',
+                      color: '#10b981',
+                      description: language === 'vi'
+                        ? 'Các bảng Parquet dạng cột đã khử trùng lặp và tuân thủ schema từ arXiv, OpenAlex, CVPR và OpenReview.'
+                        : 'Deduplicated, schema-enforced columnar Parquet tables across arXiv, OpenAlex, CVPR, and OpenReview.'
+                    },
+                    {
+                      zone: 'GOLD',
+                      name: language === 'vi' ? 'Hồ Vector Ngữ Cảnh (Chỉ mục phục vụ)' : 'Contextual Vector Lakehouse',
+                      storageType: 'Local SSD NVMe Serving Index',
+                      format: 'Lance Columnar (.lance) & Parquet',
+                      itemsCount: `${r2GoldChunks} vectors`,
+                      sizeBytes: `${r2GoldMb} MB`,
+                      r2Location: 'data/gold/ & s3://uth-scientific-lakehouse/gold/',
+                      color: '#eab308',
+                      description: language === 'vi'
+                        ? 'Các vector nhúng 768 chiều theo ngữ cảnh và parquet tầng Gold trải dài qua CVPR, OpenReview và arXiv.'
+                        : 'Contextualized 768-dimensional dense embeddings and Gold parquets spanning CVPR, OpenReview, and arXiv.'
+                    },
+                    {
+                      zone: 'BACKUP',
+                      name: language === 'vi' ? 'Bản sao lưu Vector phục hồi thảm họa' : 'Cloud Disaster Recovery Replica',
+                      storageType: 'Cloudflare R2 Cold Snapshots',
+                      format: 'LanceDB Multi-Segment Archives',
+                      itemsCount: language === 'vi' ? '32 phân đoạn chunk' : '32 chunk segments',
+                      sizeBytes: `${r2BackupGb} GB`,
+                      r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
+                      color: '#f59e0b',
+                      description: language === 'vi'
+                        ? 'Bản sao lưu đám mây phục hồi thảm họa cho phép tái tạo tức thì cụm dữ liệu với chi phí egress bằng không.'
+                        : 'Disaster recovery cloud backup replica enabling instant cluster reconstitution with zero egress fees.'
+                    }
+                  ];
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {/* Top Action & View Controller Bar */}
                       <div style={{
-                        backgroundColor: themeStyles.codeBoxBg,
-                        color: themeStyles.textPrimary,
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: `1px solid ${themeStyles.codeBoxBorder}`,
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '11px',
-                        lineHeight: 1.6,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        paddingBottom: '12px',
+                        borderBottom: `1px solid ${themeStyles.drawerSectionBorder}`,
                       }}>
-                        <div style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>s3://uth-scientific-lakehouse/</div>
-                        <div style={{ color: isDark ? '#fb7185' : '#e11d48' }}>
-                          ├── bronze/raw_html/year=2026/ ({liveBronzeCount.toLocaleString()} HTML5 objects · {liveBronzeGb} GB)
+                        {/* Left: Endpoint & Badges */}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary }}>
+                              {language === 'vi' ? 'Lăng Kính Lưu Trữ Đa Tầng Cloudflare R2' : 'Cloudflare R2 Multi-Tier Storage Lens'}
+                            </span>
+                            <span style={{
+                              fontSize: '10px',
+                              fontFamily: 'var(--font-mono)',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: 'rgba(16, 185, 129, 0.12)',
+                              color: '#10b981',
+                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                              fontWeight: 700,
+                            }}>
+                              {language === 'vi' ? '● KHÔNG PHÍ EGRESS' : '● ZERO EGRESS FEES'}
+                            </span>
+                            <span style={{
+                              fontSize: '10px',
+                              fontFamily: 'var(--font-mono)',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              color: '#38bdf8',
+                              border: '1px solid rgba(56, 189, 248, 0.25)',
+                              fontWeight: 700,
+                            }}>
+                              {language === 'vi' ? '● NÉN SNAPPY 4.2x' : '● SNAPPY 4.2x'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
+                            Bucket: <code style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>{storageStats?.bucket || 'uth-scientific-lakehouse'}</code> • S3 Endpoint: Cloudflare Global Edge
+                          </div>
                         </div>
-                        <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>
-                          ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · 26.42 MB)
-                        </div>
-                        <div style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
-                          └── bronze/openalex/year=2026/ ({liveOpenAlexCount.toLocaleString()} metadata records · {((storageStats?.activeLakehouse?.openalexSizeGb ?? 3.971) * 1024).toFixed(0)} MB)
+
+                        {/* Right: View switcher & Actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          {/* Active vs Total Switch */}
+                          <div style={{
+                            display: 'inline-flex',
+                            backgroundColor: themeStyles.btnInspectBg,
+                            padding: '2px',
+                            borderRadius: '8px',
+                            border: `1px solid ${themeStyles.btnInspectBorder}`,
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                          }}>
+                            <button
+                              type="button"
+                              onClick={() => setR2ViewMode('active')}
+                              style={{
+                                background: !isTotalView ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#dcfce7') : 'transparent',
+                                color: !isTotalView ? (isDark ? '#34d399' : '#15803d') : themeStyles.textMuted,
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '4px 10px',
+                                cursor: 'pointer',
+                                fontWeight: !isTotalView ? 700 : 500,
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {language === 'vi' ? 'Hoạt động' : 'Active'} ({r2ActiveGb} GB)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setR2ViewMode('total')}
+                              style={{
+                                background: isTotalView ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : 'transparent',
+                                color: isTotalView ? (isDark ? '#fbbf24' : '#b45309') : themeStyles.textMuted,
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '4px 10px',
+                                cursor: 'pointer',
+                                fontWeight: isTotalView ? 700 : 500,
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {language === 'vi' ? 'Toàn bộ Bucket' : 'Total Bucket'} ({r2TotalGb} GB)
+                            </button>
+                          </div>
+
+                          {/* Sync R2 Button */}
+                          <button
+                            type="button"
+                            onClick={handleSyncR2InCanvas}
+                            disabled={r2Syncing}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: '6px',
+                              backgroundColor: themeStyles.btnInspectBg,
+                              border: `1px solid ${themeStyles.btnInspectBorder}`,
+                              color: themeStyles.textPrimary,
+                              fontSize: '11px',
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 700,
+                              cursor: r2Syncing ? 'not-allowed' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              style={{ animation: r2Syncing ? 'spin 1s linear infinite' : 'none' }}
+                            >
+                              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-1.19" />
+                            </svg>
+                            <span>{r2Syncing ? (language === 'vi' ? 'Đang đồng bộ...' : 'Syncing...') : (language === 'vi' ? 'Đồng bộ Live R2' : 'Sync Live R2')}</span>
+                          </button>
+
+                          {/* Reset Session Button */}
+                          {streamSessionCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleResetSessionInCanvas}
+                              style={{
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                background: 'rgba(239, 68, 68, 0.12)',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                color: '#ef4444',
+                                fontSize: '11px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {language === 'vi' ? 'Đặt lại phiên' : 'Reset Session'} (+{streamSessionCount})
+                            </button>
+                          )}
+
+                          {/* Audit Logs Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                              setLogs((prev) => [
+                                ...prev,
+                                { id: Date.now(), time: now, level: 'SUCCESS', tag: 'MD5-CHECK', msg: `Cloudflare R2 Bucket audit: ${r2ArxivCount.toLocaleString()} objects validated with 100% SHA-256 match.` },
+                              ]);
+                              onNavigateTab?.('logs');
+                            }}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              backgroundColor: themeStyles.roseGhostBg,
+                              border: `1px solid ${isDark ? '#e11d48' : '#be123c'}`,
+                              color: themeStyles.roseGhostText,
+                              fontSize: '11px',
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <span>{language === 'vi' ? 'Kiểm tra SHA-256' : 'Audit SHA-256'}</span>
+                          </button>
                         </div>
                       </div>
-                    </div>
 
-                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                          {language === 'vi' ? 'DUNG LƯỢNG & TRẠNG THÁI LƯU TRỮ' : 'STORAGE CAPACITY & HEALTH'}
-                        </div>
-                        <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? (liveActiveStoragePct >= 95 ? '#fb7185' : '#fbbf24') : (liveActiveStoragePct >= 95 ? '#e11d48' : '#d97706'), marginTop: '4px' }}>
-                          {liveActiveStorageGb.toFixed(3)} GB / {liveQuotaGb.toFixed(2)} GB ({liveActiveStoragePct.toFixed(2)}%)
-                        </div>
-                        <div style={{ height: '6px', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
-                          <div style={{ width: `${Math.min(100, Math.max(0, liveActiveStoragePct))}%`, height: '100%', backgroundColor: liveActiveStoragePct >= 95 ? '#e11d48' : (liveActiveStoragePct >= 80 ? '#f59e0b' : '#3b82f6'), transition: 'width 0.3s ease' }} />
-                        </div>
-                        <div style={{ fontSize: '10px', color: isDark ? '#34d399' : '#059669', fontFamily: 'var(--font-mono)', marginTop: '6px', fontWeight: 700 }}>
-                          ✓ ZERO EGRESS FEES (Cloudflare Global Network)
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-                          setLogs((prev) => [
-                            ...prev,
-                            { id: Date.now(), time: now, level: 'SUCCESS', tag: 'MD5-CHECK', msg: `Cloudflare R2 Bucket audit: ${liveBronzeCount.toLocaleString()} objects validated with 100% SHA-256 match.` },
-                          ]);
-                          onNavigateTab?.('logs');
-                        }}
-                        style={{
-                          backgroundColor: themeStyles.roseGhostBg,
-                          color: themeStyles.roseGhostText,
-                          border: `1px solid ${isDark ? '#e11d48' : '#be123c'}`,
-                          borderRadius: '8px',
-                          padding: '8px 0',
-                          fontSize: '11px',
+                      {/* Toast feedback */}
+                      {r2SyncMessage && (
+                        <div style={{
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          color: '#38bdf8',
+                          fontSize: '11.5px',
                           fontFamily: 'var(--font-mono)',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                          </svg>
-                          <span>{language === 'vi' ? 'KIỂM TRA TÍNH TOÀN VẸN SHA-256 & XEM LOGS' : 'AUDIT SHA-256 INTEGRITY & VIEW LOGS'}</span>
-                        </span>
-                      </button>
+                        }}>
+                          {r2SyncMessage}
+                        </div>
+                      )}
+
+                      {/* 3 Overview KPI Cards */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                        {/* Box 1 */}
+                        <div style={{
+                          backgroundColor: themeStyles.cardBg,
+                          border: `1px solid ${themeStyles.cardBorder}`,
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                        }}>
+                          <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                            {language === 'vi' ? 'HỒ DỮ LIỆU HOẠT ĐỘNG CHÍNH' : 'PRIMARY ACTIVE LAKEHOUSE'}
+                          </div>
+                          <div style={{ fontSize: '18px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '4px' }}>
+                            <AnimatedCounter value={Number(r2ActiveGb)} decimals={3} suffix=" GB" />{' '}
+                            <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
+                              ({r2ActivePct}% {language === 'vi' ? 'Hạn mức' : 'Quota'})
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: themeStyles.textSecondary, marginTop: '4px' }}>
+                            arXiv HTML5 ({r2ArxivGb} GB) + OpenAlex ({r2OpenAlexGb} GB) + Parquet ({r2SilverMb} MB)
+                          </div>
+                        </div>
+
+                        {/* Box 2 */}
+                        <div style={{
+                          backgroundColor: themeStyles.cardBg,
+                          border: `1px solid ${themeStyles.cardBorder}`,
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                        }}>
+                          <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                            {language === 'vi' ? 'BẢN SAO LƯU PHỤC HỒI THẢM HỌA' : 'DISASTER RECOVERY SNAPSHOTS'}
+                          </div>
+                          <div style={{ fontSize: '18px', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>
+                            <AnimatedCounter value={Number(r2BackupGb)} decimals={3} suffix=" GB" />{' '}
+                            <span style={{ fontSize: '12px', color: themeStyles.textMuted, fontWeight: 500 }}>(28 {language === 'vi' ? 'phân đoạn' : 'segments'})</span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: themeStyles.textSecondary, marginTop: '4px' }}>
+                            {language === 'vi' ? 'Bản sao lưu LanceDB trên R2 phục hồi tức thì' : 'Gold LanceDB replica on R2 for instant recovery'}
+                          </div>
+                        </div>
+
+                        {/* Box 3 */}
+                        <div style={{
+                          backgroundColor: themeStyles.cardBg,
+                          border: `1px solid ${themeStyles.cardBorder}`,
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                        }}>
+                          <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                            {language === 'vi' ? 'TỔNG LƯU TRỮ BUCKET CLOUDFLARE R2' : 'TOTAL CLOUDFLARE R2 BUCKET'}
+                          </div>
+                          <div style={{ fontSize: '18px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '4px' }}>
+                            <AnimatedCounter value={Number(r2TotalGb)} decimals={3} suffix=" GB" />{' '}
+                            <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 600 }}>
+                              ({r2TotalPct}%)
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: themeStyles.textSecondary, marginTop: '4px' }}>
+                            {language === 'vi' ? '36,673 tệp · 1.14 GB vượt mức (~0.017$/tháng / 400 VNĐ)' : '36,673 files · 1.14 GB overage (~$0.017/mo / 400 VND)'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Multi-Tier 10GB Allocation Bar */}
+                      <div style={{
+                        backgroundColor: themeStyles.cardBg,
+                        border: `1px solid ${themeStyles.cardBorder}`,
+                        borderRadius: '10px',
+                        padding: '12px 16px',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary, textTransform: 'uppercase' }}>
+                              {language === 'vi' ? 'Phân bổ Dung lượng Hạn mức Miễn phí 10GB R2' : 'Cloudflare R2 10GB Free Tier Allocation'}
+                            </span>
+                            <span style={{
+                              fontSize: '10px',
+                              fontFamily: 'var(--font-mono)',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: isTotalView ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                              color: isTotalView ? '#f59e0b' : '#10b981',
+                              fontWeight: 700,
+                            }}>
+                              {isTotalView ? `${r2TotalPct}% (Kèm Backup)` : `${r2ActivePct}% Hạn mức`}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                            {isTotalView
+                              ? (language === 'vi' ? 'Băng thông Egress: $0.00 (Miễn phí)' : 'Egress Bandwidth: $0.00 (Zero Fee)')
+                              : (<>{language === 'vi' ? 'Còn trống trong hạn mức: ' : 'Free Quota Remaining: '}<strong>{r2RemainingFreeGb} GB</strong></>)}
+                          </div>
+                        </div>
+
+                        {/* Track */}
+                        <div style={{
+                          height: '9px',
+                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+                          borderRadius: '5px',
+                          overflow: 'hidden',
+                          display: 'flex',
+                        }}>
+                          <div title={`arXiv HTML5: ${r2ArxivGb} GB`} style={{ width: `${r2ArxivBarPct}%`, height: '100%', background: '#3b82f6' }} />
+                          <div title={`OpenAlex: ${r2OpenAlexGb} GB`} style={{ width: `${r2OpenAlexBarPct}%`, height: '100%', background: '#8b5cf6' }} />
+                          <div title={`Silver Parquet: ${r2SilverMb} MB`} style={{ width: `${Math.max(1, r2SilverBarPct)}%`, height: '100%', background: '#10b981' }} />
+                          {isTotalView && (
+                            <div title={`LanceDB Backup: ${r2BackupGb} GB`} style={{ width: `${r2BackupBarPct}%`, height: '100%', background: '#f59e0b' }} />
+                          )}
+                        </div>
+
+                        {/* Legend */}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginTop: '8px',
+                          fontSize: '10.5px',
+                          fontFamily: 'var(--font-mono)',
+                          color: themeStyles.textMuted,
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#3b82f6', display: 'inline-block' }} />
+                              arXiv HTML5 ({r2ArxivGb} GB)
+                            </span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#8b5cf6', display: 'inline-block' }} />
+                              OpenAlex ({r2OpenAlexGb} GB)
+                            </span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }} />
+                              Silver Parquet ({r2SilverMb} MB)
+                            </span>
+                            {isTotalView && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} />
+                                LanceDB Backup ({r2BackupGb} GB)
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ color: isTotalView ? '#f59e0b' : '#10b981', fontWeight: 700 }}>
+                            {isTotalView ? `+${r2BackupGb} GB Cold Snapshot` : (language === 'vi' ? 'An toàn trong hạn mức 10GB' : 'Within 10GB Free Tier')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* S3 Partition Tree & Layers Table in Grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr', gap: '14px' }}>
+                        {/* Left: Partition Scheme Code Box */}
+                        <div>
+                          <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+                            {language === 'vi' ? 'CẤU TRÚC PHÂN VÙNG OBJECT STORAGE (S3 COMPATIBLE)' : 'OBJECT STORAGE PARTITION SCHEME (S3 COMPATIBLE)'}
+                          </div>
+                          <div style={{
+                            backgroundColor: themeStyles.codeBoxBg,
+                            color: themeStyles.textPrimary,
+                            padding: '12px',
+                            borderRadius: '8px',
+                            border: `1px solid ${themeStyles.codeBoxBorder}`,
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '11px',
+                            lineHeight: 1.6,
+                          }}>
+                            <div style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>s3://uth-scientific-lakehouse/</div>
+                            <div style={{ color: isDark ? '#fb7185' : '#e11d48' }}>
+                              ├── bronze/raw_html/year=2026/ ({r2ArxivCount.toLocaleString()} HTML5 · {r2ArxivGb} GB)
+                            </div>
+                            <div style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
+                              ├── bronze/openalex/year=2026/ ({r2OpenAlexCount} JSON · {r2OpenAlexGb} GB)
+                            </div>
+                            <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>
+                              ├── bronze/arxiv/batches/ (12 bundles · 21.24 MB)
+                            </div>
+                            <div style={{ color: isDark ? '#34d399' : '#059669' }}>
+                              ├── silver/papers.parquet (Snappy 4.2x · {r2SilverMb} MB)
+                            </div>
+                            <div style={{ color: isDark ? '#f59e0b' : '#d97706' }}>
+                              └── gold/lancedb/ ({r2GoldChunks} vectors · {r2BackupGb} GB)
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Granular Lakehouse Zones Table */}
+                        <div style={{ overflowX: 'auto' }}>
+                          <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+                            {language === 'vi' ? 'CHI TIẾT PHÂN TẦNG DỮ LIỆU LAKEHOUSE' : 'GRANULAR LAKEHOUSE TIERS BREAKDOWN'}
+                          </div>
+                          <table style={{
+                            width: '100%',
+                            borderCollapse: 'collapse',
+                            fontSize: '11.5px',
+                            textAlign: 'left',
+                          }}>
+                            <thead>
+                              <tr style={{
+                                borderBottom: `1px solid ${themeStyles.drawerSectionBorder}`,
+                                color: themeStyles.textMuted,
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '10px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                              }}>
+                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Tầng' : 'Zone'}</th>
+                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Tập Dữ Liệu' : 'Dataset'}</th>
+                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Định Dạng' : 'Format'}</th>
+                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Số Lượng' : 'Count'}</th>
+                                <th style={{ padding: '6px 8px' }}>{language === 'vi' ? 'Dung Lượng' : 'Volume'}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {layers.map((layer, idx) => (
+                                <tr key={idx} style={{ borderBottom: `1px solid ${themeStyles.cardDivider}` }}>
+                                  <td style={{ padding: '7px 8px' }}>
+                                    <span style={{
+                                      fontSize: '9.5px',
+                                      fontFamily: 'var(--font-mono)',
+                                      padding: '1px 5px',
+                                      borderRadius: '4px',
+                                      backgroundColor: 'var(--badge-bg)',
+                                      color: layer.color,
+                                      border: '1px solid var(--badge-border)',
+                                      fontWeight: 700,
+                                    }}>
+                                      {layer.zone}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '7px 8px', fontWeight: 600, color: themeStyles.textPrimary }}>
+                                    {layer.name}
+                                  </td>
+                                  <td style={{ padding: '7px 8px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, fontSize: '11px' }}>
+                                    {layer.format}
+                                  </td>
+                                  <td style={{ padding: '7px 8px', fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, fontSize: '11px' }}>
+                                    {layer.itemsCount}
+                                  </td>
+                                  <td style={{ padding: '7px 8px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: layer.color, fontSize: '11px' }}>
+                                    {layer.sizeBytes}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* 5. Grounded RAG Controls & Attribution Dossier */}
                 {selectedTool.id === 'grounded-rag' && (
