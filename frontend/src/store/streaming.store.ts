@@ -115,18 +115,30 @@ const getStoredLogs = (): StreamingLogEntry[] => {
   return createInitialLakehouseLogs();
 };
 
+const getStoredStorageStats = (): StorageStatsResponse | null => {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('uth_lakehouse_storage_stats_cache');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+  }
+  return null;
+};
+
+const initialCachedStats = getStoredStorageStats();
+
 let state: LakehouseStreamState = {
   isStreaming: false,
   totalCorpus: 36414,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
-  storageUsedGb: 8.277,
-  storageUsedPct: 82.77,
-  storageTotalBytes: 8887884161,
+  storageUsedGb: initialCachedStats?.activeLakehouse?.totalSizeGb ?? 8.277,
+  storageUsedPct: initialCachedStats?.activeLakehouse?.usedPercentage ?? 82.77,
+  storageTotalBytes: initialCachedStats?.activeLakehouse?.totalSizeBytes ?? 8887884161,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
-  storageStats: null,
+  storageStats: initialCachedStats,
   activePipelineStage: 'idle',
   connectionStatus: 'DISCONNECTED',
   viewMode: getStoredViewMode(),
@@ -190,6 +202,12 @@ export async function refreshStorageStats(): Promise<void> {
         storageUsedPct: pct,
         storageTotalBytes: bytes,
       });
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('uth_lakehouse_storage_stats_cache', JSON.stringify(data));
+        } catch {}
+      }
     }
   } catch (e) {
     console.warn('[StreamStore] Failed to refresh storage stats:', e);

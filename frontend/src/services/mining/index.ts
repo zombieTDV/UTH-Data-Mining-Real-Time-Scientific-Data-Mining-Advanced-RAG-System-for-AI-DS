@@ -6,6 +6,12 @@ export {
   searchLakehouse,
   syncR2Storage,
   resetStorageSession,
+  fetchSchedulerStatus,
+  triggerSchedulerHarvest,
+  startSchedulerDaemon,
+  stopSchedulerDaemon,
+  toggleSchedulerSource,
+  cancelSchedulerTask,
 } from './mining.service';
 
 export {

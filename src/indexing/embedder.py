@@ -16,6 +16,7 @@ from src.config.settings import settings
 class NomicEmbedder:
     """Offline Embedding model running locally with Nomic-embed-text-v1.5."""
 
+    def __init__(self, model_path: Union[str, Path, None] = None, device: str = "auto"):
         raw_path = model_path or settings.EMBEDDING_MODEL_PATH
         target_path = Path(raw_path)
         if target_path.exists():
@@ -90,6 +91,8 @@ class NomicEmbedder:
                 torch.mps.empty_cache()
 
         return all_embeddings
+
+    embed_batch = embed_documents
 
     def embed_query(self, query: str) -> List[float]:
         """Sinh vector nhúng cho câu truy vấn tìm kiếm của người dùng (tự động gắn tiền tố search_query:)."""

@@ -77,8 +77,8 @@ export default function App() {
         .catch(() => {});
     };
 
+    // Initial cold-start fetch once; real-time updates are delivered via SSE stream
     syncStorageStats();
-    const statsInterval = setInterval(syncStorageStats, 3000);
 
     const unsubscribeTelemetry = subscribeTelemetry(
       (data) => {
@@ -94,7 +94,6 @@ export default function App() {
     const unsubscribeStream = initializeStream();
 
     return () => {
-      clearInterval(statsInterval);
       unsubscribeTelemetry();
       unsubscribeStream();
     };
