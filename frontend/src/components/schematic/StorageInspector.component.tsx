@@ -95,6 +95,13 @@ export function StorageInspector() {
   const totalGb = (totalBucket?.totalSizeGb ?? 11.348).toFixed(3);
   const totalPct = (totalBucket?.usedPercentage ?? 113.48).toFixed(1);
 
+  // Segment widths relative to 10GB Free Tier limit
+  const arxivBarPct = Math.min(100, (Number(arxivGb) / 10.0) * 100);
+  const openalexBarPct = Math.min(100, (Number(openalexGb) / 10.0) * 100);
+  const silverBarPct = Math.min(100, ((Number(silverMb) / 1024) / 10.0) * 100);
+  const backupBarPct = Math.min(100, (Number(backupGb) / 10.0) * 100);
+  const remainingFreeGb = Math.max(0, 10.0 - Number(activeGb)).toFixed(3);
+
   const layers: LakehouseLayer[] = [
     {
       zone: 'BRONZE',
@@ -378,6 +385,127 @@ export function StorageInspector() {
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {language === 'vi' ? '36,673 tệp · 1.14 GB vượt mức (~0.017$/tháng / 400 VNĐ)' : '36,673 files · 1.14 GB overage (~$0.017/month / 400 VND)'}
           </div>
+        </div>
+      </div>
+
+      {/* Multi-Tier Segmented Progress Bar (10GB Free Tier Quota) */}
+      <div style={{
+        background: 'var(--bg-elevated)',
+        borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--border-subtle)',
+        padding: '14px 18px',
+        marginBottom: '20px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {language === 'vi' ? 'Phân bổ Dung lượng Hạn mức Miễn phí 10GB Cloudflare R2' : 'Cloudflare R2 10GB Free Tier Allocation'}
+            </span>
+            <span style={{
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
+              padding: '1px 6px',
+              borderRadius: '4px',
+              background: isTotalView ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+              color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)',
+              fontWeight: 700,
+            }}>
+              {isTotalView ? `${totalPct}% (Kèm Backup)` : `${activePct}% Hạn mức`}
+            </span>
+          </div>
+          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+            {isTotalView
+              ? (language === 'vi' ? 'Băng thông Egress: $0.00 (Miễn phí)' : 'Egress Bandwidth: $0.00 (Zero Fee)')
+              : (<>{language === 'vi' ? 'Còn trống trong hạn mức: ' : 'Free Quota Remaining: '}<strong>{remainingFreeGb} GB</strong></>)}
+          </div>
+        </div>
+
+        {/* The Multi-Tier Progress Track */}
+        <div style={{
+          height: '10px',
+          background: 'var(--track-bg)',
+          borderRadius: '5px',
+          overflow: 'hidden',
+          display: 'flex',
+          position: 'relative',
+        }}>
+          {/* arXiv HTML5 Segment (Blue) */}
+          <div
+            title={`arXiv HTML5: ${arxivGb} GB`}
+            style={{
+              width: `${arxivBarPct}%`,
+              height: '100%',
+              background: '#3b82f6',
+            }}
+          />
+          {/* OpenAlex Segment (Purple) */}
+          <div
+            title={`OpenAlex Corpus: ${openalexGb} GB`}
+            style={{
+              width: `${openalexBarPct}%`,
+              height: '100%',
+              background: '#8b5cf6',
+            }}
+          />
+          {/* Silver Parquet Segment (Emerald) */}
+          <div
+            title={`Silver Parquet: ${silverMb} MB`}
+            style={{
+              width: `${Math.max(1, silverBarPct)}%`,
+              height: '100%',
+              background: '#10b981',
+            }}
+          />
+          {/* Backup LanceDB Segment (Amber) */}
+          {isTotalView && (
+            <div
+              title={`LanceDB Backup: ${backupGb} GB`}
+              style={{
+                width: `${backupBarPct}%`,
+                height: '100%',
+                background: '#f59e0b',
+              }}
+            />
+          )}
+        </div>
+
+        {/* Legend */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: '8px',
+          fontSize: '11px',
+          fontFamily: 'var(--font-mono)',
+          color: 'var(--text-muted)',
+          flexWrap: 'wrap',
+          gap: '8px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#3b82f6', display: 'inline-block' }} />
+              arXiv Raw HTML5 ({arxivGb} GB)
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#8b5cf6', display: 'inline-block' }} />
+              OpenAlex Records ({openalexGb} GB)
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }} />
+              Silver Parquet ({silverMb} MB)
+            </span>
+            {isTotalView && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} />
+                {language === 'vi' ? 'Bản sao lưu LanceDB' : 'LanceDB Backup'} ({backupGb} GB)
+              </span>
+            )}
+          </div>
+          <span style={{ color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)', fontWeight: 600 }}>
+            {isTotalView
+              ? `+${backupGb} GB Cold Snapshot`
+              : (language === 'vi' ? 'An toàn trong hạn mức 10GB' : 'Within 10GB Free Tier')}
+          </span>
         </div>
       </div>
 

@@ -1,6 +1,5 @@
 import { useState, useEffect, type FC } from 'react';
 import { InteractiveWorkflowCanvas, StorageInspector } from '../components/schematic';
-import { MetricsBento } from '../components/common';
 import { useLakehouseStreamStore } from '../store';
 import { useTranslation } from '../hooks';
 import type { AppTab, AppTheme, PipelineStatus, SchematicViewMode } from '../types';
@@ -14,8 +13,6 @@ export interface SchematicScreenProps {
   onTriggerPipeline?: () => void;
 }
 
-export type CanvasOverlayType = 'none' | 'bento' | 'storage';
-
 export const SchematicScreen: FC<SchematicScreenProps> = ({
   theme = 'dark',
   pipelineStatus = 'IDLE',
@@ -26,20 +23,18 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   const { storageUsedGb, isStreaming } = useLakehouseStreamStore();
   const isDark = theme === 'dark';
 
-  const [activeOverlay, setActiveOverlay] = useState<CanvasOverlayType>('none');
+  const [isStorageOpen, setIsStorageOpen] = useState<boolean>(false);
 
-  // Keyboard shortcut listener: Escape to close overlay, B for Bento, S for Storage
+  // Keyboard shortcut listener: Escape to close modal, S for Storage
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
         return;
       }
       if (e.key === 'Escape') {
-        setActiveOverlay('none');
-      } else if (e.key === 'b' || e.key === 'B') {
-        setActiveOverlay((prev) => (prev === 'bento' ? 'none' : 'bento'));
+        setIsStorageOpen(false);
       } else if (e.key === 's' || e.key === 'S') {
-        setActiveOverlay((prev) => (prev === 'storage' ? 'none' : 'storage'));
+        setIsStorageOpen((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -147,76 +142,34 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
         {/* Right Side: Integrated Icon Triggers to Open Bento, Medallion, and Storage on top of Canvas */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           {/* Integrated Tool Icons Group */}
-          <div
+          {/* Storage Inspector Tool Button */}
+          <button
+            type="button"
+            onClick={() => setIsStorageOpen((prev) => !prev)}
             style={{
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: 'var(--bg-surface-elevated, #162035)',
-              padding: '3px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-subtle)',
-              gap: '4px',
+              gap: '6px',
+              padding: '5px 12px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: isStorageOpen ? 800 : 600,
+              backgroundColor: isStorageOpen ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : (isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9'),
+              color: isStorageOpen ? '#f59e0b' : 'var(--text-primary)',
+              border: isStorageOpen ? '1px solid rgba(245, 158, 11, 0.6)' : '1px solid var(--border-subtle)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
+            title={language === 'vi' ? 'Bật/tắt lăng kính lưu trữ R2 & Điều phối (Phím S)' : 'Toggle Storage Inspector & Scheduler (Key S)'}
           >
-            {/* 1. Bento Metrics Icon Button */}
-            <button
-              type="button"
-              onClick={() => setActiveOverlay((prev) => (prev === 'bento' ? 'none' : 'bento'))}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                borderRadius: '5px',
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: activeOverlay === 'bento' ? 800 : 600,
-                backgroundColor: activeOverlay === 'bento' ? (isDark ? 'rgba(56, 189, 248, 0.25)' : '#e0f2fe') : 'transparent',
-                color: activeOverlay === 'bento' ? '#38bdf8' : 'var(--text-secondary)',
-                border: activeOverlay === 'bento' ? '1px solid rgba(56, 189, 248, 0.6)' : '1px solid transparent',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title={language === 'vi' ? 'Bật/tắt bảng chỉ số Bento (Phím B)' : 'Toggle Bento Metrics (Key B)'}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="9" />
-                <rect x="14" y="3" width="7" height="5" />
-                <rect x="14" y="12" width="7" height="9" />
-                <rect x="3" y="16" width="7" height="5" />
-              </svg>
-              <span>{language === 'vi' ? 'BENTO CHỈ SỐ' : 'BENTO METRICS'}</span>
-            </button>
-
-            {/* 2. Storage Inspector Icon Button */}
-            <button
-              type="button"
-              onClick={() => setActiveOverlay((prev) => (prev === 'storage' ? 'none' : 'storage'))}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                borderRadius: '5px',
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: activeOverlay === 'storage' ? 800 : 600,
-                backgroundColor: activeOverlay === 'storage' ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : 'transparent',
-                color: activeOverlay === 'storage' ? '#f59e0b' : 'var(--text-secondary)',
-                border: activeOverlay === 'storage' ? '1px solid rgba(245, 158, 11, 0.6)' : '1px solid transparent',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title={language === 'vi' ? 'Bật/tắt lăng kính lưu trữ R2 & Điều phối (Phím S)' : 'Toggle Storage Inspector & Scheduler (Key S)'}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <ellipse cx="12" cy="5" rx="9" ry="3" />
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-              </svg>
-              <span>{language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ' : 'STORAGE LENS'}</span>
-            </button>
-          </div>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+            </svg>
+            <span>{language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ (S)' : 'STORAGE LENS (S)'}</span>
+          </button>
 
           {/* Quick Jump to RAG */}
           {onNavigateTab && (
@@ -286,11 +239,11 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
       </div>
 
       {/* ============================================================== */}
-      {/* INTEGRATED SLIDE-OVER OVERLAY MODAL (ON TOP OF CANVAS)         */}
+      {/* INTEGRATED SLIDE-OVER OVERLAY MODAL (STORAGE LENS & SCHEDULER)  */}
       {/* ============================================================== */}
-      {activeOverlay !== 'none' && (
+      {isStorageOpen && (
         <div
-          onClick={() => setActiveOverlay('none')}
+          onClick={() => setIsStorageOpen(false)}
           style={{
             position: 'absolute',
             inset: 0,
@@ -335,68 +288,21 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
             >
               {/* Left Title */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '18px' }}>
-                  {activeOverlay === 'bento' ? '📊' : '🗄️'}
-                </span>
+                <span style={{ fontSize: '18px' }}>🗄️</span>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                    {activeOverlay === 'bento'
-                      ? (language === 'vi' ? 'TỔNG QUAN QUY MÔ & DUNG LƯỢNG LƯU TRỮ' : 'LAKEHOUSE CAPACITY & METRICS BENTO')
-                      : (language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG & BỘ LẬP LỊCH TỰ HÀNH' : 'MULTI-TIER STORAGE LENS & AUTONOMOUS SCHEDULER')}
+                    {language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG & BỘ LẬP LỊCH TỰ HÀNH' : 'MULTI-TIER STORAGE LENS & AUTONOMOUS SCHEDULER'}
                   </div>
                   <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    {activeOverlay === 'bento'
-                      ? (language === 'vi' ? 'Hạn mức 10GB Cloudflare R2 • 36,414 công trình • 2.22M công thức toán' : '10GB Cloudflare R2 Quota • 36,414 Works • 2.22M LaTeX Formulas')
-                      : (language === 'vi' ? 'Cây thư mục R2, bảng Parquet nén Snappy 4.2x và điều khiển Daemon cào' : 'R2 object tree, Snappy 4.2x Parquets, and crawl daemon')}
+                    {language === 'vi' ? 'Cây thư mục R2, bảng Parquet nén Snappy 4.2x và điều khiển Daemon cào' : 'R2 object tree, Snappy 4.2x Parquets, and crawl daemon'}
                   </div>
                 </div>
-              </div>
-
-              {/* Center Tab Switcher (Fast Switching within Modal) */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#e2e8f0',
-                  padding: '3px',
-                  borderRadius: '8px',
-                }}
-              >
-                {[
-                  { id: 'bento' as const, label: language === 'vi' ? 'Bento Chỉ Số' : 'Bento Metrics' },
-                  { id: 'storage' as const, label: language === 'vi' ? 'Lăng Kính Lưu Trữ' : 'Storage Lens' },
-                ].map((tab) => {
-                  const isCurrent = activeOverlay === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveOverlay(tab.id)}
-                      style={{
-                        padding: '4px 12px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: isCurrent ? 800 : 600,
-                        backgroundColor: isCurrent ? (isDark ? '#1e293b' : '#ffffff') : 'transparent',
-                        color: isCurrent ? (isDark ? '#f8fafc' : '#0f172a') : 'var(--text-muted)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        boxShadow: isCurrent ? '0 1px 4px rgba(0,0,0,0.2)' : 'none',
-                        transition: 'all 0.12s ease',
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
               </div>
 
               {/* Right Close Button */}
               <button
                 type="button"
-                onClick={() => setActiveOverlay('none')}
+                onClick={() => setIsStorageOpen(false)}
                 style={{
                   width: '32px',
                   height: '32px',
@@ -412,7 +318,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                   fontWeight: 700,
                   transition: 'all 0.15s ease',
                 }}
-                title={language === 'vi' ? 'Đóng (Phím Escape)' : 'Close (Escape)'}
+                title={language === 'vi' ? 'Đóng (Phím Escape hoặc S)' : 'Close (Escape or S)'}
               >
                 ✕
               </button>
@@ -427,8 +333,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                 backgroundColor: isDark ? '#0b1120' : '#ffffff',
               }}
             >
-              {activeOverlay === 'bento' && <MetricsBento />}
-              {activeOverlay === 'storage' && <StorageInspector />}
+              <StorageInspector />
             </div>
           </div>
         </div>
