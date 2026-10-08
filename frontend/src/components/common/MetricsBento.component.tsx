@@ -24,17 +24,17 @@ export const MetricsBento: FC = () => {
   const arxivGb = activeData?.arxivHtmlSizeGb ?? 3.763;
   const openalexCount = activeData?.openalexCount ?? 24754;
   const openalexGb = activeData?.openalexSizeGb ?? 3.971;
-  const conferenceCount = activeData?.conferenceCount ?? 2000;
+  const conferenceCount = activeData?.conferenceCount ?? 184;
   const silverMb = activeData?.silverParquetSizeMb ?? 321.68;
   const activeVectors = activeData?.activeLanceDbVectors ?? 164702;
   const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 211.26;
   const backupGb = backupData?.totalSizeGb ?? 3.069;
 
   // Active vs Total calculations linked directly to real-time storageUsedGb
-  const activeGb = storageUsedGb || (activeData?.totalSizeGb ?? 8.073);
-  const activePct = storageUsedPct || (activeData?.usedPercentage ?? 80.73);
-  const totalGb = totalBucket?.totalSizeGb ?? 11.142;
-  const totalPct = totalBucket?.usedPercentage ?? 111.42;
+  const activeGb = storageUsedGb || (activeData?.totalSizeGb ?? 8.277);
+  const activePct = storageUsedPct || (activeData?.usedPercentage ?? 82.77);
+  const totalGb = totalBucket?.totalSizeGb ?? 11.348;
+  const totalPct = totalBucket?.usedPercentage ?? 113.48;
 
   const displayGb = isTotalView ? totalGb : activeGb;
   const displayPct = isTotalView ? totalPct : activePct;

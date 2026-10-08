@@ -81,8 +81,8 @@ Payload: {
     badgeColor: '#e11d48',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '8.184 GB Stored (Primary Active)',
-      secondaryMetric: '11,660 HTML5 + 24,754 Metadata (81.8% Quota)',
+      primaryMetric: '8.277 GB Stored (Primary Active)',
+      secondaryMetric: '11,660 HTML5 + 24,754 Metadata (82.8% Quota)',
       latency: '< 45ms S3 HeadObject',
       throughput: 'Zero Egress Fees (Cloudflare Global Edge)',
     },

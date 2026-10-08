@@ -2,6 +2,7 @@ import type { FC } from 'react';
 import { InteractiveWorkflowCanvas } from '../components/schematic';
 import { MetricsBento } from '../components/common';
 import { StorageInspector } from '../components/schematic';
+import { useLakehouseStreamStore } from '../store';
 import { useTranslation } from '../hooks';
 import type { AppTab, AppTheme, PipelineStatus, SchematicViewMode } from '../types';
 
@@ -23,6 +24,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   onTriggerPipeline,
 }) => {
   const { language } = useTranslation();
+  const { storageUsedGb } = useLakehouseStreamStore();
   return (
     <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
       {/* High-Contrast Segmented View Mode Switcher */}
@@ -124,7 +126,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                 fontWeight: 700,
               }}
             >
-              8.18 GB
+              {storageUsedGb.toFixed(2)} GB
             </span>
           </button>
         </div>

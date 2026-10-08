@@ -21,7 +21,7 @@ export const createInitialLakehouseLogs = (): StreamingLogEntry[] => {
       time: formatTime(new Date(now.getTime() - 1000 * 150)),
       level: 'STORAGE',
       tag: 'R2/SYNC',
-      msg: 'Cloudflare R2 lakehouse active: 8.184 GB across Bronze (7.734 GB HTML5/OpenAlex), Silver (321.68 MB Parquet), Gold (211.26 MB LanceDB)',
+      msg: 'Cloudflare R2 lakehouse active: 8.277 GB across Bronze (7.744 GB HTML5/OpenAlex), Silver (321.68 MB Parquet), Gold (211.26 MB LanceDB)',
     },
     {
       id: 'init-02',
@@ -116,9 +116,9 @@ let state: LakehouseStreamState = {
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
-  storageUsedGb: 8.184,
-  storageUsedPct: 81.84,
-  storageTotalBytes: 8787548614,
+  storageUsedGb: 8.277,
+  storageUsedPct: 82.77,
+  storageTotalBytes: 8887884161,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
   storageStats: null,
@@ -152,9 +152,9 @@ export async function refreshStorageStats(): Promise<void> {
     const data = await fetchStorageStats();
     if (data) {
       const mode = state.viewMode;
-      const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 8.073);
-      const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 80.73);
-      const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 8668472480);
+      const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 8.277);
+      const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 82.77);
+      const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 8887884161);
 
       // Merge storageStats but never let polling overwrite HIGHER numbers already pushed via SSE.
       // This prevents the "numbers jump up then reset" bug caused by stale API responses.
@@ -203,9 +203,9 @@ export function setViewMode(mode: 'active' | 'total'): void {
         pct = data.used_percentage;
         bytes = data.total_size_bytes;
       } else {
-        gb = data.activeLakehouse?.totalSizeGb ?? 8.073;
-        pct = data.activeLakehouse?.usedPercentage ?? 80.73;
-        bytes = data.activeLakehouse?.totalSizeBytes ?? 8668472480;
+        gb = data.activeLakehouse?.totalSizeGb ?? 8.277;
+        pct = data.activeLakehouse?.usedPercentage ?? 82.77;
+        bytes = data.activeLakehouse?.totalSizeBytes ?? 8887884161;
       }
     }
     if (typeof window !== 'undefined') {

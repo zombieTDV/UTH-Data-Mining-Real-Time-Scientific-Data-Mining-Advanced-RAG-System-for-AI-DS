@@ -83,10 +83,10 @@ export function StorageInspector() {
   const goldMb = (activeData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
   const backupGb = (backupData?.totalSizeGb ?? 3.069).toFixed(3);
 
-  const activeGb = (storageUsedGb || Number(activeData?.totalSizeGb ?? 8.073)).toFixed(3);
-  const activePct = (storageUsedPct || Number(activeData?.usedPercentage ?? 80.73)).toFixed(1);
-  const totalGb = (totalBucket?.totalSizeGb ?? 11.142).toFixed(3);
-  const totalPct = (totalBucket?.usedPercentage ?? 111.42).toFixed(1);
+  const activeGb = (storageUsedGb || Number(activeData?.totalSizeGb ?? 8.277)).toFixed(3);
+  const activePct = (storageUsedPct || Number(activeData?.usedPercentage ?? 82.77)).toFixed(1);
+  const totalGb = (totalBucket?.totalSizeGb ?? 11.348).toFixed(3);
+  const totalPct = (totalBucket?.usedPercentage ?? 113.48).toFixed(1);
 
   const layers: LakehouseLayer[] = [
     {
@@ -127,7 +127,7 @@ export function StorageInspector() {
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy)',
-      itemsCount: '11 Partitions (38,414 works)',
+      itemsCount: '11 Partitions (36,414 works)',
       sizeBytes: `${silverMb} MB`,
       r2Location: 's3://uth-scientific-lakehouse/silver/ (papers, cvf, openreview)',
       color: '#10b981',

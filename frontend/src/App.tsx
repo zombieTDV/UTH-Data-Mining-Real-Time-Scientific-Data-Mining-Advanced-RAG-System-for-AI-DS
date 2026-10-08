@@ -32,8 +32,8 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 38,414 works, 164,702 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(38414);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 36,414 works, 164,702 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(36414);
   const [totalFormulas, setTotalFormulas] = useState<number>(2220938);
   const [totalVectors, setTotalVectors] = useState<number>(164702);
 
@@ -138,10 +138,11 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = (totalCorpus || totalPapers || 38414) + sessionIngested;
+  // totalCorpus from SSE already reflects total baseline (36,414) + sessionIngested. Avoid double-adding sessionIngested!
+  const effectiveTotalPapers = totalCorpus || (totalPapers + sessionIngested) || 36414;
   const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164702;
   const effectiveTotalFormulas = totalFormulas || 2220938;
-  const effectiveStorageGb = storageUsedGb || 8.073;
+  const effectiveStorageGb = storageUsedGb || (storageStats?.activeLakehouse?.totalSizeGb ?? 8.277);
   const effectiveStoragePct = storageUsedPct || Math.min(100, (effectiveStorageGb / 10.0) * 100);
 
   return (

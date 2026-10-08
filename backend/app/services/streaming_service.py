@@ -30,8 +30,8 @@ class StreamingService:
         self._task: Optional[asyncio.Task] = None
         self.recent_events: List[Dict[str, Any]] = []
 
-        # Real-time active lakehouse storage tracking (8.184 GB active Lakehouse)
-        self.base_storage_bytes: int = 8787548614
+        # Real-time active lakehouse storage tracking (8.277 GB active Lakehouse baseline: Bronze + Silver + Gold)
+        self.base_storage_bytes: int = 8887884161
         self.accumulated_bytes_delta: int = 0
         self.free_tier_quota_gb: float = 10.0
 

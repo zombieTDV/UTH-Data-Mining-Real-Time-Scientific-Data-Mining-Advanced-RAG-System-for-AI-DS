@@ -97,13 +97,13 @@ class StorageService:
         except Exception as e:
             logger.warning(f"[STORAGE] Bootstrap conferences error: {e}")
 
-        # Gold vectors from local LanceDB
+        # Gold vectors from local LanceDB (only update if production table has more than calibrated baseline)
         try:
             from src.indexing.lancedb_manager import LanceDBManager
             l_mgr = LanceDBManager()
             tbl = l_mgr.db.open_table("scientific_papers_gold")
             live_rows = len(tbl)
-            if live_rows > 0 and live_rows > self.base_active_gold_vectors:
+            if live_rows > self.base_active_gold_vectors:
                 self.base_active_gold_vectors = live_rows
                 logger.info(f"[STORAGE] Bootstrap gold vectors from LanceDB: {live_rows}")
         except Exception:
@@ -186,14 +186,14 @@ class StorageService:
         delta_ingested = streaming_service.session_ingested
         delta_bytes = streaming_service.accumulated_bytes_delta
 
-        # Check actual live LanceDB vector count if available
+        # Check actual live LanceDB vector count if available (only if larger than calibrated baseline)
         manifest_dirty = False
         try:
             from src.indexing.lancedb_manager import LanceDBManager
             l_mgr = LanceDBManager()
             tbl = l_mgr.db.open_table("scientific_papers_gold")
             live_rows = len(tbl)
-            if live_rows > 0 and live_rows != self.base_active_gold_vectors:
+            if live_rows > self.base_active_gold_vectors:
                 self.base_active_gold_vectors = live_rows
                 manifest_dirty = True
         except Exception:
