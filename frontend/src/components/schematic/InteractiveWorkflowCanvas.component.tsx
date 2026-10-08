@@ -361,7 +361,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [harvestLimit, setHarvestLimit] = useState<number>(10000);
   const [harvestDelay, setHarvestDelay] = useState<number>(6.0);
   const [harvestFormats, setHarvestFormats] = useState<string[]>(['HTML5', 'OAI-XML']);
-  const [isHarvesting, setIsHarvesting] = useState<boolean>(false);
 
   // Consume Centralized Lakehouse Stream Store
   const {
@@ -372,7 +371,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     streamTarget,
     setStreamTarget,
     storageUsedGb,
-    storageUsedPct,
     storageStats,
     lastPaperDeltaBytes,
     activePipelineStage,
@@ -671,6 +669,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const effectiveStage = (activePipelineStage && activePipelineStage !== 'idle') ? activePipelineStage : simulationStage;
   const normalizedStage: PipelineStageKey = useMemo(() => {
+    if (!isPipelineRunning && !isStreaming) {
+      return (effectiveStage === 'completed') ? 'completed' : 'idle';
+    }
     if (effectiveStage === 'completed') return 'completed';
     if (effectiveStage === 'harvest') return 'harvest';
     if (effectiveStage === 'bronze' || effectiveStage === 'r2_sync') return 'bronze';
@@ -678,10 +679,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     if (effectiveStage === 'parallel' || effectiveStage === 'silver' || effectiveStage === 'gold' || effectiveStage === 'embedding') return 'parallel';
     if (simulationStage !== 'idle') return simulationStage;
     return 'idle';
-  }, [effectiveStage, simulationStage]);
+  }, [effectiveStage, simulationStage, isPipelineRunning, isStreaming]);
 
   const isStageActive = (stage: string) => {
     if (isStreaming && (stage === 'harvest' || stage === 'bronze')) return true;
+    if (!isPipelineRunning) return false;
     if (effectiveStage === 'completed') return false;
     if (effectiveStage === stage) return true;
     if (effectiveStage === 'parallel' && (stage === 'parallel' || stage === 'silver' || stage === 'gold')) return true;
@@ -702,32 +704,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     setHarvestCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
     );
-  };
-
-  const handleStartHarvest = () => {
-    setIsHarvesting(true);
-    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const newBatch = [
-      { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'HARVEST', msg: `Initiating arXiv harvest: categories=[${harvestCategories.join(', ')}], limit=${harvestLimit.toLocaleString()}, delay=${harvestDelay}s` },
-      { id: Date.now() + 1, time: now, level: 'INFO' as const, tag: 'RATE-LIMIT', msg: 'arXiv OAI-PMH compliance verified. Resumption token rate-limiting enforced.' },
-      { id: Date.now() + 2, time: now, level: 'INFO' as const, tag: 'ASYNC-HTTPX', msg: 'Spawning 4 asynchronous HTTPX workers with SHA-256 integrity validation.' },
-    ];
-    setLogs((prev) => [...prev, ...newBatch]);
-
-    if (onTriggerPipeline) {
-      onTriggerPipeline();
-    }
-
-    setTimeout(() => {
-      const t1 = new Date().toLocaleTimeString('en-US', { hour12: false });
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + 3, time: t1, level: 'SUCCESS' as const, tag: 'BRONZE-R2', msg: 'Streamed 250 raw HTML5 articles to Cloudflare R2 bucket bronze/raw_html/year=2026/ (0 egress fees).' },
-        { id: Date.now() + 4, time: t1, level: 'EXEC' as const, tag: 'DUCKDB-SIMD', msg: 'DuckDB parsed 4,820 LaTeX formulas; extracted 5 academic canonical sections.' },
-        { id: Date.now() + 5, time: t1, level: 'SUCCESS' as const, tag: 'LANCEDB', msg: 'Indexed 1,250 semantic passage chunks into LanceDB IVF-PQ table.' },
-      ]);
-      setIsHarvesting(false);
-    }, 3500);
   };
 
   const handleToggleFormat = (fmt: string) => {
@@ -825,7 +801,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${storageUsedGb.toFixed(3)} GB Raw Storage`,
+          primaryMetric: `${liveActiveStorageGb.toFixed(3)} GB Raw Storage`,
           secondaryMetric: `${liveBronzeCount.toLocaleString()} HTML5 + ${liveBatchesCount} Batches`,
         }
       };
@@ -871,7 +847,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       };
     }
     return baseTool;
-  }, [baseTool, selectedNodeId, storageUsedGb, liveBronzeCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveOpenAlexCount, liveSilverMb, liveSilverPartitions]);
+  }, [baseTool, selectedNodeId, liveActiveStorageGb, liveBronzeCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveOpenAlexCount, liveSilverMb, liveSilverPartitions]);
 
   return (
     <div
@@ -934,7 +910,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       >
         <div
           style={{
-            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -145 : 15)}px) scale(${zoom})`,
+            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -45 : 15)}px) scale(${zoom})`,
             transformOrigin: 'center center',
             transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
             display: 'flex',
@@ -951,7 +927,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('start-flow')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '235px',
+              width: '248px',
               backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
@@ -980,24 +956,58 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               overflow: 'visible',
             }}
           >
-            {/* Stage Milestone Badge */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '2px 7px',
-              borderRadius: '5px',
-              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
-              color: isDark ? '#c084fc' : '#7c3aed',
-              fontSize: '11px',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono)',
-              marginBottom: '8px',
-              letterSpacing: '0.03em',
-            }}>
-              <span>{language === 'vi' ? 'CHẶNG 1' : 'STAGE 1'}</span>
-              <span>:</span>
-              <span>{language === 'vi' ? 'THU THẬP NGUỒN' : 'SOURCE INGEST'}</span>
+            {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '2px 7px',
+                borderRadius: '5px',
+                backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
+                color: isDark ? '#c084fc' : '#7c3aed',
+                fontSize: '11px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.03em',
+              }}>
+                <span>{language === 'vi' ? 'CHẶNG 1' : 'STAGE 1'}</span>
+                <span>:</span>
+                <span>{language === 'vi' ? 'THU THẬP' : 'INGEST'}</span>
+              </div>
+
+              <span style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                color: isStageActive('harvest')
+                  ? '#ffffff'
+                  : isStreaming
+                  ? (isDark ? '#34d399' : '#059669')
+                  : (isDark ? '#c084fc' : '#7c3aed'),
+                backgroundColor: isStageActive('harvest')
+                  ? '#8b5cf6'
+                  : isStreaming
+                  ? (isDark ? 'rgba(16, 185, 129, 0.18)' : '#ecfdf5')
+                  : (isDark ? 'rgba(124, 58, 237, 0.18)' : '#f5f3ff'),
+                border: `1px solid ${isStageActive('harvest') ? '#a78bfa' : isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent') : (isDark ? 'rgba(124, 58, 237, 0.3)' : 'transparent')}`,
+                boxShadow: isStageActive('harvest') ? '0 0 10px rgba(139, 92, 246, 0.6)' : 'none',
+                padding: '2px 7px',
+                borderRadius: '5px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                whiteSpace: 'nowrap',
+              }}>
+                {isStageActive('harvest') && (
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                )}
+                {isStageActive('harvest')
+                  ? (language === 'vi' ? '⚡ ĐANG CÀO' : '⚡ INGESTING')
+                  : isStreaming
+                  ? (language === 'vi' ? '● STREAMING' : '● STREAMING')
+                  : (effectiveStage === 'completed' ? (language === 'vi' ? '✔ ĐỒNG BỘ' : '✔ SYNCED') : (language === 'vi' ? '● SẴN SÀNG' : '● READY'))}
+              </span>
             </div>
 
             {/* Stage Micro Progress Bar */}
@@ -1058,70 +1068,37 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '9px',
-                    backgroundColor: '#7c3aed',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ffffff',
-                    boxShadow: '0 2px 6px rgba(124, 58, 237, 0.3)',
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                    <polyline points="2 17 12 22 22 17" />
-                    <polyline points="2 12 12 17 22 12" />
-                  </svg>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>
-                    arXiv & OpenAlex
-                  </div>
-                  <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                    {language === 'vi' ? 'Bộ Cào Phân Tán' : 'Federated Crawlers'}
-                  </div>
-                </div>
+            {/* Node Identity: Icon + Title & Subtitle (Full Card Width) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '9px',
+                  backgroundColor: '#7c3aed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 6px rgba(124, 58, 237, 0.3)',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                  <polyline points="2 17 12 22 22 17" />
+                  <polyline points="2 12 12 17 22 12" />
+                </svg>
               </div>
 
-              <span style={{
-                fontSize: '12px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                color: isStageActive('harvest')
-                  ? '#ffffff'
-                  : isStreaming
-                  ? (isDark ? '#34d399' : '#059669')
-                  : (isDark ? '#c084fc' : '#7c3aed'),
-                backgroundColor: isStageActive('harvest')
-                  ? '#8b5cf6'
-                  : isStreaming
-                  ? (isDark ? 'rgba(16, 185, 129, 0.18)' : '#ecfdf5')
-                  : (isDark ? 'rgba(124, 58, 237, 0.18)' : '#f5f3ff'),
-                border: `1px solid ${isStageActive('harvest') ? '#a78bfa' : isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent') : (isDark ? 'rgba(124, 58, 237, 0.3)' : 'transparent')}`,
-                boxShadow: isStageActive('harvest') ? '0 0 10px rgba(139, 92, 246, 0.6)' : 'none',
-                padding: '3px 7px',
-                borderRadius: '5px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}>
-                {isStageActive('harvest') && (
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
-                )}
-                {isStageActive('harvest')
-                  ? (language === 'vi' ? '⚡ ĐANG THU THẬP' : '⚡ INGESTING')
-                  : isStreaming
-                  ? '● STREAMING'
-                  : (effectiveStage === 'completed' ? '✔ SYNCED' : 'v2.0')}
-              </span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  arXiv & OpenAlex
+                </div>
+                <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {language === 'vi' ? 'Bộ Cào Phân Tán' : 'Federated Crawlers'}
+                </div>
+              </div>
             </div>
 
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1140,57 +1117,69 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div style={{ width: `${(liveOpenAlexCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#6366f1', transition: 'width 0.3s' }} />
               </div>
 
-              {/* High-Contrast Visual Source Chips */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                <span style={{
-                  fontSize: '11.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
-                  color: isDark ? '#c084fc' : '#7c3aed',
-                  border: '1px solid rgba(139, 92, 246, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#8b5cf6' }} />
-                  arXiv {liveBronzeCount.toLocaleString()}
-                </span>
+              {/* High-Contrast Visual Source Chips (2-Row Layout, Zero Overflow) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
+                    color: isDark ? '#c084fc' : '#7c3aed',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    flex: '1 1 0',
+                    justifyContent: 'center',
+                  }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#8b5cf6' }} />
+                    arXiv {liveBronzeCount.toLocaleString()}
+                  </span>
 
-                <span style={{
-                  fontSize: '11.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
-                  color: isDark ? '#818cf8' : '#4338ca',
-                  border: '1px solid rgba(99, 102, 241, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
-                  OpenAlex {liveOpenAlexCount.toLocaleString()}
-                </span>
+                  <span style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
+                    color: isDark ? '#818cf8' : '#4338ca',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    flex: '1 1 0',
+                    justifyContent: 'center',
+                  }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
+                    OpenAlex {liveOpenAlexCount.toLocaleString()}
+                  </span>
+                </div>
 
-                <span style={{
-                  fontSize: '11.5px',
+                <div style={{
+                  fontSize: '10.5px',
                   fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
+                  fontWeight: 600,
                   padding: '2px 6px',
                   borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#fef3c7',
                   color: isDark ? '#fbbf24' : '#b45309',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  display: 'inline-flex',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  justifyContent: 'center',
+                  gap: '5px',
+                  whiteSpace: 'nowrap',
+                  width: '100%',
                 }}>
-                  Conf {liveConfCount}
-                </span>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+                  {language === 'vi' ? `Kỷ yếu Hội nghị: ${liveConfCount} (CVF & OpenReview)` : `Conference Papers: ${liveConfCount} (CVF & OpenReview)`}
+                </div>
               </div>
             </div>
           </div>
@@ -1202,7 +1191,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('conduit-1')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '86px',
+              width: '112px',
               height: '24px',
               position: 'relative',
               display: 'flex',
@@ -1299,8 +1288,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 transition: 'all 0.25s ease',
               }}
             >
-              <span>📦</span>
-              <span>3.77 GB RAW</span>
+              <span>{isStreaming ? '⚡' : '📦'}</span>
+              <span>{isStreaming ? `+${streamSessionCount} STREAM` : `${liveBronzeGb} GB RAW`}</span>
             </div>
           </div>
 
@@ -1312,7 +1301,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('bronze-instance')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '240px',
+              width: '248px',
               backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
@@ -1341,24 +1330,58 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               overflow: 'visible',
             }}
           >
-            {/* Stage Milestone Badge */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '2px 7px',
-              borderRadius: '5px',
-              backgroundColor: isDark ? 'rgba(225, 29, 72, 0.18)' : '#ffe4e6',
-              color: isDark ? '#fb7185' : '#e11d48',
-              fontSize: '11px',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono)',
-              marginBottom: '8px',
-              letterSpacing: '0.03em',
-            }}>
-              <span>{language === 'vi' ? 'CHẶNG 2' : 'STAGE 2'}</span>
-              <span>:</span>
-              <span>{language === 'vi' ? 'HỒ THÔ BRONZE' : 'BRONZE LAKE'}</span>
+            {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '2px 7px',
+                borderRadius: '5px',
+                backgroundColor: isDark ? 'rgba(225, 29, 72, 0.18)' : '#ffe4e6',
+                color: isDark ? '#fb7185' : '#e11d48',
+                fontSize: '11px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.03em',
+              }}>
+                <span>{language === 'vi' ? 'CHẶNG 2' : 'STAGE 2'}</span>
+                <span>:</span>
+                <span>{language === 'vi' ? 'HỒ THÔ' : 'BRONZE LAKE'}</span>
+              </div>
+
+              <span style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                color: isStageActive('bronze')
+                  ? '#ffffff'
+                  : isStreaming
+                  ? '#34d399'
+                  : (isDark ? '#fb7185' : '#e11d48'),
+                backgroundColor: isStageActive('bronze')
+                  ? '#e11d48'
+                  : isStreaming
+                  ? (isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5')
+                  : (isDark ? 'rgba(225, 29, 72, 0.20)' : '#fff1f2'),
+                border: `1px solid ${isStageActive('bronze') ? '#f43f5e' : isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent') : (isDark ? 'rgba(225, 29, 72, 0.35)' : 'transparent')}`,
+                boxShadow: isStageActive('bronze') ? '0 0 10px rgba(225, 29, 72, 0.6)' : 'none',
+                padding: '2px 7px',
+                borderRadius: '5px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                whiteSpace: 'nowrap',
+              }}>
+                {isStageActive('bronze') && (
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                )}
+                {isStageActive('bronze')
+                  ? (language === 'vi' ? '⚡ TẢI LÊN R2' : '⚡ UPLOADING')
+                  : isStreaming
+                  ? (language === 'vi' ? '● ĐỒNG BỘ R2' : '● SYNCING R2')
+                  : 'S3 API'}
+              </span>
             </div>
 
             {/* Stage Micro Progress Bar */}
@@ -1451,66 +1474,35 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '9px',
-                    backgroundColor: '#e11d48',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ffffff',
-                    boxShadow: '0 2px 6px rgba(225, 29, 72, 0.3)',
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M18.8 11.2C18.4 8.3 15.9 6 13 6c-2.4 0-4.5 1.5-5.4 3.7C5.3 10 3.5 12 3.5 14.5c0 2.8 2.2 5 5 5h10c2.5 0 4.5-2 4.5-4.5 0-2.1-1.5-3.8-3.5-4.3z" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48' }}>Cloudflare R2</div>
-                  <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                    {language === 'vi' ? 'Hồ Dữ Liệu Bronze' : 'Bronze Lake'}
-                  </div>
-                </div>
+            {/* Node Identity: Icon + Title & Subtitle (Full Card Width) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '9px',
+                  backgroundColor: '#e11d48',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 6px rgba(225, 29, 72, 0.3)',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M18.8 11.2C18.4 8.3 15.9 6 13 6c-2.4 0-4.5 1.5-5.4 3.7C5.3 10 3.5 12 3.5 14.5c0 2.8 2.2 5 5 5h10c2.5 0 4.5-2 4.5-4.5 0-2.1-1.5-3.8-3.5-4.3z" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </div>
 
-              <span style={{
-                fontSize: '12px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                color: isStageActive('bronze')
-                  ? '#ffffff'
-                  : isStreaming
-                  ? '#34d399'
-                  : (isDark ? '#fb7185' : '#e11d48'),
-                backgroundColor: isStageActive('bronze')
-                  ? '#e11d48'
-                  : isStreaming
-                  ? (isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5')
-                  : (isDark ? 'rgba(225, 29, 72, 0.20)' : '#fff1f2'),
-                border: `1px solid ${isStageActive('bronze') ? '#f43f5e' : isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent') : (isDark ? 'rgba(225, 29, 72, 0.35)' : 'transparent')}`,
-                boxShadow: isStageActive('bronze') ? '0 0 10px rgba(225, 29, 72, 0.6)' : 'none',
-                padding: '3px 7px',
-                borderRadius: '5px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}>
-                {isStageActive('bronze') && (
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
-                )}
-                {isStageActive('bronze')
-                  ? (language === 'vi' ? '⚡ TẢI LÊN R2' : '⚡ UPLOADING')
-                  : isStreaming
-                  ? (language === 'vi' ? '● ĐỒNG BỘ R2' : '● SYNCING R2')
-                  : 'S3 API'}
-              </span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Cloudflare R2
+                </div>
+                <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {language === 'vi' ? 'Hồ Dữ Liệu Bronze' : 'Bronze Lake'}
+                </div>
+              </div>
             </div>
 
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1576,22 +1568,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   Meta 3.97 GB
                 </span>
 
-                <span style={{
-                  fontSize: '11.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
-                  color: isDark ? '#34d399' : '#059669',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                  Parquet {liveSilverMb.toFixed(0)} MB
-                </span>
 
                 {isStreaming && lastPaperDeltaBytes > 0 && (
                   <span style={{
@@ -1621,7 +1597,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('conduit-2')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '86px',
+              width: '112px',
               height: '24px',
               position: 'relative',
               display: 'flex',
@@ -1719,7 +1695,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               }}
             >
               <span>📄</span>
-              <span>11.6k WORKS</span>
+              <span>{`${(liveTotalWorks / 1000).toFixed(1)}k ${language === 'vi' ? 'BÀI BÁO' : 'WORKS'}`}</span>
             </div>
           </div>
 
@@ -1731,7 +1707,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('review-duckdb')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '230px',
+              width: '248px',
               backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
@@ -1760,24 +1736,50 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               overflow: 'visible',
             }}
           >
-            {/* Stage Milestone Badge */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '2px 7px',
-              borderRadius: '5px',
-              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fef3c7',
-              color: isDark ? '#fbbf24' : '#d97706',
-              fontSize: '11px',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono)',
-              marginBottom: '8px',
-              letterSpacing: '0.03em',
-            }}>
-              <span>{language === 'vi' ? 'CHẶNG 3' : 'STAGE 3'}</span>
-              <span>:</span>
-              <span>{language === 'vi' ? 'BÓC TÁCH SIMD' : 'SIMD OLAP'}</span>
+            {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '2px 7px',
+                borderRadius: '5px',
+                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fef3c7',
+                color: isDark ? '#fbbf24' : '#d97706',
+                fontSize: '11px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.03em',
+              }}>
+                <span>{language === 'vi' ? 'CHẶNG 3' : 'STAGE 3'}</span>
+                <span>:</span>
+                <span>{language === 'vi' ? 'XỬ LÝ SIMD' : 'SIMD OLAP'}</span>
+              </div>
+
+              <span style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                color: isStageActive('duckdb') ? '#ffffff' : (isDark ? '#fbbf24' : '#d97706'),
+                backgroundColor: isStageActive('duckdb')
+                  ? '#f59e0b'
+                  : (isDark ? 'rgba(245, 158, 11, 0.20)' : '#fef3c7'),
+                border: `1px solid ${isStageActive('duckdb') ? '#fbbf24' : (isDark ? 'rgba(245, 158, 11, 0.35)' : 'transparent')}`,
+                boxShadow: isStageActive('duckdb') ? '0 0 10px rgba(245, 158, 11, 0.6)' : 'none',
+                padding: '2px 7px',
+                borderRadius: '5px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                whiteSpace: 'nowrap',
+              }}>
+                {isStageActive('duckdb') && (
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                )}
+                {isStageActive('duckdb')
+                  ? (language === 'vi' ? '⚡ ĐANG TÁCH' : '⚡ SIMD PARSE')
+                  : 'SIMD'}
+              </span>
             </div>
 
             {/* Stage Micro Progress Bar */}
@@ -1870,60 +1872,37 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '9px',
-                    backgroundColor: '#f59e0b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ffffff',
-                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="18" height="18" rx="4" stroke="#ffffff" strokeWidth="2"/>
-                    <circle cx="9" cy="9" r="2.5" fill="#ffffff"/>
-                    <path d="M14 9c0 2-2 3.5-5 3.5M9 16c4 0 7-1.5 7-4.5" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706' }}>DuckDB</div>
-                  <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                    {language === 'vi' ? 'OLAP Trong Tiến Trình' : 'In-Process OLAP'}
-                  </div>
-                </div>
+            {/* Node Identity: Icon + Title & Subtitle (Full Card Width) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '9px',
+                  backgroundColor: '#f59e0b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="3" width="18" height="18" rx="4" stroke="#ffffff" strokeWidth="2"/>
+                  <circle cx="9" cy="9" r="2.5" fill="#ffffff"/>
+                  <path d="M14 9c0 2-2 3.5-5 3.5M9 16c4 0 7-1.5 7-4.5" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
               </div>
 
-              <span style={{
-                fontSize: '12px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                color: isStageActive('duckdb') ? '#ffffff' : (isDark ? '#fbbf24' : '#d97706'),
-                backgroundColor: isStageActive('duckdb')
-                  ? '#f59e0b'
-                  : (isDark ? 'rgba(245, 158, 11, 0.20)' : '#fef3c7'),
-                border: `1px solid ${isStageActive('duckdb') ? '#fbbf24' : (isDark ? 'rgba(245, 158, 11, 0.35)' : 'transparent')}`,
-                boxShadow: isStageActive('duckdb') ? '0 0 10px rgba(245, 158, 11, 0.6)' : 'none',
-                padding: '3px 7px',
-                borderRadius: '5px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}>
-                {isStageActive('duckdb') && (
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
-                )}
-                {isStageActive('duckdb')
-                  ? (language === 'vi' ? '⚡ SIMD ĐANG TÁCH' : '⚡ SIMD PARSING')
-                  : 'SIMD'}
-              </span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  DuckDB
+                </div>
+                <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {language === 'vi' ? 'OLAP Trong Tiến Trình' : 'In-Process OLAP'}
+                </div>
+              </div>
             </div>
 
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1997,7 +1976,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('conduit-3')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '86px',
+              width: '112px',
               height: '24px',
               position: 'relative',
               display: 'flex',
@@ -2095,7 +2074,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               }}
             >
               <span>⚡</span>
-              <span>ARROW SIMD</span>
+              <span>{`${(liveFormulas / 1000000).toFixed(2)}M ${language === 'vi' ? 'CÔNG THỨC' : 'FORMULAS'}`}</span>
             </div>
           </div>
 
@@ -2247,7 +2226,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onMouseEnter={() => setHoveredNodeId('silver-parquet')}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
-                  width: '245px',
+                  width: '248px',
                   backgroundColor: themeStyles.cardBg,
                   borderRadius: '14px',
                   padding: '12px 16px',
@@ -2275,24 +2254,50 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   overflow: 'visible',
                 }}
               >
-                {/* Stage Milestone Badge */}
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '2px 7px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
-                  color: isDark ? '#34d399' : '#047857',
-                  fontSize: '11px',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  marginBottom: '8px',
-                  letterSpacing: '0.03em',
-                }}>
-                  <span>{language === 'vi' ? 'CHẶNG 4A' : 'STAGE 4A'}</span>
-                  <span>:</span>
-                  <span>{language === 'vi' ? 'LƯU TRỮ CỘT' : 'COLUMNAR STORE'}</span>
+                {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '2px 7px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                    color: isDark ? '#34d399' : '#047857',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    letterSpacing: '0.03em',
+                  }}>
+                    <span>{language === 'vi' ? 'CHẶNG 4A' : 'STAGE 4A'}</span>
+                    <span>:</span>
+                    <span>{language === 'vi' ? 'LƯU TRỮ CỘT' : 'COLUMNAR STORE'}</span>
+                  </div>
+
+                  <span style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    color: isStageActive('parallel') ? '#ffffff' : (isDark ? '#34d399' : '#059669'),
+                    backgroundColor: isStageActive('parallel')
+                      ? '#10b981'
+                      : (isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5'),
+                    border: `1px solid ${isStageActive('parallel') ? '#34d399' : (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent')}`,
+                    boxShadow: isStageActive('parallel') ? '0 0 10px rgba(16, 185, 129, 0.6)' : 'none',
+                    padding: '2px 7px',
+                    borderRadius: '5px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {isStageActive('parallel') && (
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                    )}
+                    {isStageActive('parallel')
+                      ? (language === 'vi' ? '⚡ NÉN SNAPPY' : '⚡ SNAPPY')
+                      : 'Snappy'}
+                  </span>
                 </div>
 
                 {/* Stage Micro Progress Bar */}
@@ -2385,61 +2390,38 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
-                      style={{
-                        width: '34px',
-                        height: '34px',
-                        borderRadius: '8px',
-                        backgroundColor: '#10b981',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <rect x="3" y="4" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
-                        <rect x="13" y="4" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
-                        <rect x="3" y="13" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
-                        <rect x="13" y="13" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
-                      </svg>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#34d399' : '#047857' }}>Apache Parquet</div>
-                      <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                        {language === 'vi' ? 'Dữ Liệu Cột Silver' : 'Silver Columnar'}
-                      </div>
-                    </div>
+                {/* Node Identity: Icon + Title & Subtitle (Full Card Width) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '8px',
+                      backgroundColor: '#10b981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <rect x="3" y="4" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
+                      <rect x="13" y="4" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
+                      <rect x="3" y="13" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
+                      <rect x="13" y="13" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
+                    </svg>
                   </div>
 
-                  <span style={{
-                    fontSize: '12px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 800,
-                    color: isStageActive('parallel') ? '#ffffff' : (isDark ? '#34d399' : '#059669'),
-                    backgroundColor: isStageActive('parallel')
-                      ? '#10b981'
-                      : (isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5'),
-                    border: `1px solid ${isStageActive('parallel') ? '#34d399' : (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent')}`,
-                    boxShadow: isStageActive('parallel') ? '0 0 10px rgba(16, 185, 129, 0.6)' : 'none',
-                    padding: '3px 7px',
-                    borderRadius: '5px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}>
-                    {isStageActive('parallel') && (
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
-                    )}
-                    {isStageActive('parallel')
-                      ? (language === 'vi' ? '⚡ NÉN SNAPPY' : '⚡ SNAPPY COMPRESS')
-                      : 'Snappy'}
-                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#34d399' : '#047857', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      Apache Parquet
+                    </div>
+                    <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {language === 'vi' ? 'Dữ Liệu Cột Silver' : 'Silver Columnar'}
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -2511,7 +2493,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onMouseEnter={() => setHoveredNodeId('gold-lancedb')}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
-                  width: '245px',
+                  width: '248px',
                   backgroundColor: themeStyles.cardBg,
                   borderRadius: '14px',
                   padding: '12px 16px',
@@ -2539,24 +2521,50 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   overflow: 'visible',
                 }}
               >
-                {/* Stage Milestone Badge */}
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '2px 7px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.18)' : '#eff6ff',
-                  color: isDark ? '#60a5fa' : '#2563eb',
-                  fontSize: '11px',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  marginBottom: '8px',
-                  letterSpacing: '0.03em',
-                }}>
-                  <span>{language === 'vi' ? 'CHẶNG 4B' : 'STAGE 4B'}</span>
-                  <span>:</span>
-                  <span>{language === 'vi' ? 'KHO VECTOR ANN' : 'VECTOR STORE'}</span>
+                {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '2px 7px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.18)' : '#eff6ff',
+                    color: isDark ? '#60a5fa' : '#2563eb',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    letterSpacing: '0.03em',
+                  }}>
+                    <span>{language === 'vi' ? 'CHẶNG 4B' : 'STAGE 4B'}</span>
+                    <span>:</span>
+                    <span>{language === 'vi' ? 'KHO VECTOR' : 'VECTOR STORE'}</span>
+                  </div>
+
+                  <span style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    color: isStageActive('parallel') ? '#ffffff' : (isDark ? '#60a5fa' : '#2563eb'),
+                    backgroundColor: isStageActive('parallel')
+                      ? '#2563eb'
+                      : (isDark ? 'rgba(37, 99, 235, 0.20)' : '#eff6ff'),
+                    border: `1px solid ${isStageActive('parallel') ? '#60a5fa' : (isDark ? 'rgba(37, 99, 235, 0.35)' : 'transparent')}`,
+                    boxShadow: isStageActive('parallel') ? '0 0 10px rgba(37, 99, 235, 0.6)' : 'none',
+                    padding: '2px 7px',
+                    borderRadius: '5px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {isStageActive('parallel') && (
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
+                    )}
+                    {isStageActive('parallel')
+                      ? (language === 'vi' ? '⚡ CHỈ MỤC ANN' : '⚡ ANN INDEX')
+                      : 'Nomic AI'}
+                  </span>
                 </div>
 
                 {/* Stage Micro Progress Bar */}
@@ -2649,59 +2657,36 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
-                      style={{
-                        width: '34px',
-                        height: '34px',
-                        borderRadius: '8px',
-                        backgroundColor: '#2563eb',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <polygon points="12 2 21 7 21 17 12 22 3 17 3 7" stroke="#ffffff" strokeWidth="1.8" strokeLinejoin="round"/>
-                        <polyline points="3 7 12 12 21 7" stroke="#ffffff" strokeWidth="1.5"/>
-                      </svg>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#60a5fa' : '#1d4ed8' }}>LanceDB Vectors</div>
-                      <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                        {language === 'vi' ? 'Kho Vector Gold' : 'Gold Vector Store'}
-                      </div>
-                    </div>
+                {/* Node Identity: Icon + Title & Subtitle (Full Card Width) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '8px',
+                      backgroundColor: '#2563eb',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <polygon points="12 2 21 7 21 17 12 22 3 17 3 7" stroke="#ffffff" strokeWidth="1.8" strokeLinejoin="round"/>
+                      <polyline points="3 7 12 12 21 7" stroke="#ffffff" strokeWidth="1.5"/>
+                    </svg>
                   </div>
 
-                  <span style={{
-                    fontSize: '12px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 800,
-                    color: isStageActive('parallel') ? '#ffffff' : (isDark ? '#60a5fa' : '#2563eb'),
-                    backgroundColor: isStageActive('parallel')
-                      ? '#2563eb'
-                      : (isDark ? 'rgba(37, 99, 235, 0.20)' : '#eff6ff'),
-                    border: `1px solid ${isStageActive('parallel') ? '#60a5fa' : (isDark ? 'rgba(37, 99, 235, 0.35)' : 'transparent')}`,
-                    boxShadow: isStageActive('parallel') ? '0 0 10px rgba(37, 99, 235, 0.6)' : 'none',
-                    padding: '3px 7px',
-                    borderRadius: '5px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}>
-                    {isStageActive('parallel') && (
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
-                    )}
-                    {isStageActive('parallel')
-                      ? (language === 'vi' ? '⚡ ĐÁNH CHỈ MỤC' : '⚡ ANN INDEXING')
-                      : 'Nomic AI'}
-                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#60a5fa' : '#1d4ed8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      LanceDB Vectors
+                    </div>
+                    <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {language === 'vi' ? 'Kho Vector Gold' : 'Gold Vector Store'}
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -2921,7 +2906,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               onMouseEnter={() => setHoveredNodeId('conduit-5')}
               onMouseLeave={() => setHoveredNodeId(null)}
               style={{
-                width: '86px',
+                width: '112px',
                 height: '24px',
                 position: 'relative',
                 display: 'flex',
@@ -3019,7 +3004,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 }}
               >
                 <span>🎯</span>
-                <span>TOP-5 DOI</span>
+                <span>{language === 'vi' ? 'TOP-5 VĂN CẢNH' : 'TOP-5 CONTEXT'}</span>
               </div>
             </div>
 
@@ -3031,7 +3016,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               onMouseEnter={() => setHoveredNodeId('grounded-rag')}
               onMouseLeave={() => setHoveredNodeId(null)}
               style={{
-                width: '235px',
+                width: '248px',
                 backgroundColor: isGroundedRagReady
                   ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#ffffff')
                   : themeStyles.cardBg,
@@ -3062,24 +3047,46 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 overflow: 'visible',
               }}
             >
-              {/* Stage Milestone Badge */}
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '2px 7px',
-                borderRadius: '5px',
-                backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#ede9fe',
-                color: isDark ? '#a5b4fc' : '#4338ca',
-                fontSize: '11px',
-                fontWeight: 800,
-                fontFamily: 'var(--font-mono)',
-                marginBottom: '8px',
-                letterSpacing: '0.03em',
-              }}>
-                <span>{language === 'vi' ? 'CHẶNG 5' : 'STAGE 5'}</span>
-                <span>:</span>
-                <span>{language === 'vi' ? 'TRUY VẤN TRI THỨC' : 'KNOWLEDGE RAG'}</span>
+              {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '2px 7px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#ede9fe',
+                  color: isDark ? '#a5b4fc' : '#4338ca',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.03em',
+                }}>
+                  <span>{language === 'vi' ? 'CHẶNG 5' : 'STAGE 5'}</span>
+                  <span>:</span>
+                  <span>{language === 'vi' ? 'TRI THỨC RAG' : 'KNOWLEDGE RAG'}</span>
+                </div>
+
+                <span style={{
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  color: isGroundedRagReady ? '#ffffff' : (isDark ? '#a5b4fc' : '#6366f1'),
+                  backgroundColor: isGroundedRagReady ? '#6366f1' : (isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe'),
+                  border: `1px solid ${isGroundedRagReady ? '#818cf8' : (isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent')}`,
+                  boxShadow: isGroundedRagReady && isDark ? '0 0 12px rgba(99, 102, 241, 0.65)' : 'none',
+                  padding: '2px 7px',
+                  borderRadius: '5px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {isGroundedRagReady && (
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
+                  )}
+                  {isGroundedRagReady ? (language === 'vi' ? '● SẴN SÀNG' : '● READY') : 'Metal'}
+                </span>
               </div>
 
               {/* Stage Micro Progress Bar */}
@@ -3139,54 +3146,37 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '9px',
-                      backgroundColor: '#6366f1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#ffffff',
-                      boxShadow: isGroundedRagReady
-                        ? (isDark ? '0 0 14px rgba(99, 102, 241, 0.8)' : '0 2px 8px rgba(99, 102, 241, 0.35)')
-                        : '0 2px 6px rgba(99, 102, 241, 0.3)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
-                    <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
-                  </div>
+              {/* Node Identity: Icon + Title & Subtitle (Full Card Width) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '9px',
+                    backgroundColor: '#6366f1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    boxShadow: isGroundedRagReady
+                      ? (isDark ? '0 0 14px rgba(99, 102, 241, 0.8)' : '0 2px 8px rgba(99, 102, 241, 0.35)')
+                      : '0 2px 6px rgba(99, 102, 241, 0.3)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
                 </div>
 
-                <span style={{
-                  fontSize: '12px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  color: isGroundedRagReady ? '#ffffff' : (isDark ? '#a5b4fc' : '#6366f1'),
-                  backgroundColor: isGroundedRagReady ? '#6366f1' : (isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe'),
-                  border: `1px solid ${isGroundedRagReady ? '#818cf8' : (isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent')}`,
-                  boxShadow: isGroundedRagReady && isDark ? '0 0 12px rgba(99, 102, 241, 0.65)' : 'none',
-                  padding: '3px 7px',
-                  borderRadius: '5px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                }}>
-                  {isGroundedRagReady && (
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
-                  )}
-                  {isGroundedRagReady ? (language === 'vi' ? '● SẴN SÀNG CHO RAG' : '● READY FOR RAG') : 'Metal'}
-                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Grounded RAG
+                  </div>
+                  <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Qwen 2.5 QA
+                  </div>
+                </div>
               </div>
 
               {isGroundedRagReady && (
@@ -3316,13 +3306,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             bottom: 0,
             left: '58px',   // Aligned beside the 58px sidebar rail
             right: 0,
-            height: drawerExpanded ? 'calc(100vh - 120px)' : '390px',
+            height: drawerExpanded ? 'calc(100vh - 120px)' : '360px',
             backgroundColor: themeStyles.drawerBg,
             borderTop: `2px solid ${themeStyles.drawerBorder}`,
             boxShadow: isDark ? '0 -10px 32px rgba(0, 0, 0, 0.55)' : '0 -10px 32px rgba(0, 0, 0, 0.12)',
             display: 'flex',
             flexDirection: 'column',
-            zIndex: 45,
+            zIndex: 40,
             transition: 'height 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
             animation: 'slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
@@ -3733,156 +3723,135 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         </div>
                       </div>
 
-                      <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {/* 1. Real-time Streaming CDC Section */}
+                      <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {/* UNIFIED HARVESTER & STREAMING CONTROLLER */}
                         <div
                           style={{
-                            padding: '10px 12px',
-                            backgroundColor: isDark ? (isStreaming ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.04)') : (isStreaming ? '#ecfdf5' : '#f0fdf4'),
-                            border: `1px solid ${isDark ? (isStreaming ? 'rgba(16, 185, 129, 0.35)' : 'rgba(255, 255, 255, 0.10)') : (isStreaming ? '#10b981' : '#bbf7d0')}`,
-                            borderRadius: '8px',
+                            padding: '12px 14px',
+                            backgroundColor: isDark ? (isStreaming ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.04)') : (isStreaming ? '#fef2f2' : '#f8fafc'),
+                            border: `1px solid ${isDark ? (isStreaming ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.12)') : (isStreaming ? '#fca5a5' : '#e2e8f0')}`,
+                            borderRadius: '10px',
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '6px',
+                            gap: '10px',
+                            boxShadow: isStreaming ? '0 0 16px rgba(239, 68, 68, 0.15)' : 'none',
                           }}
                         >
+                          {/* Header: Mode & Real-time Live Status */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span
                                 style={{
-                                  width: '7px',
-                                  height: '7px',
+                                  width: '8px',
+                                  height: '8px',
                                   borderRadius: '50%',
-                                  backgroundColor: isStreaming ? '#10b981' : '#64748b',
-                                  boxShadow: isStreaming ? '0 0 8px #10b981' : 'none',
+                                  backgroundColor: isStreaming ? '#ef4444' : '#10b981',
+                                  boxShadow: isStreaming ? '0 0 10px #ef4444' : '0 0 6px #10b981',
                                   animation: isStreaming ? 'stageGlowOrange 1.2s infinite' : 'none',
                                   display: 'inline-block',
                                 }}
                               />
-                              <span style={{ fontSize: '10.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#166534' }}>
-                                REALTIME STREAMING (CDC 2025/2026)
+                              <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#f1f5f9' : '#0f172a' }}>
+                                {language === 'vi' ? 'BỘ ĐIỀU KHIỂN THU THẬP DỮ LIỆU' : 'DATA INGESTION CONTROLLER'}
                               </span>
                             </div>
-                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textMuted, fontWeight: 700 }}>
-                              {isStreaming ? (language === 'vi' ? `${streamSpeed} bài/phút` : `${streamSpeed} papers/min`) : 'STANDBY'}
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontFamily: 'var(--font-mono)',
+                                color: isStreaming ? '#ef4444' : (isDark ? '#34d399' : '#059669'),
+                                backgroundColor: isStreaming ? (isDark ? 'rgba(239, 68, 68, 0.18)' : '#fee2e2') : (isDark ? 'rgba(16, 185, 129, 0.15)' : '#dcfce7'),
+                                padding: '2px 8px',
+                                borderRadius: '9999px',
+                                fontWeight: 800,
+                              }}
+                            >
+                              {isStreaming ? (language === 'vi' ? `● ĐANG CÀO (${streamSpeed} bài/phút)` : `● STREAMING (${streamSpeed} ppm)`) : (language === 'vi' ? '● CHẾ ĐỘ CHỜ (STANDBY)' : '● STANDBY')}
                             </span>
                           </div>
 
-                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>{language === 'vi' ? 'Mục tiêu:' : 'Target:'}</span>
-                            {[1000, 3000, 5000].map((t) => (
-                              <button
-                                key={t}
-                                type="button"
-                                onClick={() => setStreamTarget(t)}
-                                disabled={isStreaming}
-                                style={{
-                                  fontSize: '10px',
-                                  fontFamily: 'var(--font-mono)',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  border: streamTarget === t ? '1px solid #16a34a' : `1px solid ${themeStyles.cardBorder}`,
-                                  backgroundColor: streamTarget === t ? (isDark ? 'rgba(22, 163, 74, 0.25)' : '#dcfce7') : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#ffffff'),
-                                  color: streamTarget === t ? (isDark ? '#4ade80' : '#166534') : themeStyles.textMuted,
-                                  fontWeight: streamTarget === t ? 800 : 500,
-                                  cursor: isStreaming ? 'not-allowed' : 'pointer',
-                                }}
-                              >
-                                {t.toLocaleString()} {language === 'vi' ? 'bài' : 'papers'}
-                              </button>
-                            ))}
+                          {/* Target Limit Selector */}
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                              {language === 'vi' ? 'Mục tiêu đợt cào:' : 'Ingestion Target:'}
+                            </span>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              {[1000, 3000, 5000, 10000].map((t) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  onClick={() => setStreamTarget(t)}
+                                  disabled={isStreaming}
+                                  style={{
+                                    fontSize: '10px',
+                                    fontFamily: 'var(--font-mono)',
+                                    padding: '3px 8px',
+                                    borderRadius: '5px',
+                                    border: streamTarget === t ? '1px solid #10b981' : `1px solid ${themeStyles.cardBorder}`,
+                                    backgroundColor: streamTarget === t ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#dcfce7') : (isDark ? 'rgba(255, 255, 255, 0.05)' : '#ffffff'),
+                                    color: streamTarget === t ? (isDark ? '#34d399' : '#166534') : themeStyles.textMuted,
+                                    fontWeight: streamTarget === t ? 800 : 500,
+                                    cursor: isStreaming ? 'not-allowed' : 'pointer',
+                                    transition: 'all 0.12s ease',
+                                  }}
+                                >
+                                  {t >= 1000 ? `${t / 1000}k` : t}
+                                </button>
+                              ))}
+                            </div>
                           </div>
 
+                          {/* SINGLE UNIFIED PRIMARY ACTION BUTTON (START / STOP) */}
                           <button
                             type="button"
                             onClick={handleToggleStreaming}
                             style={{
                               width: '100%',
-                              backgroundColor: isStreaming ? '#ef4444' : '#10b981',
+                              backgroundColor: isStreaming ? '#dc2626' : '#059669',
+                              backgroundImage: isStreaming
+                                ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                                : 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
                               color: '#ffffff',
                               border: 'none',
-                              borderRadius: '6px',
-                              padding: '8px 0',
-                              fontSize: '11px',
+                              borderRadius: '8px',
+                              padding: '10px 0',
+                              fontSize: '12px',
                               fontFamily: 'var(--font-mono)',
                               fontWeight: 800,
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '6px',
-                              boxShadow: isStreaming ? '0 2px 8px rgba(239, 68, 68, 0.35)' : '0 2px 8px rgba(16, 185, 129, 0.35)',
-                              transition: 'all 0.15s ease',
+                              gap: '8px',
+                              boxShadow: isStreaming
+                                ? '0 4px 16px rgba(239, 68, 68, 0.45)'
+                                : '0 4px 16px rgba(16, 185, 129, 0.35)',
+                              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                             }}
                           >
                             {isStreaming ? (
                               <>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
                                   <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                                 </svg>
-                                <span>{language === 'vi' ? `⏸ DỪNG STREAMING (+${streamSessionCount} BÀI ĐÃ CÀO)` : `⏸ STOP STREAMING (+${streamSessionCount} PAPERS HARVESTED)`}</span>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                  <rect x="6" y="4" width="4" height="16" rx="1" />
+                                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                                </svg>
+                                <span>{language === 'vi' ? `⏸ DỪNG THU THẬP (+${streamSessionCount.toLocaleString()} BÀI ĐÃ CÀO)` : `⏸ STOP INGESTION (+${streamSessionCount.toLocaleString()} PAPERS HARVESTED)`}</span>
                               </>
                             ) : (
                               <>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                                   <polygon points="5 3 19 12 5 21 5 3" />
                                 </svg>
-                                <span>{language === 'vi' ? `▶ BẮT ĐẦU REALTIME STREAMING (${streamTarget.toLocaleString()} BÀI MỚI)` : `▶ START REALTIME STREAMING (${streamTarget.toLocaleString()} NEW PAPERS)`}</span>
+                                <span>{language === 'vi' ? `▶ BẮT ĐẦU THU THẬP (${streamTarget.toLocaleString()} BÀI MỚI)` : `▶ START INGESTION (${streamTarget.toLocaleString()} NEW PAPERS)`}</span>
                               </>
                             )}
                           </button>
                         </div>
 
-                        {/* 2. Batch Harvest */}
-                        <button
-                          type="button"
-                          onClick={handleStartHarvest}
-                          disabled={isHarvesting || isStreaming || harvestCategories.length === 0}
-                          style={{
-                            width: '100%',
-                            backgroundColor: (isHarvesting || isStreaming) ? (isDark ? '#334155' : '#cbd5e1') : '#7c3aed',
-                            color: (isHarvesting || isStreaming) ? 'var(--text-muted)' : '#ffffff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '10px 0',
-                            fontSize: '12px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            cursor: (isHarvesting || isStreaming) ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            boxShadow: (isHarvesting || isStreaming) ? 'none' : '0 4px 12px rgba(124, 58, 237, 0.28)',
-                            opacity: isStreaming ? 0.65 : 1,
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {isHarvesting ? (
-                            <>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                              </svg>
-                              <span>{language === 'vi' ? 'ĐANG CÀO DỮ LIỆU...' : 'HARVESTING DATA...'}</span>
-                            </>
-                          ) : isStreaming ? (
-                            <>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                              </svg>
-                              <span>{language === 'vi' ? 'STREAMING ĐANG CHẠY (TẠM KHÓA BATCH)' : 'STREAMING ACTIVE (BATCH LOCKED)'}</span>
-                            </>
-                          ) : (
-                            <>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                                <polygon points="5 3 19 12 5 21 5 3" />
-                              </svg>
-                              <span>{language === 'vi' ? '▶ BẮT ĐẦU CÀO BATCH (RUN HARVESTER)' : '▶ RUN HARVESTER'}</span>
-                            </>
-                          )}
-                        </button>
-
+                        {/* Direct Jump to Live Telemetry Feed */}
                         <button
                           type="button"
                           onClick={() => setBottomTab('logs')}
@@ -3891,17 +3860,21 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             backgroundColor: themeStyles.btnInspectBg,
                             color: themeStyles.btnInspectText,
                             border: `1px solid ${themeStyles.btnInspectBorder}`,
-                            borderRadius: '8px',
-                            padding: '6px 0',
+                            borderRadius: '7px',
+                            padding: '7px 0',
                             fontSize: '11px',
                             fontFamily: 'var(--font-mono)',
                             fontWeight: 700,
                             cursor: 'pointer',
                             textAlign: 'center',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          {language === 'vi' ? 'XEM REAL-TIME STREAMING LOGS →' : 'VIEW REAL-TIME STREAMING LOGS →'}
+                          <span>{language === 'vi' ? 'XEM NHẬT KÝ STREAMING REAL-TIME →' : 'VIEW REAL-TIME STREAMING LOGS →'}</span>
                         </button>
                       </div>
                     </div>
@@ -4262,8 +4235,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>
                           ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · 26.42 MB)
                         </div>
-                        <div style={{ color: isDark ? '#34d399' : '#059669' }}>
-                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702).toLocaleString()} vectors)
+                        <div style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
+                          └── bronze/metadata_dumps/ (OpenAlex & CrossRef bulk snapshots · 3.97 GB)
                         </div>
                       </div>
                     </div>
@@ -4273,11 +4246,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
                           {language === 'vi' ? 'DUNG LƯỢNG & TRẠNG THÁI LƯU TRỮ' : 'STORAGE CAPACITY & HEALTH'}
                         </div>
-                        <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '4px' }}>
-                          {storageUsedGb.toFixed(3)} GB / {liveQuotaGb.toFixed(2)} GB ({storageUsedPct.toFixed(2)}%)
+                        <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? (liveActiveStoragePct >= 95 ? '#fb7185' : '#fbbf24') : (liveActiveStoragePct >= 95 ? '#e11d48' : '#d97706'), marginTop: '4px' }}>
+                          {liveActiveStorageGb.toFixed(3)} GB / {liveQuotaGb.toFixed(2)} GB ({liveActiveStoragePct.toFixed(2)}%)
                         </div>
                         <div style={{ height: '6px', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
-                          <div style={{ width: `${Math.min(100, Math.max(0, storageUsedPct))}%`, height: '100%', backgroundColor: storageUsedPct > 80 ? '#e11d48' : '#3b82f6', transition: 'width 0.3s ease' }} />
+                          <div style={{ width: `${Math.min(100, Math.max(0, liveActiveStoragePct))}%`, height: '100%', backgroundColor: liveActiveStoragePct >= 95 ? '#e11d48' : (liveActiveStoragePct >= 80 ? '#f59e0b' : '#3b82f6'), transition: 'width 0.3s ease' }} />
                         </div>
                         <div style={{ fontSize: '10px', color: isDark ? '#34d399' : '#059669', fontFamily: 'var(--font-mono)', marginTop: '6px', fontWeight: 700 }}>
                           ✓ ZERO EGRESS FEES (Cloudflare Global Network)
@@ -5071,8 +5044,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     }}>
                       <div>
                         <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>R2 LAKEHOUSE STORAGE</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '2px' }}>
-                          {storageUsedGb.toFixed(3)} GB ({storageUsedPct.toFixed(2)}%)
+                        <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? (liveActiveStoragePct >= 95 ? '#fb7185' : '#fbbf24') : (liveActiveStoragePct >= 95 ? '#e11d48' : '#d97706'), marginTop: '2px' }}>
+                          {liveActiveStorageGb.toFixed(3)} GB ({liveActiveStoragePct.toFixed(2)}%)
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#059669', fontWeight: 700 }}>
@@ -5105,19 +5078,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       <div
         style={{
           position: 'fixed',
-          bottom: drawerOpen ? (drawerExpanded ? 'calc(100vh - 100px)' : '406px') : '16px',
-          right: '28px',
-          display: 'flex',
+          bottom: drawerOpen ? '374px' : '18px',
+          right: '24px',
+          display: drawerExpanded ? 'none' : 'flex',
           alignItems: 'center',
           gap: '8px',
           backgroundColor: themeStyles.zoomBarBg,
           backdropFilter: 'blur(12px)',
-          borderRadius: '10px',
+          borderRadius: '8px',
           border: `1px solid ${themeStyles.zoomBarBorder}`,
           padding: '4px 10px',
-          boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.45)' : '0 4px 16px rgba(0, 0, 0, 0.08)',
-          zIndex: 20,
-          transition: 'bottom 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
+          boxShadow: isDark ? '0 4px 16px rgba(0, 0, 0, 0.45)' : '0 4px 12px rgba(0, 0, 0, 0.08)',
+          zIndex: 35,
+          transition: 'bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginRight: '4px' }}>

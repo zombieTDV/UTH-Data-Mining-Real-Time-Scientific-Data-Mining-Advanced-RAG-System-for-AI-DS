@@ -33,7 +33,13 @@ class RerankerService:
         try:
             import torch
             from transformers import AutoTokenizer, AutoModelForSequenceClassification
+        except ImportError as e:
+            logger.warning("[RERANKER] PyTorch or Transformers not installed: %s. Reranking disabled.", e)
+            self.model = None
+            self._ready = False
+            return
 
+        try:
             logger.info("[RERANKER] Loading CrossEncoder model: %s...", self._model_name)
             if torch.backends.mps.is_available():
                 self.device = torch.device("mps")

@@ -74,10 +74,8 @@ async def execute_duckdb_query(req: DuckDbQueryRequest):
             """)
         else:
             parquet_path = str(parquet_file)
-            if "scientific_papers_gold" in cleaned_sql:
-                cleaned_sql = cleaned_sql.replace("scientific_papers_gold", f"read_parquet('{parquet_path}')")
-            elif "read_parquet(" not in cleaned_sql and "papers.parquet" not in cleaned_sql:
-                cleaned_sql = cleaned_sql.replace("papers", f"read_parquet('{parquet_path}')")
+            con.execute(f"CREATE OR REPLACE VIEW papers AS SELECT * FROM read_parquet('{parquet_path}')")
+            con.execute(f"CREATE OR REPLACE VIEW scientific_papers_gold AS SELECT * FROM read_parquet('{parquet_path}')")
 
         df = con.execute(cleaned_sql).df()
         elapsed_ms = round((time.time() - t0) * 1000.0, 2)

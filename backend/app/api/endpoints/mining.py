@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sse_starlette.sse import EventSourceResponse
@@ -10,6 +11,7 @@ from backend.app.schemas.mining import (
 )
 from backend.app.services.mining_service import mining_service
 
+logger = logging.getLogger("mining_endpoint")
 router = APIRouter(prefix="/mining", tags=["Data Mining & Modeling"])
 
 
@@ -75,12 +77,13 @@ async def trigger_mining_execution(background_tasks: BackgroundTasks) -> Dict[st
     """Triggers background re-execution of the Python Data Mining Engine across the 10,000 papers."""
     mining_service.clear_cache()
     def run_mining():
-        import sys, os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../../data_mining"))
-        from data_mining.src.mining.mining_engine import MiningEngine
-        engine = MiningEngine()
-        engine.run_all(upload_to_r2=True)
-        mining_service.clear_cache()
+        try:
+            from src.mining.mining_engine import MiningEngine
+            engine = MiningEngine()
+            engine.run_all(upload_to_r2=True)
+            mining_service.clear_cache()
+        except Exception as e:
+            logger.error(f"[MINING TRIGGER] Background execution failed: {e}", exc_info=True)
 
     background_tasks.add_task(run_mining)
     return {

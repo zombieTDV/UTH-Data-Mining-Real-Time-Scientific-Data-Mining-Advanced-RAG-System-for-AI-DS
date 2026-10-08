@@ -401,7 +401,7 @@ export function initializeLakehouseStream(): () => void {
               storageUsedPct: event.storage_used_pct ?? state.storageUsedPct,
             });
           } else if (event.status === 'PAUSED' || event.status === 'COMPLETED') {
-            updateState({ isStreaming: false });
+            updateState({ isStreaming: false, activePipelineStage: 'idle' });
           }
         }
       } catch (err) {
