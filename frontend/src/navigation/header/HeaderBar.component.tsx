@@ -3,7 +3,6 @@ import { StatusPill } from './StatusPill.component';
 import { PipelineStatusPill } from './PipelineStatusPill.component';
 import { SyncR2Button } from './SyncR2Button.component';
 import { RunPipelineButton } from './RunPipelineButton.component';
-import { LanguageToggle } from './LanguageToggle.component';
 import { useTranslation } from '../../hooks';
 import type { BackendStatus, PipelineStatus } from '../../types';
 
@@ -101,10 +100,9 @@ export const HeaderBar: FC<HeaderBarProps> = ({
         />
       </div>
 
-      {/* Right Controls: Sync Live R2 Button + Segmented Language Switch + Pipeline Action */}
+      {/* Right Controls: Sync Live R2 Button + Pipeline Action */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
         <SyncR2Button />
-        <LanguageToggle />
         <RunPipelineButton pipelineStatus={pipelineStatus} onClick={onTriggerPipeline} />
       </div>
     </header>
