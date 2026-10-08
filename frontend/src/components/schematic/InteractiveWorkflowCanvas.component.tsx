@@ -11,6 +11,7 @@ import { ScientificMath } from '../common/ScientificMath.component';
 import { AnimatedCounter } from '../common/AnimatedCounter.component';
 import { PipelineExecutionStepper } from './PipelineExecutionStepper.component';
 import { AdaptiveSchedulerControl } from './AdaptiveSchedulerControl.component';
+import type { AppTab } from '../../types';
 
 export type PipelineStageKey =
   | 'idle'
@@ -240,7 +241,7 @@ Ground every assertion strictly in provided LanceDB chunks.
 };
 
 export interface InteractiveWorkflowCanvasProps {
-  onNavigateTab?: (tab: 'schematic' | 'eda' | 'pillars' | 'rag') => void;
+  onNavigateTab?: (tab: AppTab) => void;
   isPipelineRunning?: boolean;
   onTriggerPipeline?: () => void;
   theme?: 'dark' | 'light';
@@ -308,10 +309,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string>('start-flow');
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [drawerExpanded, setDrawerExpanded] = useState<boolean>(false);
-  const [bottomTab, setBottomTab] = useState<'control' | 'logs'>('control');
   const [showTechSpec, setShowTechSpec] = useState<boolean>(false);
-  const [logFilter, setLogFilter] = useState<'ALL' | 'SUCCESS' | 'EXEC' | 'WARN' | 'INFO'>('ALL');
-  const [logCopied, setLogCopied] = useState<boolean>(false);
 
   const DUCK_SQL_PRESETS = [
     {
@@ -412,8 +410,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       clearStreamLogs();
     }
   };
-  const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
-  const logsEndRef = useRef<HTMLDivElement>(null);
 
   // DuckDB Interactive State
   const [duckQueryPreset, setDuckQueryPreset] = useState<string>(
@@ -547,12 +543,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     setIsDragging(false);
   };
 
-  // Autoscroll logs
-  useEffect(() => {
-    if (autoScrollLogs && bottomTab === 'logs') {
-      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs, autoScrollLogs, bottomTab]);
 
   // Simulation state for realistic data streaming animation
   const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
@@ -596,7 +586,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       }
     } else {
       try {
-        setBottomTab('logs');
         await startStreamingIngestion(streamTarget, 2.0);
       } catch (err) {
         console.error(err);
@@ -695,9 +684,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const handleOpenInspector = (nodeId: string) => {
     setSelectedNodeId(nodeId);
     setDrawerOpen(true);
-    if (nodeId === 'start-flow') {
-      setBottomTab('control');
-    }
   };
 
   const handleToggleCategory = (cat: string) => {
@@ -3497,84 +3483,35 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               </div>
             </div>
 
-            {/* Center: 3 Navigation Tabs */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                backgroundColor: themeStyles.drawerTabsTrack,
-                padding: '3px',
-                borderRadius: '8px',
-                border: `1px solid ${themeStyles.drawerTabsTrackBorder}`,
-                gap: '2px',
-              }}
-            >
+            {/* Center: Quick navigation to system logs */}
+            {onNavigateTab && (
               <button
                 type="button"
-                onClick={() => setBottomTab('control')}
+                onClick={() => onNavigateTab('logs')}
                 style={{
-                  padding: '5px 14px',
-                  fontSize: '12px',
-                  fontWeight: bottomTab === 'control' ? 800 : 600,
-                  fontFamily: 'var(--font-mono)',
-                  color: bottomTab === 'control' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
-                  backgroundColor: bottomTab === 'control' ? themeStyles.drawerTabActiveBg : 'transparent',
-                  borderRadius: '6px',
-                  border: bottomTab === 'control' && isDark ? '1px solid rgba(255, 255, 255, 0.16)' : 'none',
-                  boxShadow: bottomTab === 'control' ? (isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)') : 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-                {language === 'vi' ? 'CẤU HÌNH & ĐIỀU KHIỂN' : 'CONFIG & CONTROLS'}
-              </button>
-
-
-
-              <button
-                type="button"
-                onClick={() => setBottomTab('logs')}
-                style={{
-                  padding: '5px 14px',
-                  fontSize: '12px',
-                  fontWeight: bottomTab === 'logs' ? 800 : 600,
-                  fontFamily: 'var(--font-mono)',
-                  color: bottomTab === 'logs' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
-                  backgroundColor: bottomTab === 'logs' ? themeStyles.drawerTabActiveBg : 'transparent',
+                  padding: '4px 12px',
                   borderRadius: '6px',
-                  border: bottomTab === 'logs' && isDark ? '1px solid rgba(255, 255, 255, 0.16)' : 'none',
-                  boxShadow: bottomTab === 'logs' ? (isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)') : 'none',
+                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : '#e0f2fe',
+                  border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
+                  color: isDark ? '#38bdf8' : '#0284c7',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
+                  transition: 'all 0.15s ease',
                 }}
+                title={language === 'vi' ? 'Mở trang Nhật Ký Hệ Thống [Alt+5]' : 'Open System Telemetry Logs [Alt+5]'}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="4 17 10 11 4 5" />
                   <line x1="12" y1="19" x2="20" y2="19" />
                 </svg>
-                {language === 'vi' ? 'NHẬT KÝ TERMINAL' : 'TERMINAL LOGS'}
-                <span
-                  style={{
-                    fontSize: '11.5px',
-                    backgroundColor: bottomTab === 'logs' ? (isDark ? '#38bdf8' : '#0f172a') : (isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1'),
-                    color: bottomTab === 'logs' ? (isDark ? '#0f172a' : '#ffffff') : (isDark ? '#cbd5e1' : '#1e293b'),
-                    padding: '1px 5px',
-                    borderRadius: '9999px',
-                    fontWeight: 800,
-                  }}
-                >
-                  {logs.length}
-                </span>
+                <span>{language === 'vi' ? 'XEM NHẬT KÝ HỆ THỐNG [ALT+5] ↗' : 'VIEW SYSTEM LOGS [ALT+5] ↗'}</span>
               </button>
-            </div>
+            )}
 
             {/* Right: Expand/Collapse toggle + Close button */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3629,11 +3566,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
 
           {/* Panel Scrollable Body */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', backgroundColor: themeStyles.drawerBg, color: themeStyles.textPrimary }}>
-            {/* ============================================================== */}
-            {/* TAB 1: CẤU HÌNH & ĐIỀU KHIỂN (INTERACTIVE CONTROLS)           */}
-            {/* ============================================================== */}
-            {bottomTab === 'control' && (
-              <div>
+            <div>
                 {/* 1. 4-Source Harvester & Adaptive Scheduler Controls */}
                 {selectedTool.id === 'start-flow' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -3952,7 +3885,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                         {/* Direct Jump to Live Telemetry Feed */}
                         <button
                           type="button"
-                          onClick={() => setBottomTab('logs')}
+                          onClick={() => onNavigateTab?.('logs')}
                           style={{
                             width: '100%',
                             backgroundColor: themeStyles.btnInspectBg,
@@ -4094,7 +4027,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
 
                         <button
                           type="button"
-                          onClick={() => setBottomTab('logs')}
+                          onClick={() => onNavigateTab?.('logs')}
                           style={{
                             padding: '0 14px',
                             backgroundColor: themeStyles.btnInspectBg,
@@ -4262,7 +4195,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                                 ...prev,
                                 { id: Date.now(), time: now, level: 'SUCCESS', tag: 'PARQUET-SCAN', msg: 'Scanned 5 records from Parquet table in 4.2ms (Zero-copy Arrow memory).' },
                               ]);
-                              setBottomTab('logs');
+                              onNavigateTab?.('logs');
                             }
                           } catch (e: any) {
                             console.warn('Parquet scan error:', e);
@@ -4447,7 +4380,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                             ...prev,
                             { id: Date.now(), time: now, level: 'SUCCESS', tag: 'MD5-CHECK', msg: `Cloudflare R2 Bucket audit: ${liveBronzeCount.toLocaleString()} objects validated with 100% SHA-256 match.` },
                           ]);
-                          setBottomTab('logs');
+                          onNavigateTab?.('logs');
                         }}
                         style={{
                           backgroundColor: themeStyles.roseGhostBg,
@@ -4780,314 +4713,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   )}
                 </div>
               </div>
-            )}
-
-            {/* ============================================================== */}
-            {/* TAB 2: TERMINAL LOGS (SPLIT TELEMETRY CONSOLE 68% / 32%)      */}
-            {/* ============================================================== */}
-            {bottomTab === 'logs' && (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2.1fr 1fr',
-                  gap: '14px',
-                  height: '100%',
-                  minHeight: drawerExpanded ? '440px' : '290px',
-                }}
-              >
-                {/* Column 1: macOS Unix Terminal Console (68% width) */}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    backgroundColor: '#090d16',
-                    borderRadius: '8px',
-                    border: '1px solid #1e293b',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {/* Terminal Sub-header & Filter Pills */}
-                  <div
-                    style={{
-                      height: '36px',
-                      backgroundColor: '#0f172a',
-                      borderBottom: '1px solid #1e293b',
-                      padding: '0 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#94a3b8', marginLeft: '6px' }}>
-                        bash &bull; uth-lakehouse-pipeline --live (PID: 28419)
-                      </span>
-                    </div>
-
-                    {/* Filter Level Pills & Controls */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {(['ALL', 'SUCCESS', 'EXEC', 'WARN', 'INFO'] as const).map((lvl) => (
-                        <button
-                          key={lvl}
-                          type="button"
-                          onClick={() => setLogFilter(lvl)}
-                          style={{
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '9.5px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            backgroundColor: logFilter === lvl ? '#38bdf8' : 'rgba(255, 255, 255, 0.06)',
-                            color: logFilter === lvl ? '#0f172a' : '#94a3b8',
-                            border: `1px solid ${logFilter === lvl ? '#38bdf8' : 'transparent'}`,
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {lvl}
-                        </button>
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const logText = logs
-                            .filter((l) => logFilter === 'ALL' || l.level === logFilter)
-                            .map((l) => `[${l.time}] [${l.level}] [${l.tag}] ${l.msg}`)
-                            .join('\n');
-                          navigator.clipboard.writeText(logText);
-                          setLogCopied(true);
-                          setTimeout(() => setLogCopied(false), 2000);
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid #334155',
-                          borderRadius: '4px',
-                          color: logCopied ? '#34d399' : '#94a3b8',
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          padding: '2px 6px',
-                          cursor: 'pointer',
-                        }}
-                        title={language === 'vi' ? 'Sao chép toàn bộ logs' : 'Copy all logs'}
-                      >
-                        {logCopied ? '✓' : (language === 'vi' ? 'CHÉP' : 'COPY')}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setAutoScrollLogs((v) => !v)}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid #334155',
-                          borderRadius: '4px',
-                          color: autoScrollLogs ? '#10b981' : '#64748b',
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          padding: '2px 6px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        SCROLL: {autoScrollLogs ? 'ON' : 'OFF'}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setLogs([])}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid #334155',
-                          borderRadius: '4px',
-                          color: '#94a3b8',
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          padding: '2px 6px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {language === 'vi' ? 'XÓA' : 'CLEAR'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Terminal Log Stream Window */}
-                  <div
-                    style={{
-                      flex: 1,
-                      overflowY: 'auto',
-                      padding: '12px 14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '11px',
-                      maxHeight: drawerExpanded ? '380px' : '230px',
-                    }}
-                  >
-                    {logs
-                      .filter((l) => logFilter === 'ALL' || l.level === logFilter)
-                      .map((log) => {
-                        const levelColor =
-                          log.level === 'SUCCESS'
-                            ? '#34d399'
-                            : log.level === 'EXEC'
-                            ? '#fbbf24'
-                            : log.level === 'WARN'
-                            ? '#f87171'
-                            : '#38bdf8';
-
-                        return (
-                          <div key={log.id} style={{ display: 'flex', gap: '8px', lineHeight: 1.45 }}>
-                            <span style={{ color: '#475569', flexShrink: 0 }}>[{log.time}]</span>
-                            <span style={{ color: levelColor, fontWeight: 800, flexShrink: 0 }}>
-                              [{log.level}]
-                            </span>
-                            <span style={{ color: '#94a3b8', flexShrink: 0 }}>[{log.tag}]</span>
-                            <span style={{ color: '#f8fafc', wordBreak: 'break-word' }}>{log.msg}</span>
-                          </div>
-                        );
-                      })}
-                    <div ref={logsEndRef} />
-                  </div>
-                </div>
-
-                {/* Column 2: Live Telemetry & Health Panel (32% width, eliminates the black void) */}
-                <div
-                  style={{
-                    backgroundColor: themeStyles.drawerSectionBg,
-                    border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                    borderRadius: '8px',
-                    padding: '12px 14px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                      {language === 'vi' ? 'VIỄN THÁM THỜI GIAN THỰC' : 'REAL-TIME TELEMETRY'}
-                    </span>
-                    <span style={{
-                      fontSize: '9.5px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#dcfce7',
-                      color: isDark ? '#34d399' : '#15803d',
-                      padding: '1px 6px',
-                      borderRadius: '4px',
-                    }}>
-                      ● LIVE HEALTH
-                    </span>
-                  </div>
-
-                  {/* 4 Real-time Telemetry Metrics Cards */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {/* Metric 1: CDC Ingestion */}
-                    <div style={{
-                      padding: '8px 10px',
-                      backgroundColor: themeStyles.cardBg,
-                      border: `1px solid ${themeStyles.cardBorder}`,
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>CDC INGESTION (ARXIV)</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary, marginTop: '2px' }}>
-                          {isStreaming ? (language === 'vi' ? `${streamSpeed} bài/phút` : `${streamSpeed} papers/min`) : (language === 'vi' ? 'CHỜ SẴN' : 'STANDBY (Ready)')}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                        +{streamSessionCount} {language === 'vi' ? 'bài' : 'papers'}
-                      </span>
-                    </div>
-
-                    {/* Metric 2: DuckDB SIMD */}
-                    <div style={{
-                      padding: '8px 10px',
-                      backgroundColor: themeStyles.cardBg,
-                      border: `1px solid ${themeStyles.cardBorder}`,
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>DUCKDB SIMD THROUGHPUT</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706', marginTop: '2px' }}>
-                          2.42M rows/s
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                        0.041s Latency
-                      </span>
-                    </div>
-
-                    {/* Metric 3: LanceDB Vector */}
-                    <div style={{
-                      padding: '8px 10px',
-                      backgroundColor: themeStyles.cardBg,
-                      border: `1px solid ${themeStyles.cardBorder}`,
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>LANCEDB VECTOR INDEX</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '2px' }}>
-                          {liveVectors.toLocaleString()} {language === 'vi' ? 'vectơ' : 'embeddings'}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                        16.4ms ANN
-                      </span>
-                    </div>
-
-                    {/* Metric 4: Cloudflare R2 */}
-                    <div style={{
-                      padding: '8px 10px',
-                      backgroundColor: themeStyles.cardBg,
-                      border: `1px solid ${themeStyles.cardBorder}`,
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>R2 LAKEHOUSE STORAGE</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? (liveActiveStoragePct >= 95 ? '#fb7185' : '#fbbf24') : (liveActiveStoragePct >= 95 ? '#e11d48' : '#d97706'), marginTop: '2px' }}>
-                          {liveActiveStorageGb.toFixed(3)} GB ({liveActiveStoragePct.toFixed(2)}%)
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#059669', fontWeight: 700 }}>
-                        $0.00 Egress
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Telemetry Status Footer */}
-                  <div style={{
-                    padding: '6px 8px',
-                    backgroundColor: themeStyles.cardBg,
-                    border: `1px solid ${themeStyles.cardBorder}`,
-                    borderRadius: '4px',
-                    fontSize: '9.5px',
-                    fontFamily: 'var(--font-mono)',
-                    color: themeStyles.textMuted,
-                    textAlign: 'center',
-                  }}>
-                    UTH Real-Time Lakehouse Telemetry &bull; Port 8000 &bull; Ready
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </section>
       )}
