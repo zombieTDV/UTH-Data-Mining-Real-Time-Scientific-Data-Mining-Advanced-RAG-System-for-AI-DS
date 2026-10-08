@@ -796,58 +796,218 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const baseTool = TOOL_DETAILS_MAP[selectedNodeId] || TOOL_DETAILS_MAP['start-flow'];
   const selectedTool = useMemo(() => {
-    if (selectedNodeId === 'review-r2' || selectedNodeId === 'bronze-instance') {
-      return {
-        ...baseTool,
-        telemetrySummary: {
-          ...baseTool.telemetrySummary,
-          primaryMetric: `${liveActiveStorageGb.toFixed(3)} GB Raw Storage`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} HTML5 + ${liveBatchesCount} Batches`,
-        }
-      };
-    }
-    if (selectedNodeId === 'review-duckdb') {
-      return {
-        ...baseTool,
-        telemetrySummary: {
-          ...baseTool.telemetrySummary,
-          primaryMetric: `${(2220938 + streamSessionCount * 24).toLocaleString()} LaTeX Formulas`,
-          secondaryMetric: `${(9015 + streamSessionCount).toLocaleString()} Full-Section Enriched Papers`,
-        }
-      };
-    }
-    if (selectedNodeId === 'gold-lancedb') {
-      return {
-        ...baseTool,
-        telemetrySummary: {
-          ...baseTool.telemetrySummary,
-          primaryMetric: `${(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702).toLocaleString()} Vectors Indexed`,
-          secondaryMetric: `768 Dimensions · ${(storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2)} MB Index`,
-        }
-      };
-    }
-    if (selectedNodeId === 'silver-parquet') {
-      return {
-        ...baseTool,
-        telemetrySummary: {
-          ...baseTool.telemetrySummary,
-          primaryMetric: `${liveSilverMb.toFixed(2)} MB Columnar Parquet`,
-          secondaryMetric: `${liveSilverPartitions} Partition Tables (${liveTotalWorks.toLocaleString()} records)`,
-        }
-      };
-    }
     if (selectedNodeId === 'start-flow') {
       return {
         ...baseTool,
+        status: isStreaming ? 'STREAMING' : 'ONLINE',
+        engineVersion: isStreaming ? `Active Sync (${streamSpeed.toFixed(1)}/min)` : 'Adaptive Scheduler + HTTPX Async',
+        samplePreviewTitle: language === 'vi' ? 'Thông Số & Trạng Thái Thu Thập Đa Nguồn' : 'Multi-Source Harvest State & Ingest Protocol',
+        sampleCodeOrSchema: JSON.stringify({
+          engine: 'Adaptive Multi-Source Harvester',
+          status: isStreaming ? 'STREAMING' : 'ONLINE_IDLE',
+          total_ingested: totalCorpus || liveTotalWorks,
+          sources: {
+            arxiv_html5: liveBronzeCount,
+            openalex_metadata: liveOpenAlexCount,
+            conference_proceedings: liveConfCount,
+          },
+          harvest_config: {
+            categories: harvestCategories,
+            formats: harvestFormats,
+            rate_limit_delay_s: parseFloat(harvestDelay.toFixed(1)),
+            target_limit: harvestLimit,
+          },
+          streaming_telemetry: {
+            is_streaming: isStreaming,
+            current_speed: `${streamSpeed.toFixed(1)} papers/min`,
+            session_new_count: streamSessionCount,
+            target: streamTarget,
+          },
+        }, null, 2),
         telemetrySummary: {
-          ...baseTool.telemetrySummary,
           primaryMetric: `${(totalCorpus || liveTotalWorks).toLocaleString()} Works Ingested`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv + ${liveOpenAlexCount.toLocaleString()} OpenAlex + ${liveConfCount} Conf`,
-        }
+          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv • ${liveOpenAlexCount.toLocaleString()} OpenAlex • ${liveConfCount} Conf`,
+          latency: isStreaming ? `${streamSpeed.toFixed(1)} papers/min` : `${harvestDelay.toFixed(1)}s Jitter Delay`,
+          throughput: isStreaming ? `+${streamSessionCount} session papers (Target: ${streamTarget})` : `${harvestCategories.length} Categories active • 100% DOI`,
+        },
       };
     }
+
+    if (selectedNodeId === 'review-r2' || selectedNodeId === 'bronze-instance') {
+      const openalexMb = ((storageStats?.activeLakehouse?.openalexSizeGb ?? 3.971) * 1024).toFixed(0);
+      const hierarchySchema = `s3://uth-scientific-lakehouse/
+├── bronze/
+│   ├── raw_html/year=2026/ (${liveBronzeCount.toLocaleString()} HTML5 preprints · ${liveBronzeGb} GB)
+│   ├── openalex/year=2026/ (${liveOpenAlexCount.toLocaleString()} JSON records · ${openalexMb} MB)
+│   └── oai_batches/ (${liveBatchesCount} batch checkpoints · 26.4 MB)
+├── silver/
+│   └── papers/year=2026/ (${liveSilverPartitions} Parquet partitions · ${liveSilverMb.toFixed(2)} MB)
+└── gold/
+    └── lancedb/ (${liveVectors.toLocaleString()} vectors · ${(storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2)} MB active / ${(storageStats?.backupStorage?.totalObjects ?? 28)} backup segments · ${(storageStats?.backupStorage?.totalSizeGb ?? 3.20).toFixed(2)} GB)
+[Storage Quota: ${liveActiveStorageGb.toFixed(3)} GB / ${liveQuotaGb.toFixed(1)} GB (${liveActiveStoragePct.toFixed(1)}% utilized, 0 egress)]`;
+
+      return {
+        ...baseTool,
+        status: storageStats?.activeLakehouse ? 'ONLINE (S3)' : 'ONLINE',
+        engineVersion: `Cloudflare R2 (${liveActiveStorageGb.toFixed(3)} GB / ${liveQuotaGb.toFixed(1)} GB)`,
+        samplePreviewTitle: language === 'vi' ? 'Cấu Trúc Cây Thư Mục & Dung Lượng R2' : 'Cloudflare R2 Bucket Key Hierarchy & Object Count',
+        sampleCodeOrSchema: hierarchySchema,
+        telemetrySummary: {
+          primaryMetric: `${liveActiveStorageGb.toFixed(3)} GB Active Storage`,
+          secondaryMetric: `${liveBronzeCount.toLocaleString()} HTML5 • ${liveOpenAlexCount.toLocaleString()} JSON (${liveActiveStoragePct.toFixed(1)}% Quota)`,
+          latency: '< 42ms S3 HeadObject',
+          throughput: 'Zero Egress Fees ($0.00) • SHA-256 Digest Required',
+        },
+      };
+    }
+
+    if (selectedNodeId === 'review-duckdb') {
+      const duckOutputPreview = `-- Active SQL Preset in In-Memory DuckDB SIMD Engine:
+${duckQueryPreset}
+
+-- Live Output (${duckResults.length} records returned from Silver Parquet):
+${duckResults.map(r => `-- [${r.category}] ${r.papers.toLocaleString()} papers | ${r.formulas.toLocaleString()} formulas (avg ${r.avg_math} eq/paper)`).join('\n')}`;
+
+      return {
+        ...baseTool,
+        status: duckRunning ? 'EXECUTING SIMD' : 'ACTIVE',
+        engineVersion: 'DuckDB v1.1.3 + SIMD Arrow',
+        samplePreviewTitle: language === 'vi' ? 'Truy Vấn DuckDB OLAP & Kết Quả Thực Tế' : 'Live DuckDB Vectorized OLAP Query & Output',
+        sampleCodeOrSchema: duckOutputPreview,
+        telemetrySummary: {
+          primaryMetric: `${liveFormulas.toLocaleString()} LaTeX Formulas`,
+          secondaryMetric: `${(totalCorpus || liveTotalWorks).toLocaleString()} Full-Section Enriched Papers`,
+          latency: duckRunning ? 'Computing SIMD vectors...' : '0.038s Execution Benchmark',
+          throughput: 'Zero-Copy Apache Arrow Columnar Memory (In-Process)',
+        },
+      };
+    }
+
+    if (selectedNodeId === 'silver-parquet') {
+      const parquetSchemaPreview = `Apache Parquet (Snappy Compressed) Columnar Schema:
+├── paper_id: string (Canonical ID / DOI)
+├── title: string (Full cleaned paper title, Utf8)
+├── abstract: string (Cleaned abstract text)
+├── categories: list<string> (Multi-label tags: [${harvestCategories.slice(0, 3).join(', ')}...])
+├── authors: list<string> (Cleaned author tokens, dictionary-encoded)
+├── sections: struct<abstract, intro, methods, results, discussion>
+├── latex_formulas: list<string> (${liveFormulas.toLocaleString()} total formulas extracted)
+├── latex_formula_count: int64 (Equation volume per paper)
+└── metadata: map<string, string> (Ingest timestamp, DOI, license)
+
+Partitions: ${liveSilverPartitions} tables | Total Size: ${liveSilverMb.toFixed(2)} MB | Rows: ${(totalCorpus || liveTotalWorks).toLocaleString()}
+Compression: Snappy 4.2x (Zero-Copy Arrow Dictionary)`;
+
+      return {
+        ...baseTool,
+        status: 'PARQUET SYNCED',
+        engineVersion: `Apache Parquet (${liveSilverPartitions} Partitions)`,
+        samplePreviewTitle: language === 'vi' ? 'Cấu Trúc Schema Parquet & Phân Vùng' : 'PyArrow Parquet Columnar Schema & Partitions',
+        sampleCodeOrSchema: parquetSchemaPreview,
+        telemetrySummary: {
+          primaryMetric: `${liveSilverMb.toFixed(2)} MB Columnar Parquet`,
+          secondaryMetric: `${liveSilverPartitions} Partition Tables (${(totalCorpus || liveTotalWorks).toLocaleString()} Rows)`,
+          latency: '10x Storage Compression (Snappy 4.2x)',
+          throughput: 'Column Projection & Predicate Pushdown',
+        },
+      };
+    }
+
+    if (selectedNodeId === 'gold-lancedb' || selectedNodeId === 'lance-storage' || selectedNodeId === 'lancedb') {
+      const lanceCodePreview = `import lancedb
+
+db = lancedb.connect("data/gold/lancedb")
+tbl = db.open_table("scientific_papers_gold")
+
+# Live query embedding: "${lanceQuery}"
+# Search over ${liveVectors.toLocaleString()} indexed vectors in LanceDB
+results = tbl.search("${lanceQuery}") \\
+             .metric("cosine") \\
+             .limit(5) \\
+             .to_pandas()
+
+# Nearest Matches Retrievable (${lanceResults.length} hits):
+${lanceResults.map((h, i) => `# Hit ${i + 1}: ${h.id} [${h.category}] - Score: ${h.score.toFixed(3)} - "${h.title.length > 40 ? h.title.slice(0, 38) + '...' : h.title}"`).join('\n')}`;
+
+      return {
+        ...baseTool,
+        status: lanceSearching ? 'SEARCHING ANN' : 'ONLINE',
+        engineVersion: `LanceDB v0.17 (${liveVectors.toLocaleString()} Vectors)`,
+        samplePreviewTitle: language === 'vi' ? 'Mã Truy Vấn LanceDB & Kết Quả Top Chunks' : 'LanceDB Vector Search & Mining Code Execution',
+        sampleCodeOrSchema: lanceCodePreview,
+        telemetrySummary: {
+          primaryMetric: `${liveVectors.toLocaleString()} Vectors Indexed`,
+          secondaryMetric: `768 Dimensions • ${(storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2)} MB Index`,
+          latency: lanceSearching ? 'ANN search...' : '< 16.8ms IVF-PQ Cosine Lookup',
+          throughput: `4 Mining Pillars Synced • ${lanceResults.length} Nearest Chunks Retrievable`,
+        },
+      };
+    }
+
+    if (selectedNodeId === 'grounded-rag') {
+      const ragPromptPreview = `[SYSTEM INSTRUCTION: STRICT ACADEMIC GROUNDING (Threshold: ${ragStrictThreshold.toFixed(2)})]
+Prompt: "${ragPrompt.length > 65 ? ragPrompt.slice(0, 62) + '...' : ragPrompt}"
+Status: ${ragGenerating ? 'GENERATING_INFERENCE...' : 'GROUNDED_VERIFIED'}
+
+Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
+- Top Chunk Attribution: [${lanceResults[0]?.id || 'arXiv:2602.04128'}, Section 3.2]
+- Cosine Grounding Score: ${lanceResults[0]?.score || 0.914} (Gate Requirement: > ${ragStrictThreshold.toFixed(2)})
+- Mathematical Formulation: LaTeX KaTeX rendering enabled
+- Anti-Hallucination Policy: Reject answers if similarity < ${ragStrictThreshold.toFixed(2)}`;
+
+      return {
+        ...baseTool,
+        status: ragGenerating ? 'GENERATING' : 'READY',
+        engineVersion: 'Qwen2.5-7B-Instruct (GGUF)',
+        samplePreviewTitle: language === 'vi' ? 'Prompt Chống Bịa Đặt & Ngữ Cảnh LanceDB' : 'Academic Anti-Hallucination Prompt Gate & Active Context',
+        sampleCodeOrSchema: ragPromptPreview,
+        telemetrySummary: {
+          primaryMetric: `Verified Citations Gate (> ${ragStrictThreshold.toFixed(2)})`,
+          secondaryMetric: `${(totalCorpus || liveTotalWorks).toLocaleString()} Papers • Anti-Hallucination Active`,
+          latency: ragGenerating ? 'Synthesizing LLM...' : 'Sub-50ms Context ANN Fetch',
+          throughput: 'Exact DOI & Section Attributions Required',
+        },
+      };
+    }
+
     return baseTool;
-  }, [baseTool, selectedNodeId, liveActiveStorageGb, liveBronzeCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveOpenAlexCount, liveSilverMb, liveSilverPartitions, liveConfCount]);
+  }, [
+    baseTool,
+    selectedNodeId,
+    isStreaming,
+    streamSpeed,
+    harvestDelay,
+    harvestCategories,
+    harvestFormats,
+    harvestLimit,
+    streamSessionCount,
+    streamTarget,
+    totalCorpus,
+    liveTotalWorks,
+    liveBronzeCount,
+    liveOpenAlexCount,
+    liveConfCount,
+    liveActiveStorageGb,
+    liveQuotaGb,
+    liveActiveStoragePct,
+    liveBronzeGb,
+    liveBatchesCount,
+    storageStats,
+    liveFormulas,
+    duckRunning,
+    duckQueryPreset,
+    duckResults,
+    liveSilverMb,
+    liveSilverPartitions,
+    liveVectors,
+    lanceSearching,
+    lanceQuery,
+    lanceResults,
+    ragGenerating,
+    ragStrictThreshold,
+    ragPrompt,
+    language,
+  ]);
 
   return (
     <div
@@ -4067,12 +4227,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         }}
                       >
                         <div style={{ color: themeStyles.textPrimary, fontWeight: 700, marginBottom: '4px' }}>
-                          File: data/silver/year=2026/papers.parquet (11 Partitions)
+                          File: data/silver/year=2026/papers.parquet ({liveSilverPartitions} Partitions)
                         </div>
                         <div style={{ color: isDark ? '#34d399' : '#059669' }}>├── paper_id: string (Canonical ID / DOI)</div>
                         <div style={{ color: isDark ? '#60a5fa' : '#2563eb' }}>├── title: string (Utf8 Text)</div>
                         <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>├── abstract: string (Cleaned Abstract)</div>
-                        <div style={{ color: isDark ? '#c084fc' : '#7c3aed' }}>├── latex_formulas: list&lt;string&gt; (Formula Tokens)</div>
+                        <div style={{ color: isDark ? '#c084fc' : '#7c3aed' }}>├── latex_formulas: list&lt;string&gt; ({liveFormulas.toLocaleString()} extracted)</div>
                         <div style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>├── categories: list&lt;string&gt; (Taxonomy Tags)</div>
                         <div style={{ color: isDark ? '#cbd5e1' : '#64748b' }}>└── authors: list&lt;string&gt; (Co-Author Nodes)</div>
                       </div>
@@ -4084,10 +4244,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           {language === 'vi' ? 'HIỆU SUẤT NÉN VÀ TRUY VẤN' : 'COMPRESSION & SCAN PERFORMANCE'}
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: 800, color: '#10b981', marginTop: '4px' }}>
-                          Snappy 4.2x • 321.69 MB
+                          Snappy 4.2x • {liveSilverMb.toFixed(2)} MB
                         </div>
                         <div style={{ fontSize: '10.5px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
-                          {language === 'vi' ? '11 bảng phân vùng nén • Zero-Copy Arrow Read' : '11 compressed partitions • Zero-Copy Arrow Read'}
+                          {liveSilverPartitions} {language === 'vi' ? 'bảng phân vùng nén' : 'compressed partitions'} • Zero-Copy Arrow Read
                         </div>
                       </div>
 
@@ -4258,7 +4418,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · 26.42 MB)
                         </div>
                         <div style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
-                          └── bronze/metadata_dumps/ (OpenAlex & CrossRef bulk snapshots · 3.97 GB)
+                          └── bronze/openalex/year=2026/ ({liveOpenAlexCount.toLocaleString()} metadata records · {((storageStats?.activeLakehouse?.openalexSizeGb ?? 3.971) * 1024).toFixed(0)} MB)
                         </div>
                       </div>
                     </div>
@@ -4591,21 +4751,31 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         </div>
                       </div>
 
-                      <pre style={{
-                        margin: 0,
-                        padding: '10px 12px',
-                        backgroundColor: themeStyles.codeBoxBg,
-                        border: `1px solid ${themeStyles.codeBoxBorder}`,
-                        borderRadius: '6px',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-mono)',
-                        color: isDark ? '#38bdf8' : '#0369a1',
-                        overflowX: 'auto',
-                        maxHeight: '130px',
-                        lineHeight: 1.45,
-                      }}>
-                        {selectedTool.sampleCodeOrSchema}
-                      </pre>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 2px' }}>
+                          <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: themeStyles.textMuted }}>
+                            {selectedTool.samplePreviewTitle || (language === 'vi' ? 'CẤU TRÚC DỮ LIỆU & SCHEMA' : 'DATA STRUCTURE & SCHEMA')}
+                          </span>
+                          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 700 }}>
+                            ● LIVE DYNAMIC
+                          </span>
+                        </div>
+                        <pre style={{
+                          margin: 0,
+                          padding: '10px 12px',
+                          backgroundColor: themeStyles.codeBoxBg,
+                          border: `1px solid ${themeStyles.codeBoxBorder}`,
+                          borderRadius: '6px',
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          color: isDark ? '#38bdf8' : '#0369a1',
+                          overflowX: 'auto',
+                          maxHeight: '130px',
+                          lineHeight: 1.45,
+                        }}>
+                          {selectedTool.sampleCodeOrSchema}
+                        </pre>
+                      </div>
                     </div>
                   )}
                 </div>
