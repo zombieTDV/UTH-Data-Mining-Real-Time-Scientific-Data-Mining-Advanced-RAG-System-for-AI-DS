@@ -17,6 +17,7 @@ import {
 import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom, useTranslation } from '../../hooks';
+import { MiningTelemetryStepper } from '../common';
 
 export interface MiningPillarsViewProps {
   theme?: 'dark' | 'light';
@@ -847,6 +848,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Real-time Data Mining 5-Checkpoint Telemetry Stepper */}
+          <MiningTelemetryStepper
+            isExecuting={isRecomputingPipeline}
+            onTriggerMining={handleRecomputePillars}
+            theme={theme}
+          />
 
           {/* Standard Mission Control 4 Pillar Cards */}
           <div

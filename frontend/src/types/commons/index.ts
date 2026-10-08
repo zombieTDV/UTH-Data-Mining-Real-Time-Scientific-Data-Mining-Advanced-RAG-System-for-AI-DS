@@ -37,6 +37,18 @@ export interface TelemetryTick {
   status?: string;
   message?: string;
   tag?: string;
+  total_execution_seconds?: number;
+  total_papers?: number;
+  modules?: Record<string, {
+    elapsed_seconds?: number;
+    file?: string;
+    total_papers?: number;
+    rules_mined?: number;
+    silhouette_score?: number;
+    total_nodes?: number;
+    total_edges?: number;
+    anomalies_detected?: number;
+  }>;
 }
 
 export interface ToastMessage {

@@ -5,6 +5,7 @@ import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom, useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
+import { MiningTelemetryStepper } from '../common';
 
 export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
 
@@ -1194,7 +1195,18 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       </div>
 
       {/* ============================================================== */}
-      {/* 2. PINNED 4 TOP KPI SCORECARD CARDS (Hidden in Focus Mode)     */}
+      {/* 2. REAL-TIME DATA MINING 5-CHECKPOINT TELEMETRY STEPPER        */}
+      {/* ============================================================== */}
+      {!isFocusMode && (
+        <MiningTelemetryStepper
+          isExecuting={isSyncingMining}
+          onTriggerMining={handleSyncLakehouseMining}
+          theme={theme}
+        />
+      )}
+
+      {/* ============================================================== */}
+      {/* 3. PINNED 4 TOP KPI SCORECARD CARDS (Hidden in Focus Mode)     */}
       {/* ============================================================== */}
       {!isFocusMode && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', flexShrink: 0 }}>

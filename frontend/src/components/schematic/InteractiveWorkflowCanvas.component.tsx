@@ -10,6 +10,7 @@ import { useLakehouseStreamStore, appendStreamLog, clearStreamLogs } from '../..
 import { ScientificMath } from '../common/ScientificMath.component';
 import { AnimatedCounter } from '../common/AnimatedCounter.component';
 import { PipelineExecutionStepper } from './PipelineExecutionStepper.component';
+import { AdaptiveSchedulerControl } from './AdaptiveSchedulerControl.component';
 
 export type PipelineStageKey =
   | 'idle'
@@ -41,23 +42,23 @@ export interface ToolDetail {
 export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
   'start-flow': {
     id: 'start-flow',
-    name: 'Source Ingest (arXiv + OpenAlex)',
-    category: 'Source Data Ingestion Engine',
-    role: 'Harvests academic metadata, full-text HTML5 papers, and conference papers',
-    engineVersion: 'arXiv OAI-PMH XML + OpenAlex REST API + HTTPX Async',
+    name: '4-Source Harvesters (arXiv • OpenReview • OpenAlex • CVF)',
+    category: 'Federated Ingestion Engine',
+    role: 'Harvests preprints, peer-reviews, citation graphs, and conference proceedings',
+    engineVersion: 'Adaptive Scheduler + HTTPX Async + Multi-Source Sync',
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '36,414 Works Harvested',
-      secondaryMetric: '11,660 arXiv • 24,754 OpenAlex • 184 Conf',
-      latency: '6.0s Rate-Limit Delay',
+      primaryMetric: '36,487 Works Harvested',
+      secondaryMetric: 'arXiv • OpenReview • OpenAlex • CVF',
+      latency: 'Adaptive Jitter (3.0s - 10.0s)',
       throughput: '100% Validated DOI / Canonical ID',
     },
     features: [
-      'Asynchronous HTTPX client with rate limiter complying with arXiv & OpenAlex policies',
-      'Full-text HTML5 crawler extracting abstract, introduction, methods, results, and formulas',
-      'Federated academic ingestion capturing arXiv preprints and OpenAlex global metadata',
-      'SHA-256 cryptographic content verification on each harvested document',
+      'Multi-source ingestion engine capturing arXiv, OpenReview, OpenAlex, and CVF Open Access',
+      'Adaptive rate-limiting with autonomous jitter and daily auto-harvest daemon (00:10 VN)',
+      'Real-time WebSocket/SSE streaming ingestion with live progress checkpointing',
+      'SHA-256 cryptographic content verification and automated deduplication',
     ],
     samplePreviewTitle: 'Source Ingestion Protocol Spec',
     sampleCodeOrSchema: `POST https://export.arxiv.org/oai2
@@ -1094,10 +1095,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  arXiv & OpenAlex
+                  {language === 'vi' ? 'Bộ Cào 4 Nguồn' : '4-Source Harvesters'}
                 </div>
-                <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {language === 'vi' ? 'Bộ Cào Phân Tán' : 'Federated Crawlers'}
+                <div style={{ fontSize: '11px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  arXiv • OpenReview • OpenAlex • CVF
                 </div>
               </div>
             </div>
@@ -3496,9 +3497,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             {/* ============================================================== */}
             {bottomTab === 'control' && (
               <div>
-                {/* 1. arXiv Harvester Controls */}
+                {/* 1. 4-Source Harvester & Adaptive Scheduler Controls */}
                 {selectedTool.id === 'start-flow' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Live Adaptive Scheduler Control Center */}
+                    <AdaptiveSchedulerControl />
+
+                    {/* arXiv Direct Harvesting & Fine-Tuning Controls */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '20px' }}>
                     {/* Left Form Controls */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       {/* Categories Section */}
@@ -3834,7 +3840,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
                 {/* 2. DuckDB SIMD Controls */}
                 {selectedTool.id === 'review-duckdb' && (
