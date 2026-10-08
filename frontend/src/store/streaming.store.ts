@@ -100,9 +100,14 @@ const getStoredLogs = (): StreamingLogEntry[] => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // If logs contain old stale dates (e.g. 2026-10-03 mock dates), reset to fresh logs
-          const hasStaleMock = parsed.some((l: any) => l.time?.includes('2026-10-03'));
-          if (!hasStaleMock) return parsed;
+          // Filter out stale mock dates as well as spam heartbeat log dumps
+          const cleaned = parsed.filter(
+            (l: any) =>
+              !l.time?.includes('2026-10-03') &&
+              l.tag !== 'TELEMETRY/SSE' &&
+              !l.msg?.includes('"total_execution_seconds"')
+          );
+          if (cleaned.length > 0) return cleaned;
         }
       }
     } catch {}

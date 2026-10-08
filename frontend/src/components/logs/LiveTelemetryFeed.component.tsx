@@ -21,11 +21,21 @@ export function LiveTelemetryFeed() {
 
   useEffect(() => {
     const unsub = subscribeTelemetry((data: any) => {
-      if (data && (data.event || data.message || data.status)) {
+      // Only append to the console if it's an explicit actionable notification or pipeline stage event.
+      // Do NOT log periodic 3-second heartbeat pulses ({ status: 'COMPLETED'/'READY', modules: ... })
+      if (!data) return;
+
+      const isHeartbeatPulse = data.timestamp && (data.modules || data.total_execution_seconds !== undefined);
+      if (isHeartbeatPulse) {
+        // Heartbeats only update backend telemetry tick, they do not clutter the event terminal.
+        return;
+      }
+
+      if (data.event || data.message) {
         appendStreamLog({
           time: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          level: (data.level || (data.status === 'ONLINE' ? 'SUCCESS' : 'INFO')) as any,
-          tag: data.tag || 'TELEMETRY/SSE',
+          level: (data.level || 'INFO') as any,
+          tag: data.tag || 'TELEMETRY',
           msg: data.message || `System event: ${JSON.stringify(data)}`,
         });
       }
