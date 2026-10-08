@@ -842,12 +842,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         telemetrySummary: {
           ...baseTool.telemetrySummary,
           primaryMetric: `${(totalCorpus || liveTotalWorks).toLocaleString()} Works Ingested`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv + ${liveOpenAlexCount.toLocaleString()} OpenAlex + 184 Conf`,
+          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv + ${liveOpenAlexCount.toLocaleString()} OpenAlex + ${liveConfCount} Conf`,
         }
       };
     }
     return baseTool;
-  }, [baseTool, selectedNodeId, liveActiveStorageGb, liveBronzeCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveOpenAlexCount, liveSilverMb, liveSilverPartitions]);
+  }, [baseTool, selectedNodeId, liveActiveStorageGb, liveBronzeCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveOpenAlexCount, liveSilverMb, liveSilverPartitions, liveConfCount]);
 
   return (
     <div
@@ -1118,69 +1118,47 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div style={{ width: `${(liveOpenAlexCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#6366f1', transition: 'width 0.3s' }} />
               </div>
 
-              {/* High-Contrast Visual Source Chips (2-Row Layout, Zero Overflow) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '2px 5px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
-                    color: isDark ? '#c084fc' : '#7c3aed',
-                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap',
-                    flex: '1 1 0',
-                    justifyContent: 'center',
-                  }}>
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#8b5cf6' }} />
-                    arXiv {liveBronzeCount.toLocaleString()}
-                  </span>
-
-                  <span style={{
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '2px 5px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
-                    color: isDark ? '#818cf8' : '#4338ca',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap',
-                    flex: '1 1 0',
-                    justifyContent: 'center',
-                  }}>
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
-                    OpenAlex {liveOpenAlexCount.toLocaleString()}
-                  </span>
-                </div>
-
-                <div style={{
-                  fontSize: '10.5px',
+              {/* High-Contrast Visual Source Chips: 1-Row Symmetrical 2-Pill Grid */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{
+                  fontSize: '11px',
                   fontFamily: 'var(--font-mono)',
-                  fontWeight: 600,
-                  padding: '2px 6px',
+                  fontWeight: 700,
+                  padding: '3px 6px',
                   borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#fef3c7',
-                  color: isDark ? '#fbbf24' : '#b45309',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
-                  display: 'flex',
+                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
+                  color: isDark ? '#c084fc' : '#7c3aed',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '5px',
+                  gap: '4px',
                   whiteSpace: 'nowrap',
-                  width: '100%',
+                  flex: '1 1 0',
+                  justifyContent: 'center',
                 }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-                  {language === 'vi' ? `Kỷ yếu Hội nghị: ${liveConfCount} (CVF & OpenReview)` : `Conference Papers: ${liveConfCount} (CVF & OpenReview)`}
-                </div>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#8b5cf6', flexShrink: 0 }} />
+                  arXiv {liveBronzeCount.toLocaleString()}
+                </span>
+
+                <span style={{
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '3px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
+                  color: isDark ? '#818cf8' : '#4338ca',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  flex: '1 1 0',
+                  justifyContent: 'center',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1', flexShrink: 0 }} />
+                  OpenAlex {liveOpenAlexCount.toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
@@ -1925,68 +1903,46 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
               </div>
 
-              {/* Visual Performance Chips (2-Row Layout, Zero Overflow) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '2px 5px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
-                    color: isDark ? '#34d399' : '#047857',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap',
-                    flex: '1 1 0',
-                    justifyContent: 'center',
-                  }}>
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                    SIMD AVX-512
-                  </span>
-
-                  <span style={{
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '2px 5px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-                    color: isDark ? '#60a5fa' : '#2563eb',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap',
-                    flex: '1 1 0',
-                    justifyContent: 'center',
-                  }}>
-                    &lt;18ms Query
-                  </span>
-                </div>
-
-                <div style={{
-                  fontSize: '10.5px',
+              {/* Visual Performance Chips: 1-Row Symmetrical 2-Pill Grid */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{
+                  fontSize: '11px',
                   fontFamily: 'var(--font-mono)',
-                  fontWeight: 600,
-                  padding: '2px 6px',
+                  fontWeight: 700,
+                  padding: '3px 6px',
                   borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#fef3c7',
-                  color: isDark ? '#fbbf24' : '#b45309',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
-                  display: 'flex',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                  color: isDark ? '#34d399' : '#047857',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '5px',
+                  gap: '4px',
                   whiteSpace: 'nowrap',
-                  width: '100%',
+                  flex: '1 1 0',
+                  justifyContent: 'center',
                 }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-                  {language === 'vi' ? 'Bộ nhớ Apache Arrow Không Sao Chép' : 'Zero-Copy Apache Arrow Columnar'}
-                </div>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
+                  SIMD AVX-512
+                </span>
+
+                <span style={{
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '3px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                  color: isDark ? '#60a5fa' : '#2563eb',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  flex: '1 1 0',
+                  justifyContent: 'center',
+                }}>
+                  &lt;18ms Query
+                </span>
               </div>
             </div>
           </div>
