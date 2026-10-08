@@ -15,7 +15,6 @@ export interface PipelineExecutionStepperProps {
 export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
   currentStage,
   isPipelineRunning,
-  onTriggerPipeline,
   theme = 'dark',
   language = 'vi',
   isStreaming = false,
@@ -109,9 +108,9 @@ export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
         width: '100%',
         maxWidth: '1280px',
         margin: '0 auto',
-        padding: '6px 16px',
-        minHeight: '40px',
-        borderRadius: '10px',
+        padding: '5px 16px',
+        minHeight: '34px',
+        borderRadius: '8px',
         backgroundColor: isDark ? 'rgba(15, 23, 42, 0.94)' : '#ffffff',
         border: `1px solid ${
           isPipelineRunning
@@ -135,72 +134,15 @@ export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
         userSelect: 'none',
       }}
     >
-      {/* Left: Execution Controls & Live Status */}
+      {/* Left: Live Execution Telemetry Timer & CDC */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-        {/* Trigger Button */}
-        <button
-          type="button"
-          onClick={onTriggerPipeline}
-          disabled={isPipelineRunning || isStreaming}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '5px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 800,
-            cursor: isPipelineRunning || isStreaming ? 'not-allowed' : 'pointer',
-            backgroundColor: isPipelineRunning
-              ? (isDark ? 'rgba(99, 102, 241, 0.25)' : '#e0e7ff')
-              : isDark
-              ? '#2563eb'
-              : '#1d4ed8',
-            color: isPipelineRunning && !isDark ? '#4338ca' : '#ffffff',
-            border: isPipelineRunning
-              ? '1px solid rgba(99, 102, 241, 0.6)'
-              : '1px solid transparent',
-            boxShadow: isPipelineRunning
-              ? '0 0 10px rgba(99, 102, 241, 0.35)'
-              : '0 2px 6px rgba(37, 99, 235, 0.25)',
-            opacity: isStreaming ? 0.65 : 1,
-            transition: 'all 0.2s ease',
-          }}
-        >
-          {isPipelineRunning ? (
-            <span
-              style={{
-                width: '11px',
-                height: '11px',
-                borderRadius: '50%',
-                border: isDark ? '2px solid rgba(255, 255, 255, 0.3)' : '2px solid rgba(67, 56, 202, 0.3)',
-                borderTopColor: isDark ? '#ffffff' : '#4338ca',
-                animation: 'spin 0.8s linear infinite',
-                display: 'inline-block',
-              }}
-            />
-          ) : (
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-          )}
-          <span>
-            {isPipelineRunning
-              ? (language === 'vi' ? 'ĐANG CHẠY...' : 'RUNNING...')
-              : currentStage === 'completed'
-              ? (language === 'vi' ? 'CHẠY LẠI' : 'RE-RUN')
-              : (language === 'vi' ? 'CHẠY PIPELINE' : 'RUN PIPELINE')}
-          </span>
-        </button>
-
         {/* Live Timer Pill */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '5px',
-            padding: '4px 8px',
+            padding: '3px 8px',
             borderRadius: '6px',
             backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
             border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
@@ -225,7 +167,7 @@ export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '4px 8px',
+              padding: '3px 8px',
               borderRadius: '6px',
               backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
               border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : '#a7f3d0'}`,
@@ -323,12 +265,12 @@ export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
         </div>
       </div>
 
-      {/* Right: Progress Metric Pill & Lakehouse Storage Lens */}
+      {/* Right: Progress Metric Pill */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
+          gap: '8px',
           flexShrink: 0,
         }}
       >
@@ -344,26 +286,6 @@ export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
         >
           {progressPct}%
         </span>
-
-        {/* Active Lakehouse Pill */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '3px 8px',
-            borderRadius: '6px',
-            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f1f5f9',
-            border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0'}`,
-            fontSize: '12px',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 700,
-            color: isDark ? '#94a3b8' : '#64748b',
-          }}
-        >
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-          <span>8.28 GB / 10 GB</span>
-        </div>
       </div>
     </div>
   );

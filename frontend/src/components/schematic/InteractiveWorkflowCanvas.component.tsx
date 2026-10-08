@@ -1030,18 +1030,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div
               style={{
                 position: 'absolute',
-                right: '-8px',
+                right: '-6px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '16px',
-                height: '16px',
+                width: '12px',
+                height: '12px',
                 borderRadius: '50%',
                 backgroundColor: isDark ? '#0f172a' : '#ffffff',
                 border: `2px solid ${isStageActive('harvest') || isStreaming || isLineageHighlighted('start-flow') ? '#8b5cf6' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: isStageActive('harvest') || isLineageHighlighted('start-flow') ? '0 0 10px #8b5cf6' : 'none',
+                boxShadow: isStageActive('harvest') || isLineageHighlighted('start-flow') ? '0 0 8px #8b5cf6' : 'none',
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
@@ -1049,8 +1049,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             >
               <span
                 style={{
-                  width: '6px',
-                  height: '6px',
+                  width: '4px',
+                  height: '4px',
                   borderRadius: '50%',
                   backgroundColor: '#8b5cf6',
                   animation: isStageActive('harvest') || isStreaming ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
@@ -1202,7 +1202,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('conduit-1')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '68px',
+              width: '86px',
               height: '24px',
               position: 'relative',
               display: 'flex',
@@ -1268,18 +1268,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               )}
             </div>
 
-            {/* Floating Payload Badge */}
+            {/* Floating Payload Badge - Perfectly Contained Inside 86px Conduit */}
             <div
               style={{
                 position: 'absolute',
-                top: '-24px',
+                top: '-20px',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '2px 7px',
-                borderRadius: '5px',
+                gap: '3px',
+                padding: '2px 6px',
+                borderRadius: '4px',
                 backgroundColor: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1'))
                   ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
                   : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
@@ -1287,9 +1287,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   ? '1px solid #8b5cf6'
                   : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
                 boxShadow: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1'))
-                  ? '0 0 10px rgba(139, 92, 246, 0.5), 0 2px 6px rgba(0, 0, 0, 0.2)'
-                  : '0 2px 4px rgba(0, 0, 0, 0.05)',
-                fontSize: '11.5px',
+                  ? '0 0 8px rgba(139, 92, 246, 0.45)'
+                  : '0 1px 3px rgba(0, 0, 0, 0.05)',
+                fontSize: '10.5px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 color: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1')) ? '#c084fc' : (isDark ? '#94a3b8' : '#64748b'),
@@ -1300,7 +1300,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               }}
             >
               <span>📦</span>
-              <span>3.77 GB XML & JSON</span>
+              <span>3.77 GB RAW</span>
             </div>
           </div>
 
@@ -1312,7 +1312,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('bronze-instance')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '235px',
+              width: '240px',
               backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
@@ -1391,18 +1391,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div
               style={{
                 position: 'absolute',
-                left: '-8px',
+                left: '-6px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '16px',
-                height: '16px',
+                width: '12px',
+                height: '12px',
                 borderRadius: '50%',
                 backgroundColor: isDark ? '#0f172a' : '#ffffff',
                 border: `2px solid ${isStageActive('harvest') || isStageActive('bronze') || isLineageHighlighted('bronze-instance') ? '#8b5cf6' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: isStageActive('bronze') || isLineageHighlighted('bronze-instance') ? '0 0 10px #8b5cf6' : 'none',
+                boxShadow: isStageActive('bronze') || isLineageHighlighted('bronze-instance') ? '0 0 8px #8b5cf6' : 'none',
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
@@ -1410,8 +1410,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             >
               <span
                 style={{
-                  width: '6px',
-                  height: '6px',
+                  width: '4px',
+                  height: '4px',
                   borderRadius: '50%',
                   backgroundColor: '#8b5cf6',
                   animation: isStageActive('harvest') || isStageActive('bronze') ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
@@ -1423,18 +1423,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div
               style={{
                 position: 'absolute',
-                right: '-8px',
+                right: '-6px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '16px',
-                height: '16px',
+                width: '12px',
+                height: '12px',
                 borderRadius: '50%',
                 backgroundColor: isDark ? '#0f172a' : '#ffffff',
                 border: `2px solid ${isStageActive('bronze') || isStreaming || isLineageHighlighted('bronze-instance') ? '#e11d48' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: isStageActive('bronze') || isLineageHighlighted('bronze-instance') ? '0 0 10px #e11d48' : 'none',
+                boxShadow: isStageActive('bronze') || isLineageHighlighted('bronze-instance') ? '0 0 8px #e11d48' : 'none',
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
@@ -1442,8 +1442,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             >
               <span
                 style={{
-                  width: '6px',
-                  height: '6px',
+                  width: '4px',
+                  height: '4px',
                   borderRadius: '50%',
                   backgroundColor: '#e11d48',
                   animation: isStageActive('bronze') || isStreaming ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
@@ -1514,17 +1514,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             </div>
 
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 900, color: isStageActive('bronze') ? (isDark ? '#fb7185' : '#e11d48') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                  <AnimatedCounter value={liveActiveStorageGb} decimals={3} suffix=" GB" />
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: isStageActive('bronze') ? (isDark ? '#fb7185' : '#e11d48') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                  <AnimatedCounter value={liveActiveStorageGb} decimals={2} suffix=" GB" />
                 </span>
                 <span style={{
-                  fontSize: '12px',
+                  fontSize: '11px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
                   color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap',
                 }}>
-                  {language === 'vi' ? '8.28 GB / 10 GB (82.8%)' : '8.28 GB / 10 GB (82.8%)'}
+                  82.8% (10 GB max)
                 </span>
               </div>
 
@@ -1620,7 +1621,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('conduit-2')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '68px',
+              width: '86px',
               height: '24px',
               position: 'relative',
               display: 'flex',
@@ -1686,18 +1687,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               )}
             </div>
 
-            {/* Floating Payload Badge */}
+            {/* Floating Payload Badge - Perfectly Contained Inside 86px Conduit */}
             <div
               style={{
                 position: 'absolute',
-                top: '-24px',
+                top: '-20px',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '2px 7px',
-                borderRadius: '5px',
+                gap: '3px',
+                padding: '2px 6px',
+                borderRadius: '4px',
                 backgroundColor: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
                   ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
                   : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
@@ -1705,9 +1706,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   ? '1px solid #e11d48'
                   : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
                 boxShadow: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
-                  ? '0 0 10px rgba(225, 29, 72, 0.5), 0 2px 6px rgba(0, 0, 0, 0.2)'
-                  : '0 2px 4px rgba(0, 0, 0, 0.05)',
-                fontSize: '11.5px',
+                  ? '0 0 8px rgba(225, 29, 72, 0.45)'
+                  : '0 1px 3px rgba(0, 0, 0, 0.05)',
+                fontSize: '10.5px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 color: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#fb7185' : (isDark ? '#94a3b8' : '#64748b'),
@@ -1718,7 +1719,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               }}
             >
               <span>📄</span>
-              <span>11,660 HTML5 Preprints</span>
+              <span>11.6k WORKS</span>
             </div>
           </div>
 
@@ -1730,7 +1731,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('review-duckdb')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '235px',
+              width: '230px',
               backgroundColor: themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
@@ -1809,18 +1810,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div
               style={{
                 position: 'absolute',
-                left: '-8px',
+                left: '-6px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '16px',
-                height: '16px',
+                width: '12px',
+                height: '12px',
                 borderRadius: '50%',
                 backgroundColor: isDark ? '#0f172a' : '#ffffff',
                 border: `2px solid ${isStageActive('bronze') || isStageActive('duckdb') || isLineageHighlighted('review-duckdb') ? '#e11d48' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: isStageActive('duckdb') || isLineageHighlighted('review-duckdb') ? '0 0 10px #e11d48' : 'none',
+                boxShadow: isStageActive('duckdb') || isLineageHighlighted('review-duckdb') ? '0 0 8px #e11d48' : 'none',
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
@@ -1828,8 +1829,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             >
               <span
                 style={{
-                  width: '6px',
-                  height: '6px',
+                  width: '4px',
+                  height: '4px',
                   borderRadius: '50%',
                   backgroundColor: '#e11d48',
                   animation: isStageActive('bronze') || isStageActive('duckdb') ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
@@ -1841,18 +1842,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div
               style={{
                 position: 'absolute',
-                right: '-8px',
+                right: '-6px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '16px',
-                height: '16px',
+                width: '12px',
+                height: '12px',
                 borderRadius: '50%',
                 backgroundColor: isDark ? '#0f172a' : '#ffffff',
                 border: `2px solid ${isStageActive('duckdb') || isLineageHighlighted('review-duckdb') ? '#f59e0b' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: isStageActive('duckdb') || isLineageHighlighted('review-duckdb') ? '0 0 10px #f59e0b' : 'none',
+                boxShadow: isStageActive('duckdb') || isLineageHighlighted('review-duckdb') ? '0 0 8px #f59e0b' : 'none',
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
@@ -1860,8 +1861,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             >
               <span
                 style={{
-                  width: '6px',
-                  height: '6px',
+                  width: '4px',
+                  height: '4px',
                   borderRadius: '50%',
                   backgroundColor: '#f59e0b',
                   animation: isStageActive('duckdb') ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
@@ -1996,7 +1997,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onMouseEnter={() => setHoveredNodeId('conduit-3')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '68px',
+              width: '86px',
               height: '24px',
               position: 'relative',
               display: 'flex',
@@ -2062,18 +2063,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               )}
             </div>
 
-            {/* Floating Payload Badge */}
+            {/* Floating Payload Badge - Perfectly Contained Inside 86px Conduit */}
             <div
               style={{
                 position: 'absolute',
-                top: '-24px',
+                top: '-20px',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '2px 7px',
-                borderRadius: '5px',
+                gap: '3px',
+                padding: '2px 6px',
+                borderRadius: '4px',
                 backgroundColor: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
                   ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
                   : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
@@ -2081,9 +2082,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   ? '1px solid #f59e0b'
                   : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
                 boxShadow: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
-                  ? '0 0 10px rgba(245, 158, 11, 0.5), 0 2px 6px rgba(0, 0, 0, 0.2)'
-                  : '0 2px 4px rgba(0, 0, 0, 0.05)',
-                fontSize: '11.5px',
+                  ? '0 0 8px rgba(245, 158, 11, 0.45)'
+                  : '0 1px 3px rgba(0, 0, 0, 0.05)',
+                fontSize: '10.5px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 color: (isStageActive('duckdb') || isLineageHighlighted('conduit-3')) ? '#fbbf24' : (isDark ? '#94a3b8' : '#64748b'),
@@ -2094,7 +2095,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               }}
             >
               <span>⚡</span>
-              <span>Arrow RecordBatches</span>
+              <span>ARROW SIMD</span>
             </div>
           </div>
 
@@ -2107,17 +2108,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               onMouseEnter={() => setHoveredNodeId('fork')}
               onMouseLeave={() => setHoveredNodeId(null)}
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
                 backgroundColor: '#ef4444',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#ffffff',
                 boxShadow: (isStageActive('parallel') || isLineageHighlighted('fork'))
-                  ? '0 0 20px rgba(239, 68, 68, 0.85), 0 0 6px #ffffff'
-                  : '0 2px 8px rgba(239, 68, 68, 0.35)',
+                  ? '0 0 16px rgba(239, 68, 68, 0.85), 0 0 4px #ffffff'
+                  : '0 2px 6px rgba(239, 68, 68, 0.35)',
                 animation: isStageActive('parallel') ? 'stageActiveRadarPulse 2s ease-in-out infinite' : 'none',
                 zIndex: 14,
                 flexShrink: 0,
@@ -2130,24 +2131,24 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div
                 style={{
                   position: 'absolute',
-                  left: '-7px',
+                  left: '-5px',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  width: '14px',
-                  height: '14px',
+                  width: '10px',
+                  height: '10px',
                   borderRadius: '50%',
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
                   border: `2px solid ${isStageActive('duckdb') || isStageActive('parallel') ? '#f59e0b' : '#ef4444'}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: isStageActive('duckdb') ? '0 0 8px #f59e0b' : 'none',
+                  boxShadow: isStageActive('duckdb') ? '0 0 6px #f59e0b' : 'none',
                 }}
               >
-                <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+                <span style={{ width: '3px', height: '3px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
               </div>
 
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <rect x="3" y="3" width="6" height="6" rx="1" />
                 <rect x="15" y="15" width="6" height="6" rx="1" />
                 <rect x="3" y="15" width="6" height="6" rx="1" />
@@ -2156,13 +2157,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             </div>
 
             {/* Split Horizontal-to-Vertical Conduits */}
-            <div style={{ width: '38px', height: '144px', position: 'relative', flexShrink: 0 }}>
+            <div style={{ width: '32px', height: '144px', position: 'relative', flexShrink: 0 }}>
               {/* Horizontal lead-in wire from Fork */}
               <div style={{
                 position: 'absolute',
                 top: '70px',
                 left: '0',
-                width: '18px',
+                width: '14px',
                 height: '6px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isLineageHighlighted('fork')) ? '#ef4444' : themeStyles.wire,
@@ -2173,7 +2174,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div style={{
                 position: 'absolute',
                 top: '16px',
-                left: '16px',
+                left: '14px',
                 width: '6px',
                 height: '112px',
                 borderRadius: '3px',
@@ -2185,8 +2186,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div style={{
                 position: 'absolute',
                 top: '16px',
-                left: '16px',
-                width: '22px',
+                left: '14px',
+                width: '18px',
                 height: '6px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isLineageHighlighted('fork')) ? '#10b981' : themeStyles.wire,
@@ -2197,8 +2198,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div style={{
                 position: 'absolute',
                 bottom: '16px',
-                left: '16px',
-                width: '22px',
+                left: '14px',
+                width: '18px',
                 height: '6px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isLineageHighlighted('fork')) ? '#2563eb' : themeStyles.wire,
@@ -2212,7 +2213,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     style={{
                       position: 'absolute',
                       top: '13px',
-                      left: '14px',
+                      left: '12px',
                       width: '10px',
                       height: '10px',
                       borderRadius: '50%',
@@ -2225,7 +2226,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     style={{
                       position: 'absolute',
                       bottom: '13px',
-                      left: '14px',
+                      left: '12px',
                       width: '10px',
                       height: '10px',
                       borderRadius: '50%',
@@ -2246,7 +2247,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onMouseEnter={() => setHoveredNodeId('silver-parquet')}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
-                  width: '260px',
+                  width: '245px',
                   backgroundColor: themeStyles.cardBg,
                   borderRadius: '14px',
                   padding: '12px 16px',
@@ -2324,18 +2325,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div
                   style={{
                     position: 'absolute',
-                    left: '-8px',
+                    left: '-6px',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    width: '16px',
-                    height: '16px',
+                    width: '12px',
+                    height: '12px',
                     borderRadius: '50%',
                     backgroundColor: isDark ? '#0f172a' : '#ffffff',
                     border: `2px solid ${isStageActive('parallel') || isLineageHighlighted('silver-parquet') ? '#10b981' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: isStageActive('parallel') || isLineageHighlighted('silver-parquet') ? '0 0 10px #10b981' : 'none',
+                    boxShadow: isStageActive('parallel') || isLineageHighlighted('silver-parquet') ? '0 0 8px #10b981' : 'none',
                     zIndex: 14,
                     pointerEvents: 'none',
                   }}
@@ -2343,8 +2344,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 >
                   <span
                     style={{
-                      width: '6px',
-                      height: '6px',
+                      width: '4px',
+                      height: '4px',
                       borderRadius: '50%',
                       backgroundColor: '#10b981',
                       animation: isStageActive('parallel') ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
@@ -2356,18 +2357,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div
                   style={{
                     position: 'absolute',
-                    right: '-8px',
+                    right: '-6px',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    width: '16px',
-                    height: '16px',
+                    width: '12px',
+                    height: '12px',
                     borderRadius: '50%',
                     backgroundColor: isDark ? '#0f172a' : '#ffffff',
                     border: `2px solid ${isStageActive('parallel') || isLineageHighlighted('silver-parquet') ? '#10b981' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: isStageActive('parallel') || isLineageHighlighted('silver-parquet') ? '0 0 10px #10b981' : 'none',
+                    boxShadow: isStageActive('parallel') || isLineageHighlighted('silver-parquet') ? '0 0 8px #10b981' : 'none',
                     zIndex: 14,
                     pointerEvents: 'none',
                   }}
@@ -2375,8 +2376,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 >
                   <span
                     style={{
-                      width: '6px',
-                      height: '6px',
+                      width: '4px',
+                      height: '4px',
                       borderRadius: '50%',
                       backgroundColor: '#10b981',
                       animation: isStageActive('parallel') ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
@@ -2510,7 +2511,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onMouseEnter={() => setHoveredNodeId('gold-lancedb')}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
-                  width: '260px',
+                  width: '245px',
                   backgroundColor: themeStyles.cardBg,
                   borderRadius: '14px',
                   padding: '12px 16px',
@@ -2588,18 +2589,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div
                   style={{
                     position: 'absolute',
-                    left: '-8px',
+                    left: '-6px',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    width: '16px',
-                    height: '16px',
+                    width: '12px',
+                    height: '12px',
                     borderRadius: '50%',
                     backgroundColor: isDark ? '#0f172a' : '#ffffff',
                     border: `2px solid ${isStageActive('parallel') || isLineageHighlighted('gold-lancedb') ? '#2563eb' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: isStageActive('parallel') || isLineageHighlighted('gold-lancedb') ? '0 0 10px #2563eb' : 'none',
+                    boxShadow: isStageActive('parallel') || isLineageHighlighted('gold-lancedb') ? '0 0 8px #2563eb' : 'none',
                     zIndex: 14,
                     pointerEvents: 'none',
                   }}
@@ -2607,8 +2608,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 >
                   <span
                     style={{
-                      width: '6px',
-                      height: '6px',
+                      width: '4px',
+                      height: '4px',
                       borderRadius: '50%',
                       backgroundColor: '#2563eb',
                       animation: isStageActive('parallel') ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
@@ -2620,18 +2621,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div
                   style={{
                     position: 'absolute',
-                    right: '-8px',
+                    right: '-6px',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    width: '16px',
-                    height: '16px',
+                    width: '12px',
+                    height: '12px',
                     borderRadius: '50%',
                     backgroundColor: isDark ? '#0f172a' : '#ffffff',
                     border: `2px solid ${isStageActive('parallel') || isLineageHighlighted('gold-lancedb') ? '#2563eb' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: isStageActive('parallel') || isLineageHighlighted('gold-lancedb') ? '0 0 10px #2563eb' : 'none',
+                    boxShadow: isStageActive('parallel') || isLineageHighlighted('gold-lancedb') ? '0 0 8px #2563eb' : 'none',
                     zIndex: 14,
                     pointerEvents: 'none',
                   }}
@@ -2639,8 +2640,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 >
                   <span
                     style={{
-                      width: '6px',
-                      height: '6px',
+                      width: '4px',
+                      height: '4px',
                       borderRadius: '50%',
                       backgroundColor: '#2563eb',
                       animation: isStageActive('parallel') ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
@@ -2771,14 +2772,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div
               onMouseEnter={() => setHoveredNodeId('merge')}
               onMouseLeave={() => setHoveredNodeId(null)}
-              style={{ width: '38px', height: '144px', position: 'relative', flexShrink: 0, cursor: 'pointer' }}
+              style={{ width: '32px', height: '144px', position: 'relative', flexShrink: 0, cursor: 'pointer' }}
             >
               {/* Top horizontal branch from Parquet */}
               <div style={{
                 position: 'absolute',
                 top: '16px',
                 left: '0',
-                width: '18px',
+                width: '14px',
                 height: '6px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isGroundedRagReady || isLineageHighlighted('silver-parquet')) ? '#10b981' : themeStyles.wire,
@@ -2791,7 +2792,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 position: 'absolute',
                 bottom: '16px',
                 left: '0',
-                width: '18px',
+                width: '14px',
                 height: '6px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isGroundedRagReady || isLineageHighlighted('gold-lancedb')) ? '#2563eb' : themeStyles.wire,
@@ -2803,7 +2804,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div style={{
                 position: 'absolute',
                 top: '16px',
-                left: '16px',
+                left: '14px',
                 width: '6px',
                 height: '112px',
                 borderRadius: '3px',
@@ -2816,8 +2817,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div style={{
                 position: 'absolute',
                 top: '69px',
-                left: '16px',
-                width: '22px',
+                left: '14px',
+                width: '18px',
                 height: '6px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isGroundedRagReady || isLineageHighlighted('merge') || isLineageHighlighted('anchor')) ? '#6366f1' : themeStyles.wire,
@@ -2832,7 +2833,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     style={{
                       position: 'absolute',
                       top: '20px',
-                      left: '14px',
+                      left: '12px',
                       width: '10px',
                       height: '10px',
                       borderRadius: '50%',
@@ -2845,7 +2846,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     style={{
                       position: 'absolute',
                       bottom: '20px',
-                      left: '14px',
+                      left: '12px',
                       width: '10px',
                       height: '10px',
                       borderRadius: '50%',
@@ -2863,15 +2864,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               onMouseEnter={() => setHoveredNodeId('anchor')}
               onMouseLeave={() => setHoveredNodeId(null)}
               style={{
-                width: '26px',
-                height: '26px',
+                width: '24px',
+                height: '24px',
                 borderRadius: '50%',
                 backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                border: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('anchor')) ? '4px solid #6366f1' : `4px solid ${themeStyles.wire}`,
+                border: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('anchor')) ? '3px solid #6366f1' : `3px solid ${themeStyles.wire}`,
                 boxShadow: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('anchor'))
                   ? (isDark
-                      ? '0 0 20px rgba(99, 102, 241, 0.9), 0 0 8px #818cf8'
-                      : '0 2px 10px rgba(99, 102, 241, 0.45)')
+                      ? '0 0 18px rgba(99, 102, 241, 0.9), 0 0 6px #818cf8'
+                      : '0 2px 8px rgba(99, 102, 241, 0.45)')
                   : 'none',
                 position: 'relative',
                 flexShrink: 0,
@@ -2904,11 +2905,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   top: '50%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
-                  width: '6px',
-                  height: '6px',
+                  width: '4px',
+                  height: '4px',
                   borderRadius: '50%',
                   backgroundColor: (isGroundedRagReady || isStageActive('parallel')) ? '#818cf8' : 'transparent',
-                  boxShadow: (isGroundedRagReady || isStageActive('parallel')) ? '0 0 8px #818cf8' : 'none',
+                  boxShadow: (isGroundedRagReady || isStageActive('parallel')) ? '0 0 6px #818cf8' : 'none',
                 }}
               />
             </div>
@@ -2920,7 +2921,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               onMouseEnter={() => setHoveredNodeId('conduit-5')}
               onMouseLeave={() => setHoveredNodeId(null)}
               style={{
-                width: '68px',
+                width: '86px',
                 height: '24px',
                 position: 'relative',
                 display: 'flex',
@@ -2986,18 +2987,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 )}
               </div>
 
-              {/* Floating Payload Badge */}
+              {/* Floating Payload Badge - Perfectly Contained Inside 86px Conduit */}
               <div
                 style={{
                   position: 'absolute',
-                  top: '-24px',
+                  top: '-20px',
                   left: '50%',
                   transform: 'translateX(-50%)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 7px',
-                  borderRadius: '5px',
+                  gap: '3px',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
                   backgroundColor: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
                     ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
                     : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
@@ -3005,9 +3006,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     ? '1px solid #6366f1'
                     : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
                   boxShadow: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
-                    ? '0 0 10px rgba(99, 102, 241, 0.5), 0 2px 6px rgba(0, 0, 0, 0.2)'
-                    : '0 2px 4px rgba(0, 0, 0, 0.05)',
-                  fontSize: '11.5px',
+                    ? '0 0 8px rgba(99, 102, 241, 0.45)'
+                    : '0 1px 3px rgba(0, 0, 0, 0.05)',
+                  fontSize: '10.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   color: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5')) ? '#a5b4fc' : (isDark ? '#94a3b8' : '#64748b'),
@@ -3018,7 +3019,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 }}
               >
                 <span>🎯</span>
-                <span>{language === 'vi' ? 'Top-5 Ngữ Cảnh + DOI' : 'Top-5 Context + Citations'}</span>
+                <span>TOP-5 DOI</span>
               </div>
             </div>
 
@@ -3030,7 +3031,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               onMouseEnter={() => setHoveredNodeId('grounded-rag')}
               onMouseLeave={() => setHoveredNodeId(null)}
               style={{
-                width: '240px',
+                width: '235px',
                 backgroundColor: isGroundedRagReady
                   ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#ffffff')
                   : themeStyles.cardBg,
@@ -3110,18 +3111,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div
                 style={{
                   position: 'absolute',
-                  left: '-8px',
+                  left: '-6px',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  width: '16px',
-                  height: '16px',
+                  width: '12px',
+                  height: '12px',
                   borderRadius: '50%',
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
                   border: `2px solid ${isGroundedRagReady || isLineageHighlighted('grounded-rag') ? '#6366f1' : (isDark ? 'rgba(255, 255, 255, 0.25)' : '#cbd5e1')}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: isGroundedRagReady || isLineageHighlighted('grounded-rag') ? '0 0 10px #6366f1' : 'none',
+                  boxShadow: isGroundedRagReady || isLineageHighlighted('grounded-rag') ? '0 0 8px #6366f1' : 'none',
                   zIndex: 14,
                   pointerEvents: 'none',
                 }}
@@ -3129,8 +3130,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               >
                 <span
                   style={{
-                    width: '6px',
-                    height: '6px',
+                    width: '4px',
+                    height: '4px',
                     borderRadius: '50%',
                     backgroundColor: '#6366f1',
                     animation: isGroundedRagReady ? 'pinPortGlow 1.2s ease-in-out infinite' : 'none',
