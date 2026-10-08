@@ -961,7 +961,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '4px',
                 padding: '2px 7px',
                 borderRadius: '5px',
                 backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
@@ -969,11 +969,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 fontSize: '11px',
                 fontWeight: 800,
                 fontFamily: 'var(--font-mono)',
-                letterSpacing: '0.03em',
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}>
-                <span>{language === 'vi' ? 'CHẶNG 1' : 'STAGE 1'}</span>
-                <span>:</span>
-                <span>{language === 'vi' ? 'THU THẬP' : 'INGEST'}</span>
+                <span>{language === 'vi' ? 'CHẶNG 1 • THU THẬP' : 'STAGE 1 • INGEST'}</span>
               </div>
 
               <span style={{
@@ -998,6 +998,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 alignItems: 'center',
                 gap: '4px',
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}>
                 {isStageActive('harvest') && (
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
@@ -1335,7 +1336,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '4px',
                 padding: '2px 7px',
                 borderRadius: '5px',
                 backgroundColor: isDark ? 'rgba(225, 29, 72, 0.18)' : '#ffe4e6',
@@ -1343,11 +1344,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 fontSize: '11px',
                 fontWeight: 800,
                 fontFamily: 'var(--font-mono)',
-                letterSpacing: '0.03em',
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}>
-                <span>{language === 'vi' ? 'CHẶNG 2' : 'STAGE 2'}</span>
-                <span>:</span>
-                <span>{language === 'vi' ? 'HỒ THÔ' : 'BRONZE LAKE'}</span>
+                <span>{language === 'vi' ? 'CHẶNG 2 • HỒ THÔ' : 'STAGE 2 • BRONZE'}</span>
               </div>
 
               <span style={{
@@ -1372,6 +1373,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 alignItems: 'center',
                 gap: '4px',
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}>
                 {isStageActive('bronze') && (
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
@@ -1533,9 +1535,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               </div>
 
               {/* Color-Coded Lakehouse Layer Chips */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1546,13 +1548,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
+                  whiteSpace: 'nowrap',
+                  flex: '1 1 0',
+                  justifyContent: 'center',
                 }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#e11d48' }} />
                   HTML5 {parseFloat(liveBronzeGb).toFixed(2)} GB
                 </span>
 
                 <span style={{
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1563,15 +1568,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
+                  whiteSpace: 'nowrap',
+                  flex: '1 1 0',
+                  justifyContent: 'center',
                 }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
                   Meta 3.97 GB
                 </span>
 
-
                 {isStreaming && lastPaperDeltaBytes > 0 && (
                   <span style={{
-                    fontSize: '11.5px',
+                    fontSize: '11px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
                     padding: '2px 6px',
@@ -1582,6 +1589,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '4px',
+                    whiteSpace: 'nowrap',
+                    flex: '0 0 auto',
                   }}>
                     +{Math.round(lastPaperDeltaBytes / 1024)} KB CDC
                   </span>
@@ -1741,7 +1750,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '4px',
                 padding: '2px 7px',
                 borderRadius: '5px',
                 backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fef3c7',
@@ -1749,11 +1758,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 fontSize: '11px',
                 fontWeight: 800,
                 fontFamily: 'var(--font-mono)',
-                letterSpacing: '0.03em',
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}>
-                <span>{language === 'vi' ? 'CHẶNG 3' : 'STAGE 3'}</span>
-                <span>:</span>
-                <span>{language === 'vi' ? 'XỬ LÝ SIMD' : 'SIMD OLAP'}</span>
+                <span>{language === 'vi' ? 'CHẶNG 3 • SIMD OLAP' : 'STAGE 3 • SIMD OLAP'}</span>
               </div>
 
               <span style={{
@@ -1772,6 +1781,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 alignItems: 'center',
                 gap: '4px',
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}>
                 {isStageActive('duckdb') && (
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
@@ -1915,56 +1925,68 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
               </div>
 
-              {/* Visual Performance Chips */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                <span style={{
-                  fontSize: '11.5px',
+              {/* Visual Performance Chips (2-Row Layout, Zero Overflow) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                    color: isDark ? '#34d399' : '#047857',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    flex: '1 1 0',
+                    justifyContent: 'center',
+                  }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                    SIMD AVX-512
+                  </span>
+
+                  <span style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                    color: isDark ? '#60a5fa' : '#2563eb',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    flex: '1 1 0',
+                    justifyContent: 'center',
+                  }}>
+                    &lt;18ms Query
+                  </span>
+                </div>
+
+                <div style={{
+                  fontSize: '10.5px',
                   fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
+                  fontWeight: 600,
                   padding: '2px 6px',
                   borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fef3c7',
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#fef3c7',
                   color: isDark ? '#fbbf24' : '#b45309',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  display: 'inline-flex',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  justifyContent: 'center',
+                  gap: '5px',
+                  whiteSpace: 'nowrap',
+                  width: '100%',
                 }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-                  Zero-Copy Arrow
-                </span>
-
-                <span style={{
-                  fontSize: '11.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
-                  color: isDark ? '#34d399' : '#047857',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}>
-                  SIMD AVX-512
-                </span>
-
-                <span style={{
-                  fontSize: '11.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-                  color: isDark ? '#60a5fa' : '#2563eb',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}>
-                  &lt;18ms Query
-                </span>
+                  {language === 'vi' ? 'Bộ nhớ Apache Arrow Không Sao Chép' : 'Zero-Copy Apache Arrow Columnar'}
+                </div>
               </div>
             </div>
           </div>
@@ -2255,7 +2277,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 }}
               >
                 {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '6px' }}>
                   <div style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -2268,10 +2290,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     fontWeight: 800,
                     fontFamily: 'var(--font-mono)',
                     letterSpacing: '0.03em',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}>
-                    <span>{language === 'vi' ? 'CHẶNG 4A' : 'STAGE 4A'}</span>
-                    <span>:</span>
-                    <span>{language === 'vi' ? 'LƯU TRỮ CỘT' : 'COLUMNAR STORE'}</span>
+                    {language === 'vi' ? 'CHẶNG 4A • CỘT PARQUET' : 'STAGE 4A • PARQUET'}
                   </div>
 
                   <span style={{
@@ -2290,6 +2312,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     alignItems: 'center',
                     gap: '4px',
                     whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}>
                     {isStageActive('parallel') && (
                       <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
@@ -2434,54 +2457,44 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '6px' }}>
                     <span style={{
-                      fontSize: '11.5px',
+                      flex: '1 1 0',
+                      fontSize: '11px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
-                      padding: '2px 6px',
+                      padding: '3px 6px',
                       borderRadius: '5px',
                       backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
                       color: isDark ? '#34d399' : '#047857',
                       border: '1px solid rgba(16, 185, 129, 0.3)',
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '4px',
+                      whiteSpace: 'nowrap',
                     }}>
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
                       {liveSilverPartitions} {language === 'vi' ? 'Phân vùng' : 'Partitions'}
                     </span>
 
                     <span style={{
-                      fontSize: '11.5px',
+                      flex: '1 1 0',
+                      fontSize: '11px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
-                      padding: '2px 6px',
+                      padding: '3px 6px',
                       borderRadius: '5px',
                       backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
                       color: isDark ? '#60a5fa' : '#2563eb',
                       border: '1px solid rgba(59, 130, 246, 0.3)',
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '4px',
+                      whiteSpace: 'nowrap',
                     }}>
                       Snappy 4.2x
-                    </span>
-
-                    <span style={{
-                      fontSize: '11.5px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '5px',
-                      backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f3e8ff',
-                      color: isDark ? '#c084fc' : '#7c3aed',
-                      border: '1px solid rgba(168, 85, 247, 0.3)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}>
-                      PyArrow OLAP
                     </span>
                   </div>
                 </div>
@@ -2522,7 +2535,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 }}
               >
                 {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '6px' }}>
                   <div style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -2535,10 +2548,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     fontWeight: 800,
                     fontFamily: 'var(--font-mono)',
                     letterSpacing: '0.03em',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}>
-                    <span>{language === 'vi' ? 'CHẶNG 4B' : 'STAGE 4B'}</span>
-                    <span>:</span>
-                    <span>{language === 'vi' ? 'KHO VECTOR' : 'VECTOR STORE'}</span>
+                    {language === 'vi' ? 'CHẶNG 4B • KHO VECTOR' : 'STAGE 4B • VECTORS'}
                   </div>
 
                   <span style={{
@@ -2557,6 +2570,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     alignItems: 'center',
                     gap: '4px',
                     whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}>
                     {isStageActive('parallel') && (
                       <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ffffff', animation: 'spin 1s linear infinite' }} />
@@ -2699,54 +2713,44 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '6px' }}>
                     <span style={{
-                      fontSize: '11.5px',
+                      flex: '1 1 0',
+                      fontSize: '11px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
-                      padding: '2px 6px',
+                      padding: '3px 6px',
                       borderRadius: '5px',
                       backgroundColor: isDark ? 'rgba(37, 99, 235, 0.18)' : '#eff6ff',
                       color: isDark ? '#60a5fa' : '#2563eb',
                       border: '1px solid rgba(37, 99, 235, 0.3)',
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '4px',
+                      whiteSpace: 'nowrap',
                     }}>
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#2563eb', flexShrink: 0 }} />
                       768-dim Nomic
                     </span>
 
                     <span style={{
-                      fontSize: '11.5px',
+                      flex: '1 1 0',
+                      fontSize: '11px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
-                      padding: '2px 6px',
+                      padding: '3px 6px',
                       borderRadius: '5px',
                       backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
                       color: isDark ? '#34d399' : '#047857',
                       border: '1px solid rgba(16, 185, 129, 0.3)',
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '4px',
+                      whiteSpace: 'nowrap',
                     }}>
                       IVF-PQ &lt;15ms
-                    </span>
-
-                    <span style={{
-                      fontSize: '11.5px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '5px',
-                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
-                      color: isDark ? '#fbbf24' : '#b45309',
-                      border: '1px solid rgba(245, 158, 11, 0.3)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}>
-                      NVMe Cached
                     </span>
                   </div>
                 </div>
@@ -3048,11 +3052,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               }}
             >
               {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', gap: '6px' }}>
                 <div style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '5px',
+                  gap: '4px',
                   padding: '2px 7px',
                   borderRadius: '5px',
                   backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#ede9fe',
@@ -3060,11 +3064,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontSize: '11px',
                   fontWeight: 800,
                   fontFamily: 'var(--font-mono)',
-                  letterSpacing: '0.03em',
+                  letterSpacing: '0.02em',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}>
-                  <span>{language === 'vi' ? 'CHẶNG 5' : 'STAGE 5'}</span>
-                  <span>:</span>
-                  <span>{language === 'vi' ? 'TRI THỨC RAG' : 'KNOWLEDGE RAG'}</span>
+                  <span>{language === 'vi' ? 'CHẶNG 5 • TRI THỨC' : 'STAGE 5 • KNOWLEDGE'}</span>
                 </div>
 
                 <span style={{
@@ -3081,11 +3085,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   alignItems: 'center',
                   gap: '4px',
                   whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}>
-                  {isGroundedRagReady && (
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
-                  )}
-                  {isGroundedRagReady ? (language === 'vi' ? '● SẴN SÀNG' : '● READY') : 'Metal'}
+                  <span style={{
+                    width: '5px',
+                    height: '5px',
+                    borderRadius: '50%',
+                    backgroundColor: isGroundedRagReady ? '#34d399' : (isDark ? '#818cf8' : '#a5b4fc'),
+                    boxShadow: isGroundedRagReady ? '0 0 6px #34d399' : 'none',
+                  }} />
+                  {isGroundedRagReady ? (language === 'vi' ? 'SẴN SÀNG' : 'READY') : (language === 'vi' ? 'CHỜ SẴN' : 'STANDBY')}
                 </span>
               </div>
 
@@ -3240,54 +3249,44 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
                   <span style={{
-                    fontSize: '11.5px',
+                    flex: '1 1 0',
+                    fontSize: '11px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
-                    padding: '2px 6px',
+                    padding: '3px 6px',
                     borderRadius: '5px',
                     backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#ede9fe',
                     color: isDark ? '#a5b4fc' : '#6366f1',
                     border: '1px solid rgba(99, 102, 241, 0.3)',
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '4px',
+                    whiteSpace: 'nowrap',
                   }}>
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1', flexShrink: 0 }} />
                     Sub-50ms ANN
                   </span>
 
                   <span style={{
-                    fontSize: '11.5px',
+                    flex: '1 1 0',
+                    fontSize: '11px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
-                    padding: '2px 6px',
+                    padding: '3px 6px',
                     borderRadius: '5px',
                     backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
                     color: isDark ? '#34d399' : '#047857',
                     border: '1px solid rgba(16, 185, 129, 0.3)',
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '4px',
+                    whiteSpace: 'nowrap',
                   }}>
                     LaTeX MathML
-                  </span>
-
-                  <span style={{
-                    fontSize: '11.5px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
-                    color: isDark ? '#fbbf24' : '#b45309',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}>
-                    Metal Engine
                   </span>
                 </div>
               </div>
