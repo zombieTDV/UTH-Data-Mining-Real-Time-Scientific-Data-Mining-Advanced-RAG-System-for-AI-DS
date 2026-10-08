@@ -99,9 +99,9 @@ Payload: {
 │   ├── openalex/year=2026/ (24,754 JSON records · 3.971 GB)
 │   └── oai_batches/ (12 batch checkpoints · 26.4 MB)
 ├── silver/
-│   └── papers/year=2026/ (9 Parquet partitions · 316.06 MB)
+│   └── papers/year=2026/ (11 Parquet partitions · 321.69 MB)
 └── gold/
-    └── lancedb/ (143,523 vectors · 121.21 MB active / 28 backup segments · 4.88 GB)`,
+    └── lancedb/ (164,702 vectors · 211.26 MB active / 28 backup segments · 3.20 GB)`,
   },
   'review-duckdb': {
     id: 'review-duckdb',
@@ -177,8 +177,8 @@ ORDER BY paper_count DESC;
     badgeColor: '#2563eb',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '143,523 Vectors Indexed',
-      secondaryMetric: '768 Dimensions · 127.10 MB Index',
+      primaryMetric: '164,702 Vectors Indexed',
+      secondaryMetric: '768 Dimensions · 211.26 MB Index',
       latency: '< 18ms Cosine ANN Lookup',
       throughput: '4 Mining Pillars Fully Computed',
     },
@@ -195,7 +195,7 @@ ORDER BY paper_count DESC;
 db = lancedb.connect("data/gold/lancedb")
 tbl = db.open_table("scientific_papers_gold")
 
-# Hardware-accelerated Cosine ANN retrieval over 143,523 chunks
+# Hardware-accelerated Cosine ANN retrieval over 164,702 chunks
 results = tbl.search(query_embedding) \\
              .metric("cosine") \\
              .where("category = 'cs.AI'") \\
@@ -232,7 +232,7 @@ Ground every assertion strictly in provided LanceDB chunks.
 - Always cite source papers using format: [arXiv:ID, Section Name]
 - Render all equations in pristine LaTeX syntax: $...$ or $$...$$
 
-[RETRIEVED CONTEXT: 5 CHUNKS FROM 143,523 VECTORS]
+[RETRIEVED CONTEXT: 5 CHUNKS FROM 164,702 VECTORS]
 (Chunk 1: arXiv:2602.0412 · Introduction · Similarity: 0.884)...`,
   },
 };
@@ -524,19 +524,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [vectorsIndexed, setVectorsIndexed] = useState<number>(164702);
 
   const liveBronzeCount = storageStats?.activeLakehouse
-    ? storageStats.activeLakehouse.arxivHtmlCount + streamSessionCount
+    ? storageStats.activeLakehouse.arxivHtmlCount
     : 11660 + streamSessionCount;
 
   const liveOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
-  const liveConfCount = 184;
+  const liveConfCount = storageStats?.activeLakehouse?.conferenceCount ?? 184;
   const liveTotalWorks = liveBronzeCount + liveOpenAlexCount;
 
   const liveBronzeGb = storageStats?.activeLakehouse
-    ? (storageStats.activeLakehouse.arxivHtmlSizeGb + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3)
+    ? storageStats.activeLakehouse.arxivHtmlSizeGb.toFixed(3)
     : (3.763 + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3);
 
-  const liveSilverMb = (storageStats?.activeLakehouse?.silverParquetSizeMb ?? 316.06) + (streamSessionCount * 0.025);
-  const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 9;
+  const liveSilverMb = storageStats?.activeLakehouse?.silverParquetSizeMb ?? 321.69;
+  const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 11;
 
   const liveVectors = isPipelineRunning && simulationStage !== 'completed'
     ? vectorsIndexed
@@ -546,7 +546,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
   const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || liveTotalWorks);
-  const displayWorks = isPipelineRunning && simulationStage !== 'completed' ? papersHarvested : liveTotalWorks;
+  const displayWorks = isPipelineRunning && simulationStage !== 'completed' ? papersHarvested : (totalCorpus || liveTotalWorks);
 
   const handleToggleStreaming = async () => {
     if (isStreaming) {
@@ -734,7 +734,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (143,523 vectors).` },
+        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (${liveVectors.toLocaleString()} vectors).` },
       ]);
     } catch (err: any) {
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -2245,7 +2245,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                            {language === 'vi' ? 'CHỌN DANH MỤC CÀO (CATEGORIES TO HARVEST)' : 'SELECT HARVEST CATEGORIES'}
+                            {language === 'vi' ? 'DANH MỤC THU THẬP' : 'HARVEST CATEGORIES'}
                           </span>
                           <span style={{ fontSize: '10px', color: isDark ? '#c084fc' : '#7c3aed', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                             {harvestCategories.length} {language === 'vi' ? 'đã chọn' : 'selected'}
@@ -2297,7 +2297,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                         <div>
                           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
-                            GIỚI HẠN THU THẬP (INGESTION LIMIT)
+                            {language === 'vi' ? 'GIỚI HẠN THU THẬP' : 'INGESTION LIMIT'}
                           </span>
                           <div style={{ display: 'flex', gap: '6px' }}>
                             {[1000, 5000, 10000, 25000].map((limitVal) => (
@@ -2326,13 +2326,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                         <div>
                           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
-                            CHÍNH SÁCH RATE-LIMIT (DELAY)
+                            {language === 'vi' ? 'CHÍNH SÁCH RATE-LIMIT' : 'RATE-LIMIT POLICY'}
                           </span>
                           <div style={{ display: 'flex', gap: '6px' }}>
                             {[
-                              { val: 3.0, label: '3.0s Fast' },
-                              { val: 6.0, label: '6.0s arXiv Policy' },
-                              { val: 10.0, label: '10.0s Safe' },
+                              { val: 3.0, label: language === 'vi' ? '3.0s Nhanh' : '3.0s Fast' },
+                              { val: 6.0, label: language === 'vi' ? '6.0s Chuẩn arXiv' : '6.0s arXiv Policy' },
+                              { val: 10.0, label: language === 'vi' ? '10.0s An toàn' : '10.0s Safe' },
                             ].map((d) => (
                               <button
                                 key={d.val}
@@ -2522,23 +2522,25 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         <button
                           type="button"
                           onClick={handleStartHarvest}
-                          disabled={isHarvesting || harvestCategories.length === 0}
+                          disabled={isHarvesting || isStreaming || harvestCategories.length === 0}
                           style={{
                             width: '100%',
-                            backgroundColor: isHarvesting ? '#94a3b8' : '#7c3aed',
-                            color: '#ffffff',
+                            backgroundColor: (isHarvesting || isStreaming) ? (isDark ? '#334155' : '#cbd5e1') : '#7c3aed',
+                            color: (isHarvesting || isStreaming) ? 'var(--text-muted)' : '#ffffff',
                             border: 'none',
                             borderRadius: '8px',
                             padding: '10px 0',
                             fontSize: '12px',
                             fontFamily: 'var(--font-mono)',
                             fontWeight: 800,
-                            cursor: isHarvesting ? 'not-allowed' : 'pointer',
+                            cursor: (isHarvesting || isStreaming) ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '8px',
-                            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.28)',
+                            boxShadow: (isHarvesting || isStreaming) ? 'none' : '0 4px 12px rgba(124, 58, 237, 0.28)',
+                            opacity: isStreaming ? 0.65 : 1,
+                            transition: 'all 0.15s ease',
                           }}
                         >
                           {isHarvesting ? (
@@ -2548,12 +2550,20 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                               </svg>
                               <span>{language === 'vi' ? 'ĐANG CÀO DỮ LIỆU...' : 'HARVESTING DATA...'}</span>
                             </>
+                          ) : isStreaming ? (
+                            <>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              </svg>
+                              <span>{language === 'vi' ? 'STREAMING ĐANG CHẠY (TẠM KHÓA BATCH)' : 'STREAMING ACTIVE (BATCH LOCKED)'}</span>
+                            </>
                           ) : (
                             <>
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                                 <polygon points="5 3 19 12 5 21 5 3" />
                               </svg>
-                              <span>{language === 'vi' ? '▶ BẮT ĐẦU CÀO DỮ LIỆU (RUN HARVESTER)' : '▶ RUN HARVESTER'}</span>
+                              <span>{language === 'vi' ? '▶ BẮT ĐẦU CÀO BATCH (RUN HARVESTER)' : '▶ RUN HARVESTER'}</span>
                             </>
                           )}
                         </button>
@@ -2576,7 +2586,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          XEM REAL-TIME STREAMING LOGS &rarr;
+                          {language === 'vi' ? 'XEM REAL-TIME STREAMING LOGS →' : 'VIEW REAL-TIME STREAMING LOGS →'}
                         </button>
                       </div>
                     </div>
@@ -2816,7 +2826,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        {language === 'vi' ? 'TÌM KIẾM SEMANTIC VECTOR ANN (143,523 EMBEDDINGS)' : 'SEMANTIC VECTOR ANN SEARCH (143,523 EMBEDDINGS)'}
+                        {language === 'vi' ? `TÌM KIẾM SEMANTIC VECTOR ANN (${liveVectors.toLocaleString()} EMBEDDINGS)` : `SEMANTIC VECTOR ANN SEARCH (${liveVectors.toLocaleString()} EMBEDDINGS)`}
                       </span>
 
                       <input
@@ -2881,7 +2891,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     {/* LanceDB Hits */}
                     <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 14px' }}>
                       <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '8px' }}>
-                        TOP-3 NEAREST NEIGHBORS (COSINE SIMILARITY)
+                        {language === 'vi' ? 'TOP-3 ĐỐI TƯỢNG GẦN NHẤT (ĐỘ ĐỒNG DẠNG COSINE)' : 'TOP-3 NEAREST NEIGHBORS (COSINE SIMILARITY)'}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {lanceResults.map((hit, i) => (
@@ -2946,7 +2956,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                          STORAGE CAPACITY &amp; HEALTH
+                          {language === 'vi' ? 'DUNG LƯỢNG & TRẠNG THÁI LƯU TRỮ' : 'STORAGE CAPACITY & HEALTH'}
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '4px' }}>
                           {storageUsedGb.toFixed(3)} GB / {liveQuotaGb.toFixed(2)} GB ({storageUsedPct.toFixed(2)}%)
@@ -2986,7 +2996,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                           </svg>
-                          <span>AUDIT SHA-256 INTEGRITY &amp; VIEW LOGS</span>
+                          <span>{language === 'vi' ? 'KIỂM TRA TÍNH TOÀN VẸN SHA-256 & XEM LOGS' : 'AUDIT SHA-256 INTEGRITY & VIEW LOGS'}</span>
                         </span>
                       </button>
                     </div>
@@ -3726,7 +3736,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>LANCEDB VECTOR INDEX</div>
                         <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '2px' }}>
-                          143,523 embeddings
+                          {liveVectors.toLocaleString()} {language === 'vi' ? 'vectơ' : 'embeddings'}
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>

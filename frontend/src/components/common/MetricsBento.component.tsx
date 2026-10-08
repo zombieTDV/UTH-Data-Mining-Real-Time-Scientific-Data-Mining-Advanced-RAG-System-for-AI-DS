@@ -23,7 +23,7 @@ export const MetricsBento: FC = () => {
   const backupData = storageStats?.backupStorage;
   const totalBucket = storageStats?.totalBucket;
 
-  const arxivCount = (activeData?.arxivHtmlCount ?? 11660) + sessionIngested;
+  const arxivCount = activeData?.arxivHtmlCount ?? (11660 + sessionIngested);
   const arxivGb = activeData?.arxivHtmlSizeGb ?? 3.763;
   const openalexCount = activeData?.openalexCount ?? 24754;
   const openalexGb = activeData?.openalexSizeGb ?? 3.971;

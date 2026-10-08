@@ -1,6 +1,6 @@
 import type { FC } from 'react';
 import { InteractiveWorkflowCanvas } from '../components/schematic';
-import { MetricsBento } from '../components/common';
+import { MetricsBento, AnimatedCounter } from '../components/common';
 import { StorageInspector } from '../components/schematic';
 import { useLakehouseStreamStore } from '../store';
 import { useTranslation } from '../hooks';
@@ -124,7 +124,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
             fontWeight: 700,
           }}
         >
-          {storageUsedGb.toFixed(2)} GB
+          <AnimatedCounter value={storageUsedGb} decimals={2} suffix=" GB" />
         </span>
       </button>
     </div>

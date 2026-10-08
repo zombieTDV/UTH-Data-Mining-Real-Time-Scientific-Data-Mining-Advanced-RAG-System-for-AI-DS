@@ -186,9 +186,9 @@ export async function refreshStorageStats(): Promise<void> {
 
       updateState({
         storageStats: data.activeLakehouse ? { ...data, activeLakehouse: mergedActiveLakehouse } : data,
-        storageUsedGb: Math.max(gb, state.storageUsedGb),
-        storageUsedPct: Math.max(pct, state.storageUsedPct),
-        storageTotalBytes: Math.max(bytes, state.storageTotalBytes),
+        storageUsedGb: gb,
+        storageUsedPct: pct,
+        storageTotalBytes: bytes,
       });
     }
   } catch (e) {

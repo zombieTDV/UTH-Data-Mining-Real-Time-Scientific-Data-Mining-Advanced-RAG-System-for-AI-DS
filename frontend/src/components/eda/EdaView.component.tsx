@@ -3795,7 +3795,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     RAG VECTOR LAKEHOUSE &amp; CONTEXT CHUNKING
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#7c3aed' }}>
-                    LANCEDB GOLD · 143,523 VECTORS
+                    LANCEDB GOLD · 164,702 VECTORS
                   </span>
                 </div>
 
@@ -3886,7 +3886,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>{language === 'vi' ? 'TỔNG CHUNKS' : 'TOTAL CHUNKS'}</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>143,523</div>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>164,702</div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>{language === 'vi' ? 'CHUNKS / BÀI' : 'CHUNKS / PAPER'}</div>
