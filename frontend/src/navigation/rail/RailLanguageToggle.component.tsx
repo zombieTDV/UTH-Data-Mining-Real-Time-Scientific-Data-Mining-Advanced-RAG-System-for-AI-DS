@@ -2,102 +2,56 @@ import { useState, type FC } from 'react';
 import { useTranslation } from '../../hooks';
 
 export const RailLanguageToggle: FC = () => {
-  const { language, setLanguage } = useTranslation();
-  const [hoveredLang, setHoveredLang] = useState<'vi' | 'en' | null>(null);
+  const { language, toggleLanguage } = useTranslation();
+  const [isHovered, setIsHovered] = useState(false);
+  const [isActive, setIsActive] = useState(false);
 
   return (
-    <div
-      role="group"
-      aria-label="Language selection"
+    <button
+      type="button"
+      onClick={toggleLanguage}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setIsActive(false);
+      }}
+      onMouseDown={() => setIsActive(true)}
+      onMouseUp={() => setIsActive(false)}
       title={
         language === 'vi'
-          ? 'Ngôn ngữ: Tiếng Việt (Click EN để đổi sang English)'
-          : 'Language: English (Click VI to switch to Tiếng Việt)'
+          ? 'Ngôn ngữ: Tiếng Việt (Nhấn để chuyển sang English)'
+          : 'Language: English (Click to switch to Tiếng Việt)'
       }
       style={{
+        width: '34px',
+        height: '34px',
+        borderRadius: '8px',
+        background: isHovered
+          ? language === 'vi'
+            ? 'rgba(239, 68, 68, 0.14)'
+            : 'rgba(59, 130, 246, 0.14)'
+          : 'transparent',
+        border: isHovered
+          ? language === 'vi'
+            ? '1px solid rgba(239, 68, 68, 0.35)'
+            : '1px solid rgba(59, 130, 246, 0.35)'
+          : '1px solid transparent',
+        color: language === 'vi' ? '#ef4444' : '#3b82f6',
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '2px',
-        width: '34px',
-        height: '46px',
-        borderRadius: '8px',
-        backgroundColor: 'var(--bg-elevated)',
-        border: '1px solid var(--border-subtle)',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)',
-        boxSizing: 'border-box',
-        gap: '2px',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        transform: isActive ? 'scale(0.92)' : isHovered ? 'scale(1.05)' : 'none',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '11px',
+        fontWeight: 800,
+        letterSpacing: '0.04em',
         userSelect: 'none',
+        boxSizing: 'border-box',
       }}
     >
-      {/* Vietnamese Option */}
-      <button
-        type="button"
-        onClick={() => setLanguage('vi')}
-        onMouseEnter={() => setHoveredLang('vi')}
-        onMouseLeave={() => setHoveredLang(null)}
-        style={{
-          width: '28px',
-          height: '19px',
-          padding: 0,
-          borderRadius: '5px',
-          fontSize: '9.5px',
-          fontFamily: 'var(--font-mono)',
-          fontWeight: 800,
-          border: language === 'vi' ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid transparent',
-          cursor: 'pointer',
-          backgroundColor:
-            language === 'vi'
-              ? 'rgba(239, 68, 68, 0.22)'
-              : hoveredLang === 'vi'
-              ? 'rgba(239, 68, 68, 0.09)'
-              : 'transparent',
-          color: language === 'vi' ? '#ef4444' : 'var(--text-muted)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.15s ease',
-          boxShadow: language === 'vi' ? '0 1px 3px rgba(239, 68, 68, 0.25)' : 'none',
-          opacity: language === 'vi' ? 1 : hoveredLang === 'vi' ? 0.9 : 0.65,
-        }}
-      >
-        VI
-      </button>
-
-      {/* English Option */}
-      <button
-        type="button"
-        onClick={() => setLanguage('en')}
-        onMouseEnter={() => setHoveredLang('en')}
-        onMouseLeave={() => setHoveredLang(null)}
-        style={{
-          width: '28px',
-          height: '19px',
-          padding: 0,
-          borderRadius: '5px',
-          fontSize: '9.5px',
-          fontFamily: 'var(--font-mono)',
-          fontWeight: 800,
-          border: language === 'en' ? '1px solid rgba(59, 130, 246, 0.45)' : '1px solid transparent',
-          cursor: 'pointer',
-          backgroundColor:
-            language === 'en'
-              ? 'rgba(59, 130, 246, 0.22)'
-              : hoveredLang === 'en'
-              ? 'rgba(59, 130, 246, 0.09)'
-              : 'transparent',
-          color: language === 'en' ? '#3b82f6' : 'var(--text-muted)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.15s ease',
-          boxShadow: language === 'en' ? '0 1px 3px rgba(59, 130, 246, 0.25)' : 'none',
-          opacity: language === 'en' ? 1 : hoveredLang === 'en' ? 0.9 : 0.65,
-        }}
-      >
-        EN
-      </button>
-    </div>
+      {language.toUpperCase()}
+    </button>
   );
 };
