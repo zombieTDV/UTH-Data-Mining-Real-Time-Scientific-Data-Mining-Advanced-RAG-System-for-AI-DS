@@ -308,11 +308,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string>('start-flow');
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [drawerExpanded, setDrawerExpanded] = useState<boolean>(false);
-  const [bottomTab, setBottomTab] = useState<'control' | 'specs' | 'logs'>('control');
+  const [bottomTab, setBottomTab] = useState<'control' | 'logs'>('control');
+  const [showTechSpec, setShowTechSpec] = useState<boolean>(false);
   const [logFilter, setLogFilter] = useState<'ALL' | 'SUCCESS' | 'EXEC' | 'WARN' | 'INFO'>('ALL');
   const [logCopied, setLogCopied] = useState<boolean>(false);
-  const [activeSpecTab, setActiveSpecTab] = useState<'SPEC' | 'PAYLOAD' | 'CURL'>('SPEC');
-  const [specCopied, setSpecCopied] = useState<boolean>(false);
 
   const DUCK_SQL_PRESETS = [
     {
@@ -3376,32 +3375,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 {language === 'vi' ? 'CẤU HÌNH & ĐIỀU KHIỂN' : 'CONFIG & CONTROLS'}
               </button>
 
-              <button
-                type="button"
-                onClick={() => setBottomTab('specs')}
-                style={{
-                  padding: '5px 14px',
-                  fontSize: '12px',
-                  fontWeight: bottomTab === 'specs' ? 800 : 600,
-                  fontFamily: 'var(--font-mono)',
-                  color: bottomTab === 'specs' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
-                  backgroundColor: bottomTab === 'specs' ? themeStyles.drawerTabActiveBg : 'transparent',
-                  borderRadius: '6px',
-                  border: bottomTab === 'specs' && isDark ? '1px solid rgba(255, 255, 255, 0.16)' : 'none',
-                  boxShadow: bottomTab === 'specs' ? (isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)') : 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                  <line x1="8" y1="21" x2="16" y2="21" />
-                  <line x1="12" y1="17" x2="12" y2="21" />
-                </svg>
-                {language === 'vi' ? 'THÔNG SỐ & TELEMETRY' : 'SPECS & TELEMETRY'}
-              </button>
+
 
               <button
                 type="button"
@@ -4074,8 +4048,91 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </div>
                 )}
 
-                {/* 3. LanceDB Vector Search Controls */}
-                {selectedTool.id === 'lance-storage' && (
+                {/* 4A. Apache Parquet Columnar Storage Controls */}
+                {selectedTool.id === 'silver-parquet' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: '20px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
+                        {language === 'vi' ? 'CẤU TRÚC BẢNG CỘT APACHE PARQUET (SILVER LAYER)' : 'APACHE PARQUET COLUMNAR SCHEMA (SILVER LAYER)'}
+                      </span>
+                      <div
+                        style={{
+                          backgroundColor: themeStyles.codeBoxBg,
+                          borderRadius: '8px',
+                          border: `1px solid ${themeStyles.codeBoxBorder}`,
+                          padding: '10px 12px',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '11px',
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        <div style={{ color: themeStyles.textPrimary, fontWeight: 700, marginBottom: '4px' }}>
+                          File: data/silver/year=2026/papers.parquet (11 Partitions)
+                        </div>
+                        <div style={{ color: isDark ? '#34d399' : '#059669' }}>├── paper_id: string (Canonical ID / DOI)</div>
+                        <div style={{ color: isDark ? '#60a5fa' : '#2563eb' }}>├── title: string (Utf8 Text)</div>
+                        <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>├── abstract: string (Cleaned Abstract)</div>
+                        <div style={{ color: isDark ? '#c084fc' : '#7c3aed' }}>├── latex_formulas: list&lt;string&gt; (Formula Tokens)</div>
+                        <div style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>├── categories: list&lt;string&gt; (Taxonomy Tags)</div>
+                        <div style={{ color: isDark ? '#cbd5e1' : '#64748b' }}>└── authors: list&lt;string&gt; (Co-Author Nodes)</div>
+                      </div>
+                    </div>
+
+                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
+                          {language === 'vi' ? 'HIỆU SUẤT NÉN VÀ TRUY VẤN' : 'COMPRESSION & SCAN PERFORMANCE'}
+                        </div>
+                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#10b981', marginTop: '4px' }}>
+                          Snappy 4.2x • 321.69 MB
+                        </div>
+                        <div style={{ fontSize: '10.5px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
+                          {language === 'vi' ? '11 bảng phân vùng nén • Zero-Copy Arrow Read' : '11 compressed partitions • Zero-Copy Arrow Read'}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const res = await executeDuckDbQuery("SELECT paper_id, title, categories, source FROM 'data/silver/year=2026/papers.parquet' LIMIT 5");
+                            if (res) {
+                              const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                              setLogs((prev) => [
+                                ...prev,
+                                { id: Date.now(), time: now, level: 'SUCCESS', tag: 'PARQUET-SCAN', msg: 'Scanned 5 records from Parquet table in 4.2ms (Zero-copy Arrow memory).' },
+                              ]);
+                              setBottomTab('logs');
+                            }
+                          } catch (e: any) {
+                            console.warn('Parquet scan error:', e);
+                          }
+                        }}
+                        style={{
+                          backgroundColor: themeStyles.emeraldGhostBg,
+                          color: themeStyles.emeraldGhostText,
+                          border: `1px solid ${isDark ? '#10b981' : '#059669'}`,
+                          borderRadius: '8px',
+                          padding: '8px 0',
+                          fontSize: '11px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          marginTop: '10px',
+                        }}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                          <span>▶</span>
+                          <span>{language === 'vi' ? 'QUÉT CỘT BẰNG DUCKDB SIMD & XEM LOGS' : 'SCAN PARQUET VIA DUCKDB & VIEW LOGS'}</span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4B. LanceDB Vector Search Controls */}
+                {(selectedTool.id === 'gold-lancedb' || selectedTool.id === 'lance-storage') && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
@@ -4489,248 +4546,74 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* ============================================================== */}
-            {/* TAB 2: THÔNG SỐ KỸ THUẬT & TELEMETRY (SPECS)                  */}
-            {/* ============================================================== */}
-            {bottomTab === 'specs' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {/* Telemetry Metrics 2x2 Bento Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                    }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {language === 'vi' ? 'KHỐI LƯỢNG CHÍNH' : 'PRIMARY VOLUME'}
-                      </div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '3px' }}>
-                        {selectedTool.telemetrySummary.primaryMetric}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                    }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {language === 'vi' ? 'PHẠM VI & THÔNG SỐ' : 'SCOPE & SPECS'}
-                      </div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: themeStyles.textPrimary, marginTop: '3px' }}>
-                        {selectedTool.telemetrySummary.secondaryMetric}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                    }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {language === 'vi' ? 'CHUẨN ĐỘ TRỄ' : 'LATENCY BENCHMARK'}
-                      </div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#34d399' : '#059669', marginTop: '3px' }}>
-                        {selectedTool.telemetrySummary.latency}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                    }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {language === 'vi' ? 'THÔNG LƯỢNG / BĂNG THÔNG' : 'THROUGHPUT / EGRESS'}
-                      </div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '3px' }}>
-                        {selectedTool.telemetrySummary.throughput}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Capabilities Checklist Chips (replaces raw bullet list from Screenshot 0) */}
-                  <div>
-                    <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
-                      {language === 'vi' ? 'TÍNH NĂNG KIẾN TRÚC CỐT LÕI' : 'CORE ARCHITECTURAL CAPABILITIES'}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {(selectedTool.features || []).map((feature: string, idx: number) => (
-                        <div
-                          key={idx}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '6px 10px',
-                            backgroundColor: themeStyles.cardBg,
-                            border: `1px solid ${themeStyles.cardBorder}`,
-                            borderRadius: '6px',
-                            fontSize: '11.5px',
-                            color: themeStyles.textSecondary,
-                            lineHeight: 1.4,
-                          }}
-                        >
-                          <span style={{
-                            width: '16px',
-                            height: '16px',
-                            borderRadius: '50%',
-                            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#dcfce7',
-                            color: isDark ? '#34d399' : '#15803d',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '10px',
-                            fontWeight: 800,
-                            flexShrink: 0,
-                          }}>
-                            ✓
-                          </span>
-                          <span>{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Schema/Code Preview with Sub-tabs & Copy Payload */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {/* Sub-tabs: SPEC | PAYLOAD | CURL */}
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {(['SPEC', 'PAYLOAD', 'CURL'] as const).map((tab) => (
-                        <button
-                          key={tab}
-                          type="button"
-                          onClick={() => setActiveSpecTab(tab)}
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            fontSize: '10px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            backgroundColor: activeSpecTab === tab ? (isDark ? 'rgba(56, 189, 248, 0.15)' : '#e0f2fe') : 'transparent',
-                            border: `1px solid ${activeSpecTab === tab ? (isDark ? 'rgba(56, 189, 248, 0.35)' : '#7dd3fc') : themeStyles.cardBorder}`,
-                            color: activeSpecTab === tab ? (isDark ? '#38bdf8' : '#0369a1') : themeStyles.textMuted,
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {tab === 'SPEC' ? selectedTool.samplePreviewTitle.toUpperCase() : tab === 'PAYLOAD' ? 'PAYLOAD JSON' : 'CURL COMMAND'}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Copy Payload Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const snippet =
-                          activeSpecTab === 'SPEC'
-                            ? selectedTool.sampleCodeOrSchema
-                            : activeSpecTab === 'PAYLOAD'
-                            ? JSON.stringify(
-                                {
-                                  tool_id: selectedTool.id,
-                                  category: selectedTool.category,
-                                  engine: selectedTool.engineVersion,
-                                  status: selectedTool.status,
-                                  telemetry: selectedTool.telemetrySummary,
-                                },
-                                null,
-                                2
-                              )
-                            : `curl -X POST "https://api.uth-lakehouse.internal/v2/tools/${selectedTool.id}/execute" \\\n  -H "Authorization: Bearer uth_token_simd_2026" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action": "telemetry_ping"}'`;
-                        navigator.clipboard.writeText(snippet);
-                        setSpecCopied(true);
-                        setTimeout(() => setSpecCopied(false), 2000);
-                      }}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        backgroundColor: specCopied ? (isDark ? 'rgba(16, 185, 129, 0.20)' : '#dcfce7') : themeStyles.btnInspectBg,
-                        border: `1px solid ${specCopied ? '#10b981' : themeStyles.btnInspectBorder}`,
-                        color: specCopied ? (isDark ? '#34d399' : '#15803d') : themeStyles.btnInspectText,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        {specCopied ? (
-                          <>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            <span>{language === 'vi' ? 'ĐÃ CHÉP' : 'COPIED'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
-                            <span>{language === 'vi' ? 'SAO CHÉP' : 'COPY'}</span>
-                          </>
-                        )}
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* Adaptive Code Box (Replaces hardcoded #0f172a from Screenshot 0) */}
-                  <pre
+                {/* Collapsible Technical Specs & API Schema Viewer */}
+                <div style={{ marginTop: '16px', borderTop: `1px solid ${themeStyles.cardBorder}`, paddingTop: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowTechSpec((prev) => !prev)}
                     style={{
-                      backgroundColor: themeStyles.codeBoxBg,
-                      color: themeStyles.codeBoxText,
-                      fontFamily: 'var(--font-mono)',
+                      background: 'none',
+                      border: 'none',
+                      color: themeStyles.textMuted,
                       fontSize: '11px',
-                      padding: '12px 14px',
-                      borderRadius: '8px',
-                      overflowX: 'auto',
-                      lineHeight: 1.5,
-                      margin: 0,
-                      border: `1px solid ${themeStyles.codeBoxBorder}`,
-                      maxHeight: drawerExpanded ? '340px' : '190px',
-                      transition: 'max-height 0.25s ease',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 0',
                     }}
                   >
-                    <code>
-                      {activeSpecTab === 'SPEC'
-                        ? selectedTool.sampleCodeOrSchema
-                        : activeSpecTab === 'PAYLOAD'
-                        ? JSON.stringify(
-                            {
-                              tool_id: selectedTool.id,
-                              category: selectedTool.category,
-                              engine: selectedTool.engineVersion,
-                              status: selectedTool.status,
-                              telemetry: selectedTool.telemetrySummary,
-                            },
-                            null,
-                            2
-                          )
-                        : `curl -X POST "https://api.uth-lakehouse.internal/v2/tools/${selectedTool.id}/execute" \\\n  -H "Authorization: Bearer uth_token_simd_2026" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action": "telemetry_ping"}'`}
-                    </code>
-                  </pre>
+                    <span>{showTechSpec ? '▾' : '▸'}</span>
+                    <span>{language === 'vi' ? 'THÔNG SỐ KỸ THUẬT & SCHEMA API (BẤM ĐỂ MỞ RỘNG)' : 'TECHNICAL SPECS & API SCHEMA (CLICK TO EXPAND)'}</span>
+                  </button>
+
+                  {showTechSpec && (
+                    <div style={{ marginTop: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                        <div style={{ backgroundColor: themeStyles.cardBg, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${themeStyles.cardBorder}` }}>
+                          <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>PRIMARY VOLUME</div>
+                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>{selectedTool.telemetrySummary.primaryMetric}</div>
+                        </div>
+                        <div style={{ backgroundColor: themeStyles.cardBg, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${themeStyles.cardBorder}` }}>
+                          <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>SCOPE & SPECS</div>
+                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>{selectedTool.telemetrySummary.secondaryMetric}</div>
+                        </div>
+                        <div style={{ backgroundColor: themeStyles.cardBg, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${themeStyles.cardBorder}` }}>
+                          <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>LATENCY</div>
+                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>{selectedTool.telemetrySummary.latency}</div>
+                        </div>
+                        <div style={{ backgroundColor: themeStyles.cardBg, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${themeStyles.cardBorder}` }}>
+                          <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>THROUGHPUT</div>
+                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>{selectedTool.telemetrySummary.throughput}</div>
+                        </div>
+                      </div>
+
+                      <pre style={{
+                        margin: 0,
+                        padding: '10px 12px',
+                        backgroundColor: themeStyles.codeBoxBg,
+                        border: `1px solid ${themeStyles.codeBoxBorder}`,
+                        borderRadius: '6px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        color: isDark ? '#38bdf8' : '#0369a1',
+                        overflowX: 'auto',
+                        maxHeight: '130px',
+                        lineHeight: 1.45,
+                      }}>
+                        {selectedTool.sampleCodeOrSchema}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
             {/* ============================================================== */}
-            {/* TAB 3: TERMINAL LOGS (SPLIT TELEMETRY CONSOLE 68% / 32%)      */}
+            {/* TAB 2: TERMINAL LOGS (SPLIT TELEMETRY CONSOLE 68% / 32%)      */}
             {/* ============================================================== */}
             {bottomTab === 'logs' && (
               <div
