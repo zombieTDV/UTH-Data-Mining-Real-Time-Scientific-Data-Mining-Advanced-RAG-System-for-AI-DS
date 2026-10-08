@@ -315,7 +315,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string>('start-flow');
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [drawerExpanded, setDrawerExpanded] = useState<boolean>(false);
-  const [showTechSpec, setShowTechSpec] = useState<boolean>(false);
 
   useEffect(() => {
     if (inspectNodeTrigger) {
@@ -5138,79 +5137,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     </div>
                   </div>
                 )}
-
-                {/* Collapsible Technical Specs & API Schema Viewer */}
-                <div style={{ marginTop: '16px', borderTop: `1px solid ${themeStyles.cardBorder}`, paddingTop: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowTechSpec((prev) => !prev)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: themeStyles.textMuted,
-                      fontSize: '11px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 0',
-                    }}
-                  >
-                    <span>{showTechSpec ? '▾' : '▸'}</span>
-                    <span>{language === 'vi' ? 'THÔNG SỐ KỸ THUẬT & SCHEMA API (BẤM ĐỂ MỞ RỘNG)' : 'TECHNICAL SPECS & API SCHEMA (CLICK TO EXPAND)'}</span>
-                  </button>
-
-                  {showTechSpec && (
-                    <div style={{ marginTop: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                        <div style={{ backgroundColor: themeStyles.cardBg, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${themeStyles.cardBorder}` }}>
-                          <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>PRIMARY VOLUME</div>
-                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>{selectedTool.telemetrySummary.primaryMetric}</div>
-                        </div>
-                        <div style={{ backgroundColor: themeStyles.cardBg, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${themeStyles.cardBorder}` }}>
-                          <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>SCOPE & SPECS</div>
-                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>{selectedTool.telemetrySummary.secondaryMetric}</div>
-                        </div>
-                        <div style={{ backgroundColor: themeStyles.cardBg, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${themeStyles.cardBorder}` }}>
-                          <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>LATENCY</div>
-                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>{selectedTool.telemetrySummary.latency}</div>
-                        </div>
-                        <div style={{ backgroundColor: themeStyles.cardBg, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${themeStyles.cardBorder}` }}>
-                          <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>THROUGHPUT</div>
-                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>{selectedTool.telemetrySummary.throughput}</div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 2px' }}>
-                          <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: themeStyles.textMuted }}>
-                            {selectedTool.samplePreviewTitle || (language === 'vi' ? 'CẤU TRÚC DỮ LIỆU & SCHEMA' : 'DATA STRUCTURE & SCHEMA')}
-                          </span>
-                          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 700 }}>
-                            ● LIVE DYNAMIC
-                          </span>
-                        </div>
-                        <pre style={{
-                          margin: 0,
-                          padding: '10px 12px',
-                          backgroundColor: themeStyles.codeBoxBg,
-                          border: `1px solid ${themeStyles.codeBoxBorder}`,
-                          borderRadius: '6px',
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          color: isDark ? '#38bdf8' : '#0369a1',
-                          overflowX: 'auto',
-                          maxHeight: '130px',
-                          lineHeight: 1.45,
-                        }}>
-                          {selectedTool.sampleCodeOrSchema}
-                        </pre>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
           </div>
         </section>
