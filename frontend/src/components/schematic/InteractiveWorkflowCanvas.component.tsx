@@ -1099,43 +1099,78 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           }}
         >
           {/* ============================================================== */}
-          {/* STAGE 1: arXiv Harvester (Purple) */}
+          {/* ARCHITECTURAL LAYER 01: BRONZE INGESTION & COLD OBJECT STORE   */}
           {/* ============================================================== */}
           <div
-            onClick={() => handleOpenInspector('start-flow')}
-            onMouseEnter={() => setHoveredNodeId('start-flow')}
-            onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '248px',
-              backgroundColor: themeStyles.cardBg,
-              borderRadius: '14px',
-              padding: '14px 16px',
-              border: isStageActive('harvest')
-                ? '2px solid #8b5cf6'
-                : selectedNodeId === 'start-flow' && drawerOpen
-                ? '2px solid #7c3aed'
-                : isLineageHighlighted('start-flow')
-                ? '2px solid #a78bfa'
-                : `1px solid ${themeStyles.cardBorder}`,
-              boxShadow: isStageActive('harvest')
-                ? (isDark
-                    ? '0 0 24px rgba(139, 92, 246, 0.45)'
-                    : '0 4px 18px -2px rgba(139, 92, 246, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
-                : isLineageHighlighted('start-flow')
-                ? '0 0 16px rgba(139, 92, 246, 0.35)'
-                : isDark
-                ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                : '0 2px 10px rgba(0, 0, 0, 0.05)',
-              opacity: getCardOpacity('start-flow'),
-              animation: isStageActive('harvest') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
-              cursor: 'pointer',
-              transition: 'all 0.25s ease',
-              flexShrink: 0,
+              display: 'inline-flex',
+              flexDirection: 'column',
               position: 'relative',
-              overflow: 'visible',
+              padding: '24px 18px 14px 18px',
+              borderRadius: '16px',
+              border: `1.5px dashed ${isDark ? 'rgba(139, 92, 246, 0.35)' : 'rgba(139, 92, 246, 0.28)'}`,
+              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.03)' : 'rgba(139, 92, 246, 0.015)',
+              backdropFilter: 'blur(8px)',
+              flexShrink: 0,
+              boxShadow: isDark ? 'inset 0 0 32px rgba(139, 92, 246, 0.03)' : 'none',
             }}
           >
-            {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
+            {/* Layer Corner Technical Brackets */}
+            <span style={{ position: 'absolute', top: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(139, 92, 246, 0.65)' : 'rgba(139, 92, 246, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌜</span>
+            <span style={{ position: 'absolute', top: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(139, 92, 246, 0.65)' : 'rgba(139, 92, 246, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌝</span>
+            <span style={{ position: 'absolute', bottom: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(139, 92, 246, 0.65)' : 'rgba(139, 92, 246, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌞</span>
+            <span style={{ position: 'absolute', bottom: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(139, 92, 246, 0.65)' : 'rgba(139, 92, 246, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌟</span>
+
+            {/* Layer Top Technical Header Badge */}
+            <div style={{ position: 'absolute', top: '-11px', left: '18px', display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 10px', borderRadius: '4px', backgroundColor: isDark ? '#090d16' : '#ffffff', border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.45)' : 'rgba(139, 92, 246, 0.35)'}`, boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.4)' : '0 1px 4px rgba(0, 0, 0, 0.06)', zIndex: 12 }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6' }} />
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, letterSpacing: '0.05em', color: isDark ? '#c084fc' : '#7c3aed' }}>
+                {language === 'vi' ? 'LỚP 01 • THU THẬP BRONZE & LƯU TRỮ R2' : 'LAYER 01 • BRONZE INGESTION & COLD OBJECT STORE'}
+              </span>
+            </div>
+
+            {/* Internal Node Row: Stage 1 + Conduit 1 + Stage 2 */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {/* ============================================================== */}
+              {/* STAGE 1: arXiv Harvester (Purple) */}
+              {/* ============================================================== */}
+              <div
+                onClick={() => handleOpenInspector('start-flow')}
+                onMouseEnter={() => setHoveredNodeId('start-flow')}
+                onMouseLeave={() => setHoveredNodeId(null)}
+                style={{
+                  width: '248px',
+                  backgroundColor: themeStyles.cardBg,
+                  backdropFilter: 'blur(12px)',
+                  borderRadius: '14px',
+                  padding: '14px 16px',
+                  border: isStageActive('harvest')
+                    ? '2px solid #8b5cf6'
+                    : selectedNodeId === 'start-flow' && drawerOpen
+                    ? '2px solid #7c3aed'
+                    : isLineageHighlighted('start-flow')
+                    ? '2px solid #a78bfa'
+                    : `1px solid ${themeStyles.cardBorder}`,
+                  boxShadow: isStageActive('harvest')
+                    ? (isDark
+                        ? '0 0 24px rgba(139, 92, 246, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                        : '0 4px 18px -2px rgba(139, 92, 246, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9)')
+                    : isLineageHighlighted('start-flow')
+                    ? '0 0 16px rgba(139, 92, 246, 0.35)'
+                    : isDark
+                    ? '0 8px 24px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+                    : '0 4px 16px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                  transform: hoveredNodeId === 'start-flow' ? 'translateY(-2px)' : 'none',
+                  opacity: getCardOpacity('start-flow'),
+                  animation: isStageActive('harvest') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease',
+                  flexShrink: 0,
+                  position: 'relative',
+                  overflow: 'visible',
+                }}
+              >
+                {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
               <div style={{
                 display: 'inline-flex',
@@ -1343,6 +1378,60 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 </span>
               </div>
             </div>
+
+            {/* Modular Hardware Output Port (Right) */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '-6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                border: `2px solid ${isStageActive('harvest') ? '#8b5cf6' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 14,
+                boxShadow: isStageActive('harvest') ? '0 0 8px #8b5cf6' : '0 1px 3px rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#8b5cf6' }} />
+            </div>
+
+            {/* Active Inspector Beacon Tag */}
+            {selectedNodeId === 'start-flow' && drawerOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '-22px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
+                  border: '1.5px solid #8b5cf6',
+                  boxShadow: '0 0 10px rgba(139, 92, 246, 0.5)',
+                  color: '#c084fc',
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  whiteSpace: 'nowrap',
+                  zIndex: 25,
+                  animation: 'beaconPulse 2s ease-in-out infinite',
+                  pointerEvents: 'none',
+                }}
+              >
+                <span style={{ fontSize: '8px' }}>▼</span>
+                <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
+              </div>
+            )}
           </div>
 
           {/* ============================================================== */}
@@ -1352,7 +1441,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             onMouseEnter={() => setHoveredNodeId('conduit-1')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '112px',
+              width: '100px',
               height: '24px',
               position: 'relative',
               display: 'flex',
@@ -1464,6 +1553,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             style={{
               width: '248px',
               backgroundColor: themeStyles.cardBg,
+              backdropFilter: 'blur(12px)',
               borderRadius: '14px',
               padding: '14px 16px',
               border: isStageActive('bronze')
@@ -1475,17 +1565,18 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('bronze')
                 ? (isDark
-                    ? '0 0 24px rgba(225, 29, 72, 0.45)'
-                    : '0 4px 18px -2px rgba(225, 29, 72, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
+                    ? '0 0 24px rgba(225, 29, 72, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                    : '0 4px 18px -2px rgba(225, 29, 72, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9)')
                 : isLineageHighlighted('bronze-instance')
                 ? '0 0 16px rgba(225, 29, 72, 0.35)'
                 : isDark
-                ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                : '0 2px 10px rgba(0, 0, 0, 0.05)',
+                ? '0 8px 24px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+                : '0 4px 16px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              transform: hoveredNodeId === 'bronze-instance' ? 'translateY(-2px)' : 'none',
               opacity: getCardOpacity('bronze-instance'),
               animation: isStageActive('bronze') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
               cursor: 'pointer',
-              transition: 'all 0.25s ease',
+              transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease',
               flexShrink: 0,
               position: 'relative',
               overflow: 'visible',
@@ -1757,117 +1848,234 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 )}
               </div>
             </div>
-          </div>
 
-          {/* ============================================================== */}
-          {/* HIGHWAY CONDUIT 2: Cloudflare R2 -> DuckDB */}
-          {/* ============================================================== */}
-          <div
-            onMouseEnter={() => setHoveredNodeId('conduit-2')}
-            onMouseLeave={() => setHoveredNodeId(null)}
-            style={{
-              width: '112px',
-              height: '24px',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              cursor: 'pointer',
-            }}
-          >
-            {/* 6px Illuminated Tube Rail */}
-            <div
-              style={{
-                width: '100%',
-                height: '6px',
-                borderRadius: '3px',
-                backgroundColor: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#e11d48' : themeStyles.wire,
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
-                  ? '0 0 12px rgba(225, 29, 72, 0.8), 0 0 4px #ffffff'
-                  : 'none',
-                transition: 'all 0.3s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {/* Moving Directional Stream Chevrons */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  color: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
-                  fontSize: '11px',
-                  lineHeight: 1,
-                  fontFamily: 'monospace',
-                  fontWeight: 900,
-                  animation: (isStageActive('bronze') || isStreaming) ? 'chevronFlow 1.0s linear infinite' : 'none',
-                  userSelect: 'none',
-                }}
-              >
-                <span>›</span>
-                <span>›</span>
-                <span>›</span>
-                <span>›</span>
-              </div>
-
-              {/* Traveling Data Payload Orb when Active */}
-              {(isStageActive('bronze') || isStreaming) && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '-3px',
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ffffff',
-                    boxShadow: '0 0 10px #fb7185, 0 0 6px #ffffff',
-                    animation: 'payloadOrbGlide 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Floating Payload Badge - Perfectly Contained Inside 86px Conduit */}
+            {/* Modular Hardware Input Port (Left) */}
             <div
               style={{
                 position: 'absolute',
-                top: '-20px',
-                left: '50%',
-                transform: 'translateX(-50%)',
+                left: '-6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                border: `2px solid ${isStageActive('bronze') ? '#e11d48' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '3px',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                backgroundColor: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
-                  ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
-                  : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-                border: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
-                  ? '1px solid #e11d48'
-                  : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
-                boxShadow: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
-                  ? '0 0 8px rgba(225, 29, 72, 0.45)'
-                  : '0 1px 3px rgba(0, 0, 0, 0.05)',
-                fontSize: '10.5px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                color: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#fb7185' : (isDark ? '#94a3b8' : '#64748b'),
-                whiteSpace: 'nowrap',
-                zIndex: 15,
-                pointerEvents: 'none',
-                transition: 'all 0.25s ease',
+                justifyContent: 'center',
+                zIndex: 14,
+                boxShadow: isStageActive('bronze') ? '0 0 8px #e11d48' : '0 1px 3px rgba(0, 0, 0, 0.2)',
               }}
             >
-              <span>📄</span>
-              <span>{`${(liveTotalWorks / 1000).toFixed(1)}k ${language === 'vi' ? 'BÀI BÁO' : 'WORKS'}`}</span>
+              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e11d48' }} />
             </div>
+
+            {/* Modular Hardware Output Port (Right) */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '-6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                border: `2px solid ${isStageActive('bronze') ? '#e11d48' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 14,
+                boxShadow: isStageActive('bronze') ? '0 0 8px #e11d48' : '0 1px 3px rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e11d48' }} />
+            </div>
+
+            {/* Active Inspector Beacon Tag */}
+            {selectedNodeId === 'bronze-instance' && drawerOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '-22px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
+                  border: '1.5px solid #e11d48',
+                  boxShadow: '0 0 10px rgba(225, 29, 72, 0.5)',
+                  color: '#fb7185',
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  whiteSpace: 'nowrap',
+                  zIndex: 25,
+                  animation: 'beaconPulse 2s ease-in-out infinite',
+                  pointerEvents: 'none',
+                }}
+              >
+                <span style={{ fontSize: '8px' }}>▼</span>
+                <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Layer Bottom Technical Spec Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '7px', borderTop: `1px dashed ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`, fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, letterSpacing: '0.04em' }}>
+          <span>{language === 'vi' ? 'CHUẨN S3 API • KHO AR5IV HTML5 • ZERO-EGRESS R2' : 'S3-COMPATIBLE API • AR5IV HTML5 CORPORE • ZERO-EGRESS R2'}</span>
+          <span style={{ opacity: 0.7 }}>STAGE 01 - 02</span>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* HIGHWAY CONDUIT 2: Cloudflare R2 -> DuckDB (INTER-LAYER 1->2) */}
+      {/* ============================================================== */}
+      <div
+        onMouseEnter={() => setHoveredNodeId('conduit-2')}
+        onMouseLeave={() => setHoveredNodeId(null)}
+        style={{
+          width: '92px',
+          height: '24px',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          cursor: 'pointer',
+        }}
+      >
+        {/* 6px Illuminated Tube Rail */}
+        <div
+          style={{
+            width: '100%',
+            height: '6px',
+            borderRadius: '3px',
+            backgroundColor: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#e11d48' : themeStyles.wire,
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
+              ? '0 0 12px rgba(225, 29, 72, 0.8), 0 0 4px #ffffff'
+              : 'none',
+            transition: 'all 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Moving Directional Stream Chevrons */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+              color: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
+              fontSize: '11px',
+              lineHeight: 1,
+              fontFamily: 'monospace',
+              fontWeight: 900,
+              animation: (isStageActive('bronze') || isStreaming) ? 'chevronFlow 1.0s linear infinite' : 'none',
+              userSelect: 'none',
+            }}
+          >
+            <span>›</span>
+            <span>›</span>
+            <span>›</span>
+            <span>›</span>
           </div>
 
+          {/* Traveling Data Payload Orb when Active */}
+          {(isStageActive('bronze') || isStreaming) && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '-3px',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                boxShadow: '0 0 10px #fb7185, 0 0 6px #ffffff',
+                animation: 'payloadOrbGlide 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+              }}
+            />
+          )}
+        </div>
+
+        {/* Floating Payload Badge */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '-20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            backgroundColor: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
+              ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
+              : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
+            border: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
+              ? '1px solid #e11d48'
+              : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
+            boxShadow: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
+              ? '0 0 8px rgba(225, 29, 72, 0.45)'
+              : '0 1px 3px rgba(0, 0, 0, 0.05)',
+            fontSize: '10.5px',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 700,
+            color: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#fb7185' : (isDark ? '#94a3b8' : '#64748b'),
+            whiteSpace: 'nowrap',
+            zIndex: 15,
+            pointerEvents: 'none',
+            transition: 'all 0.25s ease',
+          }}
+        >
+          <span>📄</span>
+          <span>{`${(liveTotalWorks / 1000).toFixed(1)}k ${language === 'vi' ? 'BÀI BÁO' : 'WORKS'} ➔`}</span>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* ARCHITECTURAL LAYER 02: VECTORIZED SIMD OLAP ENGINE           */}
+      {/* ============================================================== */}
+      <div
+        style={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          position: 'relative',
+          padding: '24px 18px 14px 18px',
+          borderRadius: '16px',
+          border: `1.5px dashed ${isDark ? 'rgba(245, 158, 11, 0.35)' : 'rgba(245, 158, 11, 0.28)'}`,
+          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.03)' : 'rgba(245, 158, 11, 0.015)',
+          backdropFilter: 'blur(8px)',
+          flexShrink: 0,
+          boxShadow: isDark ? 'inset 0 0 32px rgba(245, 158, 11, 0.03)' : 'none',
+        }}
+      >
+        {/* Layer Corner Technical Brackets */}
+        <span style={{ position: 'absolute', top: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(245, 158, 11, 0.65)' : 'rgba(245, 158, 11, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌜</span>
+        <span style={{ position: 'absolute', top: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(245, 158, 11, 0.65)' : 'rgba(245, 158, 11, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌝</span>
+        <span style={{ position: 'absolute', bottom: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(245, 158, 11, 0.65)' : 'rgba(245, 158, 11, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌞</span>
+        <span style={{ position: 'absolute', bottom: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(245, 158, 11, 0.65)' : 'rgba(245, 158, 11, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌟</span>
+
+        {/* Layer Top Technical Header Badge */}
+        <div style={{ position: 'absolute', top: '-11px', left: '18px', display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 10px', borderRadius: '4px', backgroundColor: isDark ? '#090d16' : '#ffffff', border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.45)' : 'rgba(245, 158, 11, 0.35)'}`, boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.4)' : '0 1px 4px rgba(0, 0, 0, 0.06)', zIndex: 12 }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#f59e0b', boxShadow: '0 0 6px #f59e0b' }} />
+          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, letterSpacing: '0.05em', color: isDark ? '#fbbf24' : '#d97706' }}>
+            {language === 'vi' ? 'LỚP 02 • ĐỘNG CƠ OLAP SIMD VECTOR HOÁ' : 'LAYER 02 • VECTORIZED SIMD OLAP ENGINE'}
+          </span>
+        </div>
+
+        {/* Internal Node Row: Stage 3 */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           {/* ============================================================== */}
           {/* STAGE 3: DuckDB & LaTeX Normalizer (Amber) */}
           {/* ============================================================== */}
@@ -1878,6 +2086,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             style={{
               width: '248px',
               backgroundColor: themeStyles.cardBg,
+              backdropFilter: 'blur(12px)',
               borderRadius: '14px',
               padding: '14px 16px',
               border: isStageActive('duckdb')
@@ -1889,17 +2098,18 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('duckdb')
                 ? (isDark
-                    ? '0 0 24px rgba(245, 158, 11, 0.45)'
-                    : '0 4px 18px -2px rgba(245, 158, 11, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
+                    ? '0 0 24px rgba(245, 158, 11, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                    : '0 4px 18px -2px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9)')
                 : isLineageHighlighted('review-duckdb')
                 ? '0 0 16px rgba(245, 158, 11, 0.35)'
                 : isDark
-                ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                : '0 2px 10px rgba(0, 0, 0, 0.05)',
+                ? '0 8px 24px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+                : '0 4px 16px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              transform: hoveredNodeId === 'review-duckdb' ? 'translateY(-2px)' : 'none',
               opacity: getCardOpacity('review-duckdb'),
               animation: isStageActive('duckdb') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
               cursor: 'pointer',
-              transition: 'all 0.25s ease',
+              transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease',
               flexShrink: 0,
               position: 'relative',
               overflow: 'visible',
@@ -2127,123 +2337,236 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 </span>
               </div>
             </div>
-          </div>
 
-          {/* ============================================================== */}
-          {/* HIGHWAY CONDUIT 3: DuckDB -> Parallel Fork Node */}
-          {/* ============================================================== */}
-          <div
-            onMouseEnter={() => setHoveredNodeId('conduit-3')}
-            onMouseLeave={() => setHoveredNodeId(null)}
-            style={{
-              width: '112px',
-              height: '24px',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              cursor: 'pointer',
-            }}
-          >
-            {/* 6px Illuminated Tube Rail */}
-            <div
-              style={{
-                width: '100%',
-                height: '6px',
-                borderRadius: '3px',
-                backgroundColor: (isStageActive('duckdb') || isLineageHighlighted('conduit-3')) ? '#f59e0b' : themeStyles.wire,
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
-                  ? '0 0 12px rgba(245, 158, 11, 0.8), 0 0 4px #ffffff'
-                  : 'none',
-                transition: 'all 0.3s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {/* Moving Directional Stream Chevrons */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  color: (isStageActive('duckdb') || isLineageHighlighted('conduit-3')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
-                  fontSize: '11px',
-                  lineHeight: 1,
-                  fontFamily: 'monospace',
-                  fontWeight: 900,
-                  animation: isStageActive('duckdb') ? 'chevronFlow 1.0s linear infinite' : 'none',
-                  userSelect: 'none',
-                }}
-              >
-                <span>›</span>
-                <span>›</span>
-                <span>›</span>
-                <span>›</span>
-              </div>
-
-              {/* Traveling Data Payload Orb into Fork */}
-              {isStageActive('duckdb') && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '-3px',
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ffffff',
-                    boxShadow: '0 0 10px #fbbf24, 0 0 6px #ffffff',
-                    animation: 'payloadOrbGlide 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Floating Payload Badge - Perfectly Contained Inside 86px Conduit */}
+            {/* Modular Hardware Input Port (Left) */}
             <div
               style={{
                 position: 'absolute',
-                top: '-20px',
-                left: '50%',
-                transform: 'translateX(-50%)',
+                left: '-6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                border: `2px solid ${isStageActive('duckdb') ? '#f59e0b' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '3px',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                backgroundColor: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
-                  ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
-                  : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-                border: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
-                  ? '1px solid #f59e0b'
-                  : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
-                boxShadow: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
-                  ? '0 0 8px rgba(245, 158, 11, 0.45)'
-                  : '0 1px 3px rgba(0, 0, 0, 0.05)',
-                fontSize: '10.5px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                color: (isStageActive('duckdb') || isLineageHighlighted('conduit-3')) ? '#fbbf24' : (isDark ? '#94a3b8' : '#64748b'),
-                whiteSpace: 'nowrap',
-                zIndex: 15,
-                pointerEvents: 'none',
-                transition: 'all 0.25s ease',
+                justifyContent: 'center',
+                zIndex: 14,
+                boxShadow: isStageActive('duckdb') ? '0 0 8px #f59e0b' : '0 1px 3px rgba(0, 0, 0, 0.2)',
               }}
             >
-              <span>⚡</span>
-              <span>{`${(liveFormulas / 1000000).toFixed(2)}M ${language === 'vi' ? 'CÔNG THỨC' : 'FORMULAS'}`}</span>
+              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
             </div>
+
+            {/* Modular Hardware Output Port (Right) */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '-6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                border: `2px solid ${isStageActive('duckdb') ? '#f59e0b' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 14,
+                boxShadow: isStageActive('duckdb') ? '0 0 8px #f59e0b' : '0 1px 3px rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+            </div>
+
+            {/* Active Inspector Beacon Tag */}
+            {selectedNodeId === 'review-duckdb' && drawerOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '-22px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
+                  border: '1.5px solid #f59e0b',
+                  boxShadow: '0 0 10px rgba(245, 158, 11, 0.5)',
+                  color: '#fbbf24',
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  whiteSpace: 'nowrap',
+                  zIndex: 25,
+                  animation: 'beaconPulse 2s ease-in-out infinite',
+                  pointerEvents: 'none',
+                }}
+              >
+                <span style={{ fontSize: '8px' }}>▼</span>
+                <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Layer Bottom Technical Spec Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '7px', borderTop: `1px dashed ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`, fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, letterSpacing: '0.04em' }}>
+          <span>{language === 'vi' ? 'DUCKDB V1.2.0 • LÕI AVX-512 • PARQUET IN-PROCESS' : 'DUCKDB V1.2.0 • AVX-512 KERNEL • IN-PROCESS PARQUET'}</span>
+          <span style={{ opacity: 0.7 }}>STAGE 03</span>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* HIGHWAY CONDUIT 3: DuckDB -> Parallel Fork (INTER-LAYER 2->3)  */}
+      {/* ============================================================== */}
+      <div
+        onMouseEnter={() => setHoveredNodeId('conduit-3')}
+        onMouseLeave={() => setHoveredNodeId(null)}
+        style={{
+          width: '92px',
+          height: '24px',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          cursor: 'pointer',
+        }}
+      >
+        {/* 6px Illuminated Tube Rail */}
+        <div
+          style={{
+            width: '100%',
+            height: '6px',
+            borderRadius: '3px',
+            backgroundColor: (isStageActive('duckdb') || isLineageHighlighted('conduit-3')) ? '#f59e0b' : themeStyles.wire,
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
+              ? '0 0 12px rgba(245, 158, 11, 0.8), 0 0 4px #ffffff'
+              : 'none',
+            transition: 'all 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Moving Directional Stream Chevrons */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+              color: (isStageActive('duckdb') || isLineageHighlighted('conduit-3')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
+              fontSize: '11px',
+              lineHeight: 1,
+              fontFamily: 'monospace',
+              fontWeight: 900,
+              animation: isStageActive('duckdb') ? 'chevronFlow 1.0s linear infinite' : 'none',
+              userSelect: 'none',
+            }}
+          >
+            <span>›</span>
+            <span>›</span>
+            <span>›</span>
+            <span>›</span>
           </div>
 
-          {/* ============================================================== */}
-          {/* PARALLEL SPLIT NODE & PARALLEL BRANCHES (PARQUET & LANCEDB) */}
-          {/* ============================================================== */}
-          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            {/* Red Fork Hardware Split Node */}
+          {/* Traveling Data Payload Orb into Fork */}
+          {isStageActive('duckdb') && (
             <div
+              style={{
+                position: 'absolute',
+                top: '-3px',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                boxShadow: '0 0 10px #fbbf24, 0 0 6px #ffffff',
+                animation: 'payloadOrbGlide 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+              }}
+            />
+          )}
+        </div>
+
+        {/* Floating Payload Badge */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '-20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            backgroundColor: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
+              ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
+              : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
+            border: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
+              ? '1px solid #f59e0b'
+              : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
+            boxShadow: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
+              ? '0 0 8px rgba(245, 158, 11, 0.45)'
+              : '0 1px 3px rgba(0, 0, 0, 0.05)',
+            fontSize: '10.5px',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 700,
+            color: (isStageActive('duckdb') || isLineageHighlighted('conduit-3')) ? '#fbbf24' : (isDark ? '#94a3b8' : '#64748b'),
+            whiteSpace: 'nowrap',
+            zIndex: 15,
+            pointerEvents: 'none',
+            transition: 'all 0.25s ease',
+          }}
+        >
+          <span>⚡</span>
+          <span>{`${(liveFormulas / 1000000).toFixed(2)}M ${language === 'vi' ? 'CÔNG THỨC' : 'FORMULAS'} ➔`}</span>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* ARCHITECTURAL LAYER 03: MEDALLION SILVER / GOLD INDEXING       */}
+      {/* ============================================================== */}
+      <div
+        style={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          position: 'relative',
+          padding: '24px 18px 14px 18px',
+          borderRadius: '16px',
+          border: `1.5px dashed ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.28)'}`,
+          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.03)' : 'rgba(16, 185, 129, 0.015)',
+          backdropFilter: 'blur(8px)',
+          flexShrink: 0,
+          boxShadow: isDark ? 'inset 0 0 32px rgba(16, 185, 129, 0.03)' : 'none',
+        }}
+      >
+        {/* Layer Corner Technical Brackets */}
+        <span style={{ position: 'absolute', top: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(16, 185, 129, 0.65)' : 'rgba(16, 185, 129, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌜</span>
+        <span style={{ position: 'absolute', top: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(16, 185, 129, 0.65)' : 'rgba(16, 185, 129, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌝</span>
+        <span style={{ position: 'absolute', bottom: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(16, 185, 129, 0.65)' : 'rgba(16, 185, 129, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌞</span>
+        <span style={{ position: 'absolute', bottom: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(16, 185, 129, 0.65)' : 'rgba(16, 185, 129, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌟</span>
+
+        {/* Layer Top Technical Header Badge */}
+        <div style={{ position: 'absolute', top: '-11px', left: '18px', display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 10px', borderRadius: '4px', backgroundColor: isDark ? '#090d16' : '#ffffff', border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.45)' : 'rgba(16, 185, 129, 0.35)'}`, boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.4)' : '0 1px 4px rgba(0, 0, 0, 0.06)', zIndex: 12 }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 6px #10b981' }} />
+          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, letterSpacing: '0.05em', color: isDark ? '#34d399' : '#059669' }}>
+            {language === 'vi' ? 'LỚP 03 • ĐÁNH CHỈ MỤC KÉP SILVER / GOLD' : 'LAYER 03 • MEDALLION SILVER / GOLD INDEXING'}
+          </span>
+        </div>
+
+        {/* Internal Node Row: Fork + Bus + 4A/4B + Convergence + Anchor */}
+        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          {/* Red Fork Hardware Split Node */}
+          <div
               onMouseEnter={() => setHoveredNodeId('fork')}
               onMouseLeave={() => setHoveredNodeId(null)}
               style={{
@@ -2388,6 +2711,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 style={{
                   width: '248px',
                   backgroundColor: themeStyles.cardBg,
+                  backdropFilter: 'blur(12px)',
                   borderRadius: '14px',
                   padding: '12px 16px',
                   border: isStageActive('parallel')
@@ -2399,17 +2723,18 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
                     ? (isDark
-                        ? '0 0 20px rgba(16, 185, 129, 0.45)'
-                        : '0 4px 18px -2px rgba(16, 185, 129, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
+                        ? '0 0 20px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                        : '0 4px 18px -2px rgba(16, 185, 129, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9)')
                     : isLineageHighlighted('silver-parquet')
                     ? '0 0 16px rgba(16, 185, 129, 0.35)'
                     : isDark
-                    ? '0 4px 12px rgba(0, 0, 0, 0.4)'
-                    : '0 2px 10px rgba(0, 0, 0, 0.05)',
+                    ? '0 8px 24px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+                    : '0 4px 16px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                  transform: hoveredNodeId === 'silver-parquet' ? 'translateY(-2px)' : 'none',
                   opacity: getCardOpacity('silver-parquet'),
                   animation: isStageActive('parallel') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
                   cursor: 'pointer',
-                  transition: 'all 0.25s ease',
+                  transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease',
                   position: 'relative',
                   overflow: 'visible',
                 }}
@@ -2636,6 +2961,82 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     </span>
                   </div>
                 </div>
+
+                {/* Modular Hardware Input Port (Left) */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '-6px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                    border: `2px solid ${isStageActive('parallel') ? '#10b981' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 14,
+                    boxShadow: isStageActive('parallel') ? '0 0 8px #10b981' : '0 1px 3px rgba(0, 0, 0, 0.2)',
+                  }}
+                >
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                </div>
+
+                {/* Modular Hardware Output Port (Right) */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: '-6px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                    border: `2px solid ${isStageActive('parallel') ? '#10b981' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 14,
+                    boxShadow: isStageActive('parallel') ? '0 0 8px #10b981' : '0 1px 3px rgba(0, 0, 0, 0.2)',
+                  }}
+                >
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                </div>
+
+                {/* Active Inspector Beacon Tag */}
+                {selectedNodeId === 'silver-parquet' && drawerOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '-22px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
+                      border: '1.5px solid #10b981',
+                      boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)',
+                      color: '#34d399',
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      whiteSpace: 'nowrap',
+                      zIndex: 25,
+                      animation: 'beaconPulse 2s ease-in-out infinite',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <span style={{ fontSize: '8px' }}>▼</span>
+                    <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
+                  </div>
+                )}
               </div>
 
               {/* PATH 2 (BOTTOM): LanceDB & 4 Pillars (Blue) */}
@@ -2646,6 +3047,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 style={{
                   width: '248px',
                   backgroundColor: themeStyles.cardBg,
+                  backdropFilter: 'blur(12px)',
                   borderRadius: '14px',
                   padding: '12px 16px',
                   border: isStageActive('parallel')
@@ -2657,17 +3059,18 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
                     ? (isDark
-                        ? '0 0 20px rgba(37, 99, 235, 0.45)'
-                        : '0 4px 18px -2px rgba(37, 99, 235, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
+                        ? '0 0 20px rgba(37, 99, 235, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                        : '0 4px 18px -2px rgba(37, 99, 235, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9)')
                     : isLineageHighlighted('gold-lancedb')
                     ? '0 0 16px rgba(37, 99, 235, 0.35)'
                     : isDark
-                    ? '0 4px 12px rgba(0, 0, 0, 0.4)'
-                    : '0 2px 10px rgba(0, 0, 0, 0.05)',
+                    ? '0 8px 24px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+                    : '0 4px 16px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                  transform: hoveredNodeId === 'gold-lancedb' ? 'translateY(-2px)' : 'none',
                   opacity: getCardOpacity('gold-lancedb'),
                   animation: isStageActive('parallel') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
                   cursor: 'pointer',
-                  transition: 'all 0.25s ease',
+                  transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease',
                   position: 'relative',
                   overflow: 'visible',
                 }}
@@ -2892,6 +3295,82 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     </span>
                   </div>
                 </div>
+
+                {/* Modular Hardware Input Port (Left) */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '-6px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                    border: `2px solid ${isStageActive('parallel') ? '#2563eb' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 14,
+                    boxShadow: isStageActive('parallel') ? '0 0 8px #2563eb' : '0 1px 3px rgba(0, 0, 0, 0.2)',
+                  }}
+                >
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
+                </div>
+
+                {/* Modular Hardware Output Port (Right) */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: '-6px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                    border: `2px solid ${isStageActive('parallel') ? '#2563eb' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 14,
+                    boxShadow: isStageActive('parallel') ? '0 0 8px #2563eb' : '0 1px 3px rgba(0, 0, 0, 0.2)',
+                  }}
+                >
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
+                </div>
+
+                {/* Active Inspector Beacon Tag */}
+                {selectedNodeId === 'gold-lancedb' && drawerOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '-22px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
+                      border: '1.5px solid #2563eb',
+                      boxShadow: '0 0 10px rgba(37, 99, 235, 0.5)',
+                      color: '#60a5fa',
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      whiteSpace: 'nowrap',
+                      zIndex: 25,
+                      animation: 'beaconPulse 2s ease-in-out infinite',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <span style={{ fontSize: '8px' }}>▼</span>
+                    <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -3039,156 +3518,199 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   boxShadow: (isGroundedRagReady || isStageActive('parallel')) ? '0 0 6px #818cf8' : 'none',
                 }}
               />
+              </div>
             </div>
 
-            {/* ============================================================== */}
-            {/* HIGHWAY CONDUIT 5: Convergence Anchor -> Grounded RAG */}
-            {/* ============================================================== */}
+            {/* Layer Bottom Technical Spec Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '7px', borderTop: `1px dashed ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`, fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, letterSpacing: '0.04em' }}>
+              <span>{language === 'vi' ? 'PYARROW CỘT • VECTOR 768-D BGE-BASE • CHỈ MỤC HNSW' : 'PYARROW COLUMNAR • 768-D BGE-BASE • HNSW INDEX'}</span>
+              <span style={{ opacity: 0.7 }}>STAGE 04A - 04B</span>
+            </div>
+          </div>
+
+          {/* ============================================================== */}
+          {/* HIGHWAY CONDUIT 5: Convergence Anchor -> Grounded RAG (3->4)  */}
+          {/* ============================================================== */}
+          <div
+            onMouseEnter={() => setHoveredNodeId('conduit-5')}
+            onMouseLeave={() => setHoveredNodeId(null)}
+            style={{
+              width: '92px',
+              height: '24px',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              cursor: 'pointer',
+            }}
+          >
+            {/* 6px Illuminated Tube Rail */}
             <div
-              onMouseEnter={() => setHoveredNodeId('conduit-5')}
-              onMouseLeave={() => setHoveredNodeId(null)}
               style={{
-                width: '112px',
-                height: '24px',
+                width: '100%',
+                height: '6px',
+                borderRadius: '3px',
+                backgroundColor: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5')) ? '#6366f1' : themeStyles.wire,
                 position: 'relative',
+                overflow: 'hidden',
+                boxShadow: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
+                  ? '0 0 12px rgba(99, 102, 241, 0.85), 0 0 4px #ffffff'
+                  : 'none',
+                transition: 'all 0.3s ease',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                flexShrink: 0,
-                cursor: 'pointer',
               }}
             >
-              {/* 6px Illuminated Tube Rail */}
+              {/* Moving Directional Stream Chevrons */}
               <div
                 style={{
-                  width: '100%',
-                  height: '6px',
-                  borderRadius: '3px',
-                  backgroundColor: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5')) ? '#6366f1' : themeStyles.wire,
-                  position: 'relative',
-                  overflow: 'hidden',
-                  boxShadow: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
-                    ? '0 0 12px rgba(99, 102, 241, 0.85), 0 0 4px #ffffff'
-                    : 'none',
-                  transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  gap: '2px',
+                  color: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
+                  fontSize: '11px',
+                  lineHeight: 1,
+                  fontFamily: 'monospace',
+                  fontWeight: 900,
+                  animation: (isGroundedRagReady || isStageActive('parallel')) ? 'chevronFlow 1.0s linear infinite' : 'none',
+                  userSelect: 'none',
                 }}
               >
-                {/* Moving Directional Stream Chevrons */}
+                <span>›</span>
+                <span>›</span>
+                <span>›</span>
+                <span>›</span>
+              </div>
+
+              {/* Traveling Data Payload Orb into RAG */}
+              {(isGroundedRagReady || isStageActive('parallel')) && (
                 <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '2px',
-                    color: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
-                    fontSize: '11px',
-                    lineHeight: 1,
-                    fontFamily: 'monospace',
-                    fontWeight: 900,
-                    animation: (isGroundedRagReady || isStageActive('parallel')) ? 'chevronFlow 1.0s linear infinite' : 'none',
-                    userSelect: 'none',
+                    position: 'absolute',
+                    top: '-3px',
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    boxShadow: '0 0 10px #818cf8, 0 0 6px #ffffff',
+                    animation: 'payloadOrbGlide 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                   }}
-                >
-                  <span>›</span>
-                  <span>›</span>
-                  <span>›</span>
-                  <span>›</span>
-                </div>
-
-                {/* Traveling Data Payload Orb into RAG */}
-                {(isGroundedRagReady || isStageActive('parallel')) && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '-3px',
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      backgroundColor: '#ffffff',
-                      boxShadow: '0 0 10px #818cf8, 0 0 6px #ffffff',
-                      animation: 'payloadOrbGlide 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* Floating Payload Badge - Perfectly Contained Inside 86px Conduit */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '-20px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  backgroundColor: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
-                    ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
-                    : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-                  border: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
-                    ? '1px solid #6366f1'
-                    : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
-                  boxShadow: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
-                    ? '0 0 8px rgba(99, 102, 241, 0.45)'
-                    : '0 1px 3px rgba(0, 0, 0, 0.05)',
-                  fontSize: '10.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  color: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5')) ? '#a5b4fc' : (isDark ? '#94a3b8' : '#64748b'),
-                  whiteSpace: 'nowrap',
-                  zIndex: 15,
-                  pointerEvents: 'none',
-                  transition: 'all 0.25s ease',
-                }}
-              >
-                <span>🎯</span>
-                <span>{language === 'vi' ? 'TOP-5 VĂN CẢNH' : 'TOP-5 CONTEXT'}</span>
-              </div>
+                />
+              )}
             </div>
 
-            {/* ============================================================== */}
-            {/* STAGE 5: Grounded RAG Console (Indigo) */}
-            {/* ============================================================== */}
+            {/* Floating Payload Badge */}
             <div
-              onClick={() => handleOpenInspector('grounded-rag')}
-              onMouseEnter={() => setHoveredNodeId('grounded-rag')}
-              onMouseLeave={() => setHoveredNodeId(null)}
               style={{
-                width: '248px',
-                backgroundColor: isGroundedRagReady
-                  ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#ffffff')
-                  : themeStyles.cardBg,
-                borderRadius: '14px',
-                padding: '14px 16px',
-                border: isGroundedRagReady
-                  ? '2px solid #6366f1'
-                  : selectedNodeId === 'grounded-rag' && drawerOpen
-                  ? '2px solid #6366f1'
-                  : isLineageHighlighted('grounded-rag')
-                  ? '2px solid #818cf8'
-                  : `1px solid ${themeStyles.cardBorder}`,
-                boxShadow: isGroundedRagReady
-                  ? (isDark
-                      ? '0 0 32px rgba(99, 102, 241, 0.75), 0 0 12px rgba(129, 140, 248, 0.5)'
-                      : '0 4px 20px -2px rgba(99, 102, 241, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
-                  : isLineageHighlighted('grounded-rag')
-                  ? '0 0 18px rgba(99, 102, 241, 0.45)'
-                  : isDark
-                  ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                  : '0 2px 10px rgba(0, 0, 0, 0.05)',
-                opacity: getCardOpacity('grounded-rag'),
-                animation: isGroundedRagReady && isDark ? 'ragBeaconGlow 2.4s infinite' : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                flexShrink: 0,
-                position: 'relative',
-                overflow: 'visible',
+                position: 'absolute',
+                top: '-20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                backgroundColor: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
+                  ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
+                  : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
+                border: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
+                  ? '1px solid #6366f1'
+                  : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
+                boxShadow: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
+                  ? '0 0 8px rgba(99, 102, 241, 0.45)'
+                  : '0 1px 3px rgba(0, 0, 0, 0.05)',
+                fontSize: '10.5px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                color: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5')) ? '#a5b4fc' : (isDark ? '#94a3b8' : '#64748b'),
+                whiteSpace: 'nowrap',
+                zIndex: 15,
+                pointerEvents: 'none',
+                transition: 'all 0.25s ease',
               }}
             >
+              <span>🎯</span>
+              <span>{language === 'vi' ? 'TOP-5 VĂN CẢNH ➔' : 'TOP-5 CONTEXT ➔'}</span>
+            </div>
+          </div>
+
+          {/* ============================================================== */}
+          {/* ARCHITECTURAL LAYER 04: CONTEXTUAL RAG & CITATION GATE        */}
+          {/* ============================================================== */}
+          <div
+            style={{
+              display: 'inline-flex',
+              flexDirection: 'column',
+              position: 'relative',
+              padding: '24px 18px 14px 18px',
+              borderRadius: '16px',
+              border: `1.5px dashed ${isDark ? 'rgba(99, 102, 241, 0.35)' : 'rgba(99, 102, 241, 0.28)'}`,
+              backgroundColor: isDark ? 'rgba(99, 102, 241, 0.03)' : 'rgba(99, 102, 241, 0.015)',
+              backdropFilter: 'blur(8px)',
+              flexShrink: 0,
+              boxShadow: isDark ? 'inset 0 0 32px rgba(99, 102, 241, 0.03)' : 'none',
+            }}
+          >
+            {/* Layer Corner Technical Brackets */}
+            <span style={{ position: 'absolute', top: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(99, 102, 241, 0.65)' : 'rgba(99, 102, 241, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌜</span>
+            <span style={{ position: 'absolute', top: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(99, 102, 241, 0.65)' : 'rgba(99, 102, 241, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌝</span>
+            <span style={{ position: 'absolute', bottom: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(99, 102, 241, 0.65)' : 'rgba(99, 102, 241, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌞</span>
+            <span style={{ position: 'absolute', bottom: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(99, 102, 241, 0.65)' : 'rgba(99, 102, 241, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌟</span>
+
+            {/* Layer Top Technical Header Badge */}
+            <div style={{ position: 'absolute', top: '-11px', left: '18px', display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 10px', borderRadius: '4px', backgroundColor: isDark ? '#090d16' : '#ffffff', border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.45)' : 'rgba(99, 102, 241, 0.35)'}`, boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.4)' : '0 1px 4px rgba(0, 0, 0, 0.06)', zIndex: 12 }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#6366f1', boxShadow: '0 0 6px #6366f1' }} />
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, letterSpacing: '0.05em', color: isDark ? '#a5b4fc' : '#4f46e5' }}>
+                {language === 'vi' ? 'LỚP 04 • CỔNG TRUY VẤN RAG & TRÍCH DẪN' : 'LAYER 04 • CONTEXTUAL RAG & CITATION GATE'}
+              </span>
+            </div>
+
+            {/* Internal Node Row: Stage 5 */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {/* ============================================================== */}
+              {/* STAGE 5: Grounded RAG Console (Indigo) */}
+              {/* ============================================================== */}
+              <div
+                onClick={() => handleOpenInspector('grounded-rag')}
+                onMouseEnter={() => setHoveredNodeId('grounded-rag')}
+                onMouseLeave={() => setHoveredNodeId(null)}
+                style={{
+                  width: '248px',
+                  backgroundColor: isGroundedRagReady
+                    ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#ffffff')
+                    : themeStyles.cardBg,
+                  backdropFilter: 'blur(12px)',
+                  borderRadius: '14px',
+                  padding: '14px 16px',
+                  border: isGroundedRagReady
+                    ? '2px solid #6366f1'
+                    : selectedNodeId === 'grounded-rag' && drawerOpen
+                    ? '2px solid #6366f1'
+                    : isLineageHighlighted('grounded-rag')
+                    ? '2px solid #818cf8'
+                    : `1px solid ${themeStyles.cardBorder}`,
+                  boxShadow: isGroundedRagReady
+                    ? (isDark
+                        ? '0 0 32px rgba(99, 102, 241, 0.75), 0 0 12px rgba(129, 140, 248, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                        : '0 4px 20px -2px rgba(99, 102, 241, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9)')
+                    : isLineageHighlighted('grounded-rag')
+                    ? '0 0 18px rgba(99, 102, 241, 0.45)'
+                    : isDark
+                    ? '0 8px 24px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+                    : '0 4px 16px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                  transform: hoveredNodeId === 'grounded-rag' ? 'translateY(-2px)' : 'none',
+                  opacity: getCardOpacity('grounded-rag'),
+                  animation: isGroundedRagReady && isDark ? 'ragBeaconGlow 2.4s infinite' : 'none',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease',
+                  flexShrink: 0,
+                  position: 'relative',
+                  overflow: 'visible',
+                }}
+              >
               {/* Stage Header Row: Milestone Badge (Left) & Status Badge (Right) */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', gap: '6px' }}>
                 <div style={{
@@ -3408,26 +3930,87 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     Sub-50ms ANN
                   </span>
 
-                  <span style={{
-                    flex: '1 1 0',
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '3px 6px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
-                    color: isDark ? '#34d399' : '#047857',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    display: 'inline-flex',
+                    <span style={{
+                      flex: '1 1 0',
+                      fontSize: '11px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      padding: '3px 6px',
+                      borderRadius: '5px',
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                      color: isDark ? '#34d399' : '#047857',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      LaTeX MathML
+                    </span>
+                  </div>
+                </div>
+
+                {/* Modular Hardware Input Port (Left) */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '-6px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: isDark ? '#0b1120' : '#ffffff',
+                    border: `2px solid ${isGroundedRagReady ? '#6366f1' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
+                    display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    LaTeX MathML
-                  </span>
+                    zIndex: 14,
+                    boxShadow: isGroundedRagReady ? '0 0 8px #6366f1' : '0 1px 3px rgba(0, 0, 0, 0.2)',
+                  }}
+                >
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
                 </div>
+
+                {/* Active Inspector Beacon Tag */}
+                {selectedNodeId === 'grounded-rag' && drawerOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '-22px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
+                      border: '1.5px solid #6366f1',
+                      boxShadow: '0 0 10px rgba(99, 102, 241, 0.5)',
+                      color: '#a5b4fc',
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      whiteSpace: 'nowrap',
+                      zIndex: 25,
+                      animation: 'beaconPulse 2s ease-in-out infinite',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <span style={{ fontSize: '8px' }}>▼</span>
+                    <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* Layer Bottom Technical Spec Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '7px', borderTop: `1px dashed ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`, fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, letterSpacing: '0.04em' }}>
+              <span>{language === 'vi' ? 'LÕI GEMINI-2.5-FLASH • COSINE >= 0.75 • TRÍCH DẪN MATHML' : 'GEMINI-2.5-FLASH • COSINE >= 0.75 • MATHML CITATION'}</span>
+              <span style={{ opacity: 0.7 }}>STAGE 05</span>
             </div>
           </div>
         </div>
@@ -5268,7 +5851,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             setZoom(1.0);
             setPan({ x: 0, y: 0 });
           }}
-          title="Reset to Center"
+          title={language === 'vi' ? 'Căn giữa toàn bộ luồng quy trình (Fit View)' : 'Reset Pan & Fit Pipeline to View'}
           style={{
             border: `1px solid ${themeStyles.zoomBtnBorder}`,
             borderRadius: '6px',
@@ -5276,12 +5859,17 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             color: themeStyles.textMuted,
             fontSize: '10px',
             fontFamily: 'var(--font-mono)',
-            fontWeight: 700,
-            padding: '5px 8px',
+            fontWeight: 800,
+            padding: '5px 9px',
             cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'all 0.15s ease',
           }}
         >
-          RESET
+          <span style={{ fontSize: '11px' }}>⌖</span>
+          <span>{language === 'vi' ? 'CĂN GIỮA' : 'FIT VIEW'}</span>
         </button>
       </div>
     </div>

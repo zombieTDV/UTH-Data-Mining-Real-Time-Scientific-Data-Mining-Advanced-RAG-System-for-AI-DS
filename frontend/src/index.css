@@ -408,6 +408,18 @@ button:active {
   }
 }
 
+@keyframes beaconPulse {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0) scale(1);
+    opacity: 0.95;
+  }
+  50% {
+    transform: translateX(-50%) translateY(2px) scale(1.05);
+    opacity: 1;
+  }
+}
+
+
 /* Typography Scale & Text Protection (Min 10px, Geist / Geist Mono) */
 .text-display {
   font-size: 22px;
