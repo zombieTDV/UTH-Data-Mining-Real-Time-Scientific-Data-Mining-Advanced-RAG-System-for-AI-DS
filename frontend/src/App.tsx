@@ -20,7 +20,6 @@ export default function App() {
     sessionIngested,
     streamSpeed,
     storageUsedGb,
-    storageUsedPct,
     storageStats,
     initializeStream,
     refreshStorageStats,
@@ -142,8 +141,8 @@ export default function App() {
   const effectiveTotalPapers = totalCorpus || (totalPapers + sessionIngested) || 36414;
   const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164702;
   const effectiveTotalFormulas = totalFormulas || 2220938;
-  const effectiveStorageGb = storageUsedGb || (storageStats?.activeLakehouse?.totalSizeGb ?? 8.277);
-  const effectiveStoragePct = storageUsedPct || Math.min(100, (effectiveStorageGb / 10.0) * 100);
+  const effectiveStorageGb = storageStats?.activeLakehouse?.totalSizeGb ?? (storageUsedGb > 10 ? 8.277 : (storageUsedGb || 8.277));
+  const effectiveStoragePct = storageStats?.activeLakehouse?.usedPercentage ?? Math.min(100, (effectiveStorageGb / 10.0) * 100);
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>

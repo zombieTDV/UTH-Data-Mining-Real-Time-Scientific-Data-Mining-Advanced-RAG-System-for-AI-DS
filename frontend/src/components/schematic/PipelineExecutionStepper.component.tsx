@@ -15,70 +15,70 @@ export interface PipelineExecutionStepperProps {
 interface StepDef {
   key: PipelineStageKey;
   nodeId: string;
-  titleEn: string;
-  titleVi: string;
-  subEn: string;
-  subVi: string;
+  stepNum: number;
+  shortTitleEn: string;
+  shortTitleVi: string;
+  fullTitleEn: string;
+  fullTitleVi: string;
   color: string;
-  tagEn: string;
-  tagVi: string;
+  engine: string;
 }
 
 const STAGES: StepDef[] = [
   {
     key: 'harvest',
     nodeId: 'start-flow',
-    titleEn: '1. SOURCE INGEST',
-    titleVi: '1. THU THẬP NGUỒN',
-    subEn: 'arXiv & OpenAlex',
-    subVi: 'arXiv & OpenAlex',
+    stepNum: 1,
+    shortTitleEn: '1. Ingest',
+    shortTitleVi: '1. Thu Thập',
+    fullTitleEn: 'Source Ingest (arXiv + OpenAlex)',
+    fullTitleVi: 'Thu thập Nguồn (arXiv + OpenAlex)',
     color: '#8b5cf6',
-    tagEn: 'OAI-PMH XML',
-    tagVi: 'OAI-PMH XML',
+    engine: 'OAI-PMH XML',
   },
   {
     key: 'bronze',
     nodeId: 'bronze-instance',
-    titleEn: '2. CLOUDFLARE R2',
-    titleVi: '2. CLOUDFLARE R2',
-    subEn: 'Bronze Immutable Lake',
-    subVi: 'Hồ thô Bất biến S3',
+    stepNum: 2,
+    shortTitleEn: '2. Bronze R2',
+    shortTitleVi: '2. Hồ Thô R2',
+    fullTitleEn: 'Cloudflare R2 Object Storage',
+    fullTitleVi: 'Hồ Thô Bất Biến Cloudflare R2',
     color: '#e11d48',
-    tagEn: 'Zero-Egress S3',
-    tagVi: '0 Phí Egress S3',
+    engine: 'Zero-Egress S3',
   },
   {
     key: 'duckdb',
     nodeId: 'review-duckdb',
-    titleEn: '3. DUCKDB SIMD',
-    titleVi: '3. DUCKDB SIMD',
-    subEn: 'LaTeX & Arrow OLAP',
-    subVi: 'LaTeX & OLAP Arrow',
+    stepNum: 3,
+    shortTitleEn: '3. DuckDB',
+    shortTitleVi: '3. DuckDB OLAP',
+    fullTitleEn: 'DuckDB Vectorized SIMD OLAP',
+    fullTitleVi: 'Xử lý Vectorized SIMD DuckDB',
     color: '#f59e0b',
-    tagEn: 'Zero-Copy SIMD',
-    tagVi: 'Bộ nhớ Zero-Copy',
+    engine: 'Arrow Memory',
   },
   {
     key: 'parallel',
     nodeId: 'silver-parquet',
-    titleEn: '4. DUAL STORAGE',
-    titleVi: '4. LƯU TRỮ KÉP',
-    subEn: 'Parquet & LanceDB',
-    subVi: 'Parquet & LanceDB',
+    stepNum: 4,
+    shortTitleEn: '4. Dual Storage',
+    shortTitleVi: '4. Lưu Trữ Kép',
+    fullTitleEn: 'Dual Storage (Parquet + LanceDB)',
+    fullTitleVi: 'Lưu Trữ Kép (Parquet + LanceDB)',
     color: '#10b981',
-    tagEn: 'Silver + Gold',
-    tagVi: 'Silver + Gold',
+    engine: 'Snappy + IVF-PQ',
   },
   {
     key: 'completed',
     nodeId: 'grounded-rag',
-    titleEn: '5. GROUNDED RAG',
-    titleVi: '5. GROUNDED RAG',
-    subEn: 'Qwen 2.5 Synthesis',
-    subVi: 'Tổng hợp Qwen 2.5',
+    stepNum: 5,
+    shortTitleEn: '5. Grounded RAG',
+    shortTitleVi: '5. Grounded RAG',
+    fullTitleEn: 'Grounded RAG (Qwen 2.5 QA)',
+    fullTitleVi: 'Tổng Hợp RAG Qwen 2.5',
     color: '#6366f1',
-    tagEn: 'Citations Gate',
-    tagVi: 'Kiểm duyệt Trích dẫn',
+    engine: 'Verified Citations',
   },
 ];
 
@@ -147,202 +147,164 @@ export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
         width: '100%',
         maxWidth: '1280px',
         margin: '0 auto',
-        padding: '8px 14px',
+        padding: '10px 18px',
         borderRadius: '12px',
-        backgroundColor: isDark ? 'rgba(11, 15, 25, 0.88)' : 'rgba(255, 255, 255, 0.94)',
+        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.92)' : '#ffffff',
         border: `1px solid ${
           isPipelineRunning
-            ? 'rgba(99, 102, 241, 0.45)'
+            ? (isDark ? 'rgba(99, 102, 241, 0.5)' : '#818cf8')
             : isDark
             ? 'rgba(255, 255, 255, 0.12)'
             : '#e2e8f0'
         }`,
         boxShadow: isPipelineRunning
-          ? '0 0 24px rgba(99, 102, 241, 0.25), 0 4px 16px rgba(0, 0, 0, 0.4)'
+          ? (isDark ? '0 0 24px rgba(99, 102, 241, 0.3)' : '0 4px 20px rgba(99, 102, 241, 0.15)')
           : isDark
-          ? '0 4px 16px rgba(0, 0, 0, 0.35)'
-          : '0 4px 16px rgba(0, 0, 0, 0.06)',
+          ? '0 4px 20px rgba(0, 0, 0, 0.35)'
+          : '0 2px 12px rgba(0, 0, 0, 0.05)',
         backdropFilter: 'blur(16px)',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px',
         zIndex: 25,
-        transition: 'all 0.3s ease',
+        transition: 'all 0.25s ease',
         userSelect: 'none',
       }}
     >
-      {/* Top Row: Controls, Live Timer & Overall Progress Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          flexWrap: 'nowrap',
-        }}
-      >
-        {/* Left: Execution Status & Trigger Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={onTriggerPipeline}
-            disabled={isPipelineRunning || isStreaming}
+      {/* Left: Execution Controls & Live Status */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+        {/* Trigger Button */}
+        <button
+          type="button"
+          onClick={onTriggerPipeline}
+          disabled={isPipelineRunning || isStreaming}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 14px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 700,
+            cursor: isPipelineRunning || isStreaming ? 'not-allowed' : 'pointer',
+            backgroundColor: isPipelineRunning
+              ? (isDark ? 'rgba(99, 102, 241, 0.25)' : '#e0e7ff')
+              : isDark
+              ? '#2563eb'
+              : '#1d4ed8',
+            color: isPipelineRunning && !isDark ? '#4338ca' : '#ffffff',
+            border: isPipelineRunning
+              ? '1px solid rgba(99, 102, 241, 0.6)'
+              : '1px solid transparent',
+            boxShadow: isPipelineRunning
+              ? '0 0 12px rgba(99, 102, 241, 0.4)'
+              : '0 2px 6px rgba(37, 99, 235, 0.25)',
+            opacity: isStreaming ? 0.65 : 1,
+            transition: 'all 0.2s ease',
+          }}
+        >
+          {isPipelineRunning ? (
+            <span
+              style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                border: isDark ? '2px solid rgba(255, 255, 255, 0.3)' : '2px solid rgba(67, 56, 202, 0.3)',
+                borderTopColor: isDark ? '#ffffff' : '#4338ca',
+                animation: 'spin 0.8s linear infinite',
+                display: 'inline-block',
+              }}
+            />
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+          )}
+          <span>
+            {isPipelineRunning
+              ? (language === 'vi' ? 'ĐANG CHẠY...' : 'RUNNING...')
+              : currentStage === 'completed'
+              ? (language === 'vi' ? 'CHẠY LẠI' : 'RE-RUN')
+              : (language === 'vi' ? 'CHẠY PIPELINE' : 'RUN PIPELINE')}
+          </span>
+        </button>
+
+        {/* Live Timer Pill */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '5px 10px',
+            borderRadius: '7px',
+            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+            border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
+            fontFamily: 'var(--font-mono)',
+            fontSize: '12px',
+            fontWeight: 700,
+            color: isPipelineRunning ? '#38bdf8' : isDark ? '#cbd5e1' : '#334155',
+          }}
+          title={language === 'vi' ? 'Thời gian thực thi pipeline' : 'Pipeline execution time'}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span>{elapsedFormatted}s</span>
+        </div>
+
+        {/* CDC Streaming Live Indicator */}
+        {isStreaming && (
+          <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '5px 12px',
+              padding: '5px 10px',
               borderRadius: '7px',
-              fontSize: '11px',
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
+              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : '#a7f3d0'}`,
               fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              letterSpacing: '0.4px',
-              cursor: isPipelineRunning || isStreaming ? 'not-allowed' : 'pointer',
-              backgroundColor: isPipelineRunning
-                ? 'rgba(99, 102, 241, 0.25)'
-                : isDark
-                ? '#2563eb'
-                : '#1d4ed8',
-              color: '#ffffff',
-              border: isPipelineRunning ? '1px solid rgba(99, 102, 241, 0.6)' : '1px solid transparent',
-              boxShadow: isPipelineRunning ? '0 0 12px rgba(99, 102, 241, 0.5)' : '0 2px 6px rgba(37, 99, 235, 0.3)',
-              opacity: isStreaming ? 0.6 : 1,
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {isPipelineRunning ? (
-              <span
-                style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                  borderTopColor: '#ffffff',
-                  animation: 'spin 0.8s linear infinite',
-                  display: 'inline-block',
-                }}
-              />
-            ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            )}
-            <span>
-              {isPipelineRunning
-                ? (language === 'vi' ? 'ĐANG CHẠY PIPELINE...' : 'RUNNING PIPELINE...')
-                : currentStage === 'completed'
-                ? (language === 'vi' ? 'CHẠY LẠI PIPELINE' : 'RE-RUN PIPELINE')
-                : (language === 'vi' ? 'CHẠY PIPELINE' : 'RUN PIPELINE')}
-            </span>
-          </button>
-
-          {/* Timer Chip */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '3px 8px',
-              borderRadius: '6px',
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
-              border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
-              fontFamily: 'var(--font-mono)',
-              fontSize: '11px',
+              fontSize: '12px',
               fontWeight: 700,
-              color: isPipelineRunning ? '#38bdf8' : isDark ? '#94a3b8' : '#475569',
+              color: isDark ? '#34d399' : '#059669',
             }}
           >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            <span>{elapsedFormatted}s</span>
-          </div>
-
-          {/* Streaming Indicator if active */}
-          {isStreaming && (
-            <div
+            <span
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '3px 8px',
-                borderRadius: '6px',
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '10px',
-                fontWeight: 800,
-                color: '#34d399',
-              }}
-            >
-              <span
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: '#10b981',
-                  boxShadow: '0 0 6px #10b981',
-                }}
-              />
-              <span>{language === 'vi' ? 'CDC STREAMING BẬT' : 'CDC STREAMING ON'}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Center/Right: Overall Progress Bar */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px' }}>
-          <div
-            style={{
-              flex: 1,
-              height: '6px',
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
-              borderRadius: '9999px',
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
-            <div
-              style={{
-                width: `${progressPct}%`,
-                height: '100%',
-                background:
-                  progressPct === 100
-                    ? 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'
-                    : 'linear-gradient(90deg, #8b5cf6 0%, #38bdf8 50%, #6366f1 100%)',
-                boxShadow:
-                  isPipelineRunning
-                    ? '0 0 8px rgba(99, 102, 241, 0.8)'
-                    : progressPct === 100
-                    ? '0 0 8px rgba(16, 185, 129, 0.8)'
-                    : 'none',
-                transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor: '#10b981',
+                boxShadow: '0 0 6px #10b981',
               }}
             />
+            <span>{language === 'vi' ? 'CDC BẬT' : 'CDC ON'}</span>
           </div>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '10.5px',
-              fontWeight: 800,
-              color: progressPct === 100 ? '#10b981' : isDark ? '#cbd5e1' : '#334155',
-              width: '36px',
-              textAlign: 'right',
-              flexShrink: 0,
-            }}
-          >
-            {progressPct}%
-          </span>
-        </div>
+        )}
       </div>
 
-      {/* Bottom Row: 5-Stage Stepper Buttons with Connector Lines */}
+      {/* Subtle Vertical Divider */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: '8px',
-          alignItems: 'stretch',
+          width: '1px',
+          height: '26px',
+          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
+          flexShrink: 0,
+        }}
+      />
+
+      {/* Center: Connected Pipeline Timeline Track */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '4px',
+          minWidth: 0,
         }}
       >
         {STAGES.map((step, idx) => {
@@ -350,139 +312,211 @@ export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
           const isPassed = currentIdx > idx || currentStage === 'completed';
           const isSelected = selectedNodeId === step.nodeId;
 
-          let badgeBg = isDark ? 'rgba(255, 255, 255, 0.05)' : '#f8fafc';
-          let badgeBorder = isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0';
-          let textColor = isDark ? '#94a3b8' : '#64748b';
-          let titleColor = isDark ? '#f8fafc' : '#0f172a';
-
-          if (isCurrent && isPipelineRunning) {
-            badgeBg = isDark ? `${step.color}22` : `${step.color}15`;
-            badgeBorder = `${step.color}88`;
-            textColor = step.color;
-            titleColor = isDark ? '#ffffff' : '#0f172a';
-          } else if (isPassed) {
-            badgeBg = isDark ? 'rgba(16, 185, 129, 0.12)' : '#ecfdf5';
-            badgeBorder = isDark ? 'rgba(16, 185, 129, 0.3)' : '#a7f3d0';
-            textColor = '#10b981';
-          } else if (isSelected) {
-            badgeBorder = 'rgba(56, 189, 248, 0.6)';
-          }
+          // Connector line styling after this stage (except the last one)
+          const isLast = idx === STAGES.length - 1;
+          const railPassed = currentIdx > idx || currentStage === 'completed';
+          const railActive = isCurrent && isPipelineRunning;
 
           return (
             <div
               key={step.key}
-              onClick={() => onSelectStageNode?.(step.nodeId)}
               style={{
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-                padding: '6px 8px',
-                borderRadius: '8px',
-                backgroundColor: badgeBg,
-                border: `1px solid ${badgeBorder}`,
-                boxShadow: isCurrent && isPipelineRunning ? `0 0 14px ${step.color}44` : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                position: 'relative',
-                overflow: 'hidden',
+                alignItems: 'center',
+                flex: isLast ? '0 0 auto' : '1 1 0',
+                minWidth: 0,
               }}
-              title={language === 'vi' ? `Nhấp để xem công cụ ${step.titleVi}` : `Click to inspect ${step.titleEn}`}
             >
-              {/* Active Breathing Indicator Strip */}
-              {isCurrent && isPipelineRunning && (
+              {/* Interactive Stage Pill Node */}
+              <button
+                type="button"
+                onClick={() => onSelectStageNode?.(step.nodeId)}
+                title={
+                  language === 'vi'
+                    ? `${step.fullTitleVi} (${step.engine})`
+                    : `${step.fullTitleEn} (${step.engine})`
+                }
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '5px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: isCurrent && isPipelineRunning
+                    ? (isDark ? `${step.color}22` : `${step.color}15`)
+                    : isSelected
+                    ? (isDark ? 'rgba(56, 189, 248, 0.15)' : '#f0f9ff')
+                    : isPassed
+                    ? (isDark ? 'rgba(16, 185, 129, 0.12)' : '#f0fdf4')
+                    : (isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc'),
+                  border: isCurrent && isPipelineRunning
+                    ? `1.5px solid ${step.color}`
+                    : isSelected
+                    ? '1.5px solid #38bdf8'
+                    : isPassed
+                    ? `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : '#bbf7d0'}`
+                    : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0,
+                }}
+              >
+                {/* Step Circle Indicator */}
                 <div
                   style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: '2px',
-                    backgroundColor: step.color,
-                    boxShadow: `0 0 6px ${step.color}`,
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    backgroundColor: isPassed
+                      ? '#10b981'
+                      : isCurrent && isPipelineRunning
+                      ? step.color
+                      : isDark
+                      ? 'rgba(255, 255, 255, 0.12)'
+                      : '#cbd5e1',
+                    color: isPassed || (isCurrent && isPipelineRunning) ? '#ffffff' : (isDark ? '#94a3b8' : '#475569'),
+                    boxShadow: isCurrent && isPipelineRunning
+                      ? `0 0 10px ${step.color}`
+                      : isPassed
+                      ? '0 0 6px rgba(16, 185, 129, 0.4)'
+                      : 'none',
+                    flexShrink: 0,
                   }}
-                />
-              )}
-
-              {/* Header inside Step: Step indicator + Tag */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '9px',
-                      fontWeight: 900,
-                      fontFamily: 'var(--font-mono)',
-                      backgroundColor: isPassed
-                        ? '#10b981'
-                        : isCurrent && isPipelineRunning
-                        ? step.color
-                        : isDark
-                        ? 'rgba(255, 255, 255, 0.12)'
-                        : '#cbd5e1',
-                      color: '#ffffff',
-                      boxShadow: isCurrent && isPipelineRunning ? `0 0 8px ${step.color}` : 'none',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {isPassed ? '✔' : idx + 1}
-                  </span>
-
-                  <span
-                    style={{
-                      fontSize: '10.5px',
-                      fontWeight: 800,
-                      fontFamily: 'var(--font-mono)',
-                      color: titleColor,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {language === 'vi' ? step.titleVi : step.titleEn}
-                  </span>
+                >
+                  {isPassed ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    step.stepNum
+                  )}
                 </div>
 
+                {/* Stage Label Text */}
                 <span
                   style={{
-                    fontSize: '8.5px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '1px 4px',
-                    borderRadius: '4px',
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
-                    color: textColor,
+                    fontSize: '12px',
+                    fontWeight: isCurrent || isPassed ? 700 : 600,
+                    fontFamily: 'var(--font-sans, system-ui)',
+                    color: isCurrent && isPipelineRunning
+                      ? step.color
+                      : isPassed
+                      ? (isDark ? '#e2e8f0' : '#0f172a')
+                      : (isDark ? '#94a3b8' : '#64748b'),
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {isCurrent && isPipelineRunning
-                    ? (language === 'vi' ? 'ĐANG CHẠY' : 'RUNNING')
-                    : isPassed
-                    ? (language === 'vi' ? 'HOÀN TẤT' : 'DONE')
-                    : (language === 'vi' ? step.tagVi : step.tagEn)}
+                  {language === 'vi' ? step.shortTitleVi : step.shortTitleEn}
                 </span>
-              </div>
+              </button>
 
-              {/* Subtitle */}
-              <div
-                style={{
-                  fontSize: '9.5px',
-                  color: isDark ? '#94a3b8' : '#64748b',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  paddingLeft: '21px',
-                }}
-              >
-                {language === 'vi' ? step.subVi : step.subEn}
-              </div>
+              {/* Connecting Rail Line between Stage Nodes */}
+              {!isLast && (
+                <div
+                  style={{
+                    flex: 1,
+                    height: '3px',
+                    margin: '0 6px',
+                    minWidth: '16px',
+                    backgroundColor: railPassed
+                      ? '#10b981'
+                      : railActive
+                      ? step.color
+                      : isDark
+                      ? 'rgba(255, 255, 255, 0.12)'
+                      : '#e2e8f0',
+                    borderRadius: '2px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    boxShadow: railPassed
+                      ? '0 0 4px rgba(16, 185, 129, 0.4)'
+                      : railActive
+                      ? `0 0 6px ${step.color}`
+                      : 'none',
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  {railActive && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        height: '100%',
+                        width: '40%',
+                        backgroundColor: '#ffffff',
+                        boxShadow: `0 0 8px #ffffff`,
+                        animation: 'conduitParticleStream 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                      }}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
+      </div>
+
+      {/* Subtle Vertical Divider */}
+      <div
+        style={{
+          width: '1px',
+          height: '26px',
+          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
+          flexShrink: 0,
+        }}
+      />
+
+      {/* Right: Progress Metric Pill */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            width: '56px',
+            height: '6px',
+            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+            borderRadius: '9999px',
+            overflow: 'hidden',
+          }}
+          title={language === 'vi' ? `Tiến độ hoàn tất: ${progressPct}%` : `Progress: ${progressPct}%`}
+        >
+          <div
+            style={{
+              width: `${progressPct}%`,
+              height: '100%',
+              background:
+                progressPct === 100
+                  ? 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'
+                  : 'linear-gradient(90deg, #8b5cf6 0%, #38bdf8 100%)',
+              boxShadow: progressPct === 100 ? '0 0 6px #10b981' : 'none',
+              transition: 'width 0.35s ease',
+            }}
+          />
+        </div>
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '12px',
+            fontWeight: 800,
+            color: progressPct === 100 ? '#10b981' : isDark ? '#e2e8f0' : '#1e293b',
+            minWidth: '36px',
+            textAlign: 'right',
+          }}
+        >
+          {progressPct}%
+        </span>
       </div>
     </div>
   );

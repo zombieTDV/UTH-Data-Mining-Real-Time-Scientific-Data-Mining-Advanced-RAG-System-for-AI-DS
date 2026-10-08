@@ -263,7 +263,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     textPrimary: isDark ? '#f8fafc' : '#0f172a',
     textSecondary: isDark ? '#cbd5e1' : '#334155',
     textMuted: isDark ? '#94a3b8' : '#64748b',
-    wire: isDark ? 'rgba(255, 255, 255, 0.22)' : '#cbd5e1',
+    wire: isDark ? 'rgba(255, 255, 255, 0.28)' : '#94a3b8',
     btnInspectBg: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f8fafc',
     btnInspectBorder: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
     btnInspectText: isDark ? '#cbd5e1' : '#475569',
@@ -547,6 +547,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
+  const liveActiveStorageGb = storageStats?.activeLakehouse?.totalSizeGb ?? (storageUsedGb > 10 ? 8.277 : (storageUsedGb || 8.277));
+  const liveActiveStoragePct = storageStats?.activeLakehouse?.usedPercentage ?? Math.min(100, (liveActiveStorageGb / liveQuotaGb) * 100);
   const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || liveTotalWorks);
   const displayWorks = isPipelineRunning && simulationStage !== 'completed' ? papersHarvested : (totalCorpus || liveTotalWorks);
 
@@ -920,10 +922,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 ? '2px solid #7c3aed'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('harvest')
-                ? '0 0 24px rgba(139, 92, 246, 0.45)'
+                ? (isDark
+                    ? '0 0 24px rgba(139, 92, 246, 0.45)'
+                    : '0 4px 18px -2px rgba(139, 92, 246, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
                 : isDark
                 ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                : '0 2px 10px rgba(0, 0, 0, 0.05)',
               animation: isStageActive('harvest') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
@@ -984,14 +988,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>
                     {language === 'vi' ? 'Thu Thập Nguồn' : 'Source Ingest'}
                   </div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                     {language === 'vi' ? 'Bộ Cào Phân Tán' : 'Federated Crawlers'}
                   </div>
                 </div>
               </div>
 
               <span style={{
-                fontSize: '10px',
+                fontSize: '12px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 800,
                 color: isStageActive('harvest')
@@ -1006,8 +1010,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   : (isDark ? 'rgba(124, 58, 237, 0.18)' : '#f5f3ff'),
                 border: `1px solid ${isStageActive('harvest') ? '#a78bfa' : isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent') : (isDark ? 'rgba(124, 58, 237, 0.3)' : 'transparent')}`,
                 boxShadow: isStageActive('harvest') ? '0 0 10px rgba(139, 92, 246, 0.6)' : 'none',
-                padding: '2px 6px',
-                borderRadius: '4px',
+                padding: '3px 7px',
+                borderRadius: '5px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
@@ -1028,7 +1032,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <span style={{ fontSize: '13px', fontWeight: 900, color: (isStreaming || isStageActive('harvest')) ? (isDark ? '#c084fc' : '#7c3aed') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
                   <AnimatedCounter value={displayWorks} />
                 </span>
-                <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
                   {isStreaming ? (language === 'vi' ? `+${streamSessionCount} mới (${streamSpeed}/m)` : `+${streamSessionCount} new (${streamSpeed}/m)`) : (language === 'vi' ? 'Bài Đã Thu Thập' : 'Works Ingested')}
                 </span>
               </div>
@@ -1042,7 +1046,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               {/* High-Contrast Visual Source Chips */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1059,7 +1063,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
 
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1076,7 +1080,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
 
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1098,12 +1102,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               style={{
                 width: '100%',
                 marginTop: '10px',
-                padding: '4px 0',
+                padding: '5px 0',
                 border: `1px solid ${themeStyles.btnInspectBorder}`,
                 borderRadius: '6px',
                 backgroundColor: themeStyles.btnInspectBg,
                 color: themeStyles.btnInspectText,
-                fontSize: '10px',
+                fontSize: '12px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -1116,8 +1120,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           {/* Horizontal Connector 1 */}
           <div style={{
             width: '42px',
-            height: '2px',
-            backgroundColor: (isStageActive('harvest') || isStreaming) ? 'rgba(139, 92, 246, 0.5)' : themeStyles.wire,
+            height: '4px',
+            borderRadius: '2px',
+            backgroundColor: (isStageActive('harvest') || isStreaming) ? '#8b5cf6' : themeStyles.wire,
             position: 'relative',
             flexShrink: 0,
             overflow: 'hidden',
@@ -1170,10 +1175,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 ? '2px solid #e11d48'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('bronze')
-                ? '0 0 24px rgba(225, 29, 72, 0.45)'
+                ? (isDark
+                    ? '0 0 24px rgba(225, 29, 72, 0.45)'
+                    : '0 4px 18px -2px rgba(225, 29, 72, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
                 : isDark
                 ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                : '0 2px 10px rgba(0, 0, 0, 0.05)',
               animation: isStageActive('bronze') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
@@ -1230,14 +1237,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48' }}>Cloudflare R2</div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                     {language === 'vi' ? 'Hồ Dữ Liệu Bronze' : 'Bronze Lake'}
                   </div>
                 </div>
               </div>
 
               <span style={{
-                fontSize: '10px',
+                fontSize: '12px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 800,
                 color: isStageActive('bronze')
@@ -1252,8 +1259,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   : (isDark ? 'rgba(225, 29, 72, 0.20)' : '#fff1f2'),
                 border: `1px solid ${isStageActive('bronze') ? '#f43f5e' : isStreaming ? (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent') : (isDark ? 'rgba(225, 29, 72, 0.35)' : 'transparent')}`,
                 boxShadow: isStageActive('bronze') ? '0 0 10px rgba(225, 29, 72, 0.6)' : 'none',
-                padding: '2px 6px',
-                borderRadius: '4px',
+                padding: '3px 7px',
+                borderRadius: '5px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
@@ -1272,10 +1279,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '13px', fontWeight: 900, color: isStageActive('bronze') ? (isDark ? '#fb7185' : '#e11d48') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                  <AnimatedCounter value={storageUsedGb} decimals={3} suffix=" GB" />
+                  <AnimatedCounter value={liveActiveStorageGb} decimals={3} suffix=" GB" />
                 </span>
                 <span style={{
-                  fontSize: '10px',
+                  fontSize: '12px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
                   color: 'var(--text-muted)',
@@ -1285,13 +1292,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               </div>
 
               {/* Visual Storage Progress Bar */}
-              <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={language === 'vi' ? `Hạn mức Cloudflare R2: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)` : `Cloudflare R2 Quota: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)`}>
+              <div style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={language === 'vi' ? `Hạn mức Cloudflare R2: ${liveActiveStorageGb.toFixed(3)} GB / 10.0 GB (${liveActiveStoragePct.toFixed(1)}%)` : `Cloudflare R2 Quota: ${liveActiveStorageGb.toFixed(3)} GB / 10.0 GB (${liveActiveStoragePct.toFixed(1)}%)`}>
                 <div style={{
-                  width: `${Math.min(100, storageUsedPct)}%`,
+                  width: `${Math.min(100, liveActiveStoragePct)}%`,
                   height: '100%',
-                  background: storageUsedPct >= 90
+                  background: liveActiveStoragePct >= 90
                     ? 'linear-gradient(90deg, #f43f5e, #dc2626)'
-                    : storageUsedPct >= 80
+                    : liveActiveStoragePct >= 80
                     ? 'linear-gradient(90deg, #f59e0b, #ea580c)'
                     : 'linear-gradient(90deg, #10b981, #06b6d4)',
                   borderRadius: '9999px',
@@ -1302,7 +1309,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               {/* Color-Coded Lakehouse Layer Chips */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1319,7 +1326,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
 
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1336,7 +1343,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
 
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1354,7 +1361,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                 {isStreaming && lastPaperDeltaBytes > 0 && (
                   <span style={{
-                    fontSize: '9.5px',
+                    fontSize: '11.5px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
                     padding: '2px 6px',
@@ -1377,12 +1384,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               style={{
                 width: '100%',
                 marginTop: '10px',
-                padding: '4px 0',
+                padding: '5px 0',
                 border: `1px solid ${themeStyles.btnInspectBorder}`,
                 borderRadius: '6px',
                 backgroundColor: themeStyles.btnInspectBg,
                 color: themeStyles.btnInspectText,
-                fontSize: '10px',
+                fontSize: '12px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -1395,8 +1402,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           {/* Horizontal Connector 2 */}
           <div style={{
             width: '42px',
-            height: '2px',
-            backgroundColor: (isStageActive('bronze') || isStreaming) ? 'rgba(225, 29, 72, 0.5)' : themeStyles.wire,
+            height: '4px',
+            borderRadius: '2px',
+            backgroundColor: (isStageActive('bronze') || isStreaming) ? '#e11d48' : themeStyles.wire,
             position: 'relative',
             flexShrink: 0,
             overflow: 'hidden',
@@ -1449,10 +1457,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 ? '2px solid #f59e0b'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('duckdb')
-                ? '0 0 24px rgba(245, 158, 11, 0.45)'
+                ? (isDark
+                    ? '0 0 24px rgba(245, 158, 11, 0.45)'
+                    : '0 4px 18px -2px rgba(245, 158, 11, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
                 : isDark
                 ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                : '0 2px 10px rgba(0, 0, 0, 0.05)',
               animation: isStageActive('duckdb') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
@@ -1511,14 +1521,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706' }}>DuckDB</div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                     {language === 'vi' ? 'OLAP Trong Tiến Trình' : 'In-Process OLAP'}
                   </div>
                 </div>
               </div>
 
               <span style={{
-                fontSize: '10px',
+                fontSize: '12px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 800,
                 color: isStageActive('duckdb') ? '#ffffff' : (isDark ? '#fbbf24' : '#d97706'),
@@ -1527,8 +1537,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   : (isDark ? 'rgba(245, 158, 11, 0.20)' : '#fef3c7'),
                 border: `1px solid ${isStageActive('duckdb') ? '#fbbf24' : (isDark ? 'rgba(245, 158, 11, 0.35)' : 'transparent')}`,
                 boxShadow: isStageActive('duckdb') ? '0 0 10px rgba(245, 158, 11, 0.6)' : 'none',
-                padding: '2px 6px',
-                borderRadius: '4px',
+                padding: '3px 7px',
+                borderRadius: '5px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
@@ -1547,7 +1557,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <span style={{ fontSize: '13px', fontWeight: 900, color: isStageActive('duckdb') ? (isDark ? '#fbbf24' : '#d97706') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
                   <AnimatedCounter value={liveFormulas} />
                 </span>
-                <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
                   {language === 'vi' ? 'Công thức Đã Phân Tích' : 'Formulas Parsed'}
                 </span>
               </div>
@@ -1555,7 +1565,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               {/* Visual Performance Chips */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1572,7 +1582,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
 
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1588,7 +1598,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
 
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   padding: '2px 6px',
@@ -1610,12 +1620,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               style={{
                 width: '100%',
                 marginTop: '10px',
-                padding: '4px 0',
+                padding: '5px 0',
                 border: `1px solid ${themeStyles.btnInspectBorder}`,
                 borderRadius: '6px',
                 backgroundColor: themeStyles.btnInspectBg,
                 color: themeStyles.btnInspectText,
-                fontSize: '10px',
+                fontSize: '12px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -1628,8 +1638,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           {/* Horizontal Connector 3 into Red Split Node */}
           <div style={{
             width: '36px',
-            height: '2px',
-            backgroundColor: isStageActive('duckdb') ? 'rgba(245, 158, 11, 0.5)' : themeStyles.wire,
+            height: '4px',
+            borderRadius: '2px',
+            backgroundColor: isStageActive('duckdb') ? '#f59e0b' : themeStyles.wire,
             position: 'relative',
             flexShrink: 0,
             overflow: 'hidden',
@@ -1700,19 +1711,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Split Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '72px', left: '0', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? 'rgba(245, 158, 11, 0.6)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 6px rgba(245, 158, 11, 0.5)' : 'none' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: isStageActive('parallel') ? 'rgba(56, 189, 248, 0.6)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 6px rgba(56, 189, 248, 0.4)' : 'none' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? '#10b981' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 6px #10b981' : 'none' }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? '#2563eb' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 6px #2563eb' : 'none' }} />
+              <div style={{ position: 'absolute', top: '70px', left: '0', width: '14px', height: '4px', borderRadius: '2px', backgroundColor: isStageActive('parallel') ? '#f59e0b' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(245, 158, 11, 0.5)' : 'none' }} />
+              <div style={{ position: 'absolute', top: '16px', left: '12px', width: '4px', height: '112px', borderRadius: '2px', backgroundColor: isStageActive('parallel') ? '#38bdf8' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(56, 189, 248, 0.4)' : 'none' }} />
+              <div style={{ position: 'absolute', top: '16px', left: '12px', width: '16px', height: '4px', borderRadius: '2px', backgroundColor: isStageActive('parallel') ? '#10b981' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px #10b981' : 'none' }} />
+              <div style={{ position: 'absolute', bottom: '16px', left: '12px', width: '16px', height: '4px', borderRadius: '2px', backgroundColor: isStageActive('parallel') ? '#2563eb' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px #2563eb' : 'none' }} />
               {isStageActive('parallel') && (
                 <>
                   <div
                     style={{
                       position: 'absolute',
-                      top: '16px',
-                      left: '12px',
-                      width: '6px',
-                      height: '6px',
+                      top: '14px',
+                      left: '10px',
+                      width: '8px',
+                      height: '8px',
                       borderRadius: '50%',
                       backgroundColor: '#34d399',
                       boxShadow: '0 0 8px #34d399',
@@ -1722,10 +1733,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <div
                     style={{
                       position: 'absolute',
-                      bottom: '16px',
-                      left: '12px',
-                      width: '6px',
-                      height: '6px',
+                      bottom: '14px',
+                      left: '10px',
+                      width: '8px',
+                      height: '8px',
                       borderRadius: '50%',
                       backgroundColor: '#60a5fa',
                       boxShadow: '0 0 8px #60a5fa',
@@ -1752,10 +1763,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     ? '2px solid #10b981'
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
-                    ? '0 0 24px rgba(16, 185, 129, 0.45)'
+                    ? (isDark
+                        ? '0 0 20px rgba(16, 185, 129, 0.45)'
+                        : '0 4px 18px -2px rgba(16, 185, 129, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
                     : isDark
-                    ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                    : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                    ? '0 4px 12px rgba(0, 0, 0, 0.4)'
+                    : '0 2px 10px rgba(0, 0, 0, 0.05)',
                   animation: isStageActive('parallel') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
@@ -1814,14 +1827,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#34d399' : '#047857' }}>Apache Parquet</div>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                      <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                         {language === 'vi' ? 'Dữ Liệu Cột Silver' : 'Silver Columnar'}
                       </div>
                     </div>
                   </div>
 
                   <span style={{
-                    fontSize: '10px',
+                    fontSize: '12px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 800,
                     color: isStageActive('parallel') ? '#ffffff' : (isDark ? '#34d399' : '#059669'),
@@ -1830,8 +1843,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       : (isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5'),
                     border: `1px solid ${isStageActive('parallel') ? '#34d399' : (isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent')}`,
                     boxShadow: isStageActive('parallel') ? '0 0 10px rgba(16, 185, 129, 0.6)' : 'none',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
+                    padding: '3px 7px',
+                    borderRadius: '5px',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '4px',
@@ -1850,14 +1863,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
                       <AnimatedCounter value={liveSilverMb} decimals={2} suffix=" MB" />
                     </span>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
                       Silver Parquet
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     <span style={{
-                      fontSize: '9.5px',
+                      fontSize: '11.5px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
                       padding: '2px 6px',
@@ -1874,7 +1887,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </span>
 
                     <span style={{
-                      fontSize: '9.5px',
+                      fontSize: '11.5px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
                       padding: '2px 6px',
@@ -1890,7 +1903,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </span>
 
                     <span style={{
-                      fontSize: '9.5px',
+                      fontSize: '11.5px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
                       padding: '2px 6px',
@@ -1922,10 +1935,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     ? '2px solid #2563eb'
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
-                    ? '0 0 24px rgba(37, 99, 235, 0.45)'
+                    ? (isDark
+                        ? '0 0 20px rgba(37, 99, 235, 0.45)'
+                        : '0 4px 18px -2px rgba(37, 99, 235, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
                     : isDark
-                    ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                    : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                    ? '0 4px 12px rgba(0, 0, 0, 0.4)'
+                    : '0 2px 10px rgba(0, 0, 0, 0.05)',
                   animation: isStageActive('parallel') ? 'stageActiveRadarPulse 2.4s ease-in-out infinite' : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
@@ -1982,14 +1997,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#60a5fa' : '#1d4ed8' }}>LanceDB Vectors</div>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                      <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                         {language === 'vi' ? 'Kho Vector Gold' : 'Gold Vector Store'}
                       </div>
                     </div>
                   </div>
 
                   <span style={{
-                    fontSize: '10px',
+                    fontSize: '12px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 800,
                     color: isStageActive('parallel') ? '#ffffff' : (isDark ? '#60a5fa' : '#2563eb'),
@@ -1998,8 +2013,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       : (isDark ? 'rgba(37, 99, 235, 0.20)' : '#eff6ff'),
                     border: `1px solid ${isStageActive('parallel') ? '#60a5fa' : (isDark ? 'rgba(37, 99, 235, 0.35)' : 'transparent')}`,
                     boxShadow: isStageActive('parallel') ? '0 0 10px rgba(37, 99, 235, 0.6)' : 'none',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
+                    padding: '3px 7px',
+                    borderRadius: '5px',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '4px',
@@ -2018,14 +2033,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     <span style={{ fontSize: '13px', fontWeight: 900, color: isStageActive('parallel') ? (isDark ? '#60a5fa' : '#2563eb') : themeStyles.textPrimary }}>
                       <AnimatedCounter value={liveVectors} />
                     </span>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
                       {language === 'vi' ? 'Vector Gold' : 'Gold Vectors'}
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     <span style={{
-                      fontSize: '9.5px',
+                      fontSize: '11.5px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
                       padding: '2px 6px',
@@ -2042,7 +2057,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </span>
 
                     <span style={{
-                      fontSize: '9.5px',
+                      fontSize: '11.5px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
                       padding: '2px 6px',
@@ -2058,7 +2073,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </span>
 
                     <span style={{
-                      fontSize: '9.5px',
+                      fontSize: '11.5px',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
                       padding: '2px 6px',
@@ -2079,24 +2094,28 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Merge Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(16, 185, 129, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(16, 185, 129, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(37, 99, 235, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(37, 99, 235, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.7)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.5)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.8)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.6)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '16px', left: '0', width: '14px', height: '4px', borderRadius: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? '#10b981' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(16, 185, 129, 0.5)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', bottom: '16px', left: '0', width: '14px', height: '4px', borderRadius: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? '#2563eb' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(37, 99, 235, 0.5)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '16px', left: '12px', width: '4px', height: '112px', borderRadius: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? '#6366f1' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.6)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '70px', left: '12px', width: '16px', height: '4px', borderRadius: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? '#6366f1' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.7)' : 'none', transition: 'all 0.3s ease' }} />
             </div>
 
             {/* Convergence Anchor Ring */}
             <div
               style={{
-                width: '22px',
-                height: '22px',
+                width: '24px',
+                height: '24px',
                 borderRadius: '50%',
-                backgroundColor: isDark ? '#0b0f19' : '#ffffff',
-                border: isGroundedRagReady ? '4px solid #6366f1' : '4px solid #ea580c',
-                boxShadow: isGroundedRagReady ? '0 0 16px rgba(99, 102, 241, 0.85), 0 0 6px #818cf8' : '0 2px 6px rgba(234, 88, 12, 0.3)',
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                border: isGroundedRagReady ? '4px solid #6366f1' : `4px solid ${themeStyles.wire}`,
+                boxShadow: isGroundedRagReady
+                  ? (isDark
+                      ? '0 0 16px rgba(99, 102, 241, 0.85), 0 0 6px #818cf8'
+                      : '0 2px 8px rgba(99, 102, 241, 0.35)')
+                  : 'none',
                 flexShrink: 0,
                 zIndex: 10,
-                transition: 'all 0.4s ease',
+                transition: 'all 0.3s ease',
               }}
               title="Parallel Convergence Anchor"
             />
@@ -2104,8 +2123,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             {/* Final Horizontal Connector into Grounded RAG */}
             <div style={{
               width: '36px',
-              height: '2px',
-              backgroundColor: isGroundedRagReady ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire,
+              height: '4px',
+              borderRadius: '2px',
+              backgroundColor: isGroundedRagReady ? '#6366f1' : themeStyles.wire,
               position: 'relative',
               flexShrink: 0,
               overflow: 'hidden',
@@ -2150,7 +2170,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               style={{
                 width: '240px',
                 backgroundColor: isGroundedRagReady
-                  ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#f5f3ff')
+                  ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#ffffff')
                   : themeStyles.cardBg,
                 borderRadius: '14px',
                 padding: '14px 16px',
@@ -2162,11 +2182,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 boxShadow: isGroundedRagReady
                   ? (isDark
                       ? '0 0 32px rgba(99, 102, 241, 0.75), 0 0 12px rgba(129, 140, 248, 0.5)'
-                      : '0 0 24px rgba(99, 102, 241, 0.45), 0 4px 16px rgba(99, 102, 241, 0.2)')
+                      : '0 4px 20px -2px rgba(99, 102, 241, 0.25), 0 2px 6px rgba(0, 0, 0, 0.05)')
                   : isDark
                   ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                  : '0 4px 16px rgba(99, 102, 241, 0.1)',
-                animation: isGroundedRagReady ? 'ragBeaconGlow 2.4s infinite' : 'none',
+                  : '0 2px 10px rgba(0, 0, 0, 0.05)',
+                animation: isGroundedRagReady && isDark ? 'ragBeaconGlow 2.4s infinite' : 'none',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 flexShrink: 0,
@@ -2198,188 +2218,188 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
               )}
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '9px',
-                      backgroundColor: '#6366f1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#ffffff',
-                      boxShadow: isGroundedRagReady
-                        ? '0 0 14px rgba(99, 102, 241, 0.8)'
-                        : '0 2px 6px rgba(99, 102, 241, 0.3)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
-                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
-                  </div>
-                </div>
-
-                <span style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  color: isGroundedRagReady ? '#ffffff' : (isDark ? '#a5b4fc' : '#6366f1'),
-                  backgroundColor: isGroundedRagReady ? '#6366f1' : (isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe'),
-                  border: `1px solid ${isGroundedRagReady ? '#818cf8' : (isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent')}`,
-                  boxShadow: isGroundedRagReady ? '0 0 12px rgba(99, 102, 241, 0.65)' : 'none',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                }}>
-                  {isGroundedRagReady && (
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
-                  )}
-                  {isGroundedRagReady ? (language === 'vi' ? '● SẴN SÀNG CHO RAG' : '● READY FOR RAG') : 'Metal'}
-                </span>
-              </div>
-
-              {isGroundedRagReady && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-                  <div style={{
-                    padding: '4px 8px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.12)',
-                    border: '1px solid rgba(99, 102, 241, 0.4)',
-                    color: isDark ? '#c7d2fe' : '#4338ca',
-                    fontSize: '9.5px',
-                    fontWeight: 800,
-                    fontFamily: 'var(--font-mono)',
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '9px',
+                    backgroundColor: '#6366f1',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '5px',
-                  }}>
-                    <span style={{ color: '#10b981' }}>✔</span> {language === 'vi' ? 'PIPELINE ĐÃ SẴN SÀNG' : 'PIPELINE PRIMED'}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigateTab?.('rag');
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '7px 10px',
-                      borderRadius: '6px',
-                      backgroundColor: isDark ? '#4f46e5' : '#6366f1',
-                      color: '#ffffff',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
-                      boxShadow: '0 0 14px rgba(99, 102, 241, 0.65)',
-                      fontSize: '10.5px',
-                      fontWeight: 800,
-                      fontFamily: 'var(--font-mono)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      transition: 'all 0.2s ease',
-                    }}
-                    title={language === 'vi' ? 'Chuyển sang màn hình Grounded RAG để đặt câu hỏi học thuật' : 'Switch to Grounded RAG to ask academic questions'}
-                  >
-                    <span>{language === 'vi' ? 'TRUY VẤN RAG NGAY' : 'QUERY RAG NOW'}</span>
-                    <span style={{ fontSize: '13px' }}>→</span>
-                  </button>
-                </div>
-              )}
-
-              <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                    {language === 'vi' ? 'Trích Dẫn Xác Thực' : 'Verified Citations'}
-                  </span>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: isDark ? '#a5b4fc' : '#6366f1' }}>
-                    {language === 'vi' ? '100% Có Căn Cứ' : '100% Grounded'}
-                  </span>
+                    color: '#ffffff',
+                    boxShadow: isGroundedRagReady
+                      ? (isDark ? '0 0 14px rgba(99, 102, 241, 0.8)' : '0 2px 8px rgba(99, 102, 241, 0.35)')
+                      : '0 2px 6px rgba(99, 102, 241, 0.3)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  <span style={{
-                    fontSize: '9.5px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#ede9fe',
-                    color: isDark ? '#a5b4fc' : '#6366f1',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}>
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
-                    Sub-50ms ANN
-                  </span>
-
-                  <span style={{
-                    fontSize: '9.5px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
-                    color: isDark ? '#34d399' : '#047857',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}>
-                    LaTeX MathML
-                  </span>
-
-                  <span style={{
-                    fontSize: '9.5px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
-                    color: isDark ? '#fbbf24' : '#b45309',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}>
-                    Metal Engine
-                  </span>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
+                  <div style={{ fontSize: '12px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
                 </div>
               </div>
 
-              <button
-                type="button"
-                style={{
-                  width: '100%',
-                  marginTop: '10px',
-                  padding: '4px 0',
-                  border: `1px solid ${themeStyles.btnInspectBorder}`,
-                  borderRadius: '6px',
-                  backgroundColor: themeStyles.btnInspectBg,
-                  color: themeStyles.btnInspectText,
-                  fontSize: '10px',
+              <span style={{
+                fontSize: '12px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                color: isGroundedRagReady ? '#ffffff' : (isDark ? '#a5b4fc' : '#6366f1'),
+                backgroundColor: isGroundedRagReady ? '#6366f1' : (isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe'),
+                border: `1px solid ${isGroundedRagReady ? '#818cf8' : (isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent')}`,
+                boxShadow: isGroundedRagReady && isDark ? '0 0 12px rgba(99, 102, 241, 0.65)' : 'none',
+                padding: '3px 7px',
+                borderRadius: '5px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}>
+                {isGroundedRagReady && (
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
+                )}
+                {isGroundedRagReady ? (language === 'vi' ? '● SẴN SÀNG CHO RAG' : '● READY FOR RAG') : 'Metal'}
+              </span>
+            </div>
+
+            {isGroundedRagReady && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                <div style={{
+                  padding: '5px 8px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.12)',
+                  border: '1px solid rgba(99, 102, 241, 0.4)',
+                  color: isDark ? '#c7d2fe' : '#4338ca',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '5px',
+                }}>
+                  <span style={{ color: '#10b981' }}>✔</span> {language === 'vi' ? 'PIPELINE ĐÃ SẴN SÀNG' : 'PIPELINE PRIMED'}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateTab?.('rag');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: isDark ? '#4f46e5' : '#6366f1',
+                    color: '#ffffff',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    boxShadow: isDark ? '0 0 14px rgba(99, 102, 241, 0.65)' : '0 2px 8px rgba(99, 102, 241, 0.35)',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title={language === 'vi' ? 'Chuyển sang màn hình Grounded RAG để đặt câu hỏi học thuật' : 'Switch to Grounded RAG to ask academic questions'}
+                >
+                  <span>{language === 'vi' ? 'TRUY VẤN RAG NGAY' : 'QUERY RAG NOW'}</span>
+                  <span style={{ fontSize: '13px' }}>→</span>
+                </button>
+              </div>
+            )}
+
+            <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
+                  {language === 'vi' ? 'Trích Dẫn Xác Thực' : 'Verified Citations'}
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#a5b4fc' : '#6366f1' }}>
+                  {language === 'vi' ? '100% Có Căn Cứ' : '100% Grounded'}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{
+                  fontSize: '11.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {language === 'vi' ? 'XEM CÔNG CỤ' : 'INSPECT TOOL'}
-              </button>
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#ede9fe',
+                  color: isDark ? '#a5b4fc' : '#6366f1',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
+                  Sub-50ms ANN
+                </span>
+
+                <span style={{
+                  fontSize: '11.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                  color: isDark ? '#34d399' : '#047857',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  LaTeX MathML
+                </span>
+
+                <span style={{
+                  fontSize: '11.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                  color: isDark ? '#fbbf24' : '#b45309',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  Metal Engine
+                </span>
+              </div>
             </div>
+
+            <button
+              type="button"
+              style={{
+                width: '100%',
+                marginTop: '10px',
+                padding: '5px 0',
+                border: `1px solid ${themeStyles.btnInspectBorder}`,
+                borderRadius: '6px',
+                backgroundColor: themeStyles.btnInspectBg,
+                color: themeStyles.btnInspectText,
+                fontSize: '12px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {language === 'vi' ? 'XEM CÔNG CỤ' : 'INSPECT TOOL'}
+            </button>
+          </div>
           </div>
         </div>
       </div>
@@ -2430,7 +2450,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               />
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                <span style={{ fontSize: '12px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
                   {selectedTool.category.toUpperCase()}
                 </span>
                 <span style={{ color: themeStyles.wire }}>/</span>
@@ -2439,7 +2459,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </h3>
                 <span
                   style={{
-                    fontSize: '10px',
+                    fontSize: '12px',
                     fontFamily: 'var(--font-mono)',
                     color: themeStyles.textMuted,
                     backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
@@ -2452,7 +2472,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
                 <span
                   style={{
-                    fontSize: '10px',
+                    fontSize: '12px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 800,
                     backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
@@ -2484,7 +2504,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onClick={() => setBottomTab('control')}
                 style={{
                   padding: '5px 14px',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: bottomTab === 'control' ? 800 : 600,
                   fontFamily: 'var(--font-mono)',
                   color: bottomTab === 'control' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
@@ -2510,7 +2530,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onClick={() => setBottomTab('specs')}
                 style={{
                   padding: '5px 14px',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: bottomTab === 'specs' ? 800 : 600,
                   fontFamily: 'var(--font-mono)',
                   color: bottomTab === 'specs' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
@@ -2537,7 +2557,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onClick={() => setBottomTab('logs')}
                 style={{
                   padding: '5px 14px',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: bottomTab === 'logs' ? 800 : 600,
                   fontFamily: 'var(--font-mono)',
                   color: bottomTab === 'logs' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
@@ -2558,7 +2578,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 {language === 'vi' ? 'NHẬT KÝ TERMINAL' : 'TERMINAL LOGS'}
                 <span
                   style={{
-                    fontSize: '10px',
+                    fontSize: '11.5px',
                     backgroundColor: bottomTab === 'logs' ? (isDark ? '#38bdf8' : '#0f172a') : (isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1'),
                     color: bottomTab === 'logs' ? (isDark ? '#0f172a' : '#ffffff') : (isDark ? '#cbd5e1' : '#1e293b'),
                     padding: '1px 5px',
@@ -2580,7 +2600,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   background: 'transparent',
                   border: `1px solid ${themeStyles.drawerBorder}`,
                   borderRadius: '6px',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   color: themeStyles.textMuted,
                   cursor: 'pointer',
                   padding: '4px 10px',
