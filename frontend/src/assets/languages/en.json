@@ -46,17 +46,17 @@
     "collapse": "Collapse"
   },
   "nav": {
-    "pillars": "PILLARS",
+    "schematic": "FLOW",
     "eda": "EDA",
+    "pillars": "PILLARS",
     "rag": "RAG CHAT",
-    "schematic": "LAKEHOUSE",
     "logs": "LOGS",
     "home": "HOME",
     "settings": "SETTINGS",
-    "pillarsTitle": "[Alt+1] 4 Mining Pillars (FP-Growth, Clusters, Graph, Outliers)",
+    "schematicTitle": "[Alt+1] Lakehouse Schematic & Storage",
     "edaTitle": "[Alt+2] Real-Time Scientific EDA & Paper Explorer",
-    "ragTitle": "[Alt+3] Grounded Scientific RAG Chat",
-    "schematicTitle": "[Alt+4] Medallion Lakehouse Architecture & Harvester",
+    "pillarsTitle": "[Alt+3] 4 Mining Pillars (FP-Growth, Clusters, Graph, Outliers)",
+    "ragTitle": "[Alt+4] Grounded Scientific RAG Chat",
     "logsTitle": "[Alt+5] System Telemetry & Terminal Logs",
     "toggleTheme": "Toggle light/dark mode",
     "switchLanguage": "Switch language"
