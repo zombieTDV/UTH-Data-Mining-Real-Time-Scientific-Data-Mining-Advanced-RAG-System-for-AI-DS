@@ -529,12 +529,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
         return;
       }
-      if (e.key === '1') setActiveDeck('combo');
-      else if (e.key === '2') setActiveDeck('scatter');
-      else if (e.key === '3') setActiveDeck('taxonomy');
-      else if (e.key === '4') setActiveDeck('authors');
-      else if (e.key === '5') setActiveDeck('correlations');
-      else if (e.key === '6') setActiveDeck('rag_audit');
+      if (e.key === '1') setActiveDeck('explorer');
+      else if (e.key === '2') setActiveDeck('combo');
+      else if (e.key === '3') setActiveDeck('scatter');
+      else if (e.key === '4') setActiveDeck('taxonomy');
+      else if (e.key === '5') setActiveDeck('authors');
+      else if (e.key === '6') setActiveDeck('correlations');
+      else if (e.key === '7') setActiveDeck('rag_audit');
       else if (e.key === 'f' || e.key === 'F') setIsFocusMode((prev) => !prev);
       else if (e.key === 'Escape') setSelectedPaperForDrawer(null);
     };
@@ -1374,8 +1375,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
           <span>
             {language === 'vi'
-              ? 'Phím 1-6 chuyển góc nhìn • Phím F thu gọn HUD • Escape đóng chi tiết'
-              : 'Keys 1-6 switch views • Key F collapses HUD • Escape closes drawer'}
+              ? 'Phím 1-7 chuyển góc nhìn • Phím F thu gọn HUD • Escape đóng chi tiết'
+              : 'Keys 1-7 switch views • Key F collapses HUD • Escape closes drawer'}
           </span>
         </div>
       </div>

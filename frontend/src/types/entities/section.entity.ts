@@ -6,7 +6,7 @@ export type PipelineStatus = 'IDLE' | 'RUNNING' | 'COMPLETED';
 
 export type BackendStatus = 'ONLINE' | 'OFFLINE';
 
-export type SchematicViewMode = 'canvas' | 'storage';
+export type SchematicViewMode = 'pipeline' | 'canvas' | 'storage';
 
 export type PipelineStageKey =
   | 'idle'

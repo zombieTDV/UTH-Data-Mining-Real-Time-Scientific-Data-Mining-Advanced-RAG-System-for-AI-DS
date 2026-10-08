@@ -26,7 +26,7 @@ export default function App() {
   } = useLakehouseStreamStore();
 
   const [activeTab, setActiveTab] = useState<AppTab>('pillars');
-  const [schematicViewMode, setSchematicViewMode] = useState<SchematicViewMode>('canvas');
+  const [schematicViewMode, setSchematicViewMode] = useState<SchematicViewMode>('pipeline');
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('IDLE');
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');

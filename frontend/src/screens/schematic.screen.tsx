@@ -1,7 +1,6 @@
 import type { FC } from 'react';
-import { InteractiveWorkflowCanvas } from '../components/schematic';
+import { InteractiveWorkflowCanvas, PipelineFlow, StorageInspector } from '../components/schematic';
 import { MetricsBento, AnimatedCounter } from '../components/common';
-import { StorageInspector } from '../components/schematic';
 import { useLakehouseStreamStore } from '../store';
 import { useTranslation } from '../hooks';
 import type { AppTab, AppTheme, PipelineStatus, SchematicViewMode } from '../types';
@@ -40,6 +39,46 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
       }}
     >
+      {/* MEDALLION ARCHITECTURE Button */}
+      <button
+        type="button"
+        onClick={() => onViewModeChange('pipeline')}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '5px 12px',
+          borderRadius: '6px',
+          fontSize: '11px',
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 800,
+          letterSpacing: '0.3px',
+          backgroundColor: viewMode === 'pipeline' ? 'var(--bg-surface, #0e1422)' : 'transparent',
+          color: viewMode === 'pipeline' ? '#10b981' : 'var(--text-muted, #94a3b8)',
+          border: viewMode === 'pipeline' ? '1px solid rgba(16, 185, 129, 0.6)' : '1px solid transparent',
+          cursor: 'pointer',
+          boxShadow: viewMode === 'pipeline' ? '0 2px 8px rgba(16, 185, 129, 0.25)' : 'none',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+        <span>{language === 'vi' ? 'KIẾN TRÚC MEDALLION' : 'MEDALLION FLOW'}</span>
+        {viewMode === 'pipeline' && (
+          <span
+            style={{
+              width: '5px',
+              height: '5px',
+              borderRadius: '50%',
+              backgroundColor: '#10b981',
+              boxShadow: '0 0 6px #10b981',
+              display: 'inline-block',
+            }}
+          />
+        )}
+      </button>
+
       {/* FLOW CANVAS Button */}
       <button
         type="button"
@@ -170,9 +209,11 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                 whiteSpace: 'nowrap',
               }}
             >
-              {viewMode === 'canvas'
-                ? (language === 'vi' ? 'SƠ ĐỒ LUỒNG PIPELINE LAKEHOUSE' : 'LAKEHOUSE WORKFLOW PIPELINE CANVAS')
-                : (language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG LAKEHOUSE' : 'LAKEHOUSE MULTI-TIER STORAGE LENS')}
+              {viewMode === 'pipeline'
+                ? (language === 'vi' ? 'KIẾN TRÚC MEDALLION LAKEHOUSE (BRONZE • SILVER • GOLD)' : 'MEDALLION LAKEHOUSE PIPELINE ARCHITECTURE')
+                : viewMode === 'canvas'
+                ? (language === 'vi' ? 'SƠ ĐỒ TƯƠNG TÁC WORKFLOW PIPELINE' : 'LAKEHOUSE WORKFLOW PIPELINE CANVAS')
+                : (language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG CLOUDFLARE R2' : 'LAKEHOUSE MULTI-TIER STORAGE LENS')}
             </span>
 
             {/* Micro Badges */}
@@ -218,7 +259,13 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
       </div>
 
       {/* Main Viewport Content */}
-      {viewMode === 'canvas' ? (
+      {viewMode === 'pipeline' ? (
+        <div style={{ flex: 1, width: '100%', overflowY: 'auto', padding: '16px 24px 32px' }}>
+          <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <PipelineFlow />
+          </div>
+        </div>
+      ) : viewMode === 'canvas' ? (
         <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <InteractiveWorkflowCanvas
             onNavigateTab={onNavigateTab}
