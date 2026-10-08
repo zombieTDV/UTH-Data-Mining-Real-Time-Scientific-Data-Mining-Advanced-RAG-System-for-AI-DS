@@ -14,6 +14,7 @@ from backend.app.api.endpoints import health
 from backend.app.api.router import api_router
 
 from backend.app.services.llm_client import llm_client
+from src.scheduler.adaptive_scheduler import scheduler_instance
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     logger.info("================================================================================")
     yield
     logger.info("[SHUTDOWN] Stopping FastAPI Backend.")
+    scheduler_instance.stop_daemon(cancel_running=True)
     llm_client.close()
 
 

@@ -46,6 +46,10 @@ export const API_CONFIG = {
     search: '/api/search',
     schedulerStatus: '/api/scheduler/status',
     schedulerTrigger: '/api/scheduler/trigger',
+    schedulerStart: '/api/scheduler/start',
+    schedulerStop: '/api/scheduler/stop',
+    schedulerToggle: '/api/scheduler/toggle',
+    schedulerCancel: '/api/scheduler/cancel',
   },
   devProxy: {
     target: 'http://127.0.0.1:8000',
