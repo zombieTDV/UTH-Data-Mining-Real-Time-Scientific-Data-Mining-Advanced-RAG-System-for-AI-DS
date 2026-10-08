@@ -14,9 +14,9 @@ export interface NavRailProps {
 }
 
 export const NAV_RAIL_ITEMS: NavRailItem[] = [
-  { id: 'schematic', label: 'FLOW', title: '[Alt+1] Lakehouse Schematic & Storage' },
-  { id: 'eda', label: 'EDA', title: '[Alt+2] Real-Time Scientific EDA (DuckDB)' },
-  { id: 'pillars', label: 'MODEL', title: '[Alt+3] 4 Mining Pillars' },
-  { id: 'rag', label: 'RAG', title: '[Alt+4] Grounded Scientific RAG Chat' },
-  { id: 'logs', label: 'LOGS', title: '[Alt+5] Telemetry Logs & Core Engines' },
+  { id: 'pillars', label: 'PILLARS', title: '[Alt+1] 4 Mining Pillars (FP-Growth, Clusters, Graph, Outliers)' },
+  { id: 'eda', label: 'EDA', title: '[Alt+2] Real-Time Scientific EDA & Paper Explorer' },
+  { id: 'rag', label: 'RAG', title: '[Alt+3] Grounded Scientific RAG Chat' },
+  { id: 'schematic', label: 'LAKEHOUSE', title: '[Alt+4] Medallion Architecture & Harvester' },
+  { id: 'logs', label: 'LOGS', title: '[Alt+5] Live Telemetry & Terminal Logs' },
 ];

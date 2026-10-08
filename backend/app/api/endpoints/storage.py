@@ -80,12 +80,25 @@ async def execute_duckdb_query(req: DuckDbQueryRequest):
         df = con.execute(cleaned_sql).df()
         elapsed_ms = round((time.time() - t0) * 1000.0, 2)
         columns = list(df.columns)
-        # Convert non-serializable objects (like numpy types or timestamps) to python primitives
-        records = df.to_dict(orient="records")
+        # Convert non-serializable objects (like numpy ndarrays, timestamps, NaN) to python primitives
+        clean_records = []
+        for row in df.to_dict(orient="records"):
+            clean_row = {}
+            for k, v in row.items():
+                if hasattr(v, "tolist"):
+                    clean_row[k] = v.tolist()
+                elif hasattr(v, "item"):
+                    clean_row[k] = v.item()
+                elif isinstance(v, float) and (v != v):
+                    clean_row[k] = None
+                else:
+                    clean_row[k] = v
+            clean_records.append(clean_row)
+
         return DuckDbQueryResponse(
             columns=columns,
-            rows=records,
-            row_count=len(records),
+            rows=clean_records,
+            row_count=len(clean_records),
             execution_time_ms=elapsed_ms,
         )
     except Exception as e:

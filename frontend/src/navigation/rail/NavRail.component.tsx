@@ -62,7 +62,7 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
           cursor: 'pointer',
           marginBottom: '20px',
         }}
-        onClick={() => onNavigate('schematic')}
+        onClick={() => onNavigate('pillars')}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <rect x="5" y="5" width="5" height="5" rx="1.5" />

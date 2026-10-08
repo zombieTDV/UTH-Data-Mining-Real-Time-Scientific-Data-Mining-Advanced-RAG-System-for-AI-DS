@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
 import type { EdaResponse, CategoryDistItem } from '../../types';
-import { fetchEdaSummary, triggerMiningPipeline } from '../../services';
+import { fetchEdaSummary, triggerMiningPipeline, executeDuckDbQuery } from '../../services';
 import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom, useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { MiningTelemetryStepper } from '../common';
 
-export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
+export type DeckType = 'explorer' | 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
 
 export interface ScatterPaperPoint {
   id: string;
@@ -340,7 +340,50 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   const [error, setError] = useState<string | null>(null);
 
   // Active Sub-Deck Switcher State (Zero-scroll Cockpit)
-  const [activeDeck, setActiveDeck] = useState<DeckType>('combo');
+  const [activeDeck, setActiveDeck] = useState<DeckType>('explorer');
+
+  // Real Paper Explorer & DuckDB Runner State
+  const [explorerQuery, setExplorerQuery] = useState<string>(
+    'SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers LIMIT 20;'
+  );
+  const [explorerRunning, setExplorerRunning] = useState<boolean>(false);
+  const [explorerResults, setExplorerResults] = useState<any[]>([]);
+  const [explorerElapsedMs, setExplorerElapsedMs] = useState<number>(0);
+  const [paperSearchText, setPaperSearchText] = useState<string>('');
+
+  const handleRunExplorerQuery = async (sqlToRun?: string) => {
+    const sql = sqlToRun || explorerQuery;
+    setExplorerRunning(true);
+    try {
+      const res = await executeDuckDbQuery(sql);
+      if (res) {
+        setExplorerResults(res.rows || []);
+        setExplorerElapsedMs(res.execution_time_ms || 0);
+      }
+    } catch (err: any) {
+      console.warn('DuckDB execution failed:', err);
+    } finally {
+      setExplorerRunning(false);
+    }
+  };
+
+  const handleSearchPapers = (text: string) => {
+    setPaperSearchText(text);
+    if (!text.trim()) {
+      const defaultSql = 'SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers LIMIT 20;';
+      setExplorerQuery(defaultSql);
+      handleRunExplorerQuery(defaultSql);
+      return;
+    }
+    const cleanText = text.replace(/'/g, "''");
+    const sql = `SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers WHERE lower(title) LIKE lower('%${cleanText}%') OR lower(primary_category) LIKE lower('%${cleanText}%') LIMIT 25;`;
+    setExplorerQuery(sql);
+    handleRunExplorerQuery(sql);
+  };
+
+  useEffect(() => {
+    handleRunExplorerQuery('SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers LIMIT 20;');
+  }, []);
 
   // Focus / Zen Mode state (toggle via button or hotkey 'F')
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
@@ -1278,12 +1321,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         {/* Deck Capsules (6 Decks) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           {[
-            { id: 'combo' as DeckType, label: language === 'vi' ? 'COMBO & TIẾN TRÌNH' : 'COMBO & TIMELINE', keyNum: '1' },
-            { id: 'scatter' as DeckType, label: language === 'vi' ? 'BIỂU ĐỒ PHÂN TÁN 2D' : '2D SCATTER PLOT', keyNum: '2' },
-            { id: 'taxonomy' as DeckType, label: language === 'vi' ? 'PHÂN LOẠI & HEATMAP' : 'TAXONOMY & HEATMAP', keyNum: '3' },
-            { id: 'authors' as DeckType, label: language === 'vi' ? 'TÁC GIẢ & PHÂN VỊ' : 'TOP AUTHORS & QUANTILES', keyNum: '4' },
-            { id: 'correlations' as DeckType, label: language === 'vi' ? 'TƯƠNG QUAN & ANOVA' : 'CORRELATIONS & ANOVA', keyNum: '5' },
-            { id: 'rag_audit' as DeckType, label: language === 'vi' ? 'KIỂM TOÁN CHẤT LƯỢNG RAG' : 'RAG QUALITY AUDIT', keyNum: '6' },
+            { id: 'explorer' as DeckType, label: language === 'vi' ? 'TRA CỨU BÀI BÁO & DUCKDB' : 'PAPER EXPLORER & DUCKDB', keyNum: '1' },
+            { id: 'combo' as DeckType, label: language === 'vi' ? 'COMBO & TIẾN TRÌNH' : 'COMBO & TIMELINE', keyNum: '2' },
+            { id: 'scatter' as DeckType, label: language === 'vi' ? 'BIỂU ĐỒ PHÂN TÁN 2D' : '2D SCATTER PLOT', keyNum: '3' },
+            { id: 'taxonomy' as DeckType, label: language === 'vi' ? 'PHÂN LOẠI & HEATMAP' : 'TAXONOMY & HEATMAP', keyNum: '4' },
+            { id: 'authors' as DeckType, label: language === 'vi' ? 'TÁC GIẢ & PHÂN VỊ' : 'TOP AUTHORS & QUANTILES', keyNum: '5' },
+            { id: 'correlations' as DeckType, label: language === 'vi' ? 'TƯƠNG QUAN & ANOVA' : 'CORRELATIONS & ANOVA', keyNum: '6' },
+            { id: 'rag_audit' as DeckType, label: language === 'vi' ? 'KIỂM TOÁN CHẤT LƯỢNG RAG' : 'RAG QUALITY AUDIT', keyNum: '7' },
           ].map((deck) => {
             const isActive = activeDeck === deck.id;
             return (
@@ -1349,6 +1393,218 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           position: 'relative',
         }}
       >
+        {/* ------------------------------------------------------------ */}
+        {/* SUB-DECK 0: REAL PAPER EXPLORER & DUCKDB IN-PROCESS QUERY     */}
+        {/* ------------------------------------------------------------ */}
+        {activeDeck === 'explorer' && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              minHeight: 0,
+              gap: '10px',
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: `1px solid ${themeStyles.border}`,
+              padding: '12px 16px',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header Controls: Live Search + Quick Filters */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: '#38bdf8' }}>
+                    [EDA-REAL-PARQUET]
+                  </span>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
+                    {language === 'vi' ? 'TRA CỨU BÀI BÁO THẬT TỪ SILVER LAKEHOUSE & DUCKDB OLAP' : 'REAL PAPER EXPLORER FROM SILVER LAKEHOUSE & DUCKDB OLAP'}
+                  </h3>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 700 }}>
+                    ⚡ {explorerElapsedMs.toFixed(1)}ms execution
+                  </span>
+                  <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                    | {explorerResults.length} records returned
+                  </span>
+                </div>
+              </div>
+
+              {/* Search Bar + Quick Category Filters */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    type="text"
+                    value={paperSearchText}
+                    onChange={(e) => handleSearchPapers(e.target.value)}
+                    placeholder={language === 'vi' ? 'Tìm bài báo thật theo tiêu đề, danh mục, tác giả...' : 'Search real papers by title, category, author...'}
+                    style={{
+                      width: '100%',
+                      padding: '7px 12px 7px 32px',
+                      borderRadius: '6px',
+                      border: `1px solid ${themeStyles.border}`,
+                      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.25)' : '#ffffff',
+                      color: themeStyles.textPrimary,
+                      fontSize: '11.5px',
+                      fontFamily: 'var(--font-mono)',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: themeStyles.textMuted }}
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
+
+                {/* SQL Presets */}
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  {[
+                    { label: 'TOP PAPERS', sql: 'SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers LIMIT 20;' },
+                    { label: 'HEAVY MATH', sql: 'SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers ORDER BY total_math_count DESC LIMIT 20;' },
+                    { label: 'cs.AI ONLY', sql: "SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers WHERE primary_category = 'cs.AI' LIMIT 20;" },
+                    { label: 'stat.ML ONLY', sql: "SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers WHERE primary_category = 'stat.ML' LIMIT 20;" },
+                  ].map((p, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setExplorerQuery(p.sql);
+                        handleRunExplorerQuery(p.sql);
+                      }}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: '5px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+                        color: themeStyles.textSecondary,
+                        border: `1px solid ${themeStyles.border}`,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Live Data Table Container */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                border: `1px solid ${themeStyles.border}`,
+                borderRadius: '6px',
+                backgroundColor: isDark ? 'rgba(0, 0, 0, 0.15)' : '#ffffff',
+              }}
+            >
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
+                <thead style={{ position: 'sticky', top: 0, backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderBottom: `1px solid ${themeStyles.border}`, zIndex: 10 }}>
+                  <tr>
+                    <th style={{ padding: '8px 10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', width: '120px' }}>ID / DOI</th>
+                    <th style={{ padding: '8px 10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>TITLE</th>
+                    <th style={{ padding: '8px 10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', width: '85px' }}>CATEGORY</th>
+                    <th style={{ padding: '8px 10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', width: '80px', textAlign: 'right' }}>MATH</th>
+                    <th style={{ padding: '8px 10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', width: '80px', textAlign: 'right' }}>WORDS</th>
+                    <th style={{ padding: '8px 10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', width: '180px' }}>AUTHORS</th>
+                    <th style={{ padding: '8px 10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', width: '110px', textAlign: 'center' }}>ACTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {explorerResults.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                        {explorerRunning ? (language === 'vi' ? 'Đang thực thi truy vấn DuckDB SIMD...' : 'Executing DuckDB SIMD query...') : (language === 'vi' ? 'Không tìm thấy bài báo phù hợp' : 'No matching papers found')}
+                      </td>
+                    </tr>
+                  ) : (
+                    explorerResults.map((row, idx) => {
+                      const paperId = String(row.paper_id || `paper-${idx}`);
+                      const title = String(row.title || 'Untitled');
+                      const category = String(row.primary_category || 'cs.AI');
+                      const mathCount = Number(row.total_math_count || 0);
+                      const words = Number(row.total_words || 0);
+                      const authors = Array.isArray(row.authors) ? row.authors.slice(0, 2).join(', ') : String(row.authors || 'Unknown');
+
+                      return (
+                        <tr
+                          key={idx}
+                          style={{
+                            borderBottom: `1px solid ${themeStyles.border}`,
+                            backgroundColor: idx % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#f8fafc'),
+                          }}
+                        >
+                          <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: '#38bdf8', fontWeight: 700 }}>
+                            {paperId}
+                          </td>
+                          <td style={{ padding: '8px 10px', fontWeight: 600, color: themeStyles.textPrimary }}>
+                            {title}
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, backgroundColor: isDark ? 'rgba(124, 58, 237, 0.2)' : '#f3e8ff', color: isDark ? '#c084fc' : '#7c3aed' }}>
+                              {category}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: mathCount > 100 ? '#f59e0b' : themeStyles.textSecondary, fontWeight: 700 }}>
+                            {mathCount.toLocaleString()}
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
+                            {words.toLocaleString()}
+                          </td>
+                          <td style={{ padding: '8px 10px', color: themeStyles.textMuted, fontSize: '10.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+                            {authors}
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onNavigateToRag) {
+                                  onNavigateToRag(title);
+                                }
+                              }}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                                backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : '#e0e7ff',
+                                color: isDark ? '#a5b4fc' : '#4338ca',
+                                border: '1px solid rgba(99, 102, 241, 0.4)',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={language === 'vi' ? 'Hỏi Grounded RAG về bài báo này' : 'Query Grounded RAG about this paper'}
+                            >
+                              ▶ RAG
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* ------------------------------------------------------------ */}
         {/* SUB-DECK 1: COMBO CLUSTERED BAR & TIMELINE AREA CHARTS       */}
         {/* ------------------------------------------------------------ */}

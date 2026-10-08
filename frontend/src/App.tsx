@@ -25,7 +25,7 @@ export default function App() {
     refreshStorageStats,
   } = useLakehouseStreamStore();
 
-  const [activeTab, setActiveTab] = useState<AppTab>('schematic');
+  const [activeTab, setActiveTab] = useState<AppTab>('pillars');
   const [schematicViewMode, setSchematicViewMode] = useState<SchematicViewMode>('canvas');
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('IDLE');
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
@@ -105,10 +105,10 @@ export default function App() {
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
         return;
       }
-      if (e.altKey && e.key === '1') setActiveTab('schematic');
+      if (e.altKey && e.key === '1') setActiveTab('pillars');
       else if (e.altKey && e.key === '2') setActiveTab('eda');
-      else if (e.altKey && e.key === '3') setActiveTab('pillars');
-      else if (e.altKey && e.key === '4') setActiveTab('rag');
+      else if (e.altKey && e.key === '3') setActiveTab('rag');
+      else if (e.altKey && e.key === '4') setActiveTab('schematic');
       else if (e.altKey && e.key === '5') setActiveTab('logs');
       else if (e.shiftKey && (e.key === 'T' || e.key === 't')) toggleTheme();
     };
