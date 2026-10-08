@@ -1097,8 +1097,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {language === 'vi' ? 'Bộ Cào 4 Nguồn' : '4-Source Harvesters'}
                 </div>
-                <div style={{ fontSize: '11px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  arXiv • OpenReview • OpenAlex • CVF
+                <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', marginTop: '3px' }}>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : '#f3e8ff', color: isDark ? '#c084fc' : '#7c3aed', fontWeight: 700 }}>arXiv</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#dbeafe', color: isDark ? '#60a5fa' : '#1d4ed8', fontWeight: 700 }}>OpenReview</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#e0f2fe', color: isDark ? '#38bdf8' : '#0369a1', fontWeight: 700 }}>OpenAlex</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#d1fae5', color: isDark ? '#34d399' : '#047857', fontWeight: 700 }}>CVF</span>
                 </div>
               </div>
             </div>
@@ -5040,9 +5043,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       <div
         style={{
           position: 'fixed',
-          bottom: drawerOpen ? '374px' : '18px',
+          bottom: '18px',
           right: '24px',
-          display: drawerExpanded ? 'none' : 'flex',
+          display: (drawerOpen || drawerExpanded) ? 'none' : 'flex',
           alignItems: 'center',
           gap: '8px',
           backgroundColor: themeStyles.zoomBarBg,
