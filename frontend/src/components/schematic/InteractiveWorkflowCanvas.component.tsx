@@ -5,7 +5,6 @@ import {
   executeDuckDbQuery,
   searchLakehouse,
   sendChatQuery,
-  syncR2Storage,
   resetStorageSession,
 } from '../../services';
 import { useLakehouseStreamStore, appendStreamLog, clearStreamLogs, resetSessionInStore } from '../../store';
@@ -391,29 +390,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     refreshStorageStats,
   } = useLakehouseStreamStore();
 
-  const [r2Syncing, setR2Syncing] = useState(false);
   const [r2SyncMessage, setR2SyncMessage] = useState<string | null>(null);
   const [r2ViewMode, setR2ViewMode] = useState<'active' | 'total'>('active');
-
-  const handleSyncR2InCanvas = async () => {
-    setR2Syncing(true);
-    setR2SyncMessage(language === 'vi' ? 'Đang quét các đối tượng bucket Cloudflare R2...' : 'Scanning Cloudflare R2 bucket objects...');
-    try {
-      const res = await syncR2Storage();
-      await refreshStorageStats(true);
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now(), time: now, level: 'SUCCESS', tag: 'R2-SYNC', msg: res.message || 'Cloudflare R2 synchronized.' },
-      ]);
-      setR2SyncMessage(res.message || (language === 'vi' ? 'Đã đồng bộ thống kê lưu trữ R2 thành công.' : 'R2 storage stats synchronized successfully.'));
-    } catch (e: any) {
-      setR2SyncMessage(`${language === 'vi' ? 'Đồng bộ thất bại:' : 'Sync failed:'} ${e.message}`);
-    } finally {
-      setR2Syncing(false);
-      setTimeout(() => setR2SyncMessage(null), 4000);
-    }
-  };
 
   const handleResetSessionInCanvas = async () => {
     if (confirm(language === 'vi' ? 'Đặt lại bộ đếm phiên nhập thời gian thực về mốc chuẩn?' : 'Reset real-time ingestion session counter back to baseline?')) {
@@ -3465,14 +3443,14 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             bottom: 0,
             left: '58px',   // Aligned beside the 58px sidebar rail
             right: 0,
-            height: 'clamp(460px, 50vh, 540px)',
+            height: 'auto',
+            maxHeight: 'min(500px, 60vh)',
             backgroundColor: themeStyles.drawerBg,
             borderTop: `2px solid ${themeStyles.drawerBorder}`,
             boxShadow: isDark ? '0 -10px 32px rgba(0, 0, 0, 0.55)' : '0 -10px 32px rgba(0, 0, 0, 0.12)',
             display: 'flex',
             flexDirection: 'column',
             zIndex: 40,
-            transition: 'height 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
             animation: 'slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
@@ -3692,7 +3670,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           </div>
 
           {/* Panel Scrollable Body */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', backgroundColor: themeStyles.drawerBg, color: themeStyles.textPrimary }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 20px 16px', backgroundColor: themeStyles.drawerBg, color: themeStyles.textPrimary }}>
             <div>
                 {/* 1. 4-Source Harvester & Adaptive Scheduler Controls */}
                 {selectedTool.id === 'start-flow' && (
@@ -4638,41 +4616,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                                 {language === 'vi' ? 'Toàn bộ Bucket' : 'Total Bucket'} ({r2TotalGb} GB)
                               </button>
                             </div>
-
-                            {/* Sync R2 Button */}
-                            <button
-                              type="button"
-                              onClick={handleSyncR2InCanvas}
-                              disabled={r2Syncing}
-                              style={{
-                                padding: '5px 12px',
-                                borderRadius: '6px',
-                                backgroundColor: themeStyles.btnInspectBg,
-                                border: `1px solid ${themeStyles.btnInspectBorder}`,
-                                color: themeStyles.textPrimary,
-                                fontSize: '11px',
-                                fontFamily: 'var(--font-mono)',
-                                fontWeight: 700,
-                                cursor: r2Syncing ? 'not-allowed' : 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                transition: 'all 0.15s ease',
-                              }}
-                            >
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.5"
-                                style={{ animation: r2Syncing ? 'spin 1s linear infinite' : 'none' }}
-                              >
-                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-1.19" />
-                              </svg>
-                              <span>{r2Syncing ? (language === 'vi' ? 'Đang đồng bộ...' : 'Syncing...') : (language === 'vi' ? 'Đồng bộ Live R2' : 'Sync Live R2')}</span>
-                            </button>
 
                             {/* Reset Session Button */}
                             {streamSessionCount > 0 && (
