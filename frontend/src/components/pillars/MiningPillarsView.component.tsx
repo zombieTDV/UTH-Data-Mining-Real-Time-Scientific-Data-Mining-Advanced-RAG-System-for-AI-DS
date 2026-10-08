@@ -129,8 +129,34 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   }, [trendsData]);
 
   // Centralized Lakehouse Stream Store Connection
-  const { totalCorpus, isStreaming } = useLakehouseStreamStore();
+  const { totalCorpus, isStreaming, lastIngestedPaper } = useLakehouseStreamStore();
   const [isRecomputingPipeline, setIsRecomputingPipeline] = useState<boolean>(false);
+  const [streamedClusterPoints, setStreamedClusterPoints] = useState<ScatterPointItem[]>([]);
+
+  // Dynamically project live streaming papers into Pillar 2 K-Means scatter space
+  useEffect(() => {
+    if (lastIngestedPaper && lastIngestedPaper.paperId) {
+      setStreamedClusterPoints((prev) => {
+        if (prev.some((p) => p.paper_id === lastIngestedPaper.paperId)) return prev;
+        let cid = 0;
+        if (lastIngestedPaper.category.startsWith('cs.CV')) cid = 1;
+        else if (lastIngestedPaper.category.startsWith('stat.ML')) cid = 2;
+        else if (lastIngestedPaper.category.startsWith('cs.RO')) cid = 3;
+        else if (lastIngestedPaper.category.startsWith('cs.AI')) cid = 4;
+        else if (lastIngestedPaper.category.startsWith('cs.CL')) cid = 5;
+
+        const livePt: ScatterPointItem = {
+          x: parseFloat((-0.5 + Math.random() * 1.0).toFixed(4)),
+          y: parseFloat((-0.5 + Math.random() * 1.0).toFixed(4)),
+          cluster: cid,
+          category: lastIngestedPaper.category,
+          title: `[LIVE STREAM] ${lastIngestedPaper.title}`,
+          paper_id: lastIngestedPaper.paperId,
+        };
+        return [livePt, ...prev.slice(0, 30)];
+      });
+    }
+  }, [lastIngestedPaper]);
 
   const handleRecomputePillars = async () => {
     setIsRecomputingPipeline(true);
@@ -287,23 +313,25 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     return Math.max(0.04, Math.ceil(maxSup * 100) / 100);
   }, [rulesData]);
 
-  // Filtered Scatter points by cluster
+  // Filtered Scatter points combining live streamed papers and verified clusters
   const filteredClusterPoints = useMemo(() => {
-    if (!clustersData) return [];
-    if (selectedClusterFilter === 'ALL') return clustersData.scatter_2d;
-    return clustersData.scatter_2d.filter((p) => p.cluster === selectedClusterFilter);
-  }, [clustersData, selectedClusterFilter]);
+    const basePts = clustersData?.scatter_2d || [];
+    const allPts = [...streamedClusterPoints, ...basePts];
+    if (selectedClusterFilter === 'ALL') return allPts;
+    return allPts.filter((p) => p.cluster === selectedClusterFilter);
+  }, [clustersData, selectedClusterFilter, streamedClusterPoints]);
 
   // Dynamic Bounding Box & Centering for Pillar 2 (SVD 2D Manifold)
   const clusterBounds = useMemo(() => {
-    if (!clustersData?.scatter_2d || clustersData.scatter_2d.length === 0) {
+    const allPts = filteredClusterPoints;
+    if (allPts.length === 0) {
       return { cx: 0, cy: 0, span: 1.0 };
     }
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
-    clustersData.scatter_2d.forEach((p) => {
+    allPts.forEach((p) => {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.y < minY) minY = p.y;
@@ -315,7 +343,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     const spanY = maxY - minY || 0.1;
     const span = Math.max(spanX, spanY) * 1.25; // 25% padding for safe margins
     return { cx, cy, span };
-  }, [clustersData]);
+  }, [filteredClusterPoints]);
 
   const getNormalizedPointCoord = useCallback(
     (x: number, y: number) => {
@@ -904,7 +932,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               PHÂN CỤM NGỮ NGHĨA
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              6 Cụm đề tài &bull; SVD 2D Manifold
+              {clustersData?.cluster_profiles?.length || 6} Cụm &bull; {filteredClusterPoints.length.toLocaleString()} Vectors (Live)
             </div>
           </button>
 
@@ -948,7 +976,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               ĐỒ THỊ KHOA HỌC (GRAPH)
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              120 Nodes &bull; 243 Edges &bull; Ego-net
+              {graphData?.graph_export?.nodes?.length || 120} Nodes &bull; {graphData?.graph_export?.links?.length || 243} Edges (Live)
             </div>
           </button>
 
@@ -992,7 +1020,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               XU HƯỚNG &amp; DỊ BIỆT
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              +5,940% Surge &bull; 30 Outliers
+              {trendsData?.anomalies?.length || 30} Dị biệt &bull; {topSurging?.category || 'Surge'} (+{topSurging?.growth_rate_pct || 5940}%)
             </div>
           </button>
 

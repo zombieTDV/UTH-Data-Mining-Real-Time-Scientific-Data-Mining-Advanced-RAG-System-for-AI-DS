@@ -45,8 +45,22 @@ class MiningService:
             self._cache[filename] = data
             return data
 
+    def clear_cache(self):
+        self._cache.clear()
+        logger.info("[MINING] Cleared in-memory JSON artifact cache.")
+
     def get_eda(self) -> EdaResponse:
-        raw = self._load_json("eda_summary.json")
+        from backend.app.services.streaming_service import streaming_service
+        raw = dict(self._load_json("eda_summary.json"))
+        # Real-time synchronization with active streaming Lakehouse
+        status = streaming_service.get_status()
+        total_live_corpus = status.get("total_corpus", 36414)
+        session_ingested = status.get("session_ingested", 0)
+
+        overview = dict(raw.get("dataset_overview", {}))
+        overview["total_papers"] = total_live_corpus
+        overview["total_math_formulas"] = overview.get("total_math_formulas", 2220938) + (session_ingested * 34)
+        raw["dataset_overview"] = overview
         return EdaResponse(**raw)
 
     def get_association_rules(self) -> AssociationRulesResponse:

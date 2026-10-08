@@ -73,12 +73,14 @@ async def telemetry_event_stream():
 @router.post("/trigger")
 async def trigger_mining_execution(background_tasks: BackgroundTasks) -> Dict[str, str]:
     """Triggers background re-execution of the Python Data Mining Engine across the 10,000 papers."""
+    mining_service.clear_cache()
     def run_mining():
         import sys, os
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../../data_mining"))
         from data_mining.src.mining.mining_engine import MiningEngine
         engine = MiningEngine()
         engine.run_all(upload_to_r2=True)
+        mining_service.clear_cache()
 
     background_tasks.add_task(run_mining)
     return {
