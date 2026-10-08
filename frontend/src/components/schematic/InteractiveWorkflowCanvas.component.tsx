@@ -1106,7 +1106,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 onMouseEnter={() => setHoveredNodeId('start-flow')}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
-                  width: '248px',
+                  width: '260px',
                   backgroundColor: themeStyles.cardBg,
                   backdropFilter: 'blur(12px)',
                   borderRadius: '14px',
@@ -1278,10 +1278,10 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   {language === 'vi' ? 'Bộ Cào 4 Nguồn' : '4-Source Harvesters'}
                 </div>
                 <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', marginTop: '3px' }}>
-                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : '#f3e8ff', color: isDark ? '#c084fc' : '#7c3aed', fontWeight: 700 }}>arXiv</span>
-                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#dbeafe', color: isDark ? '#60a5fa' : '#1d4ed8', fontWeight: 700 }}>OpenReview</span>
-                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#e0f2fe', color: isDark ? '#38bdf8' : '#0369a1', fontWeight: 700 }}>OpenAlex</span>
-                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#d1fae5', color: isDark ? '#34d399' : '#047857', fontWeight: 700 }}>CVF</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 3.5px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : '#f3e8ff', color: isDark ? '#c084fc' : '#7c3aed', fontWeight: 700 }}>arXiv</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 3.5px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#dbeafe', color: isDark ? '#60a5fa' : '#1d4ed8', fontWeight: 700 }}>OpenReview</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 3.5px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#e0f2fe', color: isDark ? '#38bdf8' : '#0369a1', fontWeight: 700 }}>OpenAlex</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', padding: '1px 3.5px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#d1fae5', color: isDark ? '#34d399' : '#047857', fontWeight: 700 }}>CVF</span>
                 </div>
               </div>
             </div>
@@ -1303,12 +1303,12 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               </div>
 
               {/* High-Contrast Visual Source Chips: 1-Row Symmetrical 2-Pill Grid */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span style={{
-                  fontSize: '11px',
+                  fontSize: '10px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
-                  padding: '3px 6px',
+                  padding: '2.5px 5px',
                   borderRadius: '5px',
                   backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
                   color: isDark ? '#c084fc' : '#7c3aed',
@@ -1317,18 +1317,19 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   alignItems: 'center',
                   gap: '4px',
                   whiteSpace: 'nowrap',
-                  flex: '1 1 0',
+                  flex: '1 1 auto',
+                  minWidth: 0,
                   justifyContent: 'center',
                 }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#8b5cf6', flexShrink: 0 }} />
-                  arXiv {liveBronzeCount.toLocaleString()}
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#8b5cf6', flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>arXiv {liveBronzeCount.toLocaleString()}</span>
                 </span>
 
                 <span style={{
-                  fontSize: '11px',
+                  fontSize: '10px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
-                  padding: '3px 6px',
+                  padding: '2.5px 5px',
                   borderRadius: '5px',
                   backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
                   color: isDark ? '#818cf8' : '#4338ca',
@@ -1337,11 +1338,12 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   alignItems: 'center',
                   gap: '4px',
                   whiteSpace: 'nowrap',
-                  flex: '1 1 0',
+                  flex: '1 1 auto',
+                  minWidth: 0,
                   justifyContent: 'center',
                 }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1', flexShrink: 0 }} />
-                  OpenAlex {liveOpenAlexCount.toLocaleString()}
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#6366f1', flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>OpenAlex {liveOpenAlexCount.toLocaleString()}</span>
                 </span>
               </div>
             </div>
@@ -1487,7 +1489,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             onMouseEnter={() => setHoveredNodeId('bronze-instance')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '248px',
+              width: '260px',
               backgroundColor: themeStyles.cardBg,
               backdropFilter: 'blur(12px)',
               borderRadius: '14px',
@@ -1948,7 +1950,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             onMouseEnter={() => setHoveredNodeId('review-duckdb')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '248px',
+              width: '260px',
               backgroundColor: themeStyles.cardBg,
               backdropFilter: 'blur(12px)',
               borderRadius: '14px',
@@ -2507,7 +2509,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 onMouseEnter={() => setHoveredNodeId('silver-parquet')}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
-                  width: '248px',
+                  width: '260px',
                   backgroundColor: themeStyles.cardBg,
                   backdropFilter: 'blur(12px)',
                   borderRadius: '14px',
@@ -2812,7 +2814,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 onMouseEnter={() => setHoveredNodeId('gold-lancedb')}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
-                  width: '248px',
+                  width: '260px',
                   backgroundColor: themeStyles.cardBg,
                   backdropFilter: 'blur(12px)',
                   borderRadius: '14px',
@@ -3374,7 +3376,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 onMouseEnter={() => setHoveredNodeId('grounded-rag')}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
-                  width: '248px',
+                  width: '260px',
                   backgroundColor: isGroundedRagReady
                     ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#ffffff')
                     : themeStyles.cardBg,
