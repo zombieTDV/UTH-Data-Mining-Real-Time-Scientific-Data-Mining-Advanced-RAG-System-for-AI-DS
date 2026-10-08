@@ -1,5 +1,5 @@
-import { useState, useRef, type FC } from 'react';
-import { PipelineFlow, StorageInspector } from '../components/schematic';
+import { useState, useEffect, type FC } from 'react';
+import { InteractiveWorkflowCanvas, PipelineFlow, StorageInspector } from '../components/schematic';
 import { MetricsBento } from '../components/common';
 import { useLakehouseStreamStore } from '../store';
 import { useTranslation } from '../hooks';
@@ -14,6 +14,8 @@ export interface SchematicScreenProps {
   onTriggerPipeline?: () => void;
 }
 
+export type CanvasOverlayType = 'none' | 'bento' | 'medallion' | 'storage';
+
 export const SchematicScreen: FC<SchematicScreenProps> = ({
   theme = 'dark',
   pipelineStatus = 'IDLE',
@@ -24,25 +26,31 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   const { storageUsedGb, isStreaming } = useLakehouseStreamStore();
   const isDark = theme === 'dark';
 
-  const [activeSection, setActiveSection] = useState<'bento' | 'medallion' | 'storage'>('bento');
+  const [activeOverlay, setActiveOverlay] = useState<CanvasOverlayType>('none');
 
-  const bentoRef = useRef<HTMLDivElement>(null);
-  const medallionRef = useRef<HTMLDivElement>(null);
-  const storageRef = useRef<HTMLDivElement>(null);
-
-  const scrollToSection = (section: 'bento' | 'medallion' | 'storage') => {
-    setActiveSection(section);
-    const refMap = {
-      bento: bentoRef,
-      medallion: medallionRef,
-      storage: storageRef,
+  // Keyboard shortcut listener: Escape to close overlay, B for Bento, M for Medallion, S for Storage
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+      if (e.key === 'Escape') {
+        setActiveOverlay('none');
+      } else if (e.key === 'b' || e.key === 'B') {
+        setActiveOverlay((prev) => (prev === 'bento' ? 'none' : 'bento'));
+      } else if (e.key === 'm' || e.key === 'M') {
+        setActiveOverlay((prev) => (prev === 'medallion' ? 'none' : 'medallion'));
+      } else if (e.key === 's' || e.key === 'S') {
+        setActiveOverlay((prev) => (prev === 'storage' ? 'none' : 'storage'));
+      }
     };
-    refMap[section].current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
-    <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      {/* Top Schematic Control Bar (Anchored Header with Section Quick-Jumps) */}
+    <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
+      {/* Top Schematic Control Bar (Integrated Header with Direct Icon Triggers) */}
       <div
         style={{
           height: '46px',
@@ -57,7 +65,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           gap: '16px',
         }}
       >
-        {/* Left Side: Title & Real-Time Lakehouse Badges */}
+        {/* Left Side: Title & Live Lakehouse Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, overflow: 'hidden' }}>
           <span
             style={{
@@ -81,8 +89,8 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               }}
             >
               {language === 'vi'
-                ? 'HỆ THỐNG LAKEHOUSE KHOA HỌC & KIẾN TRÚC MEDALLION'
-                : 'SCIENTIFIC LAKEHOUSE & MEDALLION PIPELINE'}
+                ? 'SƠ ĐỒ LUỒNG PIPELINE LAKEHOUSE (CANVAS FLOW)'
+                : 'LAKEHOUSE WORKFLOW PIPELINE CANVAS'}
             </span>
 
             {/* Micro Badges */}
@@ -123,21 +131,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
                   fontFamily: 'var(--font-mono)',
                   padding: '2px 7px',
                   borderRadius: '4px',
-                  backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                  color: '#f59e0b',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                LANCEDB: 164.7K VECTORS
-              </span>
-              <span
-                style={{
-                  fontSize: '9.5px',
-                  fontFamily: 'var(--font-mono)',
-                  padding: '2px 7px',
-                  borderRadius: '4px',
                   backgroundColor: isStreaming ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.12)',
                   color: isStreaming ? '#ef4444' : '#10b981',
                   border: isStreaming ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.25)',
@@ -153,8 +146,9 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Section Jump Navigator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        {/* Right Side: Integrated Icon Triggers to Open Bento, Medallion, and Storage on top of Canvas */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {/* Integrated Tool Icons Group */}
           <div
             style={{
               display: 'flex',
@@ -166,36 +160,94 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               gap: '4px',
             }}
           >
-            {[
-              { id: 'bento' as const, label: language === 'vi' ? '01. BENTO CHỈ SỐ' : '01. CAPACITY BENTO' },
-              { id: 'medallion' as const, label: language === 'vi' ? '02. TIẾN TRÌNH MEDALLION' : '02. MEDALLION FLOW' },
-              { id: 'storage' as const, label: language === 'vi' ? '03. LĂNG KÍNH LƯU TRỮ' : '03. STORAGE LENS' },
-            ].map((sec) => {
-              const isSelected = activeSection === sec.id;
-              return (
-                <button
-                  key={sec.id}
-                  type="button"
-                  onClick={() => scrollToSection(sec.id)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '5px',
-                    fontSize: '10.5px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: isSelected ? 800 : 600,
-                    border: isSelected ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid transparent',
-                    backgroundColor: isSelected ? (isDark ? 'rgba(16, 185, 129, 0.2)' : '#dcfce7') : 'transparent',
-                    color: isSelected ? (isDark ? '#34d399' : '#059669') : 'var(--text-muted)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {sec.label}
-                </button>
-              );
-            })}
+            {/* 1. Bento Metrics Icon Button */}
+            <button
+              type="button"
+              onClick={() => setActiveOverlay((prev) => (prev === 'bento' ? 'none' : 'bento'))}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '5px',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: activeOverlay === 'bento' ? 800 : 600,
+                backgroundColor: activeOverlay === 'bento' ? (isDark ? 'rgba(56, 189, 248, 0.25)' : '#e0f2fe') : 'transparent',
+                color: activeOverlay === 'bento' ? '#38bdf8' : 'var(--text-secondary)',
+                border: activeOverlay === 'bento' ? '1px solid rgba(56, 189, 248, 0.6)' : '1px solid transparent',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title={language === 'vi' ? 'Bật/tắt bảng chỉ số Bento (Phím B)' : 'Toggle Bento Metrics (Key B)'}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="9" />
+                <rect x="14" y="3" width="7" height="5" />
+                <rect x="14" y="12" width="7" height="9" />
+                <rect x="3" y="16" width="7" height="5" />
+              </svg>
+              <span>{language === 'vi' ? 'BENTO CHỈ SỐ' : 'BENTO METRICS'}</span>
+            </button>
+
+            {/* 2. Medallion Flow Icon Button */}
+            <button
+              type="button"
+              onClick={() => setActiveOverlay((prev) => (prev === 'medallion' ? 'none' : 'medallion'))}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '5px',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: activeOverlay === 'medallion' ? 800 : 600,
+                backgroundColor: activeOverlay === 'medallion' ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#dcfce7') : 'transparent',
+                color: activeOverlay === 'medallion' ? '#10b981' : 'var(--text-secondary)',
+                border: activeOverlay === 'medallion' ? '1px solid rgba(16, 185, 129, 0.6)' : '1px solid transparent',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title={language === 'vi' ? 'Bật/tắt kiến trúc Medallion (Phím M)' : 'Toggle Medallion Flow (Key M)'}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              <span>{language === 'vi' ? 'KIẾN TRÚC MEDALLION' : 'MEDALLION FLOW'}</span>
+            </button>
+
+            {/* 3. Storage Inspector Icon Button */}
+            <button
+              type="button"
+              onClick={() => setActiveOverlay((prev) => (prev === 'storage' ? 'none' : 'storage'))}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '5px',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: activeOverlay === 'storage' ? 800 : 600,
+                backgroundColor: activeOverlay === 'storage' ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : 'transparent',
+                color: activeOverlay === 'storage' ? '#f59e0b' : 'var(--text-secondary)',
+                border: activeOverlay === 'storage' ? '1px solid rgba(245, 158, 11, 0.6)' : '1px solid transparent',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title={language === 'vi' ? 'Bật/tắt lăng kính lưu trữ R2 & Điều phối (Phím S)' : 'Toggle Storage Inspector & Scheduler (Key S)'}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+              </svg>
+              <span>{language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ' : 'STORAGE LENS'}</span>
+            </button>
           </div>
 
+          {/* Quick Jump to RAG */}
           {onNavigateTab && (
             <button
               type="button"
@@ -221,6 +273,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
             </button>
           )}
 
+          {/* Run Pipeline Button */}
           {onTriggerPipeline && (
             <button
               type="button"
@@ -250,72 +303,260 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
         </div>
       </div>
 
-      {/* Main Unified Viewport (Single Scroll Container, Zero Tab Fragmenting) */}
-      <div
-        style={{
-          flex: 1,
-          width: '100%',
-          overflowY: 'auto',
-          padding: '20px 24px 48px',
-          scrollBehavior: 'smooth',
-        }}
-      >
-        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          {/* SECTION 1: METRICS BENTO & STORAGE CAPACITY */}
-          <div ref={bentoRef} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                  PHÂN KHÚC 01
-                </span>
-                <span style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                  {language === 'vi' ? 'TỔNG QUAN QUY MÔ & DUNG LƯỢNG LƯU TRỮ' : 'LAKEHOUSE CAPACITY & METRICS BENTO'}
-                </span>
-              </div>
-              <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                {language === 'vi' ? 'Hạn mức 10GB Cloudflare R2 • 36,414 công trình • 2.22M công thức toán' : '10GB Cloudflare R2 Quota • 36,414 Works • 2.22M LaTeX Formulas'}
-              </span>
-            </div>
-            <MetricsBento />
-          </div>
+      {/* Main Viewport: THE INTERACTIVE CANVAS FLOW (Always rendered & running) */}
+      <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
+        <InteractiveWorkflowCanvas
+          onNavigateTab={onNavigateTab}
+          isPipelineRunning={pipelineStatus === 'RUNNING'}
+          onTriggerPipeline={onTriggerPipeline}
+          theme={theme}
+          language={language}
+        />
 
-          {/* SECTION 2: MEDALLION PIPELINE ARCHITECTURE */}
-          <div ref={medallionRef} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                  PHÂN KHÚC 02
-                </span>
-                <span style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                  {language === 'vi' ? 'KIẾN TRÚC TIẾN TRÌNH MEDALLION (BRONZE • SILVER • GOLD • INFERENCE)' : 'MEDALLION PIPELINE ARCHITECTURE (BRONZE • SILVER • GOLD • INFERENCE)'}
-                </span>
-              </div>
-              <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                {language === 'vi' ? 'Chuẩn hóa quy trình 4 tầng: Ingest thô -> Parquet DuckDB -> Vector LanceDB -> RAG học thuật' : '4-tier enterprise flow: Raw Ingestion -> Parquet DuckDB -> Vector LanceDB -> Academic RAG'}
-              </span>
-            </div>
-            <PipelineFlow />
-          </div>
+        {/* Floating Quick Icon Dock on Bottom-Left of the Canvas */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '16px',
+            left: '20px',
+            zIndex: 40,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
+            backdropFilter: 'blur(12px)',
+            padding: '5px 8px',
+            borderRadius: '10px',
+            border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}`,
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)',
+          }}
+        >
+          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--text-muted)', paddingRight: '4px' }}>
+            {language === 'vi' ? 'TIỆN ÍCH:' : 'TOOLS:'}
+          </span>
 
-          {/* SECTION 3: MULTI-TIER STORAGE LENS & SCHEDULER */}
-          <div ref={storageRef} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-                  PHÂN KHÚC 03
-                </span>
-                <span style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                  {language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG & BỘ LẬP LỊCH TỰ HÀNH' : 'MULTI-TIER STORAGE LENS & AUTONOMOUS SCHEDULER'}
-                </span>
-              </div>
-              <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                {language === 'vi' ? 'Khảo sát cây thư mục R2, bảng Parquet nén Snappy 4.2x và điều khiển Daemon tự động' : 'Inspect R2 object tree, Snappy 4.2x Parquets, and configure autonomous crawl daemon'}
-              </span>
-            </div>
-            <StorageInspector />
-          </div>
+          <button
+            type="button"
+            onClick={() => setActiveOverlay('bento')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              fontSize: '10.5px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              backgroundColor: activeOverlay === 'bento' ? 'rgba(56, 189, 248, 0.25)' : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9'),
+              color: activeOverlay === 'bento' ? '#38bdf8' : 'var(--text-secondary)',
+              border: activeOverlay === 'bento' ? '1px solid rgba(56, 189, 248, 0.6)' : '1px solid transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <span>📊</span>
+            <span>Bento [B]</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveOverlay('medallion')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              fontSize: '10.5px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              backgroundColor: activeOverlay === 'medallion' ? 'rgba(16, 185, 129, 0.25)' : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9'),
+              color: activeOverlay === 'medallion' ? '#10b981' : 'var(--text-secondary)',
+              border: activeOverlay === 'medallion' ? '1px solid rgba(16, 185, 129, 0.6)' : '1px solid transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <span>🏛️</span>
+            <span>Medallion [M]</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveOverlay('storage')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              fontSize: '10.5px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              backgroundColor: activeOverlay === 'storage' ? 'rgba(245, 158, 11, 0.25)' : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9'),
+              color: activeOverlay === 'storage' ? '#f59e0b' : 'var(--text-secondary)',
+              border: activeOverlay === 'storage' ? '1px solid rgba(245, 158, 11, 0.6)' : '1px solid transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <span>🗄️</span>
+            <span>Storage [S]</span>
+          </button>
         </div>
       </div>
+
+      {/* ============================================================== */}
+      {/* INTEGRATED SLIDE-OVER OVERLAY MODAL (ON TOP OF CANVAS)         */}
+      {/* ============================================================== */}
+      {activeOverlay !== 'none' && (
+        <div
+          onClick={() => setActiveOverlay('none')}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(10px)',
+            zIndex: 60,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '24px',
+            animation: 'fadeIn 0.15s ease',
+          }}
+        >
+          {/* Modal Container */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '1380px',
+              width: '100%',
+              maxHeight: '90vh',
+              backgroundColor: isDark ? '#0b1120' : '#ffffff',
+              border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.18)' : '#cbd5e1'}`,
+              borderRadius: '16px',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.65)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                height: '56px',
+                padding: '0 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
+                flexShrink: 0,
+              }}
+            >
+              {/* Left Title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>
+                  {activeOverlay === 'bento' ? '📊' : activeOverlay === 'medallion' ? '🏛️' : '🗄️'}
+                </span>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                    {activeOverlay === 'bento'
+                      ? (language === 'vi' ? 'TỔNG QUAN QUY MÔ & DUNG LƯỢNG LƯU TRỮ' : 'LAKEHOUSE CAPACITY & METRICS BENTO')
+                      : activeOverlay === 'medallion'
+                      ? (language === 'vi' ? 'KIẾN TRÚC TIẾN TRÌNH MEDALLION (BRONZE • SILVER • GOLD • INFERENCE)' : 'MEDALLION PIPELINE ARCHITECTURE')
+                      : (language === 'vi' ? 'LĂNG KÍNH LƯU TRỮ ĐA TẦNG & BỘ LẬP LỊCH TỰ HÀNH' : 'MULTI-TIER STORAGE LENS & AUTONOMOUS SCHEDULER')}
+                  </div>
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {activeOverlay === 'bento'
+                      ? (language === 'vi' ? 'Hạn mức 10GB Cloudflare R2 • 36,414 công trình • 2.22M công thức toán' : '10GB Cloudflare R2 Quota • 36,414 Works • 2.22M LaTeX Formulas')
+                      : activeOverlay === 'medallion'
+                      ? (language === 'vi' ? 'Quy trình chuẩn Enterprise từ thu thập thô đến phục vụ RAG học thuật' : 'Enterprise 4-stage flow from raw harvest to academic RAG')
+                      : (language === 'vi' ? 'Cây thư mục R2, bảng Parquet nén Snappy 4.2x và điều khiển Daemon cào' : 'R2 object tree, Snappy 4.2x Parquets, and crawl daemon')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Center Tab Switcher (Fast Switching within Modal) */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#e2e8f0',
+                  padding: '3px',
+                  borderRadius: '8px',
+                }}
+              >
+                {[
+                  { id: 'bento' as const, label: language === 'vi' ? 'Bento Chỉ Số' : 'Bento Metrics' },
+                  { id: 'medallion' as const, label: language === 'vi' ? 'Tiến Trình Medallion' : 'Medallion Flow' },
+                  { id: 'storage' as const, label: language === 'vi' ? 'Lăng Kính Lưu Trữ' : 'Storage Lens' },
+                ].map((tab) => {
+                  const isCurrent = activeOverlay === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveOverlay(tab.id)}
+                      style={{
+                        padding: '4px 12px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: isCurrent ? 800 : 600,
+                        backgroundColor: isCurrent ? (isDark ? '#1e293b' : '#ffffff') : 'transparent',
+                        color: isCurrent ? (isDark ? '#f8fafc' : '#0f172a') : 'var(--text-muted)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: isCurrent ? '0 1px 4px rgba(0,0,0,0.2)' : 'none',
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right Close Button */}
+              <button
+                type="button"
+                onClick={() => setActiveOverlay('none')}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1'}`,
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
+                  color: 'var(--text-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  transition: 'all 0.15s ease',
+                }}
+                title={language === 'vi' ? 'Đóng (Phím Escape)' : 'Close (Escape)'}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content Body */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '24px',
+                backgroundColor: isDark ? '#0b1120' : '#ffffff',
+              }}
+            >
+              {activeOverlay === 'bento' && <MetricsBento />}
+              {activeOverlay === 'medallion' && <PipelineFlow />}
+              {activeOverlay === 'storage' && <StorageInspector />}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
