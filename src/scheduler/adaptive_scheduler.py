@@ -48,32 +48,32 @@ logger, log_file = setup_pipeline_logging("adaptive_scheduler")
 SCHEDULE_CONFIGS = {
     "arxiv": {
         "name": "arXiv Preprints (OAI-PMH)",
-        "frequency": "Daily at 07:30 VN (00:30 UTC)",
-        "cron_hour": 7,
-        "cron_minute": 30,
+        "frequency": "Daily at 12:00 VN (05:00 UTC)",
+        "cron_hour": 12,
+        "cron_minute": 0,
         "default_limit": 200,
         "description": "Harvests daily preprint releases across cs.AI, cs.LG, cs.CV",
     },
     "openreview": {
         "name": "OpenReview Peer Reviews",
-        "frequency": "Every 4 Hours (00:00, 04:00, 08:00, 12:00, 16:00, 20:00)",
-        "interval_hours": 4,
+        "frequency": "Daily at 12:00 VN (05:00 UTC)",
+        "cron_hour": 12,
+        "cron_minute": 0,
         "default_limit": 100,
         "description": "Harvests conference review threads and rebuttal scores (ICLR, NeurIPS)",
     },
     "openalex": {
         "name": "OpenAlex Citation Graph",
-        "frequency": "Daily at 02:00 VN (19:00 UTC)",
-        "cron_hour": 2,
+        "frequency": "Daily at 12:00 VN (05:00 UTC)",
+        "cron_hour": 12,
         "cron_minute": 0,
         "default_limit": 150,
         "description": "Harvests global metadata and citation graph with reconstructed abstracts",
     },
     "cvf": {
         "name": "CVF Open Access (CVPR / ICCV)",
-        "frequency": "Weekly on Monday at 09:00 VN",
-        "cron_weekday": 0,  # Monday
-        "cron_hour": 9,
+        "frequency": "Daily at 12:00 VN (05:00 UTC)",
+        "cron_hour": 12,
         "cron_minute": 0,
         "default_limit": 100,
         "description": "Harvests proceedings papers from CVPR & ICCV Open Access",
@@ -127,9 +127,11 @@ class AdaptiveHarvesterScheduler:
             try:
                 with open(self.state_file, "r", encoding="utf-8") as f:
                     loaded = json.load(f)
-                    for key in SCHEDULE_CONFIGS:
+                    for key, cfg in SCHEDULE_CONFIGS.items():
                         if key in loaded and isinstance(loaded[key], dict):
                             default_state[key].update(loaded[key])
+                            default_state[key]["frequency"] = cfg["frequency"]
+                            default_state[key]["name"] = cfg["name"]
                             if "enabled" not in default_state[key]:
                                 default_state[key]["enabled"] = True
                     if "_meta" in loaded and isinstance(loaded["_meta"], dict):
