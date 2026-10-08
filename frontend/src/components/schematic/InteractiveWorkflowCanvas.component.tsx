@@ -6,7 +6,7 @@ import {
   searchLakehouse,
   sendChatQuery,
 } from '../../services';
-import { useLakehouseStreamStore } from '../../store';
+import { useLakehouseStreamStore, appendStreamLog, clearStreamLogs } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { AnimatedCounter } from '../common/AnimatedCounter.component';
 
@@ -359,15 +359,57 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [harvestFormats, setHarvestFormats] = useState<string[]>(['HTML5', 'OAI-XML']);
   const [isHarvesting, setIsHarvesting] = useState<boolean>(false);
 
-  // Terminal Logs State
-  const [logs, setLogs] = useState<Array<{ id: number; time: string; level: 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC'; tag: string; msg: string }>>([
-    { id: 1, time: '12:00:01', level: 'INFO', tag: 'SYSTEM', msg: 'Lakehouse Engine v2.4 initialized. Ready for scientific ingestion.' },
-    { id: 2, time: '12:00:03', level: 'SUCCESS', tag: 'STORAGE', msg: 'Cloudflare R2 bucket s3://uth-scientific-lakehouse connected (Zero egress).' },
-    { id: 3, time: '12:00:05', level: 'SUCCESS', tag: 'OLAP', msg: 'DuckDB in-process vector OLAP engine online (Apache Arrow SIMD zero-copy).' },
-    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 143,523 embeddings (dim=768, metric=cosine).' },
-    { id: 5, time: '12:00:09', level: 'INFO', tag: 'RAG', msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate armed with Metal GPU offload.' },
-    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 36,414 works (11.6k arXiv + 24.7k OpenAlex), 2,220,938 formulas, 143,523 LanceDB vectors synced.' },
-  ]);
+  // Consume Centralized Lakehouse Stream Store
+  const {
+    isStreaming,
+    totalCorpus,
+    sessionIngested: streamSessionCount,
+    streamSpeed,
+    streamTarget,
+    setStreamTarget,
+    storageUsedGb,
+    storageUsedPct,
+    storageStats,
+    lastPaperDeltaBytes,
+    activePipelineStage,
+    logs: storeLogs,
+  } = useLakehouseStreamStore();
+
+  // Unified Terminal Logs directly connected to Lakehouse Stream Store
+  const logs = useMemo(() => {
+    return [...storeLogs].reverse();
+  }, [storeLogs]);
+
+  interface CanvasLogItem {
+    id?: number | string;
+    time?: string;
+    level?: 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC' | 'STORAGE' | 'QUERY' | string;
+    tag?: string;
+    msg?: string;
+  }
+
+  const setLogs = (updater: CanvasLogItem[] | ((prev: CanvasLogItem[]) => CanvasLogItem[])) => {
+    if (typeof updater === 'function') {
+      const result = updater(logs as CanvasLogItem[]);
+      if (Array.isArray(result)) {
+        if (result.length === 0) {
+          clearStreamLogs();
+        } else if (result.length > logs.length) {
+          const added = result.slice(logs.length);
+          added.forEach((a: CanvasLogItem) => {
+            appendStreamLog({
+              time: a.time || new Date().toLocaleTimeString('en-US', { hour12: false }),
+              level: (a.level || 'INFO') as any,
+              tag: a.tag || 'CANVAS',
+              msg: a.msg || '',
+            });
+          });
+        }
+      }
+    } else if (Array.isArray(updater) && updater.length === 0) {
+      clearStreamLogs();
+    }
+  };
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -458,22 +500,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
   const [simulationHarvestedCount, setSimulationHarvestedCount] = useState<number>(0);
   const [formulasExtracted, setFormulasExtracted] = useState<number>(2220938);
-  const [vectorsIndexed, setVectorsIndexed] = useState<number>(143523);
-
-  // Consume Centralized Lakehouse Stream Store
-  const {
-    isStreaming,
-    totalCorpus,
-    sessionIngested: streamSessionCount,
-    streamSpeed,
-    streamTarget,
-    setStreamTarget,
-    storageUsedGb,
-    storageUsedPct,
-    storageStats,
-    lastPaperDeltaBytes,
-    activePipelineStage,
-  } = useLakehouseStreamStore();
+  const [vectorsIndexed, setVectorsIndexed] = useState<number>(164702);
 
   const liveBronzeCount = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.arxivHtmlCount + streamSessionCount
@@ -556,19 +583,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     const t3 = setTimeout(() => {
       setSimulationStage('parallel');
       setFormulasExtracted(2220938);
-      setVectorsIndexed(72000);
+      setVectorsIndexed(110000);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,220,938 formulas, 143,523 vectors indexed.' },
+        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,220,938 formulas, 164,702 vectors indexed.' },
       ]);
     }, 4000);
 
     const t4 = setTimeout(() => {
       setSimulationStage('completed');
-      setVectorsIndexed(143523);
+      setVectorsIndexed(164702);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 36,414 works, 143,523 vectors online.' },
+        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 36,414 works, 164,702 vectors online.' },
       ]);
     }, 6000);
 

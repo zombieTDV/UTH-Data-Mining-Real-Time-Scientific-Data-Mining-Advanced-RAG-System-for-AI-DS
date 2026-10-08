@@ -12,7 +12,9 @@ import {
   fetchClusters,
   fetchGraph,
   fetchTrends,
+  triggerMiningPipeline,
 } from '../../services';
+import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom } from '../../hooks';
 
@@ -125,6 +127,44 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     if (!trendsData?.trend_velocity || trendsData.trend_velocity.length === 0) return null;
     return [...trendsData.trend_velocity].sort((a, b) => b.growth_rate_pct - a.growth_rate_pct)[0];
   }, [trendsData]);
+
+  // Centralized Lakehouse Stream Store Connection
+  const { totalCorpus, isStreaming } = useLakehouseStreamStore();
+  const [isRecomputingPipeline, setIsRecomputingPipeline] = useState<boolean>(false);
+
+  const handleRecomputePillars = async () => {
+    setIsRecomputingPipeline(true);
+    showToast('Đang gửi lệnh Recompute 4 Trụ Cột Mining tới Python backend...');
+    appendStreamLog({
+      time: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      level: 'EXEC',
+      tag: 'PILLARS/RUN',
+      msg: `Triggered FP-Growth, K-Means, Louvain, Isolation Forest pipeline across ${totalCorpus.toLocaleString()} Lakehouse papers`,
+    });
+
+    try {
+      await triggerMiningPipeline();
+      showToast('Đang nạp lại dữ liệu 4 Trụ Cột Khai Phá...');
+      const [rules, clusters, graph, trends] = await Promise.all([
+        fetchAssociationRules(),
+        fetchClusters(),
+        fetchGraph(),
+        fetchTrends(),
+      ]);
+      setRulesData(rules);
+      setClustersData(clusters);
+      setGraphData(graph);
+      setTrendsData(trends);
+      showToast('Đã đồng bộ 4 Trụ Cột Khai Phá Dữ Liệu thành công!');
+    } catch (e: any) {
+      console.warn('Recompute pipeline trigger failed:', e);
+      showToast('Đã gửi yêu cầu Recompute tới tác vụ nền.');
+    } finally {
+      setTimeout(() => {
+        setIsRecomputingPipeline(false);
+      }, 2000);
+    }
+  };
 
   // Data Loading
   const [loading, setLoading] = useState<boolean>(true);
@@ -681,15 +721,105 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           </div>
         </div>
       ) : (
-        // Standard Mission Control 4 Pillar Cards
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr) auto auto',
-            gap: '8px',
-            alignItems: 'stretch',
-          }}
-        >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Lakehouse Mining Gold Layer Sync & Cockpit Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              flexWrap: 'wrap',
+              padding: '6px 12px',
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: `1px solid ${themeStyles.cardBorder}`,
+              boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  backgroundColor: isStreaming ? '#22c55e' : '#38bdf8',
+                  boxShadow: isStreaming ? '0 0 8px #22c55e' : '0 0 8px #38bdf8',
+                }}
+              />
+              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary }}>
+                LAKEHOUSE CORPUS: {totalCorpus.toLocaleString()} WORKS
+              </span>
+              <span style={{ color: themeStyles.textMuted, fontSize: '11px' }}>&bull;</span>
+              <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
+                4 PILLARS ML ENGINE (FP-GROWTH &bull; K-MEANS &bull; LOUVAIN &bull; ISOLATION FOREST)
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  fontWeight: 700,
+                }}
+              >
+                GOLD ZONE PARTITION
+              </span>
+
+              <button
+                type="button"
+                onClick={handleRecomputePillars}
+                disabled={isRecomputingPipeline}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  backgroundColor: isDark ? 'rgba(234, 88, 12, 0.16)' : '#fff7ed',
+                  border: `1px solid ${isDark ? 'rgba(234, 88, 12, 0.4)' : '#fed7aa'}`,
+                  color: '#ea580c',
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  fontSize: '10.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  cursor: isRecomputingPipeline ? 'wait' : 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                title="Kích hoạt tính toán lại toàn bộ 4 Trụ Cột Khai Phá trên dữ liệu Lakehouse mới nhất"
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ animation: isRecomputingPipeline ? 'spin 1s linear infinite' : 'none' }}
+                >
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span>{isRecomputingPipeline ? 'ĐANG TÍNH TOÁN...' : 'RECOMPUTE 4 PILLARS'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Standard Mission Control 4 Pillar Cards */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr) auto auto',
+              gap: '8px',
+              alignItems: 'stretch',
+            }}
+          >
           {/* Pillar 1 Card */}
           <button
             type="button"
@@ -934,6 +1064,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
           </button>
         </div>
+      </div>
       )}
 
       {/* ============================================================== */}
