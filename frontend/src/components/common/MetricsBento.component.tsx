@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import { StatCard } from './StatCard.component';
 import { AnimatedCounter } from './AnimatedCounter.component';
+import { ScientificMath } from './ScientificMath.component';
 import { useLakehouseStreamStore } from '../../store';
 import { useTranslation } from '../../hooks';
 
@@ -26,7 +27,6 @@ export const MetricsBento: FC = () => {
   const arxivGb = activeData?.arxivHtmlSizeGb ?? 3.763;
   const openalexCount = activeData?.openalexCount ?? 24754;
   const openalexGb = activeData?.openalexSizeGb ?? 3.971;
-  const conferenceCount = activeData?.conferenceCount ?? 184;
   const silverMb = activeData?.silverParquetSizeMb ?? 321.68;
   const activeVectors = activeData?.activeLanceDbVectors ?? 164702;
   const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 211.26;
@@ -62,9 +62,9 @@ export const MetricsBento: FC = () => {
         label={language === 'vi' ? 'Quy mô Corpus' : 'Corpus Scale'}
         badge={language === 'vi' ? 'Hồ Medallion' : 'Medallion Lakehouse'}
         badgeColor="var(--accent-emerald)"
-        value={<AnimatedCounter value={arxivCount + openalexCount + conferenceCount} />}
+        value={<AnimatedCounter value={arxivCount + openalexCount} />}
         unit={language === 'vi' ? 'bài' : 'works'}
-        description={language === 'vi' ? 'arXiv HTML5 + OpenAlex + Hội nghị CVPR / OpenReview' : 'arXiv HTML5 + OpenAlex + CVPR / OpenReview Conferences'}
+        description={language === 'vi' ? 'arXiv HTML5 + OpenAlex (cs.AI, cs.LG, cs.CV, cs.CL, cs.RO)' : 'arXiv HTML5 + OpenAlex (cs.AI, cs.LG, cs.CV, cs.CL, cs.RO)'}
         footerLeft={<>arXiv HTML5: <AnimatedCounter value={arxivCount} /></>}
         footerRight={<>OpenAlex: <AnimatedCounter value={openalexCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
@@ -322,15 +322,16 @@ export const MetricsBento: FC = () => {
         gridColumn="span 6"
       >
         <div style={{
-          padding: '8px 12px',
+          padding: '6px 14px',
           borderRadius: 'var(--radius-sm)',
           background: 'rgba(124, 58, 237, 0.08)',
           border: '1px solid rgba(124, 58, 237, 0.2)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '12px',
-          color: 'var(--accent-violet)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '40px',
         }}>
-          {'$L_{distill} = \\|z_t - \\hat{z}_s\\|^2$'}
+          <ScientificMath math="\mathcal{L}_{\text{distill}} = \| z_t - \hat{z}_s \|_2^2" />
         </div>
       </StatCard>
 
@@ -346,17 +347,30 @@ export const MetricsBento: FC = () => {
         gridColumn="span 6"
       >
         <div style={{
-          padding: '8px 12px',
+          padding: '6px 14px',
           borderRadius: 'var(--radius-sm)',
           background: 'rgba(16, 185, 129, 0.08)',
           border: '1px solid rgba(16, 185, 129, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          minHeight: '40px',
           fontFamily: 'var(--font-mono)',
-          fontSize: '12px',
-          color: 'var(--accent-emerald)',
-          textAlign: 'right',
         }}>
-          <div>{language === 'vi' ? 'Hạn mức miễn phí 10.00 GB' : '10.00 GB Free Tier'}</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{language === 'vi' ? 'Class A/B Egress Không giới hạn' : 'Class A/B Unlimited Egress'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 6px #10b981' }} />
+            <span style={{ fontSize: '11.5px', color: 'var(--text-primary)', fontWeight: 700 }}>
+              {language === 'vi' ? 'LanceDB NVMe + R2 Lakehouse' : 'LanceDB NVMe + R2 Lakehouse'}
+            </span>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '11.5px', color: 'var(--accent-emerald)', fontWeight: 800 }}>
+              {language === 'vi' ? 'Hạn mức miễn phí 10.00 GB' : '10.00 GB Free Tier'}
+            </div>
+            <div style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
+              {language === 'vi' ? 'Class A/B Egress Không giới hạn' : 'Class A/B Unlimited Egress'}
+            </div>
+          </div>
         </div>
       </StatCard>
     </div>
