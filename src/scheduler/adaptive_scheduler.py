@@ -85,19 +85,18 @@ class AdaptiveHarvesterScheduler:
     """Manages adaptive scheduling, controls (ON/OFF), state persistence, and subprocess execution."""
 
     def __init__(self, state_file: Optional[Path] = None):
-        self.state_file = state_file or (settings.ROOT_DIR / "data" / "lakehouse" / "scheduler_state.json")
-        self.state_file.parent.mkdir(parents=True, exist_ok=True)
-        self.state: Dict[str, Any] = self._load_state()
-
         # In-memory runtime execution tracking
         self.is_daemon_running: bool = False
         self._stop_event = threading.Event()
         self._daemon_task: Optional[asyncio.Task] = None
         self._daemon_thread: Optional[threading.Thread] = None
-
         self.active_proc: Optional[subprocess.Popen] = None
         self.active_source: Optional[str] = None
         self._lock = threading.Lock()
+
+        self.state_file = state_file or (settings.ROOT_DIR / "data" / "lakehouse" / "scheduler_state.json")
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.state: Dict[str, Any] = self._load_state()
 
     def _load_state(self) -> Dict[str, Any]:
         """Loads persistent scheduler state from JSON file or initializes defaults."""
