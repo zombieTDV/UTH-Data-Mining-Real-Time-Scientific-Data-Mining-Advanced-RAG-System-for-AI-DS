@@ -9,8 +9,6 @@ Reranks initial candidate chunks using full transformer cross-attention
 import math
 import logging
 from typing import List, Optional
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 from backend.app.core.config import settings
 from backend.app.schemas.search import ChunkDto
@@ -33,6 +31,9 @@ class RerankerService:
             return
 
         try:
+            import torch
+            from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
             logger.info("[RERANKER] Loading CrossEncoder model: %s...", self._model_name)
             if torch.backends.mps.is_available():
                 self.device = torch.device("mps")
@@ -94,6 +95,7 @@ class RerankerService:
             return chunks[:k]
 
         try:
+            import torch
             pairs = []
             for c in chunks:
                 title_prefix = f"Title: {c.title}. " if c.title else ""

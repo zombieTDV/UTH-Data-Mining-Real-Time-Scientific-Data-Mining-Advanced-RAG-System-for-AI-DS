@@ -8,9 +8,6 @@ Provides 768-dimensional normalized dense vectors matching LanceDB Gold Lakehous
 import logging
 from pathlib import Path
 from typing import List, Optional
-import torch
-import torch.nn.functional as F
-from transformers import AutoModel, AutoTokenizer
 
 from backend.app.core.config import settings
 
@@ -31,6 +28,10 @@ class EmbedderService:
         if self._ready:
             return
         try:
+            import torch
+            import torch.nn.functional as F
+            from transformers import AutoModel, AutoTokenizer
+
             logger.info("[EMBEDDER] Loading 768-D embedding model from %s...", self.model_path)
             model_target = self.model_path if Path(self.model_path).exists() else "nomic-ai/nomic-embed-text-v1.5"
 
@@ -74,6 +75,9 @@ class EmbedderService:
             return None
 
         try:
+            import torch
+            import torch.nn.functional as F
+
             formatted_query = f"search_query: {query.strip()}"
             inputs = self.tokenizer(
                 [formatted_query],
