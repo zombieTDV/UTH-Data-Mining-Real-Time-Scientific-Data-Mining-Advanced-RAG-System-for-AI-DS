@@ -1099,41 +1099,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           }}
         >
           {/* ============================================================== */}
-          {/* ARCHITECTURAL LAYER 01: BRONZE INGESTION & COLD OBJECT STORE   */}
+          {/* STAGE 1: arXiv Harvester (Purple) */}
           {/* ============================================================== */}
-          <div
-            style={{
-              display: 'inline-flex',
-              flexDirection: 'column',
-              position: 'relative',
-              padding: '24px 18px 14px 18px',
-              borderRadius: '16px',
-              border: `1.5px dashed ${isDark ? 'rgba(139, 92, 246, 0.35)' : 'rgba(139, 92, 246, 0.28)'}`,
-              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.03)' : 'rgba(139, 92, 246, 0.015)',
-              backdropFilter: 'blur(8px)',
-              flexShrink: 0,
-              boxShadow: isDark ? 'inset 0 0 32px rgba(139, 92, 246, 0.03)' : 'none',
-            }}
-          >
-            {/* Layer Corner Technical Brackets */}
-            <span style={{ position: 'absolute', top: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(139, 92, 246, 0.65)' : 'rgba(139, 92, 246, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌜</span>
-            <span style={{ position: 'absolute', top: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(139, 92, 246, 0.65)' : 'rgba(139, 92, 246, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌝</span>
-            <span style={{ position: 'absolute', bottom: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(139, 92, 246, 0.65)' : 'rgba(139, 92, 246, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌞</span>
-            <span style={{ position: 'absolute', bottom: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(139, 92, 246, 0.65)' : 'rgba(139, 92, 246, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌟</span>
-
-            {/* Layer Top Technical Header Badge */}
-            <div style={{ position: 'absolute', top: '-11px', left: '18px', display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 10px', borderRadius: '4px', backgroundColor: isDark ? '#090d16' : '#ffffff', border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.45)' : 'rgba(139, 92, 246, 0.35)'}`, boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.4)' : '0 1px 4px rgba(0, 0, 0, 0.06)', zIndex: 12 }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#8b5cf6', boxShadow: '0 0 6px #8b5cf6' }} />
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, letterSpacing: '0.05em', color: isDark ? '#c084fc' : '#7c3aed' }}>
-                {language === 'vi' ? 'LỚP 01 • THU THẬP BRONZE & LƯU TRỮ R2' : 'LAYER 01 • BRONZE INGESTION & COLD OBJECT STORE'}
-              </span>
-            </div>
-
-            {/* Internal Node Row: Stage 1 + Conduit 1 + Stage 2 */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              {/* ============================================================== */}
-              {/* STAGE 1: arXiv Harvester (Purple) */}
-              {/* ============================================================== */}
               <div
                 onClick={() => handleOpenInspector('start-flow')}
                 onMouseEnter={() => setHoveredNodeId('start-flow')}
@@ -1401,37 +1368,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#8b5cf6' }} />
             </div>
 
-            {/* Active Inspector Beacon Tag */}
-            {selectedNodeId === 'start-flow' && drawerOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '-22px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
-                  border: '1.5px solid #8b5cf6',
-                  boxShadow: '0 0 10px rgba(139, 92, 246, 0.5)',
-                  color: '#c084fc',
-                  fontSize: '9px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
-                  whiteSpace: 'nowrap',
-                  zIndex: 25,
-                  animation: 'beaconPulse 2s ease-in-out infinite',
-                  pointerEvents: 'none',
-                }}
-              >
-                <span style={{ fontSize: '8px' }}>▼</span>
-                <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
-              </div>
-            )}
           </div>
 
           {/* ============================================================== */}
@@ -1441,7 +1377,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             onMouseEnter={() => setHoveredNodeId('conduit-1')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '100px',
+              width: '112px',
               height: '24px',
               position: 'relative',
               display: 'flex',
@@ -1893,55 +1829,16 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e11d48' }} />
             </div>
 
-            {/* Active Inspector Beacon Tag */}
-            {selectedNodeId === 'bronze-instance' && drawerOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '-22px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
-                  border: '1.5px solid #e11d48',
-                  boxShadow: '0 0 10px rgba(225, 29, 72, 0.5)',
-                  color: '#fb7185',
-                  fontSize: '9px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
-                  whiteSpace: 'nowrap',
-                  zIndex: 25,
-                  animation: 'beaconPulse 2s ease-in-out infinite',
-                  pointerEvents: 'none',
-                }}
-              >
-                <span style={{ fontSize: '8px' }}>▼</span>
-                <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
-              </div>
-            )}
           </div>
-        </div>
-
-        {/* Layer Bottom Technical Spec Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '7px', borderTop: `1px dashed ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`, fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, letterSpacing: '0.04em' }}>
-          <span>{language === 'vi' ? 'CHUẨN S3 API • KHO AR5IV HTML5 • ZERO-EGRESS R2' : 'S3-COMPATIBLE API • AR5IV HTML5 CORPORE • ZERO-EGRESS R2'}</span>
-          <span style={{ opacity: 0.7 }}>STAGE 01 - 02</span>
-        </div>
-      </div>
 
       {/* ============================================================== */}
-      {/* HIGHWAY CONDUIT 2: Cloudflare R2 -> DuckDB (INTER-LAYER 1->2) */}
+      {/* HIGHWAY CONDUIT 2: Cloudflare R2 -> DuckDB */}
       {/* ============================================================== */}
       <div
         onMouseEnter={() => setHoveredNodeId('conduit-2')}
         onMouseLeave={() => setHoveredNodeId(null)}
         style={{
-          width: '92px',
+          width: '112px',
           height: '24px',
           position: 'relative',
           display: 'flex',
@@ -2044,41 +1941,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
       </div>
 
       {/* ============================================================== */}
-      {/* ARCHITECTURAL LAYER 02: VECTORIZED SIMD OLAP ENGINE           */}
+      {/* STAGE 3: DuckDB & LaTeX Normalizer (Amber) */}
       {/* ============================================================== */}
-      <div
-        style={{
-          display: 'inline-flex',
-          flexDirection: 'column',
-          position: 'relative',
-          padding: '24px 18px 14px 18px',
-          borderRadius: '16px',
-          border: `1.5px dashed ${isDark ? 'rgba(245, 158, 11, 0.35)' : 'rgba(245, 158, 11, 0.28)'}`,
-          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.03)' : 'rgba(245, 158, 11, 0.015)',
-          backdropFilter: 'blur(8px)',
-          flexShrink: 0,
-          boxShadow: isDark ? 'inset 0 0 32px rgba(245, 158, 11, 0.03)' : 'none',
-        }}
-      >
-        {/* Layer Corner Technical Brackets */}
-        <span style={{ position: 'absolute', top: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(245, 158, 11, 0.65)' : 'rgba(245, 158, 11, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌜</span>
-        <span style={{ position: 'absolute', top: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(245, 158, 11, 0.65)' : 'rgba(245, 158, 11, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌝</span>
-        <span style={{ position: 'absolute', bottom: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(245, 158, 11, 0.65)' : 'rgba(245, 158, 11, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌞</span>
-        <span style={{ position: 'absolute', bottom: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(245, 158, 11, 0.65)' : 'rgba(245, 158, 11, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌟</span>
-
-        {/* Layer Top Technical Header Badge */}
-        <div style={{ position: 'absolute', top: '-11px', left: '18px', display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 10px', borderRadius: '4px', backgroundColor: isDark ? '#090d16' : '#ffffff', border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.45)' : 'rgba(245, 158, 11, 0.35)'}`, boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.4)' : '0 1px 4px rgba(0, 0, 0, 0.06)', zIndex: 12 }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#f59e0b', boxShadow: '0 0 6px #f59e0b' }} />
-          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, letterSpacing: '0.05em', color: isDark ? '#fbbf24' : '#d97706' }}>
-            {language === 'vi' ? 'LỚP 02 • ĐỘNG CƠ OLAP SIMD VECTOR HOÁ' : 'LAYER 02 • VECTORIZED SIMD OLAP ENGINE'}
-          </span>
-        </div>
-
-        {/* Internal Node Row: Stage 3 */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          {/* ============================================================== */}
-          {/* STAGE 3: DuckDB & LaTeX Normalizer (Amber) */}
-          {/* ============================================================== */}
           <div
             onClick={() => handleOpenInspector('review-duckdb')}
             onMouseEnter={() => setHoveredNodeId('review-duckdb')}
@@ -2382,55 +2246,16 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
             </div>
 
-            {/* Active Inspector Beacon Tag */}
-            {selectedNodeId === 'review-duckdb' && drawerOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '-22px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
-                  border: '1.5px solid #f59e0b',
-                  boxShadow: '0 0 10px rgba(245, 158, 11, 0.5)',
-                  color: '#fbbf24',
-                  fontSize: '9px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
-                  whiteSpace: 'nowrap',
-                  zIndex: 25,
-                  animation: 'beaconPulse 2s ease-in-out infinite',
-                  pointerEvents: 'none',
-                }}
-              >
-                <span style={{ fontSize: '8px' }}>▼</span>
-                <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
-              </div>
-            )}
           </div>
-        </div>
-
-        {/* Layer Bottom Technical Spec Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '7px', borderTop: `1px dashed ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`, fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, letterSpacing: '0.04em' }}>
-          <span>{language === 'vi' ? 'DUCKDB V1.2.0 • LÕI AVX-512 • PARQUET IN-PROCESS' : 'DUCKDB V1.2.0 • AVX-512 KERNEL • IN-PROCESS PARQUET'}</span>
-          <span style={{ opacity: 0.7 }}>STAGE 03</span>
-        </div>
-      </div>
 
       {/* ============================================================== */}
-      {/* HIGHWAY CONDUIT 3: DuckDB -> Parallel Fork (INTER-LAYER 2->3)  */}
+      {/* HIGHWAY CONDUIT 3: DuckDB -> Parallel Fork */}
       {/* ============================================================== */}
       <div
         onMouseEnter={() => setHoveredNodeId('conduit-3')}
         onMouseLeave={() => setHoveredNodeId(null)}
         style={{
-          width: '92px',
+          width: '112px',
           height: '24px',
           position: 'relative',
           display: 'flex',
@@ -2533,35 +2358,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
       </div>
 
       {/* ============================================================== */}
-      {/* ARCHITECTURAL LAYER 03: MEDALLION SILVER / GOLD INDEXING       */}
+      {/* STAGE 4: MEDALLION SILVER / GOLD PARALLEL PIPELINE             */}
       {/* ============================================================== */}
-      <div
-        style={{
-          display: 'inline-flex',
-          flexDirection: 'column',
-          position: 'relative',
-          padding: '24px 18px 14px 18px',
-          borderRadius: '16px',
-          border: `1.5px dashed ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.28)'}`,
-          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.03)' : 'rgba(16, 185, 129, 0.015)',
-          backdropFilter: 'blur(8px)',
-          flexShrink: 0,
-          boxShadow: isDark ? 'inset 0 0 32px rgba(16, 185, 129, 0.03)' : 'none',
-        }}
-      >
-        {/* Layer Corner Technical Brackets */}
-        <span style={{ position: 'absolute', top: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(16, 185, 129, 0.65)' : 'rgba(16, 185, 129, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌜</span>
-        <span style={{ position: 'absolute', top: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(16, 185, 129, 0.65)' : 'rgba(16, 185, 129, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌝</span>
-        <span style={{ position: 'absolute', bottom: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(16, 185, 129, 0.65)' : 'rgba(16, 185, 129, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌞</span>
-        <span style={{ position: 'absolute', bottom: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(16, 185, 129, 0.65)' : 'rgba(16, 185, 129, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌟</span>
-
-        {/* Layer Top Technical Header Badge */}
-        <div style={{ position: 'absolute', top: '-11px', left: '18px', display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 10px', borderRadius: '4px', backgroundColor: isDark ? '#090d16' : '#ffffff', border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.45)' : 'rgba(16, 185, 129, 0.35)'}`, boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.4)' : '0 1px 4px rgba(0, 0, 0, 0.06)', zIndex: 12 }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 6px #10b981' }} />
-          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, letterSpacing: '0.05em', color: isDark ? '#34d399' : '#059669' }}>
-            {language === 'vi' ? 'LỚP 03 • ĐÁNH CHỈ MỤC KÉP SILVER / GOLD' : 'LAYER 03 • MEDALLION SILVER / GOLD INDEXING'}
-          </span>
-        </div>
 
         {/* Internal Node Row: Fork + Bus + 4A/4B + Convergence + Anchor */}
         <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
@@ -3006,37 +2804,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                 </div>
 
-                {/* Active Inspector Beacon Tag */}
-                {selectedNodeId === 'silver-parquet' && drawerOpen && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '-22px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
-                      border: '1.5px solid #10b981',
-                      boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)',
-                      color: '#34d399',
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                      whiteSpace: 'nowrap',
-                      zIndex: 25,
-                      animation: 'beaconPulse 2s ease-in-out infinite',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <span style={{ fontSize: '8px' }}>▼</span>
-                    <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
-                  </div>
-                )}
               </div>
 
               {/* PATH 2 (BOTTOM): LanceDB & 4 Pillars (Blue) */}
@@ -3340,37 +3107,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
                 </div>
 
-                {/* Active Inspector Beacon Tag */}
-                {selectedNodeId === 'gold-lancedb' && drawerOpen && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '-22px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
-                      border: '1.5px solid #2563eb',
-                      boxShadow: '0 0 10px rgba(37, 99, 235, 0.5)',
-                      color: '#60a5fa',
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                      whiteSpace: 'nowrap',
-                      zIndex: 25,
-                      animation: 'beaconPulse 2s ease-in-out infinite',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <span style={{ fontSize: '8px' }}>▼</span>
-                    <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -3521,21 +3257,14 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               </div>
             </div>
 
-            {/* Layer Bottom Technical Spec Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '7px', borderTop: `1px dashed ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`, fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, letterSpacing: '0.04em' }}>
-              <span>{language === 'vi' ? 'PYARROW CỘT • VECTOR 768-D BGE-BASE • CHỈ MỤC HNSW' : 'PYARROW COLUMNAR • 768-D BGE-BASE • HNSW INDEX'}</span>
-              <span style={{ opacity: 0.7 }}>STAGE 04A - 04B</span>
-            </div>
-          </div>
-
           {/* ============================================================== */}
-          {/* HIGHWAY CONDUIT 5: Convergence Anchor -> Grounded RAG (3->4)  */}
+          {/* HIGHWAY CONDUIT 5: Convergence Anchor -> Grounded RAG */}
           {/* ============================================================== */}
           <div
             onMouseEnter={() => setHoveredNodeId('conduit-5')}
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
-              width: '92px',
+              width: '112px',
               height: '24px',
               position: 'relative',
               display: 'flex',
@@ -3638,41 +3367,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           </div>
 
           {/* ============================================================== */}
-          {/* ARCHITECTURAL LAYER 04: CONTEXTUAL RAG & CITATION GATE        */}
+          {/* STAGE 5: Grounded RAG Console (Indigo) */}
           {/* ============================================================== */}
-          <div
-            style={{
-              display: 'inline-flex',
-              flexDirection: 'column',
-              position: 'relative',
-              padding: '24px 18px 14px 18px',
-              borderRadius: '16px',
-              border: `1.5px dashed ${isDark ? 'rgba(99, 102, 241, 0.35)' : 'rgba(99, 102, 241, 0.28)'}`,
-              backgroundColor: isDark ? 'rgba(99, 102, 241, 0.03)' : 'rgba(99, 102, 241, 0.015)',
-              backdropFilter: 'blur(8px)',
-              flexShrink: 0,
-              boxShadow: isDark ? 'inset 0 0 32px rgba(99, 102, 241, 0.03)' : 'none',
-            }}
-          >
-            {/* Layer Corner Technical Brackets */}
-            <span style={{ position: 'absolute', top: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(99, 102, 241, 0.65)' : 'rgba(99, 102, 241, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌜</span>
-            <span style={{ position: 'absolute', top: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(99, 102, 241, 0.65)' : 'rgba(99, 102, 241, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌝</span>
-            <span style={{ position: 'absolute', bottom: '5px', left: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(99, 102, 241, 0.65)' : 'rgba(99, 102, 241, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌞</span>
-            <span style={{ position: 'absolute', bottom: '5px', right: '7px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: isDark ? 'rgba(99, 102, 241, 0.65)' : 'rgba(99, 102, 241, 0.5)', pointerEvents: 'none', userSelect: 'none' }}>⌟</span>
-
-            {/* Layer Top Technical Header Badge */}
-            <div style={{ position: 'absolute', top: '-11px', left: '18px', display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 10px', borderRadius: '4px', backgroundColor: isDark ? '#090d16' : '#ffffff', border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.45)' : 'rgba(99, 102, 241, 0.35)'}`, boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.4)' : '0 1px 4px rgba(0, 0, 0, 0.06)', zIndex: 12 }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#6366f1', boxShadow: '0 0 6px #6366f1' }} />
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, letterSpacing: '0.05em', color: isDark ? '#a5b4fc' : '#4f46e5' }}>
-                {language === 'vi' ? 'LỚP 04 • CỔNG TRUY VẤN RAG & TRÍCH DẪN' : 'LAYER 04 • CONTEXTUAL RAG & CITATION GATE'}
-              </span>
-            </div>
-
-            {/* Internal Node Row: Stage 5 */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              {/* ============================================================== */}
-              {/* STAGE 5: Grounded RAG Console (Indigo) */}
-              {/* ============================================================== */}
               <div
                 onClick={() => handleOpenInspector('grounded-rag')}
                 onMouseEnter={() => setHoveredNodeId('grounded-rag')}
@@ -3973,46 +3669,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
                 </div>
 
-                {/* Active Inspector Beacon Tag */}
-                {selectedNodeId === 'grounded-rag' && drawerOpen && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '-22px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff',
-                      border: '1.5px solid #6366f1',
-                      boxShadow: '0 0 10px rgba(99, 102, 241, 0.5)',
-                      color: '#a5b4fc',
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                      whiteSpace: 'nowrap',
-                      zIndex: 25,
-                      animation: 'beaconPulse 2s ease-in-out infinite',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <span style={{ fontSize: '8px' }}>▼</span>
-                    <span>{language === 'vi' ? 'THANH SOI HOẠT ĐỘNG' : 'ACTIVE INSPECTOR'}</span>
-                  </div>
-                )}
               </div>
-            </div>
-
-            {/* Layer Bottom Technical Spec Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '7px', borderTop: `1px dashed ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`, fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, letterSpacing: '0.04em' }}>
-              <span>{language === 'vi' ? 'LÕI GEMINI-2.5-FLASH • COSINE >= 0.75 • TRÍCH DẪN MATHML' : 'GEMINI-2.5-FLASH • COSINE >= 0.75 • MATHML CITATION'}</span>
-              <span style={{ opacity: 0.7 }}>STAGE 05</span>
-            </div>
-          </div>
         </div>
       </div>
 
