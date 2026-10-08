@@ -5,7 +5,7 @@ import { ThemeToggle } from './ThemeToggle.component';
 import { useTranslation } from '../../hooks';
 
 export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onToggleTheme }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const getTabLabel = (id: string, fallback: string) => {
     switch (id) {
@@ -109,7 +109,7 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
 
         <div
-          title="Trường Đại học Giao thông Vận tải TP.HCM - UTH (Ho Chi Minh City University of Transport)"
+          title={language === 'vi' ? 'Trường Đại học Giao thông Vận tải TP.HCM (UTH)' : 'Ho Chi Minh City University of Transport (UTH)'}
           style={{
             width: '30px',
             height: '30px',

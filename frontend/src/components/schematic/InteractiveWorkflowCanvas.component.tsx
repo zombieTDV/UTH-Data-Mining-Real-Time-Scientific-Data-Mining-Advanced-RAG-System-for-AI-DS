@@ -242,12 +242,14 @@ export interface InteractiveWorkflowCanvasProps {
   isPipelineRunning?: boolean;
   onTriggerPipeline?: () => void;
   theme?: 'dark' | 'light';
+  language?: 'en' | 'vi';
 }
 
 export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   isPipelineRunning = false,
   onTriggerPipeline,
   theme = 'dark',
+  language = 'vi',
 }) => {
   const isDark = theme === 'dark';
 
@@ -331,17 +333,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const RAG_QUERY_PRESETS = [
     {
       label: 'Diffusion Loss',
-      query: 'Tối ưu hoá hàm mất mát trong mô hình diffusion cho dữ liệu toán học?',
+      query: language === 'vi' ? 'Tối ưu hoá hàm mất mát trong mô hình diffusion cho dữ liệu toán học?' : 'Optimizing loss functions in diffusion models for mathematical data?',
       formula: '\\mathcal{L}_{\\text{diff}} = \\mathbb{E}_{t, x_0, \\epsilon} \\left[ w_t \\cdot \\delta_{\\text{Huber}} ( \\epsilon - \\epsilon_\\theta(x_t, t) ) \\right]',
     },
     {
       label: 'Attention Scaling',
-      query: 'Cơ chế Attention trong Transformer đối với chuỗi ký hiệu LaTeX?',
+      query: language === 'vi' ? 'Cơ chế Attention trong Transformer đối với chuỗi ký hiệu LaTeX?' : 'Attention mechanism in Transformers for LaTeX symbol sequences?',
       formula: '\\text{Attn}(Q, K, V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right) V',
     },
     {
       label: 'PageRank Graph',
-      query: 'Độ đo trung tâm PageRank trong đồ thị trích dẫn mạng lưới khoa học?',
+      query: language === 'vi' ? 'Độ đo trung tâm PageRank trong đồ thị trích dẫn mạng lưới khoa học?' : 'PageRank centrality measure in scientific citation graphs?',
       formula: 'PR(u) = \\frac{1-d}{N} + d \\sum_{v \\in B_u} \\frac{PR(v)}{L(v)}',
     },
   ];
@@ -436,12 +438,31 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   ]);
 
   // Grounded RAG Interactive State
-  const [ragPrompt, setRagPrompt] = useState<string>('Tối ưu hoá hàm mất mát trong mô hình diffusion cho dữ liệu toán học?');
+  const [ragPrompt, setRagPrompt] = useState<string>(
+    language === 'vi'
+      ? 'Tối ưu hoá hàm mất mát trong mô hình diffusion cho dữ liệu toán học?'
+      : 'Optimizing loss functions in diffusion models for mathematical data?'
+  );
   const [ragStrictThreshold, setRagStrictThreshold] = useState<number>(0.75);
   const [ragGenerating, setRagGenerating] = useState<boolean>(false);
   const [ragResponse, setRagResponse] = useState<string>(
-    'Theo context 5 chunks trích xuất từ LanceDB, kỹ thuật tối ưu hàm loss áp dụng Huber Loss có trọng số nhằm triệt tiêu gradient explosion khi biểu diễn các ký hiệu LaTeX phức tạp [arXiv:2602.04128, Section 3.2]. Độ tương đồng cosine đạt 0.914, vượt ngưỡng grounding 0.75.'
+    language === 'vi'
+      ? 'Theo context 5 chunks trích xuất từ LanceDB, kỹ thuật tối ưu hàm loss áp dụng Huber Loss có trọng số nhằm triệt tiêu gradient explosion khi biểu diễn các ký hiệu LaTeX phức tạp [arXiv:2602.04128, Section 3.2]. Độ tương đồng cosine đạt 0.914, vượt ngưỡng grounding 0.75.'
+      : 'According to 5 chunks retrieved from LanceDB, the loss function optimization technique employs weighted Huber Loss to suppress gradient explosion when representing intricate LaTeX symbols [arXiv:2602.04128, Section 3.2]. Cosine similarity reaches 0.914, exceeding the 0.75 grounding threshold.'
   );
+
+  useEffect(() => {
+    setRagPrompt(
+      language === 'vi'
+        ? 'Tối ưu hoá hàm mất mát trong mô hình diffusion cho dữ liệu toán học?'
+        : 'Optimizing loss functions in diffusion models for mathematical data?'
+    );
+    setRagResponse(
+      language === 'vi'
+        ? 'Theo context 5 chunks trích xuất từ LanceDB, kỹ thuật tối ưu hàm loss áp dụng Huber Loss có trọng số nhằm triệt tiêu gradient explosion khi biểu diễn các ký hiệu LaTeX phức tạp [arXiv:2602.04128, Section 3.2]. Độ tương đồng cosine đạt 0.914, vượt ngưỡng grounding 0.75.'
+        : 'According to 5 chunks retrieved from LanceDB, the loss function optimization technique employs weighted Huber Loss to suppress gradient explosion when representing intricate LaTeX symbols [arXiv:2602.04128, Section 3.2]. Cosine similarity reaches 0.914, exceeding the 0.75 grounding threshold.'
+    );
+  }, [language]);
 
   // Pan and Zoom Canvas State
   const [zoom, setZoom] = useState<number>(1.0);
@@ -730,7 +751,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     setRagGenerating(true);
     try {
       const res = await sendChatQuery(ragPrompt);
-      setRagResponse(res.answer || 'Không tìm thấy ngữ cảnh thỏa điều kiện grounding.');
+      setRagResponse(res.answer || (language === 'vi' ? 'Không tìm thấy ngữ cảnh thỏa điều kiện grounding.' : 'No context satisfying grounding criteria found.'));
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
@@ -923,12 +944,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <AnimatedCounter value={displayWorks} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  {isStreaming ? `+${streamSessionCount} mới (${streamSpeed}/m)` : 'Works Ingested'}
+                  {isStreaming ? (language === 'vi' ? `+${streamSessionCount} mới (${streamSpeed}/m)` : `+${streamSessionCount} new (${streamSpeed}/m)`) : 'Works Ingested'}
                 </span>
               </div>
 
               {/* Segmented Distribution Bar */}
-              <div style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', display: 'flex', border: '1px solid var(--border-subtle)' }} title={`Phân bổ: arXiv ${liveBronzeCount.toLocaleString()} (${Math.round((liveBronzeCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%)`}>
+              <div style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', display: 'flex', border: '1px solid var(--border-subtle)' }} title={language === 'vi' ? `Phân bổ: arXiv ${liveBronzeCount.toLocaleString()} (${Math.round((liveBronzeCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%)` : `Distribution: arXiv ${liveBronzeCount.toLocaleString()} (${Math.round((liveBronzeCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%)`}>
                 <div style={{ width: `${(liveBronzeCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#8b5cf6', transition: 'width 0.3s' }} />
                 <div style={{ width: `${(liveOpenAlexCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#6366f1', transition: 'width 0.3s' }} />
               </div>
@@ -1117,7 +1138,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               </div>
 
               {/* Visual Storage Progress Bar */}
-              <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={`Hạn mức Cloudflare R2: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)`}>
+              <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={language === 'vi' ? `Hạn mức Cloudflare R2: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)` : `Cloudflare R2 Quota: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)`}>
                 <div style={{
                   width: `${Math.min(100, storageUsedPct)}%`,
                   height: '100%',
@@ -2076,7 +2097,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <circle cx="12" cy="12" r="3" />
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
-                CẤU HÌNH &amp; ĐIỀU KHIỂN
+                {language === 'vi' ? 'CẤU HÌNH & ĐIỀU KHIỂN' : 'CONFIG & CONTROLS'}
               </button>
 
               <button
@@ -2103,7 +2124,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <line x1="8" y1="21" x2="16" y2="21" />
                   <line x1="12" y1="17" x2="12" y2="21" />
                 </svg>
-                THÔNG SỐ &amp; TELEMETRY
+                {language === 'vi' ? 'THÔNG SỐ & TELEMETRY' : 'SPECS & TELEMETRY'}
               </button>
 
               <button
@@ -2165,10 +2186,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontFamily: 'var(--font-mono)',
                   transition: 'all 0.15s ease',
                 }}
-                title={drawerExpanded ? 'Thu gọn chiều cao drawer' : 'Mở rộng toàn màn hình drawer'}
+                title={drawerExpanded ? (language === 'vi' ? 'Thu gọn chiều cao drawer' : 'Collapse drawer height') : (language === 'vi' ? 'Mở rộng toàn màn hình drawer' : 'Maximize drawer')}
               >
                 <span>{drawerExpanded ? '▼' : '▲'}</span>
-                <span style={{ fontSize: '10px' }}>{drawerExpanded ? 'THU GỌN' : 'MỞ RỘNG'}</span>
+                <span style={{ fontSize: '10px' }}>{drawerExpanded ? (language === 'vi' ? 'THU GỌN' : 'COLLAPSE') : (language === 'vi' ? 'MỞ RỘNG' : 'EXPAND')}</span>
               </button>
 
               <button
@@ -2188,10 +2209,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
                 }}
-                title="Đóng bảng điều khiển"
+                title={language === 'vi' ? 'Đóng bảng điều khiển' : 'Close control panel'}
               >
                 <span>&times;</span>
-                <span style={{ fontSize: '10px' }}>ĐÓNG</span>
+                <span style={{ fontSize: '10px' }}>{language === 'vi' ? 'ĐÓNG' : 'CLOSE'}</span>
               </button>
             </div>
           </div>
@@ -2212,10 +2233,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                            CHỌN DANH MỤC CÀO (CATEGORIES TO HARVEST)
+                            {language === 'vi' ? 'CHỌN DANH MỤC CÀO (CATEGORIES TO HARVEST)' : 'SELECT HARVEST CATEGORIES'}
                           </span>
                           <span style={{ fontSize: '10px', color: isDark ? '#c084fc' : '#7c3aed', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                            {harvestCategories.length} đã chọn
+                            {harvestCategories.length} {language === 'vi' ? 'đã chọn' : 'selected'}
                           </span>
                         </div>
 
@@ -2327,7 +2348,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                       {/* Format checkmarks */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>ĐỊNH DẠNG:</span>
+                        <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>{language === 'vi' ? 'ĐỊNH DẠNG:' : 'FORMAT:'}</span>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                           <input
                             type="checkbox"
@@ -2363,7 +2384,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     >
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '8px' }}>
-                          TRẠNG THÁI VÀ BẢN GHI ĐÍCH
+                          {language === 'vi' ? 'TRẠNG THÁI VÀ BẢN GHI ĐÍCH' : 'STATUS & TARGET RECORDS'}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -2408,6 +2429,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                                   backgroundColor: isStreaming ? '#10b981' : '#64748b',
                                   boxShadow: isStreaming ? '0 0 8px #10b981' : 'none',
                                   animation: isStreaming ? 'stageGlowOrange 1.2s infinite' : 'none',
+                                  display: 'inline-block',
                                 }}
                               />
                               <span style={{ fontSize: '10.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#166534' }}>
@@ -2415,12 +2437,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                               </span>
                             </div>
                             <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textMuted, fontWeight: 700 }}>
-                              {isStreaming ? `${streamSpeed} bài/phút` : 'STANDBY'}
+                              {isStreaming ? (language === 'vi' ? `${streamSpeed} bài/phút` : `${streamSpeed} papers/min`) : 'STANDBY'}
                             </span>
                           </div>
 
                           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Mục tiêu:</span>
+                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>{language === 'vi' ? 'Mục tiêu:' : 'Target:'}</span>
                             {[1000, 3000, 5000].map((t) => (
                               <button
                                 key={t}
@@ -2439,7 +2461,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                                   cursor: isStreaming ? 'not-allowed' : 'pointer',
                                 }}
                               >
-                                {t.toLocaleString()} bài
+                                {t.toLocaleString()} {language === 'vi' ? 'bài' : 'papers'}
                               </button>
                             ))}
                           </div>
@@ -2471,14 +2493,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
                                   <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                                 </svg>
-                                <span>⏸ DỪNG STREAMING (+{streamSessionCount} BÀI ĐÃ CÀO)</span>
+                                <span>{language === 'vi' ? `⏸ DỪNG STREAMING (+${streamSessionCount} BÀI ĐÃ CÀO)` : `⏸ STOP STREAMING (+${streamSessionCount} PAPERS HARVESTED)`}</span>
                               </>
                             ) : (
                               <>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                   <polygon points="5 3 19 12 5 21 5 3" />
                                 </svg>
-                                <span>▶ BẮT ĐẦU REALTIME STREAMING ({streamTarget.toLocaleString()} BÀI MỚI)</span>
+                                <span>{language === 'vi' ? `▶ BẮT ĐẦU REALTIME STREAMING (${streamTarget.toLocaleString()} BÀI MỚI)` : `▶ START REALTIME STREAMING (${streamTarget.toLocaleString()} NEW PAPERS)`}</span>
                               </>
                             )}
                           </button>
@@ -2512,14 +2534,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
                                 <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                               </svg>
-                              <span>ĐANG CÀO DỮ LIỆU...</span>
+                              <span>{language === 'vi' ? 'ĐANG CÀO DỮ LIỆU...' : 'HARVESTING DATA...'}</span>
                             </>
                           ) : (
                             <>
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                                 <polygon points="5 3 19 12 5 21 5 3" />
                               </svg>
-                              <span>▶ BẮT ĐẦU CÀO DỮ LIỆU (RUN HARVESTER)</span>
+                              <span>{language === 'vi' ? '▶ BẮT ĐẦU CÀO DỮ LIỆU (RUN HARVESTER)' : '▶ RUN HARVESTER'}</span>
                             </>
                           )}
                         </button>
@@ -2649,14 +2671,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
                                 <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                               </svg>
-                              <span>ĐANG CHẠY SIMD EXECUTION...</span>
+                              <span>{language === 'vi' ? 'ĐANG CHẠY SIMD EXECUTION...' : 'RUNNING SIMD EXECUTION...'}</span>
                             </>
                           ) : (
                             <>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                               </svg>
-                              <span>THỰC THI TRUY VẤN DUCKDB (0.041s)</span>
+                              <span>{language === 'vi' ? 'THỰC THI TRUY VẤN DUCKDB (0.041s)' : 'EXECUTE DUCKDB QUERY (0.041s)'}</span>
                             </>
                           )}
                         </button>
@@ -2677,7 +2699,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          XEM LOGS
+                          {language === 'vi' ? 'XEM LOGS' : 'VIEW LOGS'}
                         </button>
                       </div>
                     </div>
@@ -2696,7 +2718,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                            KẾT QUẢ THỰC THI (VECTORIZED ARROW SCHEMA)
+                            {language === 'vi' ? 'KẾT QUẢ THỰC THI (VECTORIZED ARROW SCHEMA)' : 'EXECUTION RESULTS (VECTORIZED ARROW SCHEMA)'}
                           </span>
                           <span style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                             4 rows in 41ms
@@ -2737,7 +2759,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                            PHÂN BỐ MẬT ĐỘ CÔNG THỨC TOÁN (SIMD DENSITY METRIC)
+                            {language === 'vi' ? 'PHÂN BỐ MẬT ĐỘ CÔNG THỨC TOÁN (SIMD DENSITY METRIC)' : 'MATH FORMULA DENSITY DISTRIBUTION (SIMD DENSITY METRIC)'}
                           </span>
                           <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: isDark ? '#fbbf24' : '#d97706', fontWeight: 700 }}>
                             Total: 2,220,938 formulas
@@ -2782,14 +2804,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        TÌM KIẾM SEMANTIC VECTOR ANN (143,523 EMBEDDINGS)
+                        {language === 'vi' ? 'TÌM KIẾM SEMANTIC VECTOR ANN (143,523 EMBEDDINGS)' : 'SEMANTIC VECTOR ANN SEARCH (143,523 EMBEDDINGS)'}
                       </span>
 
                       <input
                         type="text"
                         value={lanceQuery}
                         onChange={(e) => setLanceQuery(e.target.value)}
-                        placeholder="Nhập truy vấn ngữ nghĩa học thuật..."
+                        placeholder={language === 'vi' ? 'Nhập truy vấn ngữ nghĩa học thuật...' : 'Enter academic semantic query...'}
                         style={{
                           width: '100%',
                           backgroundColor: themeStyles.inputBg,
@@ -2830,14 +2852,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           }}
                         >
                           {lanceSearching ? (
-                            <span>ĐANG TÍNH TOÁN COSINE ANN...</span>
+                            <span>{language === 'vi' ? 'ĐANG TÍNH TOÁN COSINE ANN...' : 'COMPUTING COSINE ANN...'}</span>
                           ) : (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="11" cy="11" r="8" />
                                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                               </svg>
-                              <span>TÌM KIẾM VECTOR ANN (IVF-PQ)</span>
+                              <span>{language === 'vi' ? 'TÌM KIẾM VECTOR ANN (IVF-PQ)' : 'SEARCH VECTOR ANN (IVF-PQ)'}</span>
                             </span>
                           )}
                         </button>
@@ -2884,7 +2906,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
                     <div>
                       <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
-                        CẤU TRÚC PHÂN VÙNG OBJECT STORAGE (S3 COMPATIBLE)
+                        {language === 'vi' ? 'CẤU TRÚC PHÂN VÙNG OBJECT STORAGE (S3 COMPATIBLE)' : 'OBJECT STORAGE PARTITION SCHEME (S3 COMPATIBLE)'}
                       </div>
                       <div style={{
                         backgroundColor: themeStyles.codeBoxBg,
@@ -2965,7 +2987,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                          CỔNG KIỂM THỬ ANTI-HALLUCINATION RAG (STRICT CITATION GATE)
+                          {language === 'vi' ? 'CỔNG KIỂM THỬ ANTI-HALLUCINATION RAG (STRICT CITATION GATE)' : 'ANTI-HALLUCINATION RAG GATE (STRICT CITATION GATE)'}
                         </span>
                         <span style={{
                           fontSize: '10px',
@@ -3013,7 +3035,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         type="text"
                         value={ragPrompt}
                         onChange={(e) => setRagPrompt(e.target.value)}
-                        placeholder="Nhập câu hỏi nghiên cứu..."
+                        placeholder={language === 'vi' ? 'Nhập câu hỏi nghiên cứu...' : 'Enter research question...'}
                         style={{
                           width: '100%',
                           backgroundColor: themeStyles.inputBg,
@@ -3030,7 +3052,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                          Ngưỡng Cosine:
+                          {language === 'vi' ? 'Ngưỡng Cosine:' : 'Cosine Threshold:'}
                         </span>
                         <input
                           type="range"
@@ -3074,14 +3096,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
                               <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                             </svg>
-                            <span>ĐANG SUY LUẬN TRÍCH DẪN...</span>
+                            <span>{language === 'vi' ? 'ĐANG SUY LUẬN TRÍCH DẪN...' : 'INFERRING CITATIONS...'}</span>
                           </>
                         ) : (
                           <>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                             </svg>
-                            <span>KIỂM TRA PHẢN HỒI RAG CÓ TRÍCH DẪN</span>
+                            <span>{language === 'vi' ? 'KIỂM TRA PHẢN HỒI RAG CÓ TRÍCH DẪN' : 'TEST GROUNDED RAG SYNTHESIS'}</span>
                           </>
                         )}
                       </button>
@@ -3370,7 +3392,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
-                            <span>ĐÃ CHÉP</span>
+                            <span>{language === 'vi' ? 'ĐÃ CHÉP' : 'COPIED'}</span>
                           </>
                         ) : (
                           <>
@@ -3378,7 +3400,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                               <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                             </svg>
-                            <span>SAO CHÉP</span>
+                            <span>{language === 'vi' ? 'SAO CHÉP' : 'COPY'}</span>
                           </>
                         )}
                       </span>
@@ -3515,9 +3537,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           padding: '2px 6px',
                           cursor: 'pointer',
                         }}
-                        title="Sao chép toàn bộ logs"
+                        title={language === 'vi' ? 'Sao chép toàn bộ logs' : 'Copy all logs'}
                       >
-                        {logCopied ? '✓' : 'CHÉP'}
+                        {logCopied ? '✓' : (language === 'vi' ? 'CHÉP' : 'COPY')}
                       </button>
 
                       <button
@@ -3642,11 +3664,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>CDC INGESTION (ARXIV)</div>
                         <div style={{ fontSize: '12px', fontWeight: 800, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary, marginTop: '2px' }}>
-                          {isStreaming ? `${streamSpeed} bài/phút` : 'STANDBY (Ready)'}
+                          {isStreaming ? (language === 'vi' ? `${streamSpeed} bài/phút` : `${streamSpeed} papers/min`) : 'STANDBY (Ready)'}
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                        +{streamSessionCount} bài
+                        +{streamSessionCount} {language === 'vi' ? 'bài' : 'papers'}
                       </span>
                     </div>
 

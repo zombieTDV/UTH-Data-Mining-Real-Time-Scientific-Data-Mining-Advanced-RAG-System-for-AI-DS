@@ -137,6 +137,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
             isPipelineRunning={pipelineStatus === 'RUNNING'}
             onTriggerPipeline={onTriggerPipeline}
             theme={theme}
+            language={language}
           />
         </div>
       ) : (

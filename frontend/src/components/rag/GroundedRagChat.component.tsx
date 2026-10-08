@@ -101,7 +101,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     {
       id: 'msg-0',
       sender: 'assistant',
-      text: getInitialGreeting('en'),
+      text: getInitialGreeting(language),
       timestamp: '12:00:00',
     },
   ]);
@@ -919,7 +919,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                               borderRadius: '4px',
                               border: '1px solid rgba(245, 158, 11, 0.3)',
                             }}
-                            title={`Tác giả bài báo nằm trong Top PageRank Citation Graph: ${msg.top_influencer_author || 'High-Impact Influencer'}`}
+                            title={
+                              language === 'vi'
+                                ? `Tác giả bài báo nằm trong Top PageRank Citation Graph: ${msg.top_influencer_author || 'Nhà khoa học ảnh hưởng cao'}`
+                                : `Paper author ranks within Top PageRank Citation Graph: ${msg.top_influencer_author || 'High-Impact Influencer'}`
+                            }
                           >
                             ★ Graph PageRank Boost {msg.top_influencer_author ? `(${msg.top_influencer_author.split('(')[0].trim()})` : ''}
                           </span>
@@ -941,7 +945,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                               borderRadius: '4px',
                               border: '1px solid rgba(139, 92, 246, 0.3)',
                             }}
-                            title={`Mở rộng từ khóa dựa trên luật kết hợp FP-Growth: ${msg.rule_expansions.join(', ')}`}
+                            title={
+                              language === 'vi'
+                                ? `Mở rộng từ khóa dựa trên luật kết hợp FP-Growth: ${msg.rule_expansions.join(', ')}`
+                                : `Keyword expansion via FP-Growth association rules: ${msg.rule_expansions.join(', ')}`
+                            }
                           >
                             ☍ Rules: {msg.rule_expansions.join(', ')}
                           </span>
@@ -951,7 +959,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       <button
                         type="button"
                         onClick={() => handleCopyText(msg.id, msg.text)}
-                        title="Copy entire answer text"
+                        title={language === 'vi' ? 'Sao chép toàn bộ nội dung câu trả lời' : 'Copy entire answer text'}
                         style={{
                           marginLeft: '8px',
                           backgroundColor: 'transparent',
@@ -968,7 +976,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                         </svg>
-                        <span>{copiedId === msg.id ? 'COPIED' : 'COPY'}</span>
+                        <span>
+                          {copiedId === msg.id
+                            ? (language === 'vi' ? 'ĐÃ CHÉP' : 'COPIED')
+                            : (language === 'vi' ? 'CHÉP' : 'COPY')}
+                        </span>
                       </button>
                     </div>
                   )}
@@ -1083,7 +1095,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             <button
               type="button"
               onClick={() => setInspectedPaper(null)}
-              title="Close dossier"
+              title={language === 'vi' ? 'Đóng hồ sơ' : 'Close dossier'}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -1110,13 +1122,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           >
             {isDossierLoading ? (
               <div style={{ padding: '30px', textAlign: 'center', color: isDark ? '#94a3b8' : '#64748b', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-                Fetching paper chunks from LanceDB Gold...
+                {language === 'vi' ? 'Đang trích xuất chunks bài báo từ LanceDB Gold...' : 'Fetching paper chunks from LanceDB Gold...'}
               </div>
             ) : (
               <>
                 <div>
                   <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    Paper Title
+                    {language === 'vi' ? 'TIÊU ĐỀ BÀI BÁO' : 'PAPER TITLE'}
                   </div>
                   <h3 style={{ fontSize: '14px', fontWeight: 700, color: isDark ? '#f8fafc' : '#0f172a', margin: 0, lineHeight: '1.4' }}>
                     {inspectedPaper.title}
@@ -1125,18 +1137,18 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
                 <div style={{ display: 'flex', gap: '12px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                   <div>
-                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>Domain: </span>
+                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>{language === 'vi' ? 'Chuyên ngành: ' : 'Domain: '}</span>
                     <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{inspectedPaper.category}</strong>
                   </div>
                   <div>
-                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>Similarity: </span>
+                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>{language === 'vi' ? 'Độ tương đồng: ' : 'Similarity: '}</span>
                     <strong style={{ color: '#10b981' }}>{inspectedPaper.score}</strong>
                   </div>
                 </div>
 
                 <div>
                   <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    Authors
+                    {language === 'vi' ? 'TÁC GIẢ' : 'AUTHORS'}
                   </div>
                   <div style={{ fontSize: '12px', color: isDark ? '#cbd5e1' : '#334155' }}>
                     {Array.isArray(inspectedPaper.authors) ? inspectedPaper.authors.join(', ') : inspectedPaper.authors}
@@ -1145,7 +1157,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
                 <div>
                   <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    Abstract
+                    {language === 'vi' ? 'TÓM TẮT (ABSTRACT)' : 'ABSTRACT'}
                   </div>
                   <div
                     style={{
@@ -1165,7 +1177,9 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 {inspectedPaper.chunkText && (
                   <div>
                     <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#ff5722', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 700 }}>
-                      Retrieved LanceDB Context Chunk ({inspectedPaper.sectionTitle})
+                      {language === 'vi'
+                        ? `Ngữ cảnh trích xuất từ LanceDB (${inspectedPaper.sectionTitle})`
+                        : `Retrieved LanceDB Context Chunk (${inspectedPaper.sectionTitle})`}
                     </div>
                     <div
                       style={{
@@ -1215,10 +1229,10 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   >
                     <span>
                       {inspectedPaper.doi
-                        ? 'OPEN DOI / ARTICLE PAGE'
+                        ? (language === 'vi' ? 'MỞ TRANG BÀI BÁO DOI' : 'OPEN DOI / ARTICLE PAGE')
                         : inspectedPaper.paperId.startsWith('openalex:')
-                        ? 'OPEN OPENALEX PAGE'
-                        : 'OPEN ARXIV ABSTRACT PAGE'}
+                        ? (language === 'vi' ? 'MỞ TRANG OPENALEX' : 'OPEN OPENALEX PAGE')
+                        : (language === 'vi' ? 'MỞ TRANG TÓM TẮT ARXIV' : 'OPEN ARXIV ABSTRACT PAGE')}
                     </span>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -1230,7 +1244,9 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      const q = `Explain the theoretical methodology, empirical validation, and core algorithms of paper "${inspectedPaper.title}".`;
+                      const q = language === 'vi'
+                        ? `Giải thích phương pháp lý thuyết, kiểm chứng thực nghiệm và thuật toán cốt lõi của bài báo "${inspectedPaper.title}".`
+                        : `Explain the theoretical methodology, empirical validation, and core algorithms of paper "${inspectedPaper.title}".`;
                       setInputText(q);
                       setInspectedPaper(null);
                       handleSendMessage(q);
@@ -1247,7 +1263,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       cursor: 'pointer',
                     }}
                   >
-                    ASK RAG FOLLOW-UP QUESTION
+                    {language === 'vi' ? 'HỎI RAG VỀ BÀI BÁO NÀY' : 'ASK RAG FOLLOW-UP QUESTION'}
                   </button>
                 </div>
               </>

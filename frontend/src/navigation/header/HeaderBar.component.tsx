@@ -69,7 +69,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
             boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
             flexShrink: 0,
           }}
-          title="Trường Đại học Giao thông Vận tải TP.HCM (UTH)"
+          title={language === 'vi' ? 'Trường Đại học Giao thông Vận tải TP.HCM (UTH)' : 'Ho Chi Minh City University of Transport (UTH)'}
         >
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 10v6M2 10l10-5 10 5-10 5z" />

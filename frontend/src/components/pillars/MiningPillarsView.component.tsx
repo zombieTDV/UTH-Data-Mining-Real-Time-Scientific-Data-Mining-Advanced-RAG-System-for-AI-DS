@@ -24,41 +24,47 @@ export interface MiningPillarsViewProps {
 }
 
 // Decoded Semantic Topic Profiles for K-Means Clusters
-const CLUSTER_TOPIC_MAP: Record<number, { title: string; shortTitle: string; subtitle: string; domain: string }> = {
+const CLUSTER_TOPIC_MAP: Record<number, { title: string; shortTitle: string; subtitleVi: string; subtitleEn: string; domain: string }> = {
   0: {
     title: 'Large Language Models & In-Context Reasoning',
     shortTitle: 'LLM & Reasoning',
-    subtitle: 'Mô hình ngôn ngữ lớn, chuỗi suy luận CoT và tối ưu hóa Prompt',
+    subtitleVi: 'Mô hình ngôn ngữ lớn, chuỗi suy luận CoT và tối ưu hóa Prompt',
+    subtitleEn: 'Large language models, chain-of-thought reasoning and prompt optimization',
     domain: 'cs.CL, cs.AI',
   },
   1: {
     title: 'Diffusion Models & High-Resolution Image Synthesis',
     shortTitle: 'Diffusion & GenAI',
-    subtitle: 'Mô hình khuếch tán xác suất, tổng hợp ảnh và sinh ảnh điều kiện',
+    subtitleVi: 'Mô hình khuếch tán xác suất, tổng hợp ảnh và sinh ảnh điều kiện',
+    subtitleEn: 'Probabilistic diffusion models, image synthesis and conditional generation',
     domain: 'cs.CV',
   },
   2: {
     title: 'PAC-Bayes, SGLD Generalization & Optimization',
     shortTitle: 'PAC-Bayes Theory',
-    subtitle: 'Lý thuyết học máy thống kê, biên tổng quát hóa và hội tụ thuật toán',
+    subtitleVi: 'Lý thuyết học máy thống kê, biên tổng quát hóa và hội tụ thuật toán',
+    subtitleEn: 'Statistical learning theory, generalization bounds and algorithmic convergence',
     domain: 'stat.ML, cs.LG',
   },
   3: {
     title: 'Reinforcement Learning & Autonomous Robotics',
     shortTitle: 'RL & Robotics',
-    subtitle: 'Học tăng cường sâu, điều khiển robot tự hành và mô phỏng động lực',
+    subtitleVi: 'Học tăng cường sâu, điều khiển robot tự hành và mô phỏng động lực',
+    subtitleEn: 'Deep reinforcement learning, autonomous robotics and dynamic simulation',
     domain: 'cs.RO',
   },
   4: {
     title: 'Graph Neural Networks & Symbolic Knowledge Graphs',
     shortTitle: 'GNN & Graphs',
-    subtitle: 'Mạng nơ-ron đồ thị, biểu diễn tri thức và suy luận quan hệ',
+    subtitleVi: 'Mạng nơ-ron đồ thị, biểu diễn tri thức và suy luận quan hệ',
+    subtitleEn: 'Graph neural networks, knowledge representation and relational reasoning',
     domain: 'cs.AI, cs.LG',
   },
   5: {
     title: 'Zero-Shot Vision-Language Multimodal Transformers',
     shortTitle: 'Multimodal VL',
-    subtitle: 'Căn chỉnh đa phương thức thị giác - ngôn ngữ, Contrastive Learning',
+    subtitleVi: 'Căn chỉnh đa phương thức thị giác - ngôn ngữ, Contrastive Learning',
+    subtitleEn: 'Vision-language multimodal alignment, contrastive learning',
     domain: 'cs.CV, cs.CL',
   },
 };
@@ -161,7 +167,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
   const handleRecomputePillars = async () => {
     setIsRecomputingPipeline(true);
-    showToast('Đang gửi lệnh Recompute 4 Trụ Cột Mining tới Python backend...');
+    showToast(language === 'vi' ? 'Đang gửi lệnh Recompute 4 Trụ Cột Mining tới Python backend...' : 'Dispatching Recompute 4 Mining Pillars to Python backend...');
     appendStreamLog({
       time: new Date().toLocaleTimeString('en-US', { hour12: false }),
       level: 'EXEC',
@@ -171,7 +177,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
     try {
       await triggerMiningPipeline();
-      showToast('Đang nạp lại dữ liệu 4 Trụ Cột Khai Phá...');
+      showToast(language === 'vi' ? 'Đang nạp lại dữ liệu 4 Trụ Cột Khai Phá...' : 'Reloading 4 Mining Pillars data...');
       const [rules, clusters, graph, trends] = await Promise.all([
         fetchAssociationRules(),
         fetchClusters(),
@@ -182,10 +188,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
       setClustersData(clusters);
       setGraphData(graph);
       setTrendsData(trends);
-      showToast('Đã đồng bộ 4 Trụ Cột Khai Phá Dữ Liệu thành công!');
+      showToast(language === 'vi' ? 'Đã đồng bộ 4 Trụ Cột Khai Phá Dữ Liệu thành công!' : 'Successfully synchronized 4 Data Mining Pillars!');
     } catch (e: any) {
       console.warn('Recompute pipeline trigger failed:', e);
-      showToast('Đã gửi yêu cầu Recompute tới tác vụ nền.');
+      showToast(language === 'vi' ? 'Đã gửi yêu cầu Recompute tới tác vụ nền.' : 'Dispatched Recompute request to background worker.');
     } finally {
       setTimeout(() => {
         setIsRecomputingPipeline(false);
@@ -482,7 +488,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
     lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
     navigator.clipboard.writeText(lines.join('\n'));
-    showToast('Đã sao chép bảng mã LaTeX Quy tắc kết hợp vào Clipboard!');
+    showToast(language === 'vi' ? 'Đã sao chép bảng mã LaTeX Quy tắc kết hợp vào Clipboard!' : 'Copied Association Rules LaTeX Table to Clipboard!');
   };
 
   const handleCopyLatexClusters = () => {
@@ -509,7 +515,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
     lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
     navigator.clipboard.writeText(lines.join('\n'));
-    showToast('Đã sao chép bảng mã LaTeX Phân cụm ngữ nghĩa vào Clipboard!');
+    showToast(language === 'vi' ? 'Đã sao chép bảng mã LaTeX Phân cụm ngữ nghĩa vào Clipboard!' : 'Copied Semantic Clustering LaTeX Table to Clipboard!');
   };
 
   const handleCopyLatexOutliers = () => {
@@ -535,7 +541,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
     lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
     navigator.clipboard.writeText(lines.join('\n'));
-    showToast('Đã sao chép bảng mã LaTeX Điểm dị biệt vào Clipboard!');
+    showToast(language === 'vi' ? 'Đã sao chép bảng mã LaTeX Điểm dị biệt vào Clipboard!' : 'Copied Novelty Outliers LaTeX Table to Clipboard!');
   };
 
   if (loading) {
@@ -573,7 +579,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
           </svg>
           <span style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary }}>
-            [ GOLD LAKEHOUSE ] Đang tải và dựng trực quan 4 Trụ Cột Khai Phá...
+            {language === 'vi' ? '[ GOLD LAKEHOUSE ] Đang tải và dựng trực quan 4 Trụ Cột Khai Phá...' : '[ GOLD LAKEHOUSE ] Loading and rendering 4 Data Mining Pillars...'}
           </span>
         </div>
       </div>
@@ -594,7 +600,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           border: '1px solid rgba(239, 68, 68, 0.25)',
         }}
       >
-        [ ERROR ] Không thể nạp dữ liệu 4 Trụ cột Mining: {error}
+        {language === 'vi' ? `[ LỖI ] Không thể nạp dữ liệu 4 Trụ cột Mining: ${error}` : `[ ERROR ] Failed to load 4 Data Mining Pillars: ${error}`}
       </div>
     );
   }
@@ -709,7 +715,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.cardBorder}`,
                 cursor: 'pointer',
               }}
-              title="Phóng đại toàn màn hình 100% (Phím T)"
+              title={language === 'vi' ? 'Phóng đại toàn màn hình 100% (Phím T)' : 'Full theater mode 100% (Press T)'}
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               {isTheaterMode ? (
@@ -727,7 +733,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   <line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
               )}
-              <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát (T)'}</span>
+              <span>{isTheaterMode ? (language === 'vi' ? 'Thu Nhỏ' : 'Exit Theater') : (language === 'vi' ? 'Rạp Hát (T)' : 'Theater (T)')}</span>
             </span>
             </button>
             <button
@@ -1075,7 +1081,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               gap: '2px',
               minWidth: '65px',
             }}
-            title="Phóng đại toàn màn hình 100% (Phím T)"
+            title={language === 'vi' ? 'Phóng đại toàn màn hình 100% (Phím T)' : 'Full theater mode 100% (Press T)'}
           >
             {isTheaterMode ? (
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1092,7 +1098,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 <line x1="3" y1="21" x2="10" y2="14" />
               </svg>
             )}
-            <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+            <span>{isTheaterMode ? (language === 'vi' ? 'Thu Nhỏ' : 'Exit Theater') : (language === 'vi' ? 'Rạp Hát' : 'Theater')}</span>
           </button>
         </div>
       </div>
@@ -1200,7 +1206,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       color: themeStyles.textSecondary,
                     }}
                   >
-                    Tiền đề:
+                    {language === 'vi' ? 'Tiền đề:' : 'Antecedent:'}
                   </span>
                   {['ALL', 'cs.CV', 'cs.AI', 'cs.LG', 'stat.ML'].map((cat) => (
                     <button
@@ -1245,7 +1251,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontWeight: 800,
                     cursor: 'pointer',
                   }}
-                  title="Sao chép đoạn mã LaTeX Table vào clipboard"
+                  title={language === 'vi' ? 'Sao chép đoạn mã LaTeX Table vào clipboard' : 'Copy LaTeX Table code to clipboard'}
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1270,9 +1276,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     border: `1px solid ${isSidebarCollapsed ? '#ea580c' : themeStyles.cardBorder}`,
                     cursor: 'pointer',
                   }}
-                  title={isSidebarCollapsed ? 'Mở lại cột Inspector [ ► ]' : 'Thu gọn cột Inspector để mở rộng Scatter [ ◄ ]'}
+                  title={isSidebarCollapsed ? (language === 'vi' ? 'Mở lại cột Inspector [ ► ]' : 'Open Inspector column [ ► ]') : (language === 'vi' ? 'Thu gọn cột Inspector để mở rộng Scatter [ ◄ ]' : 'Collapse Inspector to expand Scatter [ ◄ ]')}
                 >
-                  {isSidebarCollapsed ? '► Mở Inspector' : '◄ Thu Gọn'}
+                  {isSidebarCollapsed ? (language === 'vi' ? '► Mở Inspector' : '► Open Inspector') : (language === 'vi' ? '◄ Thu Gọn' : '◄ Collapse')}
                 </button>
               </div>
             </div>
@@ -1321,7 +1327,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      [MINING-01] BIỂU ĐỒ BONG BÓNG LUẬT KẾT HỢP (RULE SCATTER)
+                      [MINING-01] {language === 'vi' ? 'BIỂU ĐỒ BONG BÓNG LUẬT KẾT HỢP (RULE SCATTER)' : 'ASSOCIATION RULES BUBBLE SCATTER'}
                     </h3>
                     <div
                       style={{
@@ -1331,13 +1337,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         fontFamily: 'var(--font-mono)',
                       }}
                     >
-                      Trục X: Support (%) &bull; Trục Y: Confidence (%) &bull; Kích thước: Hệ số Lift &bull; Nhấp bóng để soi
+                      {language === 'vi' ? 'Trục X: Support (%) • Trục Y: Confidence (%) • Kích thước: Hệ số Lift • Nhấp bóng để soi' : 'X-axis: Support (%) • Y-axis: Confidence (%) • Size: Lift multiplier • Click bubble to inspect'}
                     </div>
                   </div>
 
                   {/* Standardized Chart Toolbar */}
                   <ChartToolbar
                     theme={theme}
+                    language={language}
                     svgRef={p1SvgRef}
                     filename="fp-growth-association-rules"
                     csvData={filteredRules.map((r) => ({
@@ -1510,7 +1517,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               fontWeight="800"
                               fill="#ef4444"
                             >
-                              NGƯỠNG ĐỘC LẬP NGẪU NHIÊN (LIFT = 1.0x)
+                              {language === 'vi' ? 'NGƯỠNG ĐỘC LẬP NGẪU NHIÊN (LIFT = 1.0x)' : 'RANDOM INDEPENDENCE THRESHOLD (LIFT = 1.0x)'}
                             </text>
                           </g>
                         )}
@@ -1618,7 +1625,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       }}
                     >
                       <span>✥</span>
-                      <span>{Math.round(p1PanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                      <span>{Math.round(p1PanZoom.zoom * 100)}% &bull; {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}</span>
                     </div>
                   )}
                 </div>
@@ -1663,7 +1670,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: '#ea580c',
                           }}
                         >
-                          RULE INSPECTOR &bull; GIẢI MÃ TOÁN HỌC
+                          {language === 'vi' ? 'RULE INSPECTOR • GIẢI MÃ TOÁN HỌC' : 'RULE INSPECTOR • MATHEMATICAL DECODER'}
                         </span>
                         <span
                           style={{
@@ -1735,9 +1742,19 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           paddingLeft: '8px',
                         }}
                       >
-                        <strong>Công thức Lift:</strong> P(A &cap; C) / [P(A) &bull; P(C)] ={' '}
-                        {inspectedRule.lift.toFixed(2)}. Bài báo chứa tiền đề có xác suất xuất hiện hệ quả cao gấp{' '}
-                        {inspectedRule.lift.toFixed(2)} lần so với giả định ngẫu nhiên độc lập.
+                        {language === 'vi' ? (
+                          <>
+                            <strong>Công thức Lift:</strong> P(A &cap; C) / [P(A) &bull; P(C)] ={' '}
+                            {inspectedRule.lift.toFixed(2)}. Bài báo chứa tiền đề có xác suất xuất hiện hệ quả cao gấp{' '}
+                            {inspectedRule.lift.toFixed(2)} lần so với giả định ngẫu nhiên độc lập.
+                          </>
+                        ) : (
+                          <>
+                            <strong>Lift Formula:</strong> P(A &cap; C) / [P(A) &bull; P(C)] ={' '}
+                            {inspectedRule.lift.toFixed(2)}. Papers containing antecedents are{' '}
+                            {inspectedRule.lift.toFixed(2)}x more likely to include consequents than independent chance.
+                          </>
+                        )}
                       </div>
 
                       {onNavigateToRag && (
@@ -1745,7 +1762,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           type="button"
                           onClick={() =>
                             onNavigateToRag(
-                              `Nghiên cứu quy luật kết hợp giữa ${inspectedRule.antecedents.join(', ')} và ${inspectedRule.consequents.join(', ')}`
+                              language === 'vi'
+                                ? `Nghiên cứu quy luật kết hợp giữa ${inspectedRule.antecedents.join(', ')} và ${inspectedRule.consequents.join(', ')}`
+                                : `Investigate association rule between ${inspectedRule.antecedents.join(', ')} and ${inspectedRule.consequents.join(', ')}`
                             )
                           }
                           style={{
@@ -1768,7 +1787,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             <circle cx="11" cy="11" r="8" />
                             <line x1="21" y1="21" x2="16.65" y2="16.65" />
                           </svg>
-                          <span>Tra cứu đề tài này trong RAG Chat</span>
+                          <span>{language === 'vi' ? 'Tra cứu đề tài này trong RAG Chat' : 'Explore this topic in RAG Chat'}</span>
                         </button>
                       )}
                     </div>
@@ -1939,7 +1958,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  Độ tách biệt cụm &gt; 0.35 (Chuẩn hóa)
+                  {language === 'vi' ? 'Độ tách biệt cụm > 0.35 (Chuẩn hóa)' : 'Cluster separation > 0.35 (Normalized)'}
                 </div>
               </div>
 
@@ -1974,7 +1993,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  Chỉ số phân tán nội cụm cô đặc
+                  {language === 'vi' ? 'Chỉ số phân tán nội cụm cô đặc' : 'Dense intra-cluster dispersion index'}
                 </div>
               </div>
 
@@ -2009,7 +2028,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  Tỷ số phương sai liên / nội cụm
+                  {language === 'vi' ? 'Tỷ số phương sai liên / nội cụm' : 'Inter/intra cluster variance ratio'}
                 </div>
               </div>
 
@@ -2032,7 +2051,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     color: themeStyles.textSecondary,
                   }}
                 >
-                  SỐ LƯỢNG CỤM TỐI ƯU
+                  {language === 'vi' ? 'SỐ LƯỢNG CỤM TỐI ƯU' : 'OPTIMAL CLUSTER COUNT'}
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: 800, color: '#7c3aed', marginTop: '1px' }}>
                   K = 6 CLUSTERS
@@ -2044,7 +2063,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  36,414 công trình &bull; 768-D Embeddings
+                  36,414 {language === 'vi' ? 'công trình' : 'papers'} &bull; 768-D Embeddings
                 </div>
               </div>
             </div>
@@ -2116,7 +2135,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         gap: '4px',
                         flexShrink: 0,
                       }}
-                      title="Sao chép bảng kết quả phân cụm định dạng LaTeX cho bài báo"
+                      title={language === 'vi' ? 'Sao chép bảng kết quả phân cụm định dạng LaTeX cho bài báo' : 'Copy clustering LaTeX table for academic papers'}
                     >
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
@@ -2140,9 +2159,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         cursor: 'pointer',
                         flexShrink: 0,
                       }}
-                      title={isSidebarCollapsed ? 'Mở rộng Inspector' : 'Thu gọn Inspector'}
+                      title={isSidebarCollapsed ? (language === 'vi' ? 'Mở rộng Inspector' : 'Expand Inspector') : (language === 'vi' ? 'Thu gọn Inspector' : 'Collapse Inspector')}
                     >
-                      {isSidebarCollapsed ? '► Mở Rộng Inspector' : '◄ Thu Gọn'}
+                      {isSidebarCollapsed ? (language === 'vi' ? '► Mở Rộng Inspector' : '► Expand Inspector') : (language === 'vi' ? '◄ Thu Gọn' : '◄ Collapse')}
                     </button>
                   </div>
                 </div>
@@ -2187,7 +2206,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        Tất cả (All)
+                        {language === 'vi' ? 'Tất cả (All)' : 'All Clusters'}
                       </button>
                       {[0, 1, 2, 3, 4, 5].map((cid) => {
                         const isSel = selectedClusterFilter === cid;
@@ -2197,7 +2216,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             key={cid}
                             type="button"
                             onClick={() => setSelectedClusterFilter(cid)}
-                            title={`Lọc xem riêng Cụm #${cid}: ${CLUSTER_TOPIC_MAP[cid]?.title}`}
+                            title={language === 'vi' ? `Lọc xem riêng Cụm #${cid}: ${CLUSTER_TOPIC_MAP[cid]?.title}` : `Filter Cluster #${cid}: ${CLUSTER_TOPIC_MAP[cid]?.title}`}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -2233,6 +2252,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                   <ChartToolbar
                     theme={theme}
+                    language={language}
                     svgRef={p2SvgRef}
                     filename="kmeans-svd-2d-manifold"
                     csvData={filteredClusterPoints.map((p) => ({
@@ -2265,7 +2285,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  Chiếu giảm chiều Truncated SVD từ 768 chiều &bull; Nhấp vào hạt để mở Deep Dive
+                  {language === 'vi' ? 'Chiếu giảm chiều Truncated SVD từ 768 chiều • Nhấp vào hạt để mở Deep Dive' : 'Truncated SVD 2D projection from 768-D • Click point to open Deep Dive'}
                 </div>
 
                 {/* SVG 2D Canvas */}
@@ -2457,7 +2477,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           }}
                         >
                           <span>✥</span>
-                          <span>{Math.round(p2PanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                          <span>{Math.round(p2PanZoom.zoom * 100)}% &bull; {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}</span>
                         </div>
                       )}
                     </div>
@@ -2502,7 +2522,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: '#2563eb',
                           }}
                         >
-                          CHI TIẾT ĐIỂM VECTOR ĐƯỢC CHỌN
+                          {language === 'vi' ? 'CHI TIẾT ĐIỂM VECTOR ĐƯỢC CHỌN' : 'INSPECTED VECTOR POINT DETAILS'}
                         </span>
                         <button
                           type="button"
@@ -2516,7 +2536,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             fontFamily: 'var(--font-mono)',
                           }}
                         >
-                          [✕ Đóng]
+                          [✕ {language === 'vi' ? 'Đóng' : 'Close'}]
                         </button>
                       </div>
 
@@ -2536,7 +2556,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: clusterColors[inspectedPoint.cluster % clusterColors.length],
                           }}
                         >
-                          CỤM #{inspectedPoint.cluster}: {CLUSTER_TOPIC_MAP[inspectedPoint.cluster]?.title}
+                          {language === 'vi' ? 'CỤM' : 'CLUSTER'} #{inspectedPoint.cluster}: {CLUSTER_TOPIC_MAP[inspectedPoint.cluster]?.title}
                         </div>
                         <div
                           style={{
@@ -2556,7 +2576,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginTop: '6px',
                           }}
                         >
-                          arXiv:{inspectedPoint.paper_id} &bull; Tọa độ SVD 2D: ({inspectedPoint.x.toFixed(4)}, {inspectedPoint.y.toFixed(4)})
+                          arXiv:{inspectedPoint.paper_id} &bull; {language === 'vi' ? 'Tọa độ SVD 2D:' : '2D SVD Coords:'} ({inspectedPoint.x.toFixed(4)}, {inspectedPoint.y.toFixed(4)})
                         </div>
                       </div>
 
@@ -2569,7 +2589,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginTop: '4px',
                         }}
                       >
-                        3 BÀI BÁO LÂN CẬN GẦN NHẤT (NEAREST NEIGHBORS):
+                        {language === 'vi' ? '3 BÀI BÁO LÂN CẬN GẦN NHẤT (NEAREST NEIGHBORS):' : 'TOP 3 NEAREST NEIGHBOR PAPERS:'}
                       </div>
 
                       <div
@@ -2600,7 +2620,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 {neighbor.title}
                               </div>
                               <div style={{ color: themeStyles.textSecondary, marginTop: '2px' }}>
-                                arXiv:{neighbor.paper_id} &bull; Khoảng cách Euclid xấp xỉ: {(0.045 + idx * 0.021).toFixed(4)}
+                                arXiv:{neighbor.paper_id} &bull; {language === 'vi' ? 'Khoảng cách Euclid xấp xỉ:' : 'Approx Euclidean dist:'} {(0.045 + idx * 0.021).toFixed(4)}
                               </div>
                             </div>
                           ))}
@@ -2634,7 +2654,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2z" />
                             <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
                           </svg>
-                          <span>Phân tích bài báo này với RAG Chat</span>
+                          <span>{language === 'vi' ? 'Phân tích bài báo này với RAG Chat' : 'Analyze this paper in RAG Chat'}</span>
                         </button>
                       )}
                     </div>
@@ -2656,7 +2676,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginBottom: '4px',
                         }}
                       >
-                        GIẢI MÃ 6 CHỦ ĐỀ HỌC THUẬT (TOPIC DECODER)
+                        {language === 'vi' ? 'GIẢI MÃ 6 CHỦ ĐỀ HỌC THUẬT (TOPIC DECODER)' : '6 ACADEMIC TOPIC DECODER'}
                       </div>
                       <div
                         style={{
@@ -2666,7 +2686,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginBottom: '8px',
                         }}
                       >
-                        Nhấp vào cụm để lọc các điểm trên bản đồ 2D Manifold
+                        {language === 'vi' ? 'Nhấp vào cụm để lọc các điểm trên bản đồ 2D Manifold' : 'Click cluster to filter points on 2D Manifold map'}
                       </div>
 
                       <div
@@ -2682,8 +2702,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         {clustersData.cluster_profiles.map((c) => {
                           const color = clusterColors[c.cluster_id % clusterColors.length];
                           const meta = CLUSTER_TOPIC_MAP[c.cluster_id] || {
-                            title: `Chủ đề Cụm #${c.cluster_id}`,
-                            subtitle: 'Mô hình học thuật tiềm ẩn',
+                            title: language === 'vi' ? `Chủ đề Cụm #${c.cluster_id}` : `Cluster Topic #${c.cluster_id}`,
+                            subtitleVi: 'Mô hình học thuật tiềm ẩn',
+                            subtitleEn: 'Latent academic model',
                             domain: 'AI/DS',
                           };
                           const isFiltered = selectedClusterFilter === c.cluster_id;
@@ -2719,10 +2740,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 }}
                               >
                                 <span style={{ fontWeight: 800, color }}>
-                                  CỤM #{c.cluster_id}: {meta.domain}
+                                  {language === 'vi' ? 'CỤM' : 'CLUSTER'} #{c.cluster_id}: {meta.domain}
                                 </span>
                                 <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>
-                                  {c.size} bài ({c.percentage}%)
+                                  {c.size} {language === 'vi' ? 'bài' : 'papers'} ({c.percentage}%)
                                 </span>
                               </div>
 
@@ -2824,7 +2845,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      [MINING-03] ĐỒ THỊ MẠNG LƯỚI ĐỒNG TÁC GIẢ (CO-AUTHORSHIP EGO-NETWORK)
+                      [MINING-03] {language === 'vi' ? 'ĐỒ THỊ MẠNG LƯỚI ĐỒNG TÁC GIẢ (CO-AUTHORSHIP EGO-NETWORK)' : 'CO-AUTHORSHIP EGO-NETWORK GRAPH'}
                     </h3>
                     <span className="telemetry-chip">
                       [LOUVAIN: 120 NODES &bull; 243 EDGES &bull; 6 COMMUNITIES]
@@ -2838,7 +2859,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       type="text"
                       value={searchAuthorQuery}
                       onChange={(e) => setSearchAuthorQuery(e.target.value)}
-                      placeholder="Tìm tác giả..."
+                      placeholder={language === 'vi' ? 'Tìm tác giả...' : 'Search author...'}
                       style={{
                         padding: '2px 6px',
                         borderRadius: '4px',
@@ -2867,9 +2888,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         border: `1px solid ${themeStyles.cardBorder}`,
                         cursor: 'pointer',
                       }}
-                      title={isSidebarCollapsed ? 'Mở rộng Ego-Net' : 'Thu gọn Ego-Net'}
+                      title={isSidebarCollapsed ? (language === 'vi' ? 'Mở rộng Ego-Net' : 'Expand Ego-Net') : (language === 'vi' ? 'Thu gọn Ego-Net' : 'Collapse Ego-Net')}
                     >
-                      {isSidebarCollapsed ? '► Mở Rộng Ego-Net' : '◄ Thu Gọn'}
+                      {isSidebarCollapsed ? (language === 'vi' ? '► Mở Rộng Ego-Net' : '► Expand Ego-Net') : (language === 'vi' ? '◄ Thu Gọn' : '◄ Collapse')}
                     </button>
 
                     {/* Layout switcher: Circular Ring vs Clustered Force */}
@@ -2888,7 +2909,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           border: 'none',
                           cursor: 'pointer',
                         }}
-                        title="Bố cục vòng tròn tọa độ"
+                        title={language === 'vi' ? 'Bố cục vòng tròn tọa độ' : 'Circular coordinate layout'}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2913,7 +2934,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           border: 'none',
                           cursor: 'pointer',
                         }}
-                        title="Bố cục lực đàn hồi cụm cộng đồng Louvain"
+                        title={language === 'vi' ? 'Bố cục lực đàn hồi cụm cộng đồng Louvain' : 'Force-directed Louvain layout'}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -2932,7 +2953,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           color: themeStyles.textSecondary,
                         }}
                       >
-                        Bậc:
+                        {language === 'vi' ? 'Bậc:' : 'Degree:'}
                       </span>
                       {[0, 2, 4].map((d) => (
                         <button
@@ -2958,6 +2979,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                     <ChartToolbar
                       theme={theme}
+                      language={language}
                       svgRef={p3SvgRef}
                       filename="co-authorship-louvain-network"
                       csvData={graphData.top_influencers.map((i) => ({
@@ -2989,7 +3011,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  Bán kính: PageRank &bull; Màu: Louvain Community &bull; Rê chuột để kích hoạt Ego-Network
+                  {language === 'vi' ? 'Bán kính: PageRank • Màu: Louvain Community • Rê chuột để kích hoạt Ego-Network' : 'Radius: PageRank • Color: Louvain Community • Hover to activate Ego-Network'}
                 </div>
 
                 {/* SVG Graph Canvas */}
@@ -3186,7 +3208,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       }}
                     >
                       <span>✥</span>
-                      <span>{Math.round(p3PanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                      <span>{Math.round(p3PanZoom.zoom * 100)}% &bull; {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}</span>
                     </div>
                   )}
                 </div>
@@ -3231,7 +3253,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: '#7c3aed',
                           }}
                         >
-                          HỒ SƠ TÁC GIẢ &bull; EGO-NETWORK
+                          {language === 'vi' ? 'HỒ SƠ TÁC GIẢ • EGO-NETWORK' : 'AUTHOR PROFILE • EGO-NETWORK'}
                         </span>
                         <button
                           type="button"
@@ -3245,7 +3267,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             fontFamily: 'var(--font-mono)',
                           }}
                         >
-                          [✕ Bỏ chọn]
+                          [✕ {language === 'vi' ? 'Bỏ chọn' : 'Deselect'}]
                         </button>
                       </div>
 
@@ -3274,7 +3296,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginTop: '2px',
                           }}
                         >
-                          PageRank: {selectedGraphNode.pagerank.toFixed(6)} &bull; Cộng đồng Louvain #{selectedGraphNode.community}
+                          PageRank: {selectedGraphNode.pagerank.toFixed(6)} &bull; {language === 'vi' ? 'Cộng đồng Louvain' : 'Louvain Community'} #{selectedGraphNode.community}
                         </div>
                         <div
                           style={{
@@ -3284,7 +3306,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginTop: '4px',
                           }}
                         >
-                          Bậc liên kết: {selectedGraphNode.degree} đồng tác giả &bull; Đã công bố: {selectedGraphNode.paper_count} bài báo
+                          {language === 'vi' ? 'Bậc liên kết' : 'Degree'}: {selectedGraphNode.degree} {language === 'vi' ? 'đồng tác giả' : 'co-authors'} &bull; {language === 'vi' ? 'Đã công bố' : 'Published'}: {selectedGraphNode.paper_count} {language === 'vi' ? 'bài báo' : 'papers'}
                         </div>
                       </div>
 
@@ -3298,7 +3320,15 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           paddingLeft: '8px',
                         }}
                       >
-                        <strong>Ý nghĩa PageRank:</strong> Tác giả này giữ vai trò là "Cầu nối tri thức" (Hub Influencer) kết nối luồng thông tin học thuật giữa các nhóm nghiên cứu khác nhau.
+                        {language === 'vi' ? (
+                          <>
+                            <strong>Ý nghĩa PageRank:</strong> Tác giả này giữ vai trò là "Cầu nối tri thức" (Hub Influencer) kết nối luồng thông tin học thuật giữa các nhóm nghiên cứu khác nhau.
+                          </>
+                        ) : (
+                          <>
+                            <strong>PageRank Insight:</strong> This author acts as a knowledge hub bridging academic information flow across research communities.
+                          </>
+                        )}
                       </div>
 
                       {/* Direct Collaborators in Ego-Network */}
@@ -3312,7 +3342,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginBottom: '4px',
                           }}
                         >
-                          ĐỒNG TÁC GIẢ TRỰC TIẾP TRONG EGO-NETWORK:
+                          {language === 'vi' ? 'ĐỒNG TÁC GIẢ TRỰC TIẾP TRONG EGO-NETWORK:' : 'DIRECT CO-AUTHORS IN EGO-NETWORK:'}
                         </div>
                         <div
                           style={{
@@ -3354,7 +3384,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                     border: `1px solid ${themeStyles.cardBorder}`,
                                     transition: 'all 0.1s ease',
                                   }}
-                                  title="Nhấp để chuyển tiêu điểm mạng lưới sang tác giả này"
+                                  title={language === 'vi' ? 'Nhấp để chuyển tiêu điểm mạng lưới sang tác giả này' : 'Click to shift network focus to this author'}
                                 >
                                   <span
                                     style={{
@@ -3399,7 +3429,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           type="button"
                           onClick={() =>
                             onNavigateToRag(
-                              `Tổng hợp các công trình nghiên cứu và đồng tác giả của ${selectedGraphNode.label || selectedGraphNode.id}`
+                              language === 'vi'
+                                ? `Tổng hợp các công trình nghiên cứu và đồng tác giả của ${selectedGraphNode.label || selectedGraphNode.id}`
+                                : `Summarize research publications and co-authors of ${selectedGraphNode.label || selectedGraphNode.id}`
                             )
                           }
                           style={{
@@ -3423,7 +3455,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                           </svg>
-                          <span>Tra cứu công trình của tác giả trong RAG</span>
+                          <span>{language === 'vi' ? 'Tra cứu công trình của tác giả trong RAG' : 'Research author publications in RAG'}</span>
                         </button>
                       )}
                     </div>
@@ -3445,7 +3477,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginBottom: '4px',
                         }}
                       >
-                        TOP NHÀ KHOA HỌC ẢNH HƯỞNG (PAGERANK)
+                        {language === 'vi' ? 'TOP NHÀ KHOA HỌC ẢNH HƯỞNG (PAGERANK)' : 'TOP INFLUENTIAL RESEARCHERS (PAGERANK)'}
                       </div>
                       <div
                         style={{
@@ -3455,7 +3487,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginBottom: '8px',
                         }}
                       >
-                        Nhấp vào tác giả để làm nổi bật mạng lưới liên kết cục bộ
+                        {language === 'vi' ? 'Nhấp vào tác giả để làm nổi bật mạng lưới liên kết cục bộ' : 'Click on author to highlight local ego network'}
                       </div>
 
                       <div
@@ -3587,7 +3619,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      [MINING-04] TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)
+                      [MINING-04] {language === 'vi' ? 'TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)' : 'QUARTERLY TREND VELOCITY'}
                     </h3>
                     <span className="telemetry-chip">
                       [VELOCITY SURGE: {topSurging ? `${topSurging.category} (+${Math.round(topSurging.growth_rate_pct)}%)` : 'cs.AI (+199%)'} &bull; ISOLATION FOREST: {trendsData.anomalies.length} OUTLIERS]
@@ -3614,7 +3646,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         alignItems: 'center',
                         gap: '4px',
                       }}
-                      title="Sao chép bảng kết quả dị biệt định dạng LaTeX cho bài báo"
+                      title={language === 'vi' ? 'Sao chép bảng kết quả dị biệt định dạng LaTeX cho bài báo' : 'Copy novelty outliers LaTeX table for academic papers'}
                     >
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
@@ -3638,13 +3670,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         border: `1px solid ${themeStyles.cardBorder}`,
                         cursor: 'pointer',
                       }}
-                      title={isSidebarCollapsed ? 'Mở rộng Outliers' : 'Thu gọn Outliers'}
+                      title={isSidebarCollapsed ? (language === 'vi' ? 'Mở rộng Outliers' : 'Expand Outliers') : (language === 'vi' ? 'Thu gọn Outliers' : 'Collapse Outliers')}
                     >
-                      {isSidebarCollapsed ? '► Mở Rộng Outliers' : '◄ Thu Gọn'}
+                      {isSidebarCollapsed ? (language === 'vi' ? '► Mở Rộng Outliers' : '► Expand Outliers') : (language === 'vi' ? '◄ Thu Gọn' : '◄ Collapse')}
                     </button>
 
                     <ChartToolbar
                       theme={theme}
+                      language={language}
                       svgRef={p4VelocitySvgRef}
                       filename="quarterly-trend-velocity"
                       csvData={trendsData.trend_velocity.map((t) => ({
@@ -3677,7 +3710,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  Cột Xám: Quý trước &bull; Cột Xanh: Quý gần nhất &bull; Nhãn: Tỷ lệ % tăng tốc
+                  {language === 'vi' ? 'Cột Xám: Quý trước • Cột Xanh: Quý gần nhất • Nhãn: Tỷ lệ % tăng tốc' : 'Grey Bar: Prev Quarter • Blue Bar: Recent Quarter • Label: Growth Rate %'}
                 </div>
 
                 {/* SVG Clustered Column Chart */}
@@ -3833,7 +3866,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       }}
                     >
                       <span>✥</span>
-                      <span>{Math.round(p4VelocityPanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                      <span>{Math.round(p4VelocityPanZoom.zoom * 100)}% &bull; {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}</span>
                     </div>
                   )}
                 </div>
@@ -3881,7 +3914,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             margin: 0,
                           }}
                         >
-                          [MINING-05] BẢN ĐỒ DỊ BIỆT (ISOLATION FOREST OUTLIERS)
+                          [MINING-05] {language === 'vi' ? 'BẢN ĐỒ DỊ BIỆT (ISOLATION FOREST OUTLIERS)' : 'NOVELTY OUTLIER MAP (ISOLATION FOREST)'}
                         </h3>
                         <div
                           style={{
@@ -3891,12 +3924,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             fontFamily: 'var(--font-mono)',
                           }}
                         >
-                          Trục X: Độ dài từ &bull; Trục Y: Công thức toán &bull; Nhấp để chẩn đoán
+                          {language === 'vi' ? 'Trục X: Độ dài từ • Trục Y: Công thức toán • Nhấp để chẩn đoán' : 'X-axis: Word count • Y-axis: Math formulas • Click to diagnose'}
                         </div>
                       </div>
 
                       <ChartToolbar
                         theme={theme}
+                        language={language}
                         svgRef={p4AnomalySvgRef}
                         filename="isolation-forest-novelty-outliers"
                         csvData={trendsData.anomalies.map((a) => ({
@@ -3970,7 +4004,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                   fontWeight="800"
                                   fill="#ef4444"
                                 >
-                                  VÙNG DỊ BIỆT NGOẠI LAI P99 (SCORE &gt; 0.85)
+                                  {language === 'vi' ? 'VÙNG DỊ BIỆT NGOẠI LAI P99 (SCORE > 0.85)' : 'P99 OUTLIER REGION (SCORE > 0.85)'}
                                 </text>
                               </g>
                             )}
@@ -4082,7 +4116,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           }}
                         >
                           <span>✥</span>
-                          <span>{Math.round(p4AnomalyPanZoom.zoom * 100)}% &bull; Kéo để pan</span>
+                          <span>{Math.round(p4AnomalyPanZoom.zoom * 100)}% &bull; {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}</span>
                         </div>
                       )}
                     </div>
@@ -4117,7 +4151,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: '#ef4444',
                           }}
                         >
-                          CHẨN ĐOÁN DỊ BIỆT &bull; arXiv:{inspectedAnomaly.paper_id}
+                          {language === 'vi' ? 'CHẨN ĐOÁN DỊ BIỆT' : 'OUTLIER DIAGNOSTIC'} &bull; arXiv:{inspectedAnomaly.paper_id}
                         </span>
                         <span
                           style={{
@@ -4152,7 +4186,15 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           paddingLeft: '6px',
                         }}
                       >
-                        <strong>Lý do gắn cờ:</strong> Bài báo chứa {inspectedAnomaly.math_count} công thức toán học và {inspectedAnomaly.word_count.toLocaleString()} từ ngữ (vượt ngưỡng phân vị P99 học thuật).
+                        {language === 'vi' ? (
+                          <>
+                            <strong>Lý do gắn cờ:</strong> Bài báo chứa {inspectedAnomaly.math_count} công thức toán học và {inspectedAnomaly.word_count.toLocaleString()} từ ngữ (vượt ngưỡng phân vị P99 học thuật).
+                          </>
+                        ) : (
+                          <>
+                            <strong>Flag Reason:</strong> Paper contains {inspectedAnomaly.math_count} mathematical formulas and {inspectedAnomaly.word_count.toLocaleString()} words (exceeds academic P99 threshold).
+                          </>
+                        )}
                       </div>
 
                       {onNavigateToRag && (
@@ -4183,7 +4225,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2z" />
                             <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
                           </svg>
-                          <span>Phân tích bài báo dị biệt này với RAG</span>
+                          <span>{language === 'vi' ? 'Phân tích bài báo dị biệt này với RAG' : 'Analyze this outlier paper in RAG'}</span>
                         </button>
                       )}
                     </div>
@@ -4226,7 +4268,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             Lift: <strong style={{ color: '#ea580c' }}>{hoveredRule.rule.lift.toFixed(3)}x</strong> &bull; Conf: <strong style={{ color: 'var(--accent-emerald)' }}>{(hoveredRule.rule.confidence * 100).toFixed(1)}%</strong>
           </div>
           <div style={{ color: 'var(--text-secondary)', fontSize: '10px', marginTop: '1px' }}>
-            Support: {(hoveredRule.rule.support * 100).toFixed(2)}% &bull; Nhấp để soi chi tiết
+            Support: {(hoveredRule.rule.support * 100).toFixed(2)}% &bull; {language === 'vi' ? 'Nhấp để soi chi tiết' : 'Click to inspect details'}
           </div>
         </div>
       )}
@@ -4252,13 +4294,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           }}
         >
           <div style={{ color: 'var(--accent-silver)', fontWeight: 800 }}>
-            CỤM #{hoveredPoint.point.cluster} &bull; arXiv:{hoveredPoint.point.paper_id}
+            {language === 'vi' ? 'CỤM' : 'CLUSTER'} #{hoveredPoint.point.cluster} &bull; arXiv:{hoveredPoint.point.paper_id}
           </div>
           <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginTop: '2px' }}>
             {hoveredPoint.point.title}
           </div>
           <div style={{ color: 'var(--text-secondary)', fontSize: '10px', marginTop: '2px' }}>
-            Nhấp chuột để xem bài báo lân cận (k-NN)
+            {language === 'vi' ? 'Nhấp chuột để xem bài báo lân cận (k-NN)' : 'Click to view nearest neighbor papers (k-NN)'}
           </div>
         </div>
       )}
@@ -4289,7 +4331,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             PageRank: <strong>{hoveredGraphNode.node.pagerank.toFixed(6)}</strong>
           </div>
           <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>
-            {hoveredGraphNode.node.degree} đồng tác giả &bull; Nhấp để khóa Ego-Network
+            {hoveredGraphNode.node.degree} {language === 'vi' ? 'đồng tác giả • Nhấp để khóa Ego-Network' : 'co-authors • Click to lock Ego-Network'}
           </div>
         </div>
       )}

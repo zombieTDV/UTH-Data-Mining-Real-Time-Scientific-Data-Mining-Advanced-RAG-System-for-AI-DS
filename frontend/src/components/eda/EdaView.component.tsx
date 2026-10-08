@@ -430,7 +430,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
   const handleSyncLakehouseMining = async () => {
     setIsSyncingMining(true);
-    setFeedbackToast('Đang gửi lệnh phân tích EDA & đồng bộ Lakehouse tới Python engine...');
+    setFeedbackToast(
+      language === 'vi'
+        ? 'Đang gửi lệnh phân tích EDA & đồng bộ Lakehouse tới Python engine...'
+        : 'Dispatching EDA analysis & Lakehouse sync to Python engine...'
+    );
     appendStreamLog({
       time: new Date().toLocaleTimeString('en-US', { hour12: false }),
       level: 'EXEC',
@@ -439,12 +443,20 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
     });
     try {
       await triggerMiningPipeline();
-      setFeedbackToast('Pipeline Data Mining đã được kích hoạt. Đang nạp lại tóm tắt EDA...');
+      setFeedbackToast(
+        language === 'vi'
+          ? 'Pipeline Data Mining đã được kích hoạt. Đang nạp lại tóm tắt EDA...'
+          : 'Data Mining pipeline dispatched. Reloading EDA summary...'
+      );
       const updated = await fetchEdaSummary();
       setData(updated);
     } catch (e: any) {
       console.warn('Failed to trigger mining pipeline:', e);
-      setFeedbackToast('Kích hoạt pipeline hoàn tất (chạy ngầm trong nền).');
+      setFeedbackToast(
+        language === 'vi'
+          ? 'Kích hoạt pipeline hoàn tất (chạy ngầm trong nền).'
+          : 'Pipeline trigger dispatched (running in background).'
+      );
     } finally {
       setTimeout(() => {
         setIsSyncingMining(false);
@@ -629,7 +641,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
     if (remainderPct > 0.5) {
       slices.push({
-        category: 'Khác',
+        category: language === 'vi' ? 'Khác' : 'Other',
         percentage: remainderPct,
         color: '#64748b',
       });
@@ -649,7 +661,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         dashOffset,
       };
     });
-  }, [categoryList]);
+  }, [categoryList, language]);
 
   const maxCooccurVal = useMemo(() => {
     if (!data?.category_cooccurrence || data.category_cooccurrence.length === 0) return 2000;
@@ -771,7 +783,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 \\end{table}`;
 
     navigator.clipboard.writeText(latexSnippet).then(() => {
-      setFeedbackToast('Đã sao chép bảng mã LaTeX Table vào clipboard!');
+      setFeedbackToast(
+        language === 'vi'
+          ? 'Đã sao chép bảng mã LaTeX Table vào clipboard!'
+          : 'Copied LaTeX Table snippet to clipboard!'
+      );
     });
   };
 
@@ -785,7 +801,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   primaryClass = {${paper.category}}
 }`;
     navigator.clipboard.writeText(bibtexSnippet).then(() => {
-      setFeedbackToast(`Đã sao chép mã trích dẫn BibTeX cho [${paper.id}]!`);
+      setFeedbackToast(
+        language === 'vi'
+          ? `Đã sao chép mã trích dẫn BibTeX cho [${paper.id}]!`
+          : `Copied BibTeX citation for [${paper.id}]!`
+      );
     });
   };
 
@@ -818,7 +838,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
           </svg>
           <span style={{ fontSize: '12px', fontWeight: 700, color: themeStyles.textPrimary }}>
-            [ POWERBI DAX // DUCKDB ENGINE ] Đang nạp và tính toán trực tiếp từ Silver Parquet...
+            {language === 'vi'
+              ? '[ POWERBI DAX // DUCKDB ENGINE ] Đang nạp và tính toán trực tiếp từ Silver Parquet...'
+              : '[ POWERBI DAX // DUCKDB ENGINE ] Loading & calculating directly from Silver Parquet...'}
           </span>
         </div>
       </div>
@@ -828,7 +850,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   if (error || !data || !filteredKpi) {
     return (
       <div style={{ padding: '24px', fontFamily: 'var(--font-mono)', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-        [ ERROR ] Không thể nạp dữ liệu EDA từ DuckDB: {error}
+        {language === 'vi'
+          ? `[ ERROR ] Không thể nạp dữ liệu EDA từ DuckDB: ${error}`
+          : `[ ERROR ] Failed to load EDA metrics from DuckDB: ${error}`}
       </div>
     );
   }
@@ -1292,7 +1316,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         {/* Hotkey hint */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-          <span>Phím 1-6 chuyển góc nhìn &bull; Phím F thu gọn HUD &bull; Escape đóng chi tiết</span>
+          <span>
+            {language === 'vi'
+              ? 'Phím 1-6 chuyển góc nhìn • Phím F thu gọn HUD • Escape đóng chi tiết'
+              : 'Keys 1-6 switch views • Key F collapses HUD • Escape closes drawer'}
+          </span>
         </div>
       </div>
 
@@ -1356,7 +1384,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     [EDA-01]
                   </span>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    PHÂN BỐ BÀI BÁO &amp; CÔNG THỨC TOÁN
+                    {language === 'vi' ? 'PHÂN BỐ BÀI BÁO & CÔNG THỨC TOÁN' : 'WORK DISTRIBUTION & MATH FORMULAS'}
                   </h3>
                 </div>
 
@@ -1375,9 +1403,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: `1px solid ${isSidebarCollapsed ? '#38bdf8' : themeStyles.border}`,
                       cursor: 'pointer',
                     }}
-                    title={isSidebarCollapsed ? 'Mở lại biểu đồ xu hướng thời gian [ ► ]' : 'Thu gọn biểu đồ phụ để mở rộng đồ thị 100% [ ◄ ]'}
+                    title={
+                      isSidebarCollapsed
+                        ? (language === 'vi' ? 'Mở lại biểu đồ xu hướng thời gian [ ► ]' : 'Expand temporal trends chart [ ► ]')
+                        : (language === 'vi' ? 'Thu gọn biểu đồ phụ để mở rộng đồ thị 100% [ ◄ ]' : 'Collapse side chart [ ◄ ]')
+                    }
                   >
-                    {isSidebarCollapsed ? '► Mở Biểu Đồ Phụ' : '◄ Thu Gọn Biểu Đồ Phụ'}
+                    {isSidebarCollapsed
+                      ? (language === 'vi' ? '► Mở Biểu Đồ Phụ' : '► Open Side Chart')
+                      : (language === 'vi' ? '◄ Thu Gọn Biểu Đồ Phụ' : '◄ Collapse Side Chart')}
                   </button>
                   <button
                     type="button"
@@ -1393,7 +1427,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
                       cursor: 'pointer',
                     }}
-                    title="Phóng đại toàn màn hình 100% (Theater Mode)"
+                    title={language === 'vi' ? 'Phóng đại toàn màn hình 100% (Theater Mode)' : 'Fullscreen 100% (Theater Mode)'}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       {isTheaterMode ? (
@@ -1411,7 +1445,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           <line x1="3" y1="21" x2="10" y2="14" />
                         </svg>
                       )}
-                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                      <span>
+                        {isTheaterMode
+                          ? (language === 'vi' ? 'Thu Nhỏ' : 'Minimize')
+                          : (language === 'vi' ? 'Rạp Hát' : 'Theater')}
+                      </span>
                     </span>
                   </button>
                 </div>
@@ -1435,7 +1473,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   <span className="telemetry-chip" style={{ color: '#38bdf8' }}>
                     EPOCH: 2023-2024 &bull; PEAK: {peakTemporalPeriod.period} (n={peakTemporalPeriod.count.toLocaleString()})
                   </span>
-                  <span style={{ color: themeStyles.textMuted }}>&bull; Trục trái: Số bài &bull; Trục phải: Eq</span>
+                  <span style={{ color: themeStyles.textMuted }}>
+                    &bull; {language === 'vi' ? 'Trục trái: Số bài • Trục phải: Eq' : 'Left axis: Papers • Right axis: Eq'}
+                  </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ width: '8px', height: '8px', backgroundColor: '#2563eb', borderRadius: '2px' }} />
                     <span style={{ color: themeStyles.textSecondary }}>Papers</span>
@@ -1465,7 +1505,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: `1px solid ${showParetoCurve ? '#10b981' : themeStyles.border}`,
                       cursor: 'pointer',
                     }}
-                    title="Bật / tắt đường cong tích lũy Pareto 80/20"
+                    title={language === 'vi' ? 'Bật / tắt đường cong tích lũy Pareto 80/20' : 'Toggle Pareto 80/20 cumulative curve'}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1489,12 +1529,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: `1px solid ${scaleMode === 'log10' ? '#0284c7' : themeStyles.border}`,
                       cursor: 'pointer',
                     }}
-                    title="Chuyển đổi thang đo Tuyến tính / Logarit (Log10)"
+                    title={language === 'vi' ? 'Chuyển đổi thang đo Tuyến tính / Logarit (Log10)' : 'Toggle Linear / Logarithmic (Log10) scale'}
                   >
-                    {scaleMode === 'linear' ? 'Thang: Linear' : 'Thang: Log10'}
+                    {scaleMode === 'linear'
+                      ? (language === 'vi' ? 'Thang: Linear' : 'Scale: Linear')
+                      : (language === 'vi' ? 'Thang: Log10' : 'Scale: Log10')}
                   </button>
                   <ChartToolbar
                     theme={theme}
+                    language={language}
                     svgRef={comboSvgRef}
                     filename="eda-category-distribution-combo"
                     csvData={categoryList.map((c) => ({
@@ -1753,7 +1796,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                                       stroke="#10b981"
                                       strokeWidth={isMilestone ? '2.5' : '1.8'}
                                     >
-                                      <title>{`${p.cat.category}: ${p.cumPct.toFixed(1)}% tích lũy`}</title>
+                                      <title>{`${p.cat.category}: ${p.cumPct.toFixed(1)}% ${language === 'vi' ? 'tích lũy' : 'cumulative'}`}</title>
                                     </circle>
                                     {isMilestone && (
                                       <g style={{ pointerEvents: 'none' }}>
@@ -1790,6 +1833,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     );
                   })()}
                 </svg>
+
                 {comboPanZoom.hasPannedOrZoomed && (
                   <div
                     style={{
@@ -1813,7 +1857,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   >
                     <span>✥</span>
                     <span>{Math.round(comboPanZoom.zoom * 100)}%</span>
-                    <span style={{ color: themeStyles.textMuted }}>• Kéo để pan</span>
+                    <span style={{ color: themeStyles.textMuted }}>
+                      • {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1841,7 +1887,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       [EDA-02]
                     </span>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      TĂNG TRƯỞNG THEO THỜI GIAN
+                      {language === 'vi' ? 'TĂNG TRƯỞNG THEO THỜI GIAN' : 'TEMPORAL PUBLICATION GROWTH'}
                     </h3>
                   </div>
 
@@ -1866,7 +1912,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                      Đỉnh điểm {temporalAggregatedPoints.peakPoint.count.toLocaleString()} bài ({temporalAggregatedPoints.peakPoint.label}) &bull; Chuỗi lũy tiến
+                      {language === 'vi'
+                        ? `Đỉnh điểm ${temporalAggregatedPoints.peakPoint.count.toLocaleString()} bài (${temporalAggregatedPoints.peakPoint.label}) • Chuỗi lũy tiến`
+                        : `Peak ${temporalAggregatedPoints.peakPoint.count.toLocaleString()} papers (${temporalAggregatedPoints.peakPoint.label}) • Cumulative series`}
                     </div>
 
                     {/* Temporal Smoothing Switch */}
@@ -1885,7 +1933,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           border: 'none',
                           cursor: 'pointer',
                         }}
-                        title="Hiển thị số liệu mốc thời gian nguyên bản từ Lakehouse"
+                        title={language === 'vi' ? 'Hiển thị số liệu mốc thời gian nguyên bản từ Lakehouse' : 'Display raw timeline telemetry from Lakehouse'}
                       >
                         Raw
                       </button>
@@ -1903,7 +1951,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           border: 'none',
                           cursor: 'pointer',
                         }}
-                        title="Làm mịn trung bình động 3 điểm Gaussian: khử nhiễu đợt cào khởi tạo 5,027 bài tại 01/24"
+                        title={language === 'vi' ? 'Làm mịn trung bình động 3 điểm Gaussian: khử nhiễu đợt cào khởi tạo 5,027 bài tại 01/24' : '3-point Gaussian moving average: denoise initial 5,027 papers ingest batch at 01/24'}
                       >
                         Smoothed
                       </button>
@@ -1921,17 +1969,18 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           borderRadius: '3px',
                           border: '1px solid rgba(16, 185, 129, 0.3)',
                         }}
-                        title="Đã khử nhiễu đợt cào 5,027 bài tại 01/24 bằng bộ lọc Gaussian 30-Day Moving Window"
+                        title={language === 'vi' ? 'Đã khử nhiễu đợt cào 5,027 bài tại 01/24 bằng bộ lọc Gaussian 30-Day Moving Window' : 'Denoised initial 5,027 papers batch at 01/24 via Gaussian 30-Day Moving Window'}
                       >
-                        Khử nhiễu Batch
+                        {language === 'vi' ? 'Khử nhiễu Batch' : 'Batch Denoised'}
                       </span>
                     )}
                   </div>
 
                   <ChartToolbar
-                      theme={theme}
-                      svgRef={timelineSvgRef}
-                      filename="eda-temporal-publication-growth"
+                    theme={theme}
+                    language={language}
+                    svgRef={timelineSvgRef}
+                    filename="eda-temporal-publication-growth"
                       csvData={temporalAggregatedPoints.points.map((p) => ({
                         period: p.label,
                         papers: p.count,
@@ -2001,7 +2050,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                               <rect x={peakPoint.x - 35} y={Math.max(16, peakPoint.y - 20)} width="70" height="18" rx="3" fill="#2563eb" />
                               <text x={peakPoint.x} y={Math.max(16, peakPoint.y - 20) + 13} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
-                                {peakPoint.count.toLocaleString()} BÀI
+                                {peakPoint.count.toLocaleString()} {language === 'vi' ? 'BÀI' : 'WORKS'}
                               </text>
 
                               {points.map((p, i) => (
@@ -2058,7 +2107,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         >
                           <span>✥</span>
                           <span>{Math.round(timelinePanZoom.zoom * 100)}%</span>
-                          <span style={{ color: themeStyles.textMuted }}>• Kéo để pan</span>
+                          <span style={{ color: themeStyles.textMuted }}>
+                            • {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -2103,7 +2154,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   [EDA-03]
                 </span>
                 <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  MẬT ĐỘ TOÁN vs. ĐỘ DÀI TỪ VỰNG (2D SCATTER)
+                  {language === 'vi' ? 'MẬT ĐỘ TOÁN vs. ĐỘ DÀI TỪ VỰNG (2D SCATTER)' : 'MATH DENSITY vs. WORD COUNT (2D SCATTER)'}
                 </h3>
               </div>
 
@@ -2122,7 +2173,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
                     cursor: 'pointer',
                   }}
-                  title="Phóng đại toàn màn hình 100% (Theater Mode)"
+                  title={language === 'vi' ? 'Phóng đại toàn màn hình 100% (Theater Mode)' : 'Fullscreen 100% (Theater Mode)'}
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     {isTheaterMode ? (
@@ -2140,7 +2191,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         <line x1="3" y1="21" x2="10" y2="14" />
                       </svg>
                     )}
-                    <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                    <span>
+                      {isTheaterMode
+                        ? (language === 'vi' ? 'Thu Nhỏ' : 'Minimize')
+                        : (language === 'vi' ? 'Rạp Hát' : 'Theater')}
+                    </span>
                   </span>
                 </button>
               </div>
@@ -2215,6 +2270,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                 <ChartToolbar
                   theme={theme}
+                  language={language}
                   svgRef={scatterSvgRef}
                   filename="eda-content-depth-math-rigor-scatter"
                   zoomLevel={scatterPanZoom.zoom}
@@ -2562,7 +2618,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 >
                   <span>✥</span>
                   <span>{Math.round(scatterPanZoom.zoom * 100)}%</span>
-                  <span style={{ color: themeStyles.textMuted }}>• Kéo để pan</span>
+                  <span style={{ color: themeStyles.textMuted }}>
+                    • {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}
+                  </span>
                 </div>
               )}
             </div>
@@ -2613,15 +2671,18 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 <div style={{ flexShrink: 0, marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
-                      [EDA-04] CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
+                      [EDA-04] {language === 'vi' ? 'CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)' : 'DISCIPLINE DISTRIBUTION (TAXONOMY DONUT)'}
                     </h3>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                      Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'} bài báo
+                      {language === 'vi'
+                        ? `Tỷ lệ phần trăm phân bố ${overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'} bài báo`
+                        : `Distribution percentage across ${overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'} papers`}
                     </div>
                   </div>
 
                   <ChartToolbar
                     theme={theme}
+                    language={language}
                     svgRef={donutSvgRef}
                     filename="eda-taxonomy-distribution-donut"
                     csvData={categoryList.map((c) => ({
@@ -2673,7 +2734,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>{cat.category}</span>
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: themeStyles.textMuted, fontSize: '10px' }}>{cat.count.toLocaleString()} bài</span>
+                          <span style={{ color: themeStyles.textMuted, fontSize: '10px' }}>
+                            {cat.count.toLocaleString()} {language === 'vi' ? 'bài' : 'papers'}
+                          </span>
                           <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>{cat.percentage.toFixed(1)}%</span>
                         </div>
                       </div>
@@ -2701,7 +2764,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                    [EDA-05] MA TRẬN GIAO THOA LIÊN NGÀNH
+                    [EDA-05] {language === 'vi' ? 'MA TRẬN GIAO THOA LIÊN NGÀNH' : 'CROSS-DISCIPLINE CO-OCCURRENCE MATRIX'}
                   </h3>
                 </div>
 
@@ -2721,9 +2784,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       cursor: 'pointer',
                       flexShrink: 0,
                     }}
-                    title={isSidebarCollapsed ? 'Mở lại biểu đồ Donut [ ► ]' : 'Thu gọn biểu đồ Donut để mở rộng Ma trận 100% [ ◄ ]'}
+                    title={
+                      isSidebarCollapsed
+                        ? (language === 'vi' ? 'Mở lại biểu đồ Donut [ ► ]' : 'Open Donut chart [ ► ]')
+                        : (language === 'vi' ? 'Thu gọn biểu đồ Donut để mở rộng Ma trận 100% [ ◄ ]' : 'Collapse Donut chart [ ◄ ]')
+                    }
                   >
-                    {isSidebarCollapsed ? '► Mở Donut' : '◄ Thu Gọn Donut'}
+                    {isSidebarCollapsed
+                      ? (language === 'vi' ? '► Mở Donut' : '► Open Donut')
+                      : (language === 'vi' ? '◄ Thu Gọn Donut' : '◄ Collapse Donut')}
                   </button>
                   <button
                     type="button"
@@ -2740,7 +2809,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       cursor: 'pointer',
                       flexShrink: 0,
                     }}
-                    title="Phóng đại toàn màn hình 100% (Theater Mode)"
+                    title={language === 'vi' ? 'Phóng đại toàn màn hình 100% (Theater Mode)' : 'Fullscreen 100% (Theater Mode)'}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       {isTheaterMode ? (
@@ -2758,7 +2827,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           <line x1="3" y1="21" x2="10" y2="14" />
                         </svg>
                       )}
-                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                      <span>
+                        {isTheaterMode
+                          ? (language === 'vi' ? 'Thu Nhỏ' : 'Minimize')
+                          : (language === 'vi' ? 'Rạp Hát' : 'Theater')}
+                      </span>
                     </span>
                   </button>
                 </div>
@@ -2785,13 +2858,17 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     CORE: {topCooccurPair ? `${topCooccurPair.category_a} x ${topCooccurPair.category_b} (n=${topCooccurPair.cooccurrence_count.toLocaleString()})` : 'cs.AI x cs.LG'}
                   </span>
                   <span style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                    Mật độ đồng xuất bản các cặp danh mục arXiv
+                    {language === 'vi'
+                      ? 'Mật độ đồng xuất bản các cặp danh mục arXiv'
+                      : 'Co-occurrence density between arXiv category pairs'}
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>Lọc &ge;</span>
+                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
+                      {language === 'vi' ? 'Lọc ≥' : 'Filter ≥'}
+                    </span>
                     <input
                       type="range"
                       min="0"
@@ -2808,6 +2885,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                   <ChartToolbar
                     theme={theme}
+                    language={language}
                     filename="interdisciplinary-cooccurrence-matrix"
                     csvData={category_cooccurrence.map((p) => ({
                       category_a: p.category_a,
@@ -2874,7 +2952,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           {pair.cooccurrence_count}
                         </div>
                         <div style={{ fontSize: '9px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', marginTop: '1px' }}>
-                          bài đồng xuất bản
+                          {language === 'vi' ? 'bài đồng xuất bản' : 'co-occurrences'}
                         </div>
                         {/* Micro Density Bar */}
                         <div style={{ width: '100%', height: '3px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: '2px', marginTop: '6px', overflow: 'hidden' }}>
@@ -2898,18 +2976,20 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#c084fc' : '#6b21a8' }}>
-                        GIAO THOA: {selectedCooccurrencePair.category_a} &times; {selectedCooccurrencePair.category_b} ({selectedCooccurrencePair.cooccurrence_count} BÀI ĐỒNG CÔNG BỐ)
+                        {language === 'vi' ? 'GIAO THOA:' : 'INTERSECTION:'} {selectedCooccurrencePair.category_a} &times; {selectedCooccurrencePair.category_b} ({selectedCooccurrencePair.cooccurrence_count} {language === 'vi' ? 'BÀI ĐỒNG CÔNG BỐ' : 'CO-OCCURRING WORKS'})
                       </span>
                       <button
                         type="button"
                         onClick={() => setSelectedCooccurrencePair(null)}
                         style={{ background: 'none', border: 'none', color: themeStyles.textMuted, cursor: 'pointer', fontSize: '10px', fontFamily: 'var(--font-mono)' }}
                       >
-                        [✕ Đóng]
+                        [{language === 'vi' ? '✕ Đóng' : '✕ Close'}]
                       </button>
                     </div>
                     <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)', lineHeight: 1.4, marginBottom: '8px' }}>
-                      Cặp ngành này đại diện cho xu hướng nghiên cứu liên ngành tiêu biểu. Các bài báo kết hợp lý thuyết và thị giác/ngôn ngữ giúp mở rộng tính ứng dụng của các giải thuật học sâu.
+                      {language === 'vi'
+                        ? 'Cặp ngành này đại diện cho xu hướng nghiên cứu liên ngành tiêu biểu. Các bài báo kết hợp lý thuyết và thị giác/ngôn ngữ giúp mở rộng tính ứng dụng của các giải thuật học sâu.'
+                        : 'This category pair represents cross-disciplinary research trends bridging theoretical depth and vision/language applications to expand deep learning reach.'}
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
@@ -2936,7 +3016,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                             <circle cx="12" cy="12" r="6" />
                             <circle cx="12" cy="12" r="2" />
                           </svg>
-                          <span>Lọc Scatter theo {selectedCooccurrencePair.category_a}</span>
+                          <span>
+                            {language === 'vi'
+                              ? `Lọc Scatter theo ${selectedCooccurrencePair.category_a}`
+                              : `Filter Scatter by ${selectedCooccurrencePair.category_a}`}
+                          </span>
                         </span>
                       </button>
                       {onNavigateToRag && (
@@ -2944,7 +3028,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           type="button"
                           onClick={() =>
                             onNavigateToRag(
-                              `Phân tích các bài báo lai ghép đa chuyên ngành giữa ${selectedCooccurrencePair.category_a} và ${selectedCooccurrencePair.category_b}`
+                              language === 'vi'
+                                ? `Phân tích các bài báo lai ghép đa chuyên ngành giữa ${selectedCooccurrencePair.category_a} và ${selectedCooccurrencePair.category_b}`
+                                : `Analyze interdisciplinary hybrid papers between ${selectedCooccurrencePair.category_a} and ${selectedCooccurrencePair.category_b}`
                             )
                           }
                           style={{
@@ -2963,7 +3049,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                             </svg>
-                            <span>Hỏi RAG về giao thoa này</span>
+                            <span>{language === 'vi' ? 'Hỏi RAG về giao thoa này' : 'Ask RAG about this intersection'}</span>
                           </span>
                         </button>
                       )}
@@ -3019,7 +3105,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                    TOP TÁC GIẢ NĂNG SUẤT CAO NHẤT (HORIZONTAL BARS)
+                    [EDA-06] {language === 'vi' ? 'TOP TÁC GIẢ NĂNG SUẤT CAO NHẤT' : 'TOP PRODUCTIVE AUTHORS'}
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#2563eb' }}>
                     CORE: TOP 10 AUTHORS n=142
@@ -3041,9 +3127,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: `1px solid ${isSidebarCollapsed ? '#38bdf8' : themeStyles.border}`,
                       cursor: 'pointer',
                     }}
-                    title={isSidebarCollapsed ? 'Mở lại bảng Quantiles [ ► ]' : 'Thu gọn bảng Quantiles để mở rộng biểu đồ Tác giả [ ◄ ]'}
+                    title={
+                      isSidebarCollapsed
+                        ? (language === 'vi' ? 'Mở lại bảng Quantiles [ ► ]' : 'Open Quantiles table [ ► ]')
+                        : (language === 'vi' ? 'Thu gọn bảng Quantiles để mở rộng biểu đồ Tác giả [ ◄ ]' : 'Collapse Quantiles table [ ◄ ]')
+                    }
                   >
-                    {isSidebarCollapsed ? '► Mở Quantiles' : '◄ Thu Gọn Quantiles'}
+                    {isSidebarCollapsed
+                      ? (language === 'vi' ? '► Mở Quantiles' : '► Open Quantiles')
+                      : (language === 'vi' ? '◄ Thu Gọn Quantiles' : '◄ Collapse Quantiles')}
                   </button>
                   <button
                     type="button"
@@ -3059,7 +3151,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
                       cursor: 'pointer',
                     }}
-                    title="Phóng đại toàn màn hình 100% (Theater Mode)"
+                    title={language === 'vi' ? 'Phóng đại toàn màn hình 100% (Theater Mode)' : 'Fullscreen 100% (Theater Mode)'}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       {isTheaterMode ? (
@@ -3077,7 +3169,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           <line x1="3" y1="21" x2="10" y2="14" />
                         </svg>
                       )}
-                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                      <span>
+                        {isTheaterMode
+                          ? (language === 'vi' ? 'Thu Nhỏ' : 'Minimize')
+                          : (language === 'vi' ? 'Rạp Hát' : 'Theater')}
+                      </span>
                     </span>
                   </button>
                 </div>
@@ -3086,11 +3182,14 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  Xếp hạng theo số lượng bài báo trong tập dữ liệu Lakehouse &bull; Click tác giả để lọc
+                  {language === 'vi'
+                    ? 'Xếp hạng theo số lượng bài báo trong tập dữ liệu Lakehouse • Click tác giả để lọc'
+                    : 'Ranked by paper count in Lakehouse corpus • Click author to filter'}
                 </div>
 
                 <ChartToolbar
                   theme={theme}
+                  language={language}
                   filename="top-productive-authors"
                   csvData={top_authors.map((a, i) => ({
                     rank: i + 1,
@@ -3116,7 +3215,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           #{idx + 1} {author.author}
                         </span>
                         <span style={{ fontWeight: 800, color: '#2563eb' }}>
-                          {author.paper_count} bài
+                          {author.paper_count} {language === 'vi' ? 'bài' : 'papers'}
                         </span>
                       </div>
 
@@ -3155,7 +3254,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 <div style={{ flexShrink: 0, marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                      PHÂN BỔ QUANTILES: TOÁN &amp; TỪ VỰNG
+                      [EDA-07] {language === 'vi' ? 'PHÂN BỔ QUANTILES: TOÁN & TỪ VỰNG' : 'QUANTILE DISTRIBUTION: MATH & WORDS'}
                     </h3>
                     <span className="telemetry-chip" style={{ color: '#ea580c' }}>
                       MEDIAN: 18.0 eq · 4,920w
@@ -3179,7 +3278,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       alignItems: 'center',
                       gap: '4px',
                     }}
-                    title="Sao chép đoạn mã LaTeX Table vào clipboard để dán vào bài báo Overleaf"
+                    title={
+                      language === 'vi'
+                        ? 'Sao chép đoạn mã LaTeX Table vào clipboard để dán vào bài báo Overleaf'
+                        : 'Copy LaTeX Table snippet to clipboard for Overleaf'
+                    }
                   >
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
@@ -3191,14 +3294,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                 {/* Row 2: Subtitle */}
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '8px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                  Phân vị P25, Median, P75, P95 từ DuckDB OLAP Engine
+                  {language === 'vi'
+                    ? 'Phân vị P25, Median, P75, P95 từ DuckDB OLAP Engine'
+                    : 'P25, Median, P75, P95 percentiles from DuckDB OLAP Engine'}
                 </div>
 
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
                   {/* Math Formulas Quantiles */}
                   <div style={{ backgroundColor: isDark ? 'rgba(234, 88, 12, 0.1)' : '#fff7ed', border: `1px solid ${isDark ? 'rgba(234, 88, 12, 0.25)' : '#fed7aa'}`, borderRadius: '6px', padding: '8px' }}>
                     <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#ea580c', marginBottom: '4px' }}>
-                      CÔNG THỨC TOÁN HỌC (FORMULAS QUANTILES)
+                      {language === 'vi' ? 'CÔNG THỨC TOÁN HỌC (FORMULAS QUANTILES)' : 'MATHEMATICAL FORMULAS (QUANTILES)'}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                       <div style={{ backgroundColor: themeStyles.cardInner, padding: '4px', borderRadius: '3px', border: `1px solid ${themeStyles.border}` }}>
@@ -3227,7 +3332,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   {/* Word Count Quantiles */}
                   <div style={{ backgroundColor: isDark ? 'rgba(37, 99, 235, 0.1)' : '#eff6ff', border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.25)' : '#bfdbfe'}`, borderRadius: '6px', padding: '8px' }}>
                     <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#2563eb', marginBottom: '4px' }}>
-                      ĐỘ DÀI TỪ VỰNG (WORD COUNT QUANTILES)
+                      {language === 'vi' ? 'ĐỘ DÀI TỪ VỰNG (WORD COUNT QUANTILES)' : 'WORD COUNT (QUANTILES)'}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                       <div style={{ backgroundColor: themeStyles.cardInner, padding: '4px', borderRadius: '3px', border: `1px solid ${themeStyles.border}` }}>
@@ -3256,10 +3361,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   {/* Synthesis Insight Note */}
                   <div style={{ backgroundColor: themeStyles.cardSubtle, border: `1px solid ${themeStyles.borderSubtle}`, borderRadius: '6px', padding: '6px 8px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
                     <div style={{ fontWeight: 800, color: themeStyles.textPrimary, marginBottom: '2px' }}>
-                      NOTE TỔNG KẾT HỌC THUẬT:
+                      {language === 'vi' ? 'NOTE TỔNG KẾT HỌC THUẬT:' : 'ACADEMIC SYNTHESIS NOTE:'}
                     </div>
                     <div>
-                      Các tác giả hàng đầu có mức độ liên kết đa ngành trung bình 3.4 chuyên ngành. 75% bài báo trong Lakehouse chứa từ 48 đến 342 công thức toán học và đạt quy mô trên 4,900 từ vựng.
+                      {language === 'vi'
+                        ? 'Các tác giả hàng đầu có mức độ liên kết đa ngành trung bình 3.4 chuyên ngành. 75% bài báo trong Lakehouse chứa từ 48 đến 342 công thức toán học và đạt quy mô trên 4,900 từ vựng.'
+                        : 'Leading authors feature an average interdisciplinary connectivity of 3.4 categories. 75% of Lakehouse papers contain 48-342 math formulas with over 4,900 words.'}
                     </div>
                   </div>
                 </div>
@@ -3315,7 +3422,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     [EDA-06]
                   </span>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
-                    MA TRẬN TƯƠNG QUAN ĐA BIẾN (CORRELATION MATRIX)
+                    {language === 'vi' ? 'MA TRẬN TƯƠNG QUAN ĐA BIẾN (CORRELATION MATRIX)' : 'MULTIVARIATE CORRELATION MATRIX'}
                   </h3>
                 </div>
 
@@ -3335,7 +3442,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: 'none',
                       cursor: 'pointer',
                     }}
-                    title="Pearson r: Đo lường tương quan tuyến tính chuẩn tắc"
+                    title={language === 'vi' ? 'Pearson r: Đo lường tương quan tuyến tính chuẩn tắc' : 'Pearson r: Measures standard linear correlation'}
                   >
                     Pearson r
                   </button>
@@ -3353,7 +3460,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: 'none',
                       cursor: 'pointer',
                     }}
-                    title="Spearman ρ: Đo lường tương quan thứ hạng phi tham số (kháng nhiễu heavy-tail)"
+                    title={language === 'vi' ? 'Spearman ρ: Đo lường tương quan thứ hạng phi tham số (kháng nhiễu heavy-tail)' : 'Spearman ρ: Non-parametric rank correlation (robust to heavy-tail noise)'}
                   >
                     Spearman ρ
                   </button>
@@ -3362,69 +3469,71 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
               {/* Subtitle */}
               <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '10px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                Kiểm định thực nghiệm trên n = 9,015 bài báo có cấu trúc HTML5 đầy đủ trong Lakehouse.
+                {language === 'vi'
+                  ? 'Kiểm định thực nghiệm trên n = 9,015 bài báo có cấu trúc HTML5 đầy đủ trong Lakehouse.'
+                  : 'Empirical verification across n = 9,015 papers with full HTML5 structures in Lakehouse.'}
               </div>
 
               {/* 4x4 Heatmap Table */}
               {(() => {
                 const features = [
-                  { key: 'words', label: 'Số từ (Words)', short: 'Words' },
-                  { key: 'math', label: 'Công thức (Math)', short: 'Math' },
-                  { key: 'sections', label: 'Phân đoạn (Sections)', short: 'Sections' },
-                  { key: 'authors', label: 'Tác giả (Authors)', short: 'Authors' },
+                  { key: 'words', label: language === 'vi' ? 'Số từ (Words)' : 'Words', short: 'Words' },
+                  { key: 'math', label: language === 'vi' ? 'Công thức (Math)' : 'Math', short: 'Math' },
+                  { key: 'sections', label: language === 'vi' ? 'Phân đoạn (Sections)' : 'Sections', short: 'Sections' },
+                  { key: 'authors', label: language === 'vi' ? 'Tác giả (Authors)' : 'Authors', short: 'Authors' },
                 ];
 
                 const pearsonMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
                   words: {
-                    words: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    math: { r: 0.228, p: '< 1e-15', note: 'Tương quan dương yếu-vừa; tuyến tính bị làm loãng bởi đuôi dài' },
-                    sections: { r: 0.410, p: '< 1e-15', note: 'Tương quan dương vừa; bài viết dài có nhiều cấu trúc mục hơn' },
-                    authors: { r: 0.032, p: '0.0004', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
+                    words: { r: 1.0, p: '< 1e-15', note: language === 'vi' ? 'Đồng nhất hoàn hảo' : 'Perfect identity' },
+                    math: { r: 0.228, p: '< 1e-15', note: language === 'vi' ? 'Tương quan dương yếu-vừa; tuyến tính bị làm loãng bởi đuôi dài' : 'Weak-moderate positive correlation; linearity attenuated by heavy tails' },
+                    sections: { r: 0.410, p: '< 1e-15', note: language === 'vi' ? 'Tương quan dương vừa; bài viết dài có nhiều cấu trúc mục hơn' : 'Moderate positive correlation; longer papers have more sections' },
+                    authors: { r: 0.032, p: '0.0004', note: language === 'vi' ? 'Gần như độc lập tuyến tính giữa số từ và số tác giả' : 'Nearly independent linear relationship between word count and authors' },
                   },
                   math: {
-                    words: { r: 0.228, p: '< 1e-15', note: 'Tương quan dương yếu-vừa; tuyến tính bị làm loãng bởi đuôi dài' },
-                    math: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    sections: { r: 0.221, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
-                    authors: { r: -0.104, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
+                    words: { r: 0.228, p: '< 1e-15', note: language === 'vi' ? 'Tương quan dương yếu-vừa; tuyến tính bị làm loãng bởi đuôi dài' : 'Weak-moderate positive correlation; linearity attenuated by heavy tails' },
+                    math: { r: 1.0, p: '< 1e-15', note: language === 'vi' ? 'Đồng nhất hoàn hảo' : 'Perfect identity' },
+                    sections: { r: 0.221, p: '< 1e-15', note: language === 'vi' ? 'Công thức toán dàn trải đều qua các phần kỹ thuật' : 'Math formulas spread evenly across technical sections' },
+                    authors: { r: -0.104, p: '< 1e-15', note: language === 'vi' ? 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' : 'Negative correlation: theoretical math papers have fewer authors (1-2)' },
                   },
                   sections: {
-                    words: { r: 0.410, p: '< 1e-15', note: 'Tương quan dương vừa; bài viết dài có nhiều cấu trúc mục hơn' },
-                    math: { r: 0.221, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
-                    sections: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    authors: { r: 0.052, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
+                    words: { r: 0.410, p: '< 1e-15', note: language === 'vi' ? 'Tương quan dương vừa; bài viết dài có nhiều cấu trúc mục hơn' : 'Moderate positive correlation; longer papers have more sections' },
+                    math: { r: 0.221, p: '< 1e-15', note: language === 'vi' ? 'Công thức toán dàn trải đều qua các phần kỹ thuật' : 'Math formulas spread evenly across technical sections' },
+                    sections: { r: 1.0, p: '< 1e-15', note: language === 'vi' ? 'Đồng nhất hoàn hảo' : 'Perfect identity' },
+                    authors: { r: 0.052, p: '< 1e-6', note: language === 'vi' ? 'Tương quan dương rất yếu với số lượng đồng tác giả' : 'Very weak positive correlation with co-author count' },
                   },
                   authors: {
-                    words: { r: 0.032, p: '0.0004', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
-                    math: { r: -0.104, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
-                    sections: { r: 0.052, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
-                    authors: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    words: { r: 0.032, p: '0.0004', note: language === 'vi' ? 'Gần như độc lập tuyến tính giữa số từ và số tác giả' : 'Nearly independent linear relationship between word count and authors' },
+                    math: { r: -0.104, p: '< 1e-15', note: language === 'vi' ? 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' : 'Negative correlation: theoretical math papers have fewer authors (1-2)' },
+                    sections: { r: 0.052, p: '< 1e-6', note: language === 'vi' ? 'Tương quan dương rất yếu với số lượng đồng tác giả' : 'Very weak positive correlation with co-author count' },
+                    authors: { r: 1.0, p: '< 1e-15', note: language === 'vi' ? 'Đồng nhất hoàn hảo' : 'Perfect identity' },
                   },
                 };
 
                 const spearmanMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
                   words: {
-                    words: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    math: { r: 0.483, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
-                    sections: { r: 0.459, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
-                    authors: { r: 0.033, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
+                    words: { r: 1.0, p: '< 1e-15', note: language === 'vi' ? 'Đồng nhất hoàn hảo' : 'Perfect identity' },
+                    math: { r: 0.483, p: '< 1e-15', note: language === 'vi' ? 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' : 'Strong monotonic correlation: rank testing reveals pronounced covariation between vocabulary and math' },
+                    sections: { r: 0.459, p: '< 1e-15', note: language === 'vi' ? 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' : 'Robust monotonic rank correlation with section length' },
+                    authors: { r: 0.033, p: '< 0.001', note: language === 'vi' ? 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' : 'No significant monotonic relationship between paper length and author count' },
                   },
                   math: {
-                    words: { r: 0.483, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
-                    math: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    sections: { r: 0.224, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
-                    authors: { r: -0.074, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
+                    words: { r: 0.483, p: '< 1e-15', note: language === 'vi' ? 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' : 'Strong monotonic correlation: rank testing reveals pronounced covariation between vocabulary and math' },
+                    math: { r: 1.0, p: '< 1e-15', note: language === 'vi' ? 'Đồng nhất hoàn hảo' : 'Perfect identity' },
+                    sections: { r: 0.224, p: '< 1e-15', note: language === 'vi' ? 'Số lượng phân đoạn tăng cùng mật độ công thức' : 'Section count increases with formula density' },
+                    authors: { r: -0.074, p: '< 1e-10', note: language === 'vi' ? 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' : 'Author & math paradox: confirmed via non-parametric rank test' },
                   },
                   sections: {
-                    words: { r: 0.459, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
-                    math: { r: 0.224, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
-                    sections: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    authors: { r: 0.038, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
+                    words: { r: 0.459, p: '< 1e-15', note: language === 'vi' ? 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' : 'Robust monotonic rank correlation with section length' },
+                    math: { r: 0.224, p: '< 1e-15', note: language === 'vi' ? 'Số lượng phân đoạn tăng cùng mật độ công thức' : 'Section count increases with formula density' },
+                    sections: { r: 1.0, p: '< 1e-15', note: language === 'vi' ? 'Đồng nhất hoàn hảo' : 'Perfect identity' },
+                    authors: { r: 0.038, p: '< 0.001', note: language === 'vi' ? 'Quan hệ đơn điệu rất yếu' : 'Very weak monotonic relationship' },
                   },
                   authors: {
-                    words: { r: 0.033, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
-                    math: { r: -0.074, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
-                    sections: { r: 0.038, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
-                    authors: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    words: { r: 0.033, p: '< 0.001', note: language === 'vi' ? 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' : 'No significant monotonic relationship between paper length and author count' },
+                    math: { r: -0.074, p: '< 1e-10', note: language === 'vi' ? 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' : 'Author & math paradox: confirmed via non-parametric rank test' },
+                    sections: { r: 0.038, p: '< 0.001', note: language === 'vi' ? 'Quan hệ đơn điệu rất yếu' : 'Very weak monotonic relationship' },
+                    authors: { r: 1.0, p: '< 1e-15', note: language === 'vi' ? 'Đồng nhất hoàn hảo' : 'Perfect identity' },
                   },
                 };
 
@@ -3452,7 +3561,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '4px', fontFamily: 'var(--font-mono)' }}>
                         <thead>
                           <tr>
-                            <th style={{ padding: '6px', fontSize: '10px', textAlign: 'left', color: themeStyles.textMuted }}>Biến số</th>
+                            <th style={{ padding: '6px', fontSize: '10px', textAlign: 'left', color: themeStyles.textMuted }}>{language === 'vi' ? 'Biến số' : 'Variable'}</th>
                             {features.map((f) => (
                               <th key={f.key} style={{ padding: '6px', fontSize: '10px', textAlign: 'center', color: themeStyles.textSecondary, fontWeight: 700 }}>
                                 {f.short}
@@ -3502,16 +3611,21 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', padding: '8px 12px', border: `1px solid ${themeStyles.border}`, flexShrink: 0 }}>
                       <div style={{ fontSize: '10px', fontWeight: 800, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>
                         {hoveredCorrelationCell
-                          ? `🔍 CHI TIẾT: ${hoveredCorrelationCell.row} × ${hoveredCorrelationCell.col}`
-                          : '💡 Di chuột lên ô ma trận để xem diễn giải chi tiết và ý nghĩa thống kê'}
+                          ? (language === 'vi' ? `🔍 CHI TIẾT: ${hoveredCorrelationCell.row} × ${hoveredCorrelationCell.col}` : `🔍 DETAIL: ${hoveredCorrelationCell.row} × ${hoveredCorrelationCell.col}`)
+                          : (language === 'vi' ? '💡 Di chuột lên ô ma trận để xem diễn giải chi tiết và ý nghĩa thống kê' : '💡 Hover over matrix cells to view detailed statistical interpretation')}
                       </div>
                       <div style={{ fontSize: '10.5px', color: themeStyles.textSecondary, lineHeight: '1.5' }}>
                         {hoveredCorrelationCell ? (
                           <>
-                            Hệ số tương quan <strong style={{ color: getTextColor(hoveredCorrelationCell.val) }}>{hoveredCorrelationCell.val.toFixed(3)}</strong> (Mức ý nghĩa: p {hoveredCorrelationCell.p}). {hoveredCorrelationCell.note}
+                            {language === 'vi' ? 'Hệ số tương quan ' : 'Correlation coefficient '}
+                            <strong style={{ color: getTextColor(hoveredCorrelationCell.val) }}>{hoveredCorrelationCell.val.toFixed(3)}</strong>
+                            {language === 'vi' ? ` (Mức ý nghĩa: p ${hoveredCorrelationCell.p}). ` : ` (Significance: p ${hoveredCorrelationCell.p}). `}
+                            {hoveredCorrelationCell.note}
                           </>
                         ) : (
-                          'Ma trận nhiệt thể hiện mối liên kết giữa các biến số cấu trúc bài báo. Spearman ρ phản ánh chính xác xu thế hơn Pearson r đối với các phân phối đuôi dài.'
+                          language === 'vi'
+                            ? 'Ma trận nhiệt thể hiện mối liên kết giữa các biến số cấu trúc bài báo. Spearman ρ phản ánh chính xác xu thế hơn Pearson r đối với các phân phối đuôi dài.'
+                            : 'Heatmap displays interrelationships between paper structural variables. Spearman ρ reflects trends more accurately than Pearson r for heavy-tailed distributions.'
                         )}
                       </div>
                     </div>
@@ -3538,7 +3652,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px', flexShrink: 0 }}>
                 <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
-                  KIỂM ĐỊNH GIẢ THUYẾT LIÊN NGÀNH (ANOVA & KW)
+                  {language === 'vi' ? 'KIỂM ĐỊNH GIẢ THUYẾT LIÊN NGÀNH (ANOVA & KW)' : 'INTERDISCIPLINARY HYPOTHESIS TESTING (ANOVA & KW)'}
                 </h3>
                 <span className="telemetry-chip" style={{ color: '#10b981' }}>
                   H0 REJECTED (p &lt; 0.0001)
@@ -3549,14 +3663,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               <div style={{ backgroundColor: themeStyles.cardInner, borderRadius: '6px', border: '1px solid rgba(234, 88, 12, 0.3)', padding: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#ea580c', fontFamily: 'var(--font-mono)' }}>
-                    1. MẬT ĐỘ CÔNG THỨC TOÁN (MATH FORMULAS)
+                    {language === 'vi' ? '1. MẬT ĐỘ CÔNG THỨC TOÁN (MATH FORMULAS)' : '1. MATH FORMULA DENSITY'}
                   </span>
                   <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10b981', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5', padding: '1px 5px', borderRadius: '3px' }}>
                     SIGNIFICANT
                   </span>
                 </div>
                 <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
-                  Giả thuyết H₀: Mật độ công thức toán tương đồng giữa 5 chuyên ngành hàng đầu (cs.LG, cs.CV, cs.CL, cs.RO, cs.AI).
+                  {language === 'vi'
+                    ? 'Giả thuyết H₀: Mật độ công thức toán tương đồng giữa 5 chuyên ngành hàng đầu (cs.LG, cs.CV, cs.CL, cs.RO, cs.AI).'
+                    : 'Hypothesis H₀: Math formula density is homogeneous across top 5 categories (cs.LG, cs.CV, cs.CL, cs.RO, cs.AI).'}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '5px 8px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
@@ -3569,7 +3685,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   </div>
                 </div>
                 <div style={{ fontSize: '9.5px', color: themeStyles.textMuted, marginTop: '4px' }}>
-                  Thứ hạng mật độ: cs.LG (412 eq/bài) &gt; cs.AI (285 eq) &gt; cs.CV (198 eq) &gt; cs.RO (145 eq) &gt; cs.CL (88 eq).
+                  {language === 'vi'
+                    ? 'Thứ hạng mật độ: cs.LG (412 eq/bài) > cs.AI (285 eq) > cs.CV (198 eq) > cs.RO (145 eq) > cs.CL (88 eq).'
+                    : 'Density ranking: cs.LG (412 eq/paper) > cs.AI (285 eq) > cs.CV (198 eq) > cs.RO (145 eq) > cs.CL (88 eq).'}
                 </div>
               </div>
 
@@ -3577,14 +3695,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               <div style={{ backgroundColor: themeStyles.cardInner, borderRadius: '6px', border: '1px solid rgba(37, 99, 235, 0.3)', padding: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#2563eb', fontFamily: 'var(--font-mono)' }}>
-                    2. QUY MÔ NỘI DUNG VĂN BẢN (TOTAL WORDS)
+                    {language === 'vi' ? '2. QUY MÔ NỘI DUNG VĂN BẢN (TOTAL WORDS)' : '2. TEXT CONTENT SCALE (TOTAL WORDS)'}
                   </span>
                   <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10b981', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5', padding: '1px 5px', borderRadius: '3px' }}>
                     SIGNIFICANT
                   </span>
                 </div>
                 <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
-                  Giả thuyết H₀: Độ dài bài báo tương đồng giữa các chuyên ngành.
+                  {language === 'vi'
+                    ? 'Giả thuyết H₀: Độ dài bài báo tương đồng giữa các chuyên ngành.'
+                    : 'Hypothesis H₀: Paper length is homogeneous across disciplines.'}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '5px 8px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
@@ -3601,17 +3721,26 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Card 3: Academic Findings & Data Mining Takeaway */}
               <div style={{ backgroundColor: themeStyles.cardInner, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '10px' }}>
                 <div style={{ fontSize: '10.5px', fontWeight: 800, color: isDark ? '#38bdf8' : '#0369a1', fontFamily: 'var(--font-mono)', marginBottom: '4px' }}>
-                  💡 KẾT LUẬN KHOA HỌC & Ý NGHĨA KHAI PHÁ DỮ LIỆU
+                  {language === 'vi' ? '💡 KẾT LUẬN KHOA HỌC & Ý NGHĨA KHAI PHÁ DỮ LIỆU' : '💡 SCIENTIFIC FINDINGS & DATA MINING TAKEAWAYS'}
                 </div>
                 <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '10px', color: themeStyles.textSecondary, lineHeight: '1.6' }}>
                   <li>
-                    <strong>Nghịch lý toán học vs tác giả (r = -0.104, p &lt; 10⁻¹⁰)</strong>: Nghiên cứu toán lý thuyết thường do cá nhân hoặc nhóm nhỏ (1-2 người) phụ trách. Trái lại, các bài báo kỹ thuật hệ thống (LLM, Robotics) có nhóm tác giả đông (5-10 người) nhưng ít công thức lý thuyết thuần túy.
+                    <strong>{language === 'vi' ? 'Nghịch lý toán học vs tác giả (r = -0.104, p < 10⁻¹⁰): ' : 'Math vs Authors Paradox (r = -0.104, p < 10⁻¹⁰): '}</strong>
+                    {language === 'vi'
+                      ? 'Nghiên cứu toán lý thuyết thường do cá nhân hoặc nhóm nhỏ (1-2 người) phụ trách. Trái lại, các bài báo kỹ thuật hệ thống (LLM, Robotics) có nhóm tác giả đông (5-10 người) nhưng ít công thức lý thuyết thuần túy.'
+                      : 'Theoretical math research is predominantly produced by individuals or small teams (1-2 authors). Conversely, systems-oriented papers (LLMs, Robotics) feature large author teams (5-10 researchers) with fewer pure theoretical equations.'}
                   </li>
                   <li>
-                    <strong>Khoảng cách Pearson vs Spearman (0.228 vs 0.483)</strong>: Phân phối số công thức tuân theo quy luật lũy thừa có đuôi dài cực đoan (Heavy-tailed Power Law), khiến Pearson bị nén. Kiểm định phi tham số Spearman phản ánh trung thực hơn quy luật đồng biến.
+                    <strong>{language === 'vi' ? 'Khoảng cách Pearson vs Spearman (0.228 vs 0.483): ' : 'Pearson vs Spearman Divergence (0.228 vs 0.483): '}</strong>
+                    {language === 'vi'
+                      ? 'Phân phối số công thức tuân theo quy luật lũy thừa có đuôi dài cực đoan (Heavy-tailed Power Law), khiến Pearson bị nén. Kiểm định phi tham số Spearman phản ánh trung thực hơn quy luật đồng biến.'
+                      : 'Equation counts follow an extreme heavy-tailed power law distribution, dampening Pearson r. The non-parametric Spearman rank test more faithfully reflects the monotonic co-growth.'}
                   </li>
                   <li>
-                    <strong>Cơ sở cho LanceDB Vector Retrieval</strong>: Sự khác biệt cực kỳ lớn về mật độ toán và cấu trúc giữa các ngành khẳng định vai trò sống còn của việc phân cụm trước khi truy xuất RAG đa phương thức.
+                    <strong>{language === 'vi' ? 'Cơ sở cho LanceDB Vector Retrieval: ' : 'Foundation for LanceDB Vector Retrieval: '}</strong>
+                    {language === 'vi'
+                      ? 'Sự khác biệt cực kỳ lớn về mật độ toán và cấu trúc giữa các ngành khẳng định vai trò sống còn của việc phân cụm trước khi truy xuất RAG đa phương thức.'
+                      : 'Dramatic cross-disciplinary divergence in math density and structure underscores the vital need for clustering-guided multi-modal RAG retrieval.'}
                   </li>
                 </ul>
               </div>
@@ -3685,9 +3814,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: `1px solid ${isSidebarCollapsed ? '#c084fc' : themeStyles.border}`,
                       cursor: 'pointer',
                     }}
-                    title={isSidebarCollapsed ? 'Mở lại cột Quality Audit [ ► ]' : 'Thu gọn cột Quality Audit để mở rộng RAG Lakehouse [ ◄ ]'}
+                    title={isSidebarCollapsed ? (language === 'vi' ? 'Mở lại cột Quality Audit [ ► ]' : 'Expand Quality Audit column [ ► ]') : (language === 'vi' ? 'Thu gọn cột Quality Audit để mở rộng RAG Lakehouse [ ◄ ]' : 'Collapse Quality Audit column [ ◄ ]')}
                   >
-                    {isSidebarCollapsed ? '► Mở Quality Audit' : '◄ Thu Gọn Quality'}
+                    {isSidebarCollapsed ? (language === 'vi' ? '► Mở Quality Audit' : '► Expand Quality') : (language === 'vi' ? '◄ Thu Gọn Quality' : '◄ Collapse Quality')}
                   </button>
                   <button
                     type="button"
@@ -3703,7 +3832,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
                       cursor: 'pointer',
                     }}
-                    title="Phóng đại toàn màn hình 100% (Theater Mode)"
+                    title={language === 'vi' ? 'Phóng đại toàn màn hình 100% (Theater Mode)' : 'Fullscreen Theater Mode (100%)'}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       {isTheaterMode ? (
@@ -3721,7 +3850,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           <line x1="3" y1="21" x2="10" y2="14" />
                         </svg>
                       )}
-                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+                      <span>{isTheaterMode ? (language === 'vi' ? 'Thu Nhỏ' : 'Minimize') : (language === 'vi' ? 'Rạp Hát' : 'Theater')}</span>
                     </span>
                   </button>
                 </div>
@@ -3730,10 +3859,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  164,702 vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; Cấu trúc Section
+                  {language === 'vi'
+                    ? '164,702 vector chunks 768 chiều • Cửa sổ ngữ cảnh 8,192 tokens • Cấu trúc Section'
+                    : '164,702 768-dim vector chunks • 8,192 token context window • Section structures'}
                 </div>
 
                 <ChartToolbar
+                  language={language}
                   theme={theme}
                   filename="rag-section-contribution-chunks"
                   csvData={[
@@ -3753,11 +3885,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 {/* 4 Vector Metric Badges */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
-                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>TỔNG CHUNKS</div>
+                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>{language === 'vi' ? 'TỔNG CHUNKS' : 'TOTAL CHUNKS'}</div>
                     <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>143,523</div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
-                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>CHUNKS / BÀI</div>
+                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>{language === 'vi' ? 'CHUNKS / BÀI' : 'CHUNKS / PAPER'}</div>
                     <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>14.35x</div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
@@ -3773,7 +3905,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 {/* Section Source Distribution Bars */}
                 <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '8px' }}>
                   <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '6px' }}>
-                    PHÂN BỔ NGUỒN GỐC SECTION VÀO VECTOR INDEX (SECTION CONTRIBUTION)
+                    {language === 'vi'
+                      ? 'PHÂN BỔ NGUỒN GỐC SECTION VÀO VECTOR INDEX (SECTION CONTRIBUTION)'
+                      : 'SECTION CONTRIBUTION TO VECTOR INDEX'}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -3801,10 +3935,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 {/* LanceDB Lakehouse Grounding Note */}
                 <div style={{ backgroundColor: isDark ? 'rgba(124, 58, 237, 0.12)' : '#f5f3ff', border: `1px solid ${isDark ? 'rgba(124, 58, 237, 0.25)' : '#ddd6fe'}`, borderRadius: '6px', padding: '6px 8px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#c084fc' : '#5b21b6' }}>
                   <div style={{ fontWeight: 800, marginBottom: '2px' }}>
-                    KIẾN TRÚC VECTOR GROUNDING:
+                    {language === 'vi' ? 'KIẾN TRÚC VECTOR GROUNDING:' : 'VECTOR GROUNDING ARCHITECTURE:'}
                   </div>
                   <div>
-                    Mỗi vector chunk được nhúng kèm Metadata định danh (arXiv ID, Primary Category, Section Path, và LaTeX Math Token Count) cho phép RAG suy luận có bằng chứng gốc không bị ảo giác.
+                    {language === 'vi'
+                      ? 'Mỗi vector chunk được nhúng kèm Metadata định danh (arXiv ID, Primary Category, Section Path, và LaTeX Math Token Count) cho phép RAG suy luận có bằng chứng gốc không bị ảo giác.'
+                      : 'Each vector chunk is embedded with provenance metadata (arXiv ID, Primary Category, Section Path, and LaTeX Math Token Count), enabling hallucination-free grounded RAG inference.'}
                   </div>
                 </div>
               </div>
@@ -3837,13 +3973,14 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   </div>
 
                   <ChartToolbar
+                    language={language}
                     theme={theme}
                     filename="eda-lotka-author-team-distribution"
                     csvData={[
-                      { team_structure: 'Nhóm nhỏ (2 - 4 tác giả)', papers: 5640, percentage: 56.4 },
-                      { team_structure: 'Lab lớn (5 - 10 tác giả)', papers: 2410, percentage: 24.1 },
-                      { team_structure: 'Tác giả đơn (Solo Author)', papers: 1420, percentage: 14.2 },
-                      { team_structure: 'Mega-consortium (> 10 người)', papers: 530, percentage: 4.9 },
+                      { team_structure: language === 'vi' ? 'Nhóm nhỏ (2 - 4 tác giả)' : 'Small team (2 - 4 authors)', papers: 5640, percentage: 56.4 },
+                      { team_structure: language === 'vi' ? 'Lab lớn (5 - 10 tác giả)' : 'Large lab (5 - 10 authors)', papers: 2410, percentage: 24.1 },
+                      { team_structure: language === 'vi' ? 'Tác giả đơn (Solo Author)' : 'Solo Author', papers: 1420, percentage: 14.2 },
+                      { team_structure: language === 'vi' ? 'Mega-consortium (> 10 người)' : 'Mega-consortium (> 10 authors)', papers: 530, percentage: 4.9 },
                     ]}
                     onShowToast={(msg) => {
                       setFeedbackToast(msg);
@@ -3854,7 +3991,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                 {/* Row 2: Subtitle */}
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '8px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                  Kiểm chuẩn độ sạch dữ liệu &bull; Trắc lượng khoa học năng suất tác giả
+                  {language === 'vi'
+                    ? 'Kiểm chuẩn độ sạch dữ liệu • Trắc lượng khoa học năng suất tác giả'
+                    : 'Data cleanliness verification • Author scientometrics'}
                 </div>
 
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
@@ -3865,7 +4004,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>100.0%</div>
                     </div>
                     <div style={{ backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ecfdf5', padding: '6px 4px', borderRadius: '5px', border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#a7f3d0'}` }}>
-                      <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700 }}>SHA-256 TRÙNG</div>
+                      <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700 }}>{language === 'vi' ? 'SHA-256 TRÙNG' : 'SHA-256 DUPLICATE'}</div>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>0.00%</div>
                     </div>
                     <div style={{ backgroundColor: isDark ? 'rgba(37, 99, 235, 0.12)' : '#eff6ff', padding: '6px 4px', borderRadius: '5px', border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.25)' : '#bfdbfe'}` }}>
@@ -3878,7 +4017,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                       <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                        ĐỊNH LUẬT LOTKA: QUY MÔ NHÓM TÁC GIẢ
+                        {language === 'vi' ? 'ĐỊNH LUẬT LOTKA: QUY MÔ NHÓM TÁC GIẢ' : "LOTKA'S LAW: AUTHOR TEAM SIZE"}
                       </span>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
                         &alpha; &approx; 2.08
@@ -3887,15 +4026,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       {[
-                        { type: 'Nhóm nhỏ (2 - 4 tác giả)', pct: 56.4, count: 5640, color: '#2563eb' },
-                        { type: 'Lab lớn (5 - 10 tác giả)', pct: 24.1, count: 2410, color: '#0284c7' },
-                        { type: 'Tác giả đơn (Solo Author)', pct: 14.2, count: 1420, color: '#0d9488' },
-                        { type: 'Mega-consortium (> 10 người)', pct: 5.3, count: 530, color: '#ea580c' },
+                        { type: language === 'vi' ? 'Nhóm nhỏ (2 - 4 tác giả)' : 'Small team (2 - 4 authors)', pct: 56.4, count: 5640, color: '#2563eb' },
+                        { type: language === 'vi' ? 'Lab lớn (5 - 10 tác giả)' : 'Large lab (5 - 10 authors)', pct: 24.1, count: 2410, color: '#0284c7' },
+                        { type: language === 'vi' ? 'Tác giả đơn (Solo Author)' : 'Solo Author', pct: 14.2, count: 1420, color: '#0d9488' },
+                        { type: language === 'vi' ? 'Mega-consortium (> 10 người)' : 'Mega-consortium (> 10 authors)', pct: 5.3, count: 530, color: '#ea580c' },
                       ].map((item) => (
                         <div key={item.type}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', marginBottom: '2px' }}>
                             <span style={{ color: themeStyles.textSecondary }}>{item.type}</span>
-                            <span style={{ fontWeight: 800, color: item.color }}>{item.count} bài ({item.pct}%)</span>
+                            <span style={{ fontWeight: 800, color: item.color }}>{item.count} {language === 'vi' ? 'bài' : 'papers'} ({item.pct}%)</span>
                           </div>
                           <div style={{ width: '100%', height: '5px', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
                             <div style={{ width: `${item.pct}%`, height: '100%', backgroundColor: item.color, borderRadius: '3px' }} />
@@ -3908,7 +4047,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   {/* Core Lexical Tokens */}
                   <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '6px 8px' }}>
                     <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginBottom: '4px' }}>
-                      TỪ KHÓA AI HỌC THUẬT XUẤT HIỆN NHIỀU NHẤT (TOP LEXICAL TOKENS)
+                      {language === 'vi' ? 'TỪ KHÓA AI HỌC THUẬT XUẤT HIỆN NHIỀU NHẤT (TOP LEXICAL TOKENS)' : 'TOP ACADEMIC AI LEXICAL TOKENS'}
                     </div>
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                       {['Transformer', 'Diffusion Models', 'Latent Space', 'Self-Supervised', 'Chain-of-Thought', 'Contrastive Learning', 'Zero-Shot'].map((token) => (
@@ -3977,7 +4116,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   fontSize: '14px',
                   lineHeight: 1,
                 }}
-                title="Đóng ngăn kéo (Phím Esc)"
+                title={language === 'vi' ? 'Đóng ngăn kéo (Phím Esc)' : 'Close drawer (Esc)'}
               >
                 &times;
               </button>
@@ -3988,19 +4127,19 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {selectedPaperForDrawer.title}
             </h2>
             <div style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700, marginBottom: '12px' }}>
-              Tác giả: {selectedPaperForDrawer.author}
+              {language === 'vi' ? 'Tác giả:' : 'Authors:'} {selectedPaperForDrawer.author}
             </div>
 
             {/* Quick Metrics Bar */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '14px' }}>
               <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '8px', borderRadius: '6px', border: `1px solid ${themeStyles.border}` }}>
-                <div style={{ fontSize: '10px', color: themeStyles.textMuted }}>CÔNG THỨC TOÁN</div>
+                <div style={{ fontSize: '10px', color: themeStyles.textMuted }}>{language === 'vi' ? 'CÔNG THỨC TOÁN' : 'MATH FORMULAS'}</div>
                 <div style={{ fontSize: '14px', fontWeight: 800, color: '#ea580c', marginTop: '2px' }}>
                   {selectedPaperForDrawer.formulas} eq
                 </div>
               </div>
               <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '8px', borderRadius: '6px', border: `1px solid ${themeStyles.border}` }}>
-                <div style={{ fontSize: '10px', color: themeStyles.textMuted }}>ĐỘ DÀI TỪ VỰNG</div>
+                <div style={{ fontSize: '10px', color: themeStyles.textMuted }}>{language === 'vi' ? 'ĐỘ DÀI TỪ VỰNG' : 'WORD COUNT'}</div>
                 <div style={{ fontSize: '14px', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
                   {selectedPaperForDrawer.words.toLocaleString()} words
                 </div>
@@ -4010,10 +4149,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             {/* Abstract Section */}
             <div style={{ marginBottom: '14px' }}>
               <div style={{ fontSize: '10px', fontWeight: 800, color: themeStyles.textMuted, marginBottom: '4px' }}>
-                TÓM TẮT HỌC THUẬT (ABSTRACT):
+                {language === 'vi' ? 'TÓM TẮT HỌC THUẬT (ABSTRACT):' : 'ACADEMIC ABSTRACT:'}
               </div>
               <p style={{ fontSize: '10px', color: themeStyles.textSecondary, lineHeight: 1.5, margin: 0, backgroundColor: themeStyles.cardSubtle, padding: '10px', borderRadius: '6px', border: `1px solid ${themeStyles.borderSubtle}` }}>
-                {selectedPaperForDrawer.abstract || 'Bài báo nghiên cứu này đề xuất giải pháp đột phá trong phân lớp lý thuyết và thực nghiệm hệ thống, được bóc tách tự động qua pipeline ar5iv HTML5 với độ chính xác cao.'}
+                {selectedPaperForDrawer.abstract || (language === 'vi' ? 'Bài báo nghiên cứu này đề xuất giải pháp đột phá trong phân lớp lý thuyết và thực nghiệm hệ thống, được bóc tách tự động qua pipeline ar5iv HTML5 với độ chính xác cao.' : 'This paper proposes a breakthrough solution in theoretical and empirical evaluation, extracted via the high-accuracy ar5iv HTML5 pipeline.')}
               </p>
             </div>
 
@@ -4021,7 +4160,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             {selectedPaperForDrawer.sampleFormula && (
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 800, color: isDark ? '#38bdf8' : '#0284c7', marginBottom: '4px' }}>
-                  TRÍCH ĐOẠN CÔNG THỨC TOÁN HỌC (KATEX):
+                  {language === 'vi' ? 'TRÍCH ĐOẠN CÔNG THỨC TOÁN HỌC (KATEX):' : 'MATHEMATICAL EQUATION EXCERPT (KATEX):'}
                 </div>
                 <ScientificMath
                   math={selectedPaperForDrawer.sampleFormula}
@@ -4060,7 +4199,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
-                <span>HỎI BÀI BÁO NÀY TRONG RAG CHAT</span>
+                <span>{language === 'vi' ? 'HỎI BÀI BÁO NÀY TRONG RAG CHAT' : 'QUERY THIS PAPER IN RAG CHAT'}</span>
               </button>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -4089,7 +4228,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     <line x1="7" y1="17" x2="17" y2="7" />
                     <polyline points="7 7 17 7 17 17" />
                   </svg>
-                  <span>ĐỌC AR5IV</span>
+                  <span>{language === 'vi' ? 'ĐỌC AR5IV' : 'READ AR5IV'}</span>
                 </a>
 
                 <button
@@ -4152,14 +4291,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: getCategoryColor(hoveredScatterPoint.point.category) }}>
               {hoveredScatterPoint.point.id} &bull; {hoveredScatterPoint.point.category}
             </span>
-            <span style={{ fontSize: '10px', color: 'var(--accent-silver)' }}>Click để xem chi tiết</span>
+            <span style={{ fontSize: '10px', color: 'var(--accent-silver)' }}>
+              {language === 'vi' ? 'Click để xem chi tiết' : 'Click for details'}
+            </span>
           </div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '3px', lineHeight: 1.3 }}>
             {hoveredScatterPoint.point.title}
           </div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-            <span>Toán: <strong style={{ color: '#ea580c' }}>{hoveredScatterPoint.point.formulas} eq</strong></span>
-            <span>Độ dài: <strong style={{ color: 'var(--accent-silver)' }}>{hoveredScatterPoint.point.words.toLocaleString()} words</strong></span>
+            <span>{language === 'vi' ? 'Toán:' : 'Math:'} <strong style={{ color: '#ea580c' }}>{hoveredScatterPoint.point.formulas} eq</strong></span>
+            <span>{language === 'vi' ? 'Độ dài:' : 'Length:'} <strong style={{ color: 'var(--accent-silver)' }}>{hoveredScatterPoint.point.words.toLocaleString()} words</strong></span>
           </div>
         </div>
       )}
@@ -4187,10 +4328,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             {hoveredBar.category}
           </div>
           <div style={{ marginTop: '2px' }}>
-            Số bài: <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / (overview.total_papers || 10000)) * 100).toFixed(1)}%)
+            {language === 'vi' ? 'Số bài:' : 'Papers:'} <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / (overview.total_papers || 10000)) * 100).toFixed(1)}%)
           </div>
           <div style={{ color: '#ea580c' }}>
-            Công thức: <strong>{hoveredBar.math.toLocaleString()}</strong> (avg {(hoveredBar.math / hoveredBar.count).toFixed(1)}/paper)
+            {language === 'vi' ? 'Công thức:' : 'Formulas:'} <strong>{hoveredBar.math.toLocaleString()}</strong> (avg {(hoveredBar.math / hoveredBar.count).toFixed(1)}/paper)
           </div>
         </div>
       )}
@@ -4215,13 +4356,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           }}
         >
           <div style={{ fontWeight: 800, color: 'var(--accent-silver)' }}>
-            Thời kỳ: {hoveredTimelineYear.year}
+            {language === 'vi' ? 'Thời kỳ:' : 'Period:'} {hoveredTimelineYear.year}
           </div>
           <div style={{ marginTop: '2px' }}>
-            Bài báo xuất bản: <strong>{hoveredTimelineYear.count.toLocaleString()}</strong>
+            {language === 'vi' ? 'Bài báo xuất bản:' : 'Published papers:'} <strong>{hoveredTimelineYear.count.toLocaleString()}</strong>
           </div>
           <div style={{ color: 'var(--accent-emerald)' }}>
-            Tỷ trọng: <strong>{hoveredTimelineYear.pct}</strong>
+            {language === 'vi' ? 'Tỷ trọng:' : 'Share:'} <strong>{hoveredTimelineYear.pct}</strong>
           </div>
         </div>
       )}
@@ -4278,7 +4419,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
           <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
             <span>ID: <strong style={{ color: 'var(--accent-silver)' }}>{activeAnomalies[0].paperId}</strong></span>
-            <span>Ngành: <strong style={{ color: 'var(--accent-violet)' }}>{activeAnomalies[0].category}</strong></span>
+            <span>{language === 'vi' ? 'Ngành:' : 'Field:'} <strong style={{ color: 'var(--accent-violet)' }}>{activeAnomalies[0].category}</strong></span>
             <span>Score: <strong style={{ color: '#ef4444' }}>{activeAnomalies[0].score}</strong></span>
           </div>
 
