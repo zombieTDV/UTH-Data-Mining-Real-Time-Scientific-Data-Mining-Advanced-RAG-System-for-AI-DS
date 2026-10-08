@@ -32,8 +32,8 @@ export const StorageMeter: FC<StorageMeterProps> = ({
   const accentColor = isHigh ? '#ef4444' : isMed ? '#f59e0b' : '#34d399';
 
   const tooltipText = language === 'vi'
-    ? `Cloudflare R2 Storage Lens (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)\n• Bấm hoặc nhấn phím S để mở Lăng Kính Lưu Trữ & Bộ Lập Lịch`
-    : `Cloudflare R2 Storage Lens (Free Tier Quota: 10.00 GB)\n• Used: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Available: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Zero Egress Fees\n• Click or press S to open Storage Lens & Scheduler`;
+    ? `Cloudflare R2 Storage (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)\n• Bấm hoặc nhấn phím S để xem chi tiết Storage Lens & Điều phối`
+    : `Cloudflare R2 Storage (Free Tier Quota: 10.00 GB)\n• Used: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Available: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Zero Egress Fees\n• Click or press S to view Storage Lens & Scheduler`;
 
   return (
     <div
@@ -52,15 +52,15 @@ export const StorageMeter: FC<StorageMeterProps> = ({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '8px',
+        gap: '7px',
         padding: '0 10px',
         height: '32px',
         borderRadius: '8px',
         backgroundColor: onClick && isHovered
-          ? (isHovered ? 'rgba(245, 158, 11, 0.12)' : 'var(--badge-bg)')
+          ? 'var(--bg-surface-hover, rgba(255, 255, 255, 0.08))'
           : 'var(--badge-bg)',
         border: onClick && isHovered
-          ? '1px solid rgba(245, 158, 11, 0.6)'
+          ? '1px solid var(--border-muted, rgba(255, 255, 255, 0.22))'
           : '1px solid var(--badge-border)',
         fontFamily: 'var(--font-mono)',
         cursor: onClick ? 'pointer' : 'default',
@@ -92,12 +92,11 @@ export const StorageMeter: FC<StorageMeterProps> = ({
       {/* Sleek Mini Capacity Gauge */}
       <div
         style={{
-          width: '48px',
-          height: '5px',
-          backgroundColor: 'var(--bg-elevated)',
+          width: '46px',
+          height: '4px',
+          backgroundColor: 'var(--track-bg, rgba(255, 255, 255, 0.12))',
           borderRadius: '9999px',
           overflow: 'hidden',
-          border: '1px solid var(--border-subtle)',
           position: 'relative',
           flexShrink: 0,
         }}
@@ -113,8 +112,8 @@ export const StorageMeter: FC<StorageMeterProps> = ({
         />
       </div>
 
-      {/* Storage Volume: Only GB Ratio */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', fontSize: '11px', fontWeight: 800 }}>
+      {/* Storage Volume: GB Ratio */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', fontSize: '11px', fontWeight: 700 }}>
         <span style={{ color: 'var(--text-primary)' }}>
           <AnimatedCounter value={storageUsedGb} decimals={2} />
         </span>
@@ -123,31 +122,29 @@ export const StorageMeter: FC<StorageMeterProps> = ({
         </span>
       </div>
 
-      {/* Interactive Lens Badge */}
+      {/* Subtle indicator arrow that gently highlights on hover */}
       {onClick && (
-        <span
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           style={{
-            fontSize: '9px',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 800,
-            padding: '2px 5px',
-            borderRadius: '4px',
-            backgroundColor: isHovered ? '#f59e0b' : 'rgba(245, 158, 11, 0.16)',
-            color: isHovered ? '#000000' : '#f59e0b',
-            border: `1px solid ${isHovered ? '#f59e0b' : 'rgba(245, 158, 11, 0.4)'}`,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '3px',
-            letterSpacing: '0.02em',
+            color: isHovered ? 'var(--text-primary)' : 'var(--text-muted)',
+            opacity: isHovered ? 0.9 : 0.35,
             transition: 'all 0.15s ease',
+            transform: isHovered ? 'translate(0.5px, -0.5px)' : 'none',
+            flexShrink: 0,
+            marginLeft: '1px',
           }}
         >
-          <span>LENS (S)</span>
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-        </span>
+          <line x1="7" y1="17" x2="17" y2="7" />
+          <polyline points="7 7 17 7 17 17" />
+        </svg>
       )}
     </div>
   );
