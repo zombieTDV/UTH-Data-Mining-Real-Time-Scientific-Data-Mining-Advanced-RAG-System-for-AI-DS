@@ -174,13 +174,19 @@ export const R2Screen: FC<R2ScreenProps> = () => {
       {/* Top HUD Component */}
       <R2StorageHud
         bucketName={treeData?.bucket_name || 'uth-scientific-lakehouse'}
-        totalSizeGb={treeData?.total_size_gb || 8.07}
-        totalObjects={treeData?.total_objects || 11680}
+        totalSizeGb={treeData?.total_size_gb || 12.18}
+        totalObjects={treeData?.total_objects || 36440}
         freeTierQuotaGb={treeData?.free_tier_quota_gb || 10.0}
-        usedPercentage={treeData?.used_percentage || 80.7}
+        usedPercentage={treeData?.used_percentage || 121.8}
         lastSynced={treeData?.last_synced || 'Local Disk Snapshot'}
         isSyncing={isSyncing}
         onSync={handleSyncRemoteSnapshot}
+        classAOperations={treeData?.class_a_operations || '46.75k'}
+        classBOperations={treeData?.class_b_operations || '113.58k'}
+        storageClass={treeData?.storage_class || 'Standard'}
+        publicAccess={treeData?.public_access || 'Enabled'}
+        overageGb={treeData?.overage_gb || 2.18}
+        estimatedOverageCostUsd={treeData?.estimated_overage_cost_usd || 0.033}
       />
 
       {/* Sync Notification Banner if any */}

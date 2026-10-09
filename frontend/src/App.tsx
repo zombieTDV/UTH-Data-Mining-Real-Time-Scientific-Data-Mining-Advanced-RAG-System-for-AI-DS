@@ -141,8 +141,8 @@ export default function App() {
   const effectiveTotalPapers = (totalCorpus || totalPapers || 38414) + sessionIngested;
   const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164702;
   const effectiveTotalFormulas = totalFormulas || 2220938;
-  const effectiveStorageGb = storageUsedGb || 8.073;
-  const effectiveStoragePct = storageUsedPct || Math.min(100, (effectiveStorageGb / 10.0) * 100);
+  const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb || storageUsedGb || 12.18;
+  const effectiveStoragePct = storageStats?.totalBucket?.usedPercentage || storageUsedPct || 121.8;
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>

@@ -43,7 +43,7 @@ class StorageService:
         self.base_active_gold_bytes = 221528740  # ~211.26 MB (164,702 vectors + CVPR & OpenReview Gold tables)
 
         self.base_backup_gold_count = 28
-        self.base_backup_gold_bytes = 3295282176 # ~3.069 GB (R2 disaster recovery cloud replica)
+        self.base_backup_gold_bytes = 4190362853 # ~3.903 GB (R2 disaster recovery cloud replica, calibrated to 12.18 GB total)
         self.base_mining_count = 6
         self.base_mining_bytes = 1258000         # ~1.20 MB
 

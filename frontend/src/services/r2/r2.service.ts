@@ -11,6 +11,12 @@ export interface R2TreeResponseData {
   used_percentage: number;
   cost_shield_active: boolean;
   last_synced: string;
+  class_a_operations?: string;
+  class_b_operations?: string;
+  storage_class?: string;
+  public_access?: string;
+  overage_gb?: number;
+  estimated_overage_cost_usd?: number;
   zones: Record<string, R2FileItem[]>;
   zone_stats: Record<string, { count: number; size_bytes: number; size_formatted: string }>;
 }
