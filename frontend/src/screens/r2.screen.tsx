@@ -163,11 +163,10 @@ export const R2Screen: FC<R2ScreenProps> = () => {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
+        minHeight: '100%',
         width: '100%',
         gap: '12px',
-        padding: '12px 20px',
-        minHeight: 0,
+        padding: '12px 20px 24px 20px',
         boxSizing: 'border-box',
       }}
     >
@@ -232,8 +231,7 @@ export const R2Screen: FC<R2ScreenProps> = () => {
           display: 'flex',
           flex: 1,
           gap: '14px',
-          minHeight: 0,
-          overflow: 'hidden',
+          minHeight: 'calc(100vh - 200px)',
         }}
       >
         {/* Left Pane: Medallion Zone Tree */}
@@ -241,10 +239,8 @@ export const R2Screen: FC<R2ScreenProps> = () => {
           style={{
             width: '360px',
             minWidth: '320px',
-            height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            minHeight: 0,
           }}
         >
           <R2FileTree
@@ -260,10 +256,9 @@ export const R2Screen: FC<R2ScreenProps> = () => {
           style={{
             flex: 1,
             minWidth: 0,
-            height: '100%',
+            minHeight: '100%',
             display: 'flex',
             flexDirection: 'column',
-            minHeight: 0,
           }}
         >
           <R2FileInspector

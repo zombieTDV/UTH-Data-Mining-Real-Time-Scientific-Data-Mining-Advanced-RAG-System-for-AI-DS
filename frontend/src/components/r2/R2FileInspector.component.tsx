@@ -284,7 +284,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
   const previewType = previewData?.preview_type || (selectedFile.extension === 'parquet' ? 'parquet' : selectedFile.extension === 'lance' ? 'lance' : selectedFile.extension === 'json' ? 'json' : 'binary');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '12px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', gap: '12px' }}>
       {/* Top File Locator Bar */}
       <div
         style={{
@@ -334,7 +334,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
       </div>
 
       {/* Embedded Component Viewer */}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
         {previewType === 'parquet' && (
           <ParquetTableViewer
             fileName={previewData?.name || selectedFile.name}

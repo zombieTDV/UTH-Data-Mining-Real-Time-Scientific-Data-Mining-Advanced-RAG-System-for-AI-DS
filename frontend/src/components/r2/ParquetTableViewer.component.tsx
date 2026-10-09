@@ -37,7 +37,7 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
   const [filterText, setFilterText] = useState('');
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showSchemaTiles, setShowSchemaTiles] = useState(true);
+  const [showSchemaTiles, setShowSchemaTiles] = useState(false);
   const [expandedColumns, setExpandedColumns] = useState<Record<string, boolean>>({});
   const [activePopover, setActivePopover] = useState<CellPopoverInfo | null>(null);
   const [copiedCellKey, setCopiedCellKey] = useState<string | null>(null);
@@ -145,7 +145,7 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
   }, [filteredRows, currentPage, pageSize]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '12px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', gap: '12px' }}>
       {/* File Metadata Overview Banner */}
       <div
         style={{
@@ -153,11 +153,11 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 16px',
+          padding: '8px 14px',
           backgroundColor: 'rgba(6, 182, 212, 0.08)',
           border: '1px solid rgba(6, 182, 212, 0.25)',
           borderRadius: '8px',
-          gap: '12px',
+          gap: '10px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -205,7 +205,7 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
           backgroundColor: 'var(--bg-surface, #1e293b)',
           border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
           borderRadius: '8px',
-          padding: '12px 16px',
+          padding: '8px 14px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -373,6 +373,7 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
       <div
         style={{
           flex: 1,
+          minHeight: '440px',
           overflow: 'auto',
           backgroundColor: 'var(--bg-surface, #1e293b)',
           border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',

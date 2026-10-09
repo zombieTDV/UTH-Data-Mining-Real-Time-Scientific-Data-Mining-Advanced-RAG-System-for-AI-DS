@@ -181,7 +181,7 @@ export default function App() {
         <main
           style={{
             flex: 1,
-            overflowY: activeTab === 'logs' ? 'auto' : 'hidden',
+            overflowY: (activeTab === 'logs' || activeTab === 'r2') ? 'auto' : 'hidden',
             overflowX: 'hidden',
             padding: (activeTab === 'schematic' || activeTab === 'rag' || activeTab === 'r2') ? '0' : activeTab === 'logs' ? '16px 20px' : '12px 20px',
             backgroundColor: 'transparent',

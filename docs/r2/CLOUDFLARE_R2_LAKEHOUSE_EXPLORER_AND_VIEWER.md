@@ -176,3 +176,25 @@ npm --prefix frontend run build
 .\.venv\Scripts\python.exe -m pytest tests/test_smoke.py
 ```
 - Result: `3 passed in 0.03s (100%)`.
+
+---
+
+## 8. Viewport Ergonomics & Grid Height Expansion
+
+To resolve the layout squeeze where vertical overhead (R2 Storage HUD + schema chips + metadata banners) inside an unscrollable page restricted the Parquet data table to only 2 visible rows:
+
+1. **Page Vertical Scrolling**:
+   - `frontend/src/App.tsx`: Configured `<main>` with `overflowY: (activeTab === 'logs' || activeTab === 'r2') ? 'auto' : 'hidden'` to permit smooth vertical page scrolling.
+   - `frontend/src/screens/r2.screen.tsx`: Replaced fixed `height: 100%, overflow: hidden` with `minHeight: 100%`, adding bottom padding (`24px`) and setting dual-pane minHeight to `calc(100vh - 200px)`.
+
+2. **Schema Tiles Collapsed by Default**:
+   - In `ParquetTableViewer.component.tsx`, defaulted `showSchemaTiles` state to `false`.
+   - Recovers **+180px** of vertical viewport space immediately upon file load, allowing users to expand schema tiles on-demand via `▼ View Schema Tiles`.
+
+3. **Streamlined Metadata Padding**:
+   - Overview banner and schema header padding reduced from `12px 16px` to `8px 14px`, saving an additional ~25px.
+
+4. **Guaranteed Table Capacity**:
+   - Enforced `minHeight: 440px` with `flex: 1` and `overflow: auto` on the table scroll container.
+   - Ensures **10 to 15 table rows** are visible simultaneously across all standard screen resolutions without vertical squeeze.
+
