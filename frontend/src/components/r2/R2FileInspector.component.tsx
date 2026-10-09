@@ -359,6 +359,9 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
           <LanceDbInspector
             fileName={previewData?.name || selectedFile.name}
             meta={previewData?.lance_meta}
+            columns={previewData?.schema_columns || []}
+            sampleRows={previewData?.sample_rows || []}
+            totalRows={previewData?.total_rows ?? selectedFile.row_count}
             sizeFormatted={previewData?.size_formatted || selectedFile.size_formatted}
             lastModified={previewData?.last_modified || selectedFile.last_modified}
           />

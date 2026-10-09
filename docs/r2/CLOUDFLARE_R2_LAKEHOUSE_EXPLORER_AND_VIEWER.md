@@ -198,3 +198,30 @@ To resolve the layout squeeze where vertical overhead (R2 Storage HUD + schema c
    - Enforced `minHeight: 440px` with `flex: 1` and `overflow: auto` on the table scroll container.
    - Ensures **10 to 15 table rows** are visible simultaneously across all standard screen resolutions without vertical squeeze.
 
+---
+
+## 9. LanceDB Vector Chunks Table Grid, Scroll Ergonomics & Key Deduplication
+
+### 9.1 LanceDB Interactive Columnar Data Table
+Previously, selecting `scientific_papers_gold.lance` displayed only metadata KPI cards, dual indices, and the schema description table, stopping without rendering actual vector records. Furthermore, an internal `height: 100%, overflowY: auto` container trapped scrolling.
+
+- **Backend Projection Extraction (`/api/r2/preview`)**:
+  - Connects to LanceDB table (`scientific_papers_gold`, 164,750 rows, 768-D) via `RetrievalService`.
+  - Queries 50 sample records selecting projected metadata fields (`chunk_id`, `paper_id`, `title`, `authors`, `primary_category`, `section_title`, `section_type`, `text`, `context_text`, `word_count`) in ~1.3s without transmitting raw 768-D floats over S3.
+  - Returns 11 schema columns and caches responses in `data/lakehouse/previews/`.
+- **High-Capacity Columnar Grid (`LanceDbInspector.component.tsx`)**:
+  - Replaced outer `height: 100%, overflowY: auto` with `minHeight: 100%`, eliminating inner scroll trapping so the page scroll seamlessly descends past the schema into the records.
+  - Added dedicated **LANCEDB RECORDS** interactive grid (`minHeight: 460px`, `maxHeight: 620px`, `overflow: auto`) with sticky header, live search filter, and page size selector (`10`, `25`, `50`).
+  - Supported double-click floating popover with syntax formatting and `onMouseLeave` / `ESC` dismissal.
+  - Supported double-click column header width toggle (`EXPANDED` chip).
+  - Supported triple-click cell instant clipboard copy with in-cell `✓ Copied to clipboard!` toast badge.
+
+### 9.2 Duplicate React Key Warning Elimination
+- **Root Cause**: `gold/mining/association_rules.json` and `gold/mining/graph_coauthorship.json` were duplicated in `build_default_inventory()` and persisted in `data/lakehouse/r2_manifest_cache.json`.
+- **Remediation**:
+  - Cleaned duplicate entries in `build_default_inventory()` and `r2_manifest_cache.json`.
+  - Added defensive deduplication pass by `key` in `get_or_load_manifest_cache()` and `build_default_inventory()`.
+  - Added defensive deduplication in `R2FileTree.component.tsx` (`filteredZones`) before rendering children.
+  - Automated validation verified 16/16 unique keys across all zones with 0 duplicates.
+
+

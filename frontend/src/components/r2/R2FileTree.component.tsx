@@ -45,17 +45,27 @@ export const R2FileTree: FC<R2FileTreeProps> = ({
   };
 
   const filteredZones = useMemo(() => {
-    if (!searchQuery.trim()) return zones;
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
     const result: Record<string, R2FileItem[]> = {};
     for (const [z, items] of Object.entries(zones)) {
-      result[z] = items.filter(
-        (it) =>
-          it.name.toLowerCase().includes(q) ||
-          it.key.toLowerCase().includes(q) ||
-          it.category.toLowerCase().includes(q) ||
-          it.extension.toLowerCase().includes(q)
-      );
+      const seen = new Set<string>();
+      const uniqueItems = (items || []).filter((it) => {
+        if (!it.key || seen.has(it.key)) return false;
+        seen.add(it.key);
+        return true;
+      });
+
+      if (!q) {
+        result[z] = uniqueItems;
+      } else {
+        result[z] = uniqueItems.filter(
+          (it) =>
+            it.name.toLowerCase().includes(q) ||
+            it.key.toLowerCase().includes(q) ||
+            it.category.toLowerCase().includes(q) ||
+            it.extension.toLowerCase().includes(q)
+        );
+      }
     }
     return result;
   }, [zones, searchQuery]);

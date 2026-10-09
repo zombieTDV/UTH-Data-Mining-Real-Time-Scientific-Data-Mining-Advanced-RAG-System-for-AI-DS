@@ -184,20 +184,6 @@ def build_default_inventory() -> Dict[str, Any]:
         {
             "key": "gold/mining/association_rules.json",
             "name": "association_rules.json",
-            "size_bytes": 128400,
-            "last_modified": "2026-10-06T18:00:00Z",
-            "row_count": 35,
-        },
-        {
-            "key": "gold/mining/graph_coauthorship.json",
-            "name": "graph_coauthorship.json",
-            "size_bytes": 482000,
-            "last_modified": "2026-10-06T18:10:00Z",
-            "row_count": 120,
-        },
-        {
-            "key": "gold/mining/association_rules.json",
-            "name": "association_rules.json",
             "size_bytes": 12817,
             "last_modified": "2026-10-06T08:06:00Z",
             "row_count": 50,
@@ -282,6 +268,15 @@ def build_default_inventory() -> Dict[str, Any]:
             except Exception:
                 pass
 
+    # Deduplicate files by unique key
+    deduped_files: List[Dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    for item in files:
+        k = item.get("key")
+        if k and k not in seen_keys:
+            seen_keys.add(k)
+            deduped_files.append(item)
+
     # Calibrated to verified live Cloudflare R2 bucket telemetry
     total_bytes = 13078247014  # 12.18 GB
     inventory = {
@@ -296,7 +291,7 @@ def build_default_inventory() -> Dict[str, Any]:
         "public_access": "Enabled",
         "overage_gb": 2.18,
         "estimated_overage_cost_usd": 0.033,
-        "files": files,
+        "files": deduped_files,
         "arxiv_html_bytes": 4337916928,  # ~4.04 GB
         "openalex_bytes": 4262719488,    # ~3.97 GB
     }
@@ -327,6 +322,14 @@ def get_or_load_manifest_cache() -> Dict[str, Any]:
             with open(CACHE_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if "files" in data and len(data["files"]) > 0:
+                    deduped = []
+                    seen = set()
+                    for f_item in data["files"]:
+                        k = f_item.get("key")
+                        if k and k not in seen:
+                            seen.add(k)
+                            deduped.append(f_item)
+                    data["files"] = deduped
                     return data
         except Exception as e:
             logger.warning("[R2 EXPLORER] Failed to read cache: %s", e)
@@ -671,18 +674,67 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
             "version": 13,
             "s3_storage_uri": f"s3://{settings.R2_BUCKET_NAME or 'uth-scientific-lakehouse'}/gold/lancedb/scientific_papers_gold.lance",
         }
-        return FilePreviewResponse(
+
+        # Query sample rows & schema from LanceDB table
+        sample_records: List[Dict[str, Any]] = []
+        schema_cols: List[ParquetSchemaColumn] = [
+            ParquetSchemaColumn(name="chunk_id", type="string", nullable=False),
+            ParquetSchemaColumn(name="paper_id", type="string", nullable=False),
+            ParquetSchemaColumn(name="title", type="string", nullable=False),
+            ParquetSchemaColumn(name="authors", type="list<string>", nullable=True),
+            ParquetSchemaColumn(name="primary_category", type="string", nullable=True),
+            ParquetSchemaColumn(name="section_title", type="string", nullable=True),
+            ParquetSchemaColumn(name="section_type", type="string", nullable=True),
+            ParquetSchemaColumn(name="text", type="string", nullable=False),
+            ParquetSchemaColumn(name="context_text", type="string", nullable=True),
+            ParquetSchemaColumn(name="word_count", type="int64", nullable=True),
+            ParquetSchemaColumn(name="vector", type="fixed_size_list<float>[768]", nullable=False),
+        ]
+
+        try:
+            from backend.app.services.retrieval_service import RetrievalService
+            rs = RetrievalService()
+            if rs.is_ready() and rs.table is not None:
+                df = rs.table.search().select([
+                    "chunk_id", "paper_id", "title", "authors", "primary_category",
+                    "section_title", "section_type", "text", "context_text", "word_count"
+                ]).limit(50).to_pandas()
+                for r in df.to_dict(orient="records"):
+                    clean_r = {}
+                    for k_c, v_c in r.items():
+                        if hasattr(v_c, "tolist"):
+                            clean_r[k_c] = v_c.tolist()
+                        elif isinstance(v_c, float) and (v_c != v_c or v_c == float("inf")):
+                            clean_r[k_c] = None
+                        elif hasattr(v_c, "isoformat"):
+                            clean_r[k_c] = v_c.isoformat()
+                        else:
+                            clean_r[k_c] = v_c
+                    clean_r["vector"] = "[768-D Float32 Vector]"
+                    sample_records.append(clean_r)
+        except Exception as l_err:
+            logger.warning("[R2 EXPLORER] Could not query live sample rows from LanceDB: %s", l_err)
+
+        resp = FilePreviewResponse(
             key=key_clean,
             name="scientific_papers_gold.lance",
             extension="lance",
             size_bytes=3424108544,
             size_formatted="3.19 GB",
             total_rows=164702,
-            column_count=11,
+            column_count=len(schema_cols),
+            schema_columns=schema_cols,
+            sample_rows=sample_records,
             lance_meta=lance_meta,
             preview_type="lance",
             last_modified="2026-10-07 23:25:00",
         )
+        try:
+            with open(preview_cache_file, "w", encoding="utf-8") as f:
+                json.dump(resp.model_dump(), f, ensure_ascii=False)
+        except Exception:
+            pass
+        return resp
 
     # 4. GENERIC / BINARY FALLBACK
     return FilePreviewResponse(
