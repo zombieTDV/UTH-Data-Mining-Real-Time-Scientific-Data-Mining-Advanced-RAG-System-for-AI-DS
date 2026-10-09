@@ -377,6 +377,33 @@ button:active {
   }
 }
 
+@keyframes floatExpGain {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 4px) scale(0.75);
+    filter: drop-shadow(0 0 2px currentColor);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -10px) scale(1.15);
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -18px) scale(1.0);
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+  85% {
+    opacity: 0.9;
+    transform: translate(-50%, -26px) scale(0.95);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -36px) scale(0.8);
+    filter: blur(1px);
+  }
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(100%);

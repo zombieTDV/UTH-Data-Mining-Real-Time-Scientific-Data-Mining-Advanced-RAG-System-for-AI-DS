@@ -1510,40 +1510,34 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               )}
             </div>
 
-            {/* Floating Payload Badge - Perfectly Contained Inside 86px Conduit */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '-20px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                backgroundColor: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1'))
-                  ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
-                  : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-                border: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1'))
-                  ? '1px solid #8b5cf6'
-                  : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
-                boxShadow: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1'))
-                  ? '0 0 8px rgba(139, 92, 246, 0.45)'
-                  : '0 1px 3px rgba(0, 0, 0, 0.05)',
-                fontSize: '10.5px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                color: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1')) ? '#c084fc' : (isDark ? '#94a3b8' : '#64748b'),
-                whiteSpace: 'nowrap',
-                zIndex: 15,
-                pointerEvents: 'none',
-                transition: 'all 0.25s ease',
-              }}
-            >
-              <span>{isStreaming ? '⚡' : '📦'}</span>
-              <span>{isStreaming ? `+${streamSessionCount} STREAM` : `${liveBronzeGb} GB RAW`}</span>
-            </div>
+            {/* Game-like RPG Floating Gold/EXP Numbers when Active/Streaming */}
+            {(isStageActive('harvest') || isStreaming) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-14px',
+                  left: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  color: '#a855f7',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 900,
+                  letterSpacing: '0.04em',
+                  textShadow: '0 0 8px rgba(168, 85, 247, 0.8), 0 0 2px #ffffff',
+                  animation: 'floatExpGain 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite',
+                  pointerEvents: 'none',
+                  zIndex: 20,
+                  whiteSpace: 'nowrap',
+                  userSelect: 'none',
+                }}
+              >
+                <span>+</span>
+                <span>{streamSessionCount > 0 ? streamSessionCount : 1}</span>
+                <span style={{ fontSize: '9px', opacity: 0.9 }}>RAW</span>
+              </div>
+            )}
           </div>
 
           {/* ============================================================== */}
@@ -1971,40 +1965,34 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           )}
         </div>
 
-        {/* Floating Payload Badge */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '-20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '3px',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            backgroundColor: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
-              ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
-              : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-            border: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
-              ? '1px solid #e11d48'
-              : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
-            boxShadow: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
-              ? '0 0 8px rgba(225, 29, 72, 0.45)'
-              : '0 1px 3px rgba(0, 0, 0, 0.05)',
-            fontSize: '10.5px',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 700,
-            color: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#fb7185' : (isDark ? '#94a3b8' : '#64748b'),
-            whiteSpace: 'nowrap',
-            zIndex: 15,
-            pointerEvents: 'none',
-            transition: 'all 0.25s ease',
-          }}
-        >
-          <span>📄</span>
-          <span>{`${(liveTotalWorks / 1000).toFixed(1)}k ${language === 'vi' ? 'BÀI BÁO' : 'WORKS'} ➔`}</span>
-        </div>
+        {/* Game-like RPG Floating Gold/EXP Numbers when Active/Streaming */}
+        {(isStageActive('bronze') || isStreaming) && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '-14px',
+              left: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+              color: '#f43f5e',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 900,
+              letterSpacing: '0.04em',
+              textShadow: '0 0 8px rgba(244, 63, 94, 0.8), 0 0 2px #ffffff',
+              animation: 'floatExpGain 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s infinite',
+              pointerEvents: 'none',
+              zIndex: 20,
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+            }}
+          >
+            <span>+</span>
+            <span>{`${(liveTotalWorks / 1000).toFixed(1)}k`}</span>
+            <span style={{ fontSize: '9px', opacity: 0.9 }}>DOCS</span>
+          </div>
+        )}
       </div>
 
       {/* ============================================================== */}
@@ -2388,40 +2376,34 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           )}
         </div>
 
-        {/* Floating Payload Badge */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '-20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '3px',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            backgroundColor: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
-              ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
-              : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-            border: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
-              ? '1px solid #f59e0b'
-              : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
-            boxShadow: (isStageActive('duckdb') || isLineageHighlighted('conduit-3'))
-              ? '0 0 8px rgba(245, 158, 11, 0.45)'
-              : '0 1px 3px rgba(0, 0, 0, 0.05)',
-            fontSize: '10.5px',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 700,
-            color: (isStageActive('duckdb') || isLineageHighlighted('conduit-3')) ? '#fbbf24' : (isDark ? '#94a3b8' : '#64748b'),
-            whiteSpace: 'nowrap',
-            zIndex: 15,
-            pointerEvents: 'none',
-            transition: 'all 0.25s ease',
-          }}
-        >
-          <span>⚡</span>
-          <span>{`${(liveFormulas / 1000000).toFixed(2)}M ${language === 'vi' ? 'CÔNG THỨC' : 'FORMULAS'} ➔`}</span>
-        </div>
+        {/* Game-like RPG Floating Gold/EXP Numbers when Active/Streaming */}
+        {isStageActive('duckdb') && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '-14px',
+              left: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+              color: '#f59e0b',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 900,
+              letterSpacing: '0.04em',
+              textShadow: '0 0 8px rgba(245, 158, 11, 0.8), 0 0 2px #ffffff',
+              animation: 'floatExpGain 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.6s infinite',
+              pointerEvents: 'none',
+              zIndex: 20,
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+            }}
+          >
+            <span>+</span>
+            <span>{`${(liveFormulas / 1000000).toFixed(2)}M`}</span>
+            <span style={{ fontSize: '9px', opacity: 0.9 }}>MATH</span>
+          </div>
+        )}
       </div>
 
       {/* ============================================================== */}
@@ -3397,40 +3379,34 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               )}
             </div>
 
-            {/* Floating Payload Badge */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '-20px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                backgroundColor: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
-                  ? (isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff')
-                  : (isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-                border: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
-                  ? '1px solid #6366f1'
-                  : `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
-                boxShadow: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5'))
-                  ? '0 0 8px rgba(99, 102, 241, 0.45)'
-                  : '0 1px 3px rgba(0, 0, 0, 0.05)',
-                fontSize: '10.5px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                color: (isGroundedRagReady || isStageActive('parallel') || isLineageHighlighted('conduit-5')) ? '#a5b4fc' : (isDark ? '#94a3b8' : '#64748b'),
-                whiteSpace: 'nowrap',
-                zIndex: 15,
-                pointerEvents: 'none',
-                transition: 'all 0.25s ease',
-              }}
-            >
-              <span>🎯</span>
-              <span>{language === 'vi' ? 'TOP-5 VĂN CẢNH ➔' : 'TOP-5 CONTEXT ➔'}</span>
-            </div>
+            {/* Game-like RPG Floating Gold/EXP Numbers when Active/Ready */}
+            {(isGroundedRagReady || isStageActive('parallel')) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-14px',
+                  left: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  color: '#6366f1',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 900,
+                  letterSpacing: '0.04em',
+                  textShadow: '0 0 8px rgba(99, 102, 241, 0.8), 0 0 2px #ffffff',
+                  animation: 'floatExpGain 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.9s infinite',
+                  pointerEvents: 'none',
+                  zIndex: 20,
+                  whiteSpace: 'nowrap',
+                  userSelect: 'none',
+                }}
+              >
+                <span>+</span>
+                <span>5</span>
+                <span style={{ fontSize: '9px', opacity: 0.9 }}>ANN</span>
+              </div>
+            )}
           </div>
 
           {/* ============================================================== */}
