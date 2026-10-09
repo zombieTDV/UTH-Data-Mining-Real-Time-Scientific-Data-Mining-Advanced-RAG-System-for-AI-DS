@@ -138,8 +138,8 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = (totalCorpus || totalPapers || 38414) + sessionIngested;
-  const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164702;
+  const effectiveTotalPapers = (totalCorpus || totalPapers || 37103) + sessionIngested;
+  const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164750;
   const effectiveTotalFormulas = totalFormulas || 2220938;
   const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb || storageUsedGb || 12.18;
   const effectiveStoragePct = storageStats?.totalBucket?.usedPercentage || storageUsedPct || 121.8;

@@ -25,8 +25,6 @@ export function StorageInspector() {
   const {
     sessionIngested,
     storageStats,
-    storageUsedGb,
-    storageUsedPct,
     viewMode,
     setViewMode,
     refreshStorageStats,
@@ -72,19 +70,19 @@ export function StorageInspector() {
   const backupData = activeStats?.backupStorage;
   const totalBucket = activeStats?.totalBucket;
 
-  const arxivCount = (activeData?.arxivHtmlCount ?? 11660) + sessionIngested;
+  const arxivCount = (activeData?.arxivHtmlCount ?? 11698) + sessionIngested;
   const arxivGb = (activeData?.arxivHtmlSizeGb ?? 3.763).toFixed(3);
-  const openalexCount = (activeData?.openalexCount ?? 24754).toLocaleString();
-  const openalexGb = (activeData?.openalexSizeGb ?? 3.971).toFixed(3);
+  const openalexCount = (activeData?.openalexCount ?? 24756).toLocaleString();
+  const openalexGb = (activeData?.openalexSizeGb ?? 4.066).toFixed(3);
   const silverMb = (activeData?.silverParquetSizeMb ?? 321.68).toFixed(2);
-  const goldChunks = (activeData?.activeLanceDbVectors ?? 164702).toLocaleString();
+  const goldChunks = (activeData?.activeLanceDbVectors ?? 164750).toLocaleString();
   const goldMb = (activeData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
-  const backupGb = (backupData?.totalSizeGb ?? 3.069).toFixed(3);
+  const backupGb = (backupData?.totalSizeGb ?? 4.107).toFixed(3);
 
-  const activeGb = (storageUsedGb || Number(activeData?.totalSizeGb ?? 8.073)).toFixed(3);
-  const activePct = (storageUsedPct || Number(activeData?.usedPercentage ?? 80.73)).toFixed(1);
-  const totalGb = (totalBucket?.totalSizeGb ?? 11.142).toFixed(3);
-  const totalPct = (totalBucket?.usedPercentage ?? 111.42).toFixed(1);
+  const activeGb = (Number(activeData?.totalSizeGb ?? 8.073)).toFixed(3);
+  const activePct = (Number(activeData?.usedPercentage ?? 80.73)).toFixed(1);
+  const totalGb = (totalBucket?.totalSizeGb ?? 12.18).toFixed(3);
+  const totalPct = (totalBucket?.usedPercentage ?? 121.8).toFixed(1);
 
   const layers: LakehouseLayer[] = [
     {

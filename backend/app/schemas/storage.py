@@ -66,3 +66,4 @@ class StorageStatsResponse(BaseModel):
     activeLakehouse: ActiveLakehouseDto
     backupStorage: BackupStorageDto
     totalBucket: TotalBucketDto
+    last_synced: Optional[str] = Field(None, examples=["2026-10-09 12:15:19"])

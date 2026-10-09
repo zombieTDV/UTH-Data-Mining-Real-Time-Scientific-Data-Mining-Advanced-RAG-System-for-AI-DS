@@ -7,8 +7,6 @@ export const MetricsBento: FC = () => {
   const {
     sessionIngested,
     storageStats,
-    storageUsedGb,
-    storageUsedPct,
     viewMode,
     setViewMode,
   } = useLakehouseStreamStore();
@@ -20,21 +18,21 @@ export const MetricsBento: FC = () => {
   const backupData = storageStats?.backupStorage;
   const totalBucket = storageStats?.totalBucket;
 
-  const arxivCount = (activeData?.arxivHtmlCount ?? 11660) + sessionIngested;
+  const arxivCount = (activeData?.arxivHtmlCount ?? 11698) + sessionIngested;
   const arxivGb = activeData?.arxivHtmlSizeGb ?? 3.763;
-  const openalexCount = activeData?.openalexCount ?? 24754;
-  const openalexGb = activeData?.openalexSizeGb ?? 3.971;
+  const openalexCount = activeData?.openalexCount ?? 24756;
+  const openalexGb = activeData?.openalexSizeGb ?? 4.066;
   const conferenceCount = activeData?.conferenceCount ?? 2000;
   const silverMb = activeData?.silverParquetSizeMb ?? 321.68;
-  const activeVectors = activeData?.activeLanceDbVectors ?? 164702;
+  const activeVectors = activeData?.activeLanceDbVectors ?? 164750;
   const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 211.26;
-  const backupGb = backupData?.totalSizeGb ?? 3.069;
+  const backupGb = backupData?.totalSizeGb ?? 4.107;
 
   // Active vs Total calculations linked directly to real-time storageUsedGb
-  const activeGb = storageUsedGb || (activeData?.totalSizeGb ?? 8.073);
-  const activePct = storageUsedPct || (activeData?.usedPercentage ?? 80.73);
-  const totalGb = totalBucket?.totalSizeGb ?? 11.142;
-  const totalPct = totalBucket?.usedPercentage ?? 111.42;
+  const activeGb = activeData?.totalSizeGb ?? 8.073;
+  const activePct = activeData?.usedPercentage ?? 80.73;
+  const totalGb = totalBucket?.totalSizeGb ?? 12.18;
+  const totalPct = totalBucket?.usedPercentage ?? 121.8;
 
   const displayGb = isTotalView ? totalGb : activeGb;
   const displayPct = isTotalView ? totalPct : activePct;
@@ -62,8 +60,8 @@ export const MetricsBento: FC = () => {
         badgeColor="var(--accent-emerald)"
         value={<AnimatedCounter value={arxivCount + openalexCount + conferenceCount} />}
         unit="works"
-        description="arXiv HTML5 + OpenAlex + CVPR / OpenReview Conferences"
-        footerLeft={<>arXiv HTML5: <AnimatedCounter value={arxivCount} /></>}
+        description="4 Sources: arXiv preprints • OpenAlex • CVPR • OpenReview"
+        footerLeft={<>arXiv: <AnimatedCounter value={arxivCount} /></>}
         footerRight={<>OpenAlex: <AnimatedCounter value={openalexCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
       />
@@ -74,9 +72,9 @@ export const MetricsBento: FC = () => {
         badge="768 Dim"
         badgeColor="var(--accent-gold)"
         value={<AnimatedCounter value={activeVectors} />}
-        description="LanceDB Contextual Chunks (Fast ANN Search)"
-        footerLeft={<>NVMe Serving: <AnimatedCounter value={activeVectorMb} decimals={2} suffix=" MB" /></>}
-        footerRight={<>Cloud Backup: <AnimatedCounter value={backupGb} decimals={3} suffix=" GB" /></>}
+        description="LanceDB Contextual Chunks (12,816 Indexed Papers)"
+        footerLeft={<>Chunks: <AnimatedCounter value={activeVectors} /> ({activeVectorMb.toFixed(1)} MB)</>}
+        footerRight={<>Papers: <AnimatedCounter value={12816} /></>}
         glowColor="rgba(234, 179, 8, 0.08)"
       />
 

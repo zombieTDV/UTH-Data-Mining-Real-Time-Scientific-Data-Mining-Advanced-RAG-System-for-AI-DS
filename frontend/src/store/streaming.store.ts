@@ -33,6 +33,8 @@ export interface LakehouseStreamState {
   connectionStatus: 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED';
   viewMode: 'active' | 'total';
   logs: StreamingLogEntry[];
+  isSyncingR2: boolean;
+  lastSyncedR2: string | null;
 }
 
 const getStoredViewMode = (): 'active' | 'total' => {
@@ -40,7 +42,7 @@ const getStoredViewMode = (): 'active' | 'total' => {
     const saved = localStorage.getItem('uth_lakehouse_view_mode');
     if (saved === 'active' || saved === 'total') return saved;
   }
-  return 'active';
+  return 'total';
 };
 
 const getStoredLogs = (): StreamingLogEntry[] => {
@@ -67,13 +69,13 @@ const initialCachedStats = getStoredStorageStats();
 
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus: 36414,
+  totalCorpus: 37103,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
-  storageUsedGb: initialCachedStats?.activeLakehouse?.totalSizeGb ?? 8.184,
-  storageUsedPct: initialCachedStats?.activeLakehouse?.usedPercentage ?? 81.84,
-  storageTotalBytes: initialCachedStats?.activeLakehouse?.totalSizeBytes ?? 8787548614,
+  storageUsedGb: initialCachedStats?.totalBucket?.totalSizeGb ?? initialCachedStats?.total_size_gb ?? 12.18,
+  storageUsedPct: initialCachedStats?.totalBucket?.usedPercentage ?? initialCachedStats?.used_percentage ?? 121.8,
+  storageTotalBytes: initialCachedStats?.totalBucket?.totalSizeBytes ?? initialCachedStats?.total_size_bytes ?? 12176206555,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
   storageStats: initialCachedStats,
@@ -81,6 +83,8 @@ let state: LakehouseStreamState = {
   connectionStatus: 'DISCONNECTED',
   viewMode: getStoredViewMode(),
   logs: getStoredLogs(),
+  isSyncingR2: false,
+  lastSyncedR2: initialCachedStats?.last_synced ?? '2026-10-09 12:15:19',
 };
 
 const listeners = new Set<() => void>();
@@ -136,9 +140,10 @@ export async function refreshStorageStats(): Promise<void> {
 
       updateState({
         storageStats: data.activeLakehouse ? { ...data, activeLakehouse: mergedActiveLakehouse } : data,
-        storageUsedGb: Math.max(gb, state.storageUsedGb),
-        storageUsedPct: Math.max(pct, state.storageUsedPct),
-        storageTotalBytes: Math.max(bytes, state.storageTotalBytes),
+        storageUsedGb: gb,
+        storageUsedPct: pct,
+        storageTotalBytes: bytes,
+        lastSyncedR2: data.last_synced || state.lastSyncedR2,
       });
 
       if (typeof window !== 'undefined') {
@@ -149,6 +154,29 @@ export async function refreshStorageStats(): Promise<void> {
     }
   } catch (e) {
     console.warn('[StreamStore] Failed to refresh storage stats:', e);
+  }
+}
+
+export async function triggerR2ManualSync(): Promise<{ status: string; message: string }> {
+  updateState({ isSyncingR2: true });
+  try {
+    const { syncR2Storage } = await import('../services');
+    const res = await syncR2Storage();
+    await refreshStorageStats();
+    appendStreamLog({
+      time: new Date().toLocaleTimeString(),
+      level: 'STORAGE',
+      tag: 'R2-SYNC',
+      msg: res.message || 'Live Cloudflare R2 bucket synchronized successfully.',
+    });
+    updateState({
+      isSyncingR2: false,
+      lastSyncedR2: new Date().toLocaleTimeString(),
+    });
+    return { status: 'SUCCESS', message: res.message || 'R2 synchronized' };
+  } catch (err: any) {
+    updateState({ isSyncingR2: false });
+    return { status: 'ERROR', message: err.message || 'Failed to sync R2' };
   }
 }
 
@@ -402,5 +430,6 @@ export function useLakehouseStreamStore() {
     appendLog: appendStreamLog,
     refreshStorageStats,
     setViewMode,
+    triggerR2ManualSync,
   };
 }

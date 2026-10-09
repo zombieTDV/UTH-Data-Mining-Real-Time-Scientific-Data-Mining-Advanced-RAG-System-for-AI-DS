@@ -47,8 +47,8 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '36,414 Works Harvested',
-      secondaryMetric: '11,660 arXiv • 24,754 OpenAlex • 184 Conf',
+      primaryMetric: '37,103 Lakehouse Papers',
+      secondaryMetric: '11,698 arXiv • 23,103 OpenAlex • 2,000 Conf',
       latency: '6.0s Rate-Limit Delay',
       throughput: '100% Validated DOI / Canonical ID',
     },
@@ -81,27 +81,27 @@ Payload: {
     badgeColor: '#e11d48',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '8.184 GB Stored (Primary Active)',
-      secondaryMetric: '11,660 HTML5 + 24,754 Metadata (81.8% Quota)',
+      primaryMetric: '12.18 GB Cloud Bucket (36,751 Objects)',
+      secondaryMetric: 'Active: 8.07 GB • Backup Replicas: 4.11 GB',
       latency: '< 45ms S3 HeadObject',
       throughput: 'Zero Egress Fees (Cloudflare Global Edge)',
     },
     features: [
       'Global low-latency S3-compatible cloud object store with 0 egress costs',
       'Strict partitioning scheme: bronze/raw_html/year=2026/ and bronze/openalex/year=2026/',
-      'Stores 11,660 raw HTML5 files and 24,754 OpenAlex metadata JSON records',
+      'Stores 11,698 raw HTML5 files and 24,756 OpenAlex metadata records in Bronze',
       'Dual automated MD5 and SHA-256 integrity verification on upload',
     ],
     samplePreviewTitle: 'Cloudflare R2 Bucket Key Hierarchy',
     sampleCodeOrSchema: `s3://uth-scientific-lakehouse/
 ├── bronze/
-│   ├── raw_html/year=2026/ (11,660 HTML5 preprints · 3.763 GB)
-│   ├── openalex/year=2026/ (24,754 JSON records · 3.971 GB)
+│   ├── raw_html/year=2026/ (11,698 HTML5 preprints · 3.763 GB)
+│   ├── openalex/ (24,756 records · 4.066 GB)
 │   └── oai_batches/ (12 batch checkpoints · 26.4 MB)
 ├── silver/
 │   └── papers/year=2026/ (9 Parquet partitions · 316.06 MB)
 └── gold/
-    └── lancedb/ (143,523 vectors · 121.21 MB active / 28 backup segments · 4.88 GB)`,
+    └── lancedb/ (164,750 vectors · 221.5 MB active / 85 physical R2 fragments · 3.31 GB)`,
   },
   'review-duckdb': {
     id: 'review-duckdb',
@@ -177,8 +177,8 @@ ORDER BY paper_count DESC;
     badgeColor: '#2563eb',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '143,523 Vectors Indexed',
-      secondaryMetric: '768 Dimensions · 127.10 MB Index',
+      primaryMetric: '164,750 Vectors Indexed',
+      secondaryMetric: '12,816 Papers • 768 Dimensions (Nomic)',
       latency: '< 18ms Cosine ANN Lookup',
       throughput: '4 Mining Pillars Fully Computed',
     },
@@ -195,7 +195,7 @@ ORDER BY paper_count DESC;
 db = lancedb.connect("data/gold/lancedb")
 tbl = db.open_table("scientific_papers_gold")
 
-# Hardware-accelerated Cosine ANN retrieval over 143,523 chunks
+# Hardware-accelerated Cosine ANN retrieval over 164,750 chunks (12,816 papers)
 results = tbl.search(query_embedding) \\
              .metric("cosine") \\
              .where("category = 'cs.AI'") \\
@@ -364,9 +364,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     { id: 1, time: '12:00:01', level: 'INFO', tag: 'SYSTEM', msg: 'Lakehouse Engine v2.4 initialized. Ready for scientific ingestion.' },
     { id: 2, time: '12:00:03', level: 'SUCCESS', tag: 'STORAGE', msg: 'Cloudflare R2 bucket s3://uth-scientific-lakehouse connected (Zero egress).' },
     { id: 3, time: '12:00:05', level: 'SUCCESS', tag: 'OLAP', msg: 'DuckDB in-process vector OLAP engine online (Apache Arrow SIMD zero-copy).' },
-    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 143,523 embeddings (dim=768, metric=cosine).' },
+    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 164,750 embeddings (dim=768, metric=cosine).' },
     { id: 5, time: '12:00:09', level: 'INFO', tag: 'RAG', msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate armed with Metal GPU offload.' },
-    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 36,414 works (11.6k arXiv + 24.7k OpenAlex), 2,220,938 formulas, 143,523 LanceDB vectors synced.' },
+    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 37,103 works (11.7k arXiv + 23.1k OpenAlex + 2.0k Conf), 2,220,938 formulas, 164,750 LanceDB vectors synced.' },
   ]);
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -559,16 +559,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       setVectorsIndexed(72000);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,220,938 formulas, 143,523 vectors indexed.' },
+        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,220,938 formulas, 164,750 vectors indexed.' },
       ]);
     }, 4000);
 
     const t4 = setTimeout(() => {
       setSimulationStage('completed');
-      setVectorsIndexed(143523);
+      setVectorsIndexed(164750);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 36,414 works, 143,523 vectors online.' },
+        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 37,103 works, 164,750 vectors online.' },
       ]);
     }, 6000);
 
@@ -686,7 +686,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (143,523 vectors).` },
+        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (164,750 vectors).` },
       ]);
     } catch (err: any) {
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -724,12 +724,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const baseTool = TOOL_DETAILS_MAP[selectedNodeId] || TOOL_DETAILS_MAP['start-flow'];
   const selectedTool = useMemo(() => {
     if (selectedNodeId === 'review-r2' || selectedNodeId === 'bronze-instance') {
+      const totalR2Gb = storageStats?.totalBucket?.totalSizeGb ?? (storageUsedGb || 12.18);
+      const totalR2Objects = storageStats?.totalBucket?.totalObjects ?? 36751;
+      const activeGb = storageStats?.activeLakehouse?.totalSizeGb ?? 8.07;
+      const backupGb = storageStats?.backupStorage?.totalSizeGb ?? 4.11;
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${storageUsedGb.toFixed(3)} GB Raw Storage`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} HTML5 + ${liveBatchesCount} Batches`,
+          primaryMetric: `${totalR2Gb.toFixed(2)} GB Cloud Storage (${totalR2Objects.toLocaleString()} Objects)`,
+          secondaryMetric: `Active: ${activeGb.toFixed(2)} GB • Backups: ${backupGb.toFixed(2)} GB`,
         }
       };
     }
@@ -744,12 +748,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       };
     }
     if (selectedNodeId === 'gold-lancedb') {
+      const totalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164750;
+      const activeMb = storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26;
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702).toLocaleString()} Vectors Indexed`,
-          secondaryMetric: `768 Dimensions · ${(storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2)} MB Index`,
+          primaryMetric: `${totalVectors.toLocaleString()} Vectors Indexed`,
+          secondaryMetric: `12,816 Papers • 768 Dim • ${activeMb.toFixed(2)} MB Index`,
         }
       };
     }
@@ -764,12 +770,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       };
     }
     if (selectedNodeId === 'start-flow') {
+      const works = totalCorpus || 37103;
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${(totalCorpus || liveTotalWorks).toLocaleString()} Works Ingested`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv + ${liveOpenAlexCount.toLocaleString()} OpenAlex + 184 Conf`,
+          primaryMetric: `${works.toLocaleString()} Lakehouse Papers`,
+          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv + ${liveOpenAlexCount.toLocaleString()} OpenAlex + 2,000 Conf`,
         }
       };
     }
@@ -2755,7 +2762,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        TÌM KIẾM SEMANTIC VECTOR ANN (143,523 EMBEDDINGS)
+                        TÌM KIẾM SEMANTIC VECTOR ANN (164,750 EMBEDDINGS)
                       </span>
 
                       <input
@@ -3657,7 +3664,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>LANCEDB VECTOR INDEX</div>
                         <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '2px' }}>
-                          143,523 embeddings
+                          {(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164750).toLocaleString()} embeddings
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>

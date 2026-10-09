@@ -1,5 +1,6 @@
 import type { FC } from 'react';
 import { AnimatedCounter } from '../../components/common';
+import { useLakehouseStreamStore } from '../../store';
 
 export interface StorageMeterProps {
   storageUsedGb: number;
@@ -11,6 +12,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
   storageUsedGb,
   storageUsedPct,
 }) => {
+  const { isSyncingR2, lastSyncedR2, triggerR2ManualSync } = useLakehouseStreamStore();
   const quotaGb = 10.0;
   const pct = Math.min(100, Math.max(0, storageUsedPct));
 
@@ -28,7 +30,8 @@ export const StorageMeter: FC<StorageMeterProps> = ({
 
   return (
     <div
-      title={`Cloudflare R2 Storage Lens (Hạn mức Free Tier: 10.00 GB)\n• Đã dùng: ${storageUsedGb.toFixed(3)} GB (${pct.toFixed(1)}%)\n• Còn trống: ${(quotaGb - storageUsedGb).toFixed(3)} GB\n• Active Lakehouse: arXiv HTML5 + OpenAlex + Parquet + LanceDB\n• Không tốn phí Egress (Zero Egress Fees)`}
+      onClick={() => !isSyncingR2 && triggerR2ManualSync()}
+      title={`Cloudflare R2 Storage Bucket (Bấm để Fetch R2 live)\n• Đã dùng: ${storageUsedGb.toFixed(2)} GB (${pct.toFixed(1)}%)\n• Hạn mức Free Tier: ${quotaGb.toFixed(2)} GB\n• Đồng bộ lần cuối: ${lastSyncedR2 || 'Mới đây'}\n• Zero Egress Fees`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -39,9 +42,10 @@ export const StorageMeter: FC<StorageMeterProps> = ({
         backgroundColor: 'var(--badge-bg)',
         border: '1px solid var(--badge-border)',
         fontFamily: 'var(--font-mono)',
-        cursor: 'default',
+        cursor: isSyncingR2 ? 'wait' : 'pointer',
         boxSizing: 'border-box',
         transition: 'all 0.15s ease',
+        userSelect: 'none',
       }}
     >
       {/* Cloudflare R2 Identity Icon & Label */}
@@ -55,12 +59,16 @@ export const StorageMeter: FC<StorageMeterProps> = ({
           strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ color: accentColor, flexShrink: 0 }}
+          style={{
+            color: isSyncingR2 ? '#eab308' : accentColor,
+            flexShrink: 0,
+            animation: isSyncingR2 ? 'spin 1s linear infinite' : 'none',
+          }}
         >
           <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
         </svg>
         <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
-          R2
+          {isSyncingR2 ? '...' : 'R2'}
         </span>
       </div>
 
