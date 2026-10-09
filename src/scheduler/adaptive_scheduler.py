@@ -78,6 +78,29 @@ SCHEDULE_CONFIGS = {
         "default_limit": 100,
         "description": "Harvests proceedings papers from CVPR & ICCV Open Access",
     },
+    "tier1": {
+        "name": "Tier 1: Historical Core (Landmark Papers)",
+        "frequency": "Weekly on Sunday 01:00 VN",
+        "cron_hour": 1,
+        "cron_minute": 0,
+        "default_limit": 100,
+        "description": "Harvests top all-time milestone AI/DS papers sorted by cite_count DESC with Marker PDF LaTeX",
+    },
+    "tier2": {
+        "name": "Tier 2: Near-Past Trending (2024-Present)",
+        "frequency": "Daily at 03:00 VN (20:00 UTC)",
+        "cron_hour": 3,
+        "cron_minute": 0,
+        "default_limit": 50,
+        "description": "Harvests top 50 papers/interval in the 2-year window sorted by cite_count DESC",
+    },
+    "tier3": {
+        "name": "Tier 3: Live Real-Time Forward Stream",
+        "frequency": "Every 2 Hours (Cost-Shield SSE)",
+        "interval_hours": 2,
+        "default_limit": 20,
+        "description": "Continuous zero-day preprints stream from current moment forward",
+    },
 }
 
 
@@ -565,6 +588,18 @@ class AdaptiveHarvesterScheduler:
                 cmd.append("--sync-r2")
         elif source_key == "cvf":
             cmd.extend(["src.pipelines.run_cvf_end_to_end", "--limit", str(target_limit), "--venue", "cvpr2024"])
+            if sync_r2:
+                cmd.append("--sync-r2")
+        elif source_key == "tier1":
+            cmd.extend(["src.pipelines.run_tier1_historical_core", "--limit", str(target_limit)])
+            if sync_r2:
+                cmd.append("--sync-r2")
+        elif source_key == "tier2":
+            cmd.extend(["src.pipelines.run_tier2_near_past_harvest", "--limit", str(target_limit)])
+            if sync_r2:
+                cmd.append("--sync-r2")
+        elif source_key == "tier3":
+            cmd.extend(["src.pipelines.run_tier3_realtime_stream", "--limit", str(target_limit)])
             if sync_r2:
                 cmd.append("--sync-r2")
 

@@ -44,8 +44,12 @@ class SilverLakehouseWriter:
         raw_authors = raw_meta.get("authors", [])
         authors = list(raw_authors) if hasattr(raw_authors, "__iter__") and not isinstance(raw_authors, (str, bytes)) else [str(raw_authors)]
 
+        from src.utils.hasher import compute_abstract_hash
+        abs_hash = compute_abstract_hash(str(abstract) or str(title))
+
         return {
             "paper_id": str(paper_id),
+            "abstract_hash": str(abs_hash),
             "doi": str(raw_meta.get("doi")) if raw_meta.get("doi") else None,
             "journal_ref": str(raw_meta.get("journal_ref")) if raw_meta.get("journal_ref") else None,
             "title": str(title),
@@ -63,6 +67,7 @@ class SilverLakehouseWriter:
             "sections_json": json.dumps(sections, ensure_ascii=False),
             "clean_full_text": clean_full_text,
             "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "cite_count": int(raw_meta.get("cite_count") or raw_meta.get("citation_count") or 0),
         }
 
     def save_and_upload_parquet(
@@ -76,10 +81,23 @@ class SilverLakehouseWriter:
 
         df = pd.DataFrame(records)
 
+        # Đảm bảo abstract_hash có trong df
+        if "abstract_hash" not in df.columns:
+            from src.utils.hasher import compute_abstract_hash
+            df["abstract_hash"] = df.apply(
+                lambda r: compute_abstract_hash(str(r.get("abstract", "") or r.get("title", ""))),
+                axis=1,
+            )
+
+        if "cite_count" not in df.columns:
+            df["cite_count"] = 0
+        df["cite_count"] = df["cite_count"].fillna(0).astype("int64")
+
         # Định nghĩa PyArrow Schema chuẩn
         schema = pa.schema(
             [
                 ("paper_id", pa.string()),
+                ("abstract_hash", pa.string()),
                 ("doi", pa.string()),
                 ("journal_ref", pa.string()),
                 ("title", pa.string()),
@@ -97,23 +115,42 @@ class SilverLakehouseWriter:
                 ("sections_json", pa.string()),
                 ("clean_full_text", pa.string()),
                 ("transformed_at", pa.string()),
+                ("cite_count", pa.int64()),
             ]
         )
-
-        table = pa.Table.from_pandas(df, schema=schema, preserve_index=False)
 
         # Lưu file local
         year_dir = self.local_dir / f"year={year}"
         year_dir.mkdir(parents=True, exist_ok=True)
         local_parquet_path = year_dir / "papers.parquet"
 
-        # Nếu file đã tồn tại cục bộ, hợp nhất (idempotent upsert by paper_id)
+        # Nếu file đã tồn tại cục bộ, hợp nhất (idempotent upsert by abstract_hash)
         if local_parquet_path.exists():
             existing_table = pq.read_table(local_parquet_path)
             existing_df = existing_table.to_pandas()
+            if "cite_count" not in existing_df.columns:
+                existing_df["cite_count"] = 0
+            if "abstract_hash" not in existing_df.columns:
+                from src.utils.hasher import compute_abstract_hash
+                existing_df["abstract_hash"] = existing_df.apply(
+                    lambda r: compute_abstract_hash(str(r.get("abstract", "") or r.get("title", ""))),
+                    axis=1,
+                )
             combined_df = pd.concat([existing_df, df], ignore_index=True)
-            combined_df = combined_df.drop_duplicates(subset=["paper_id"], keep="last")
+            dedup_col = "abstract_hash" if "abstract_hash" in combined_df.columns else "paper_id"
+            combined_df = combined_df.drop_duplicates(subset=[dedup_col], keep="last")
+            # Select schema columns in exact order
+            for col in schema.names:
+                if col not in combined_df.columns:
+                    combined_df[col] = None
+            combined_df = combined_df[schema.names]
             table = pa.Table.from_pandas(combined_df, schema=schema, preserve_index=False)
+        else:
+            for col in schema.names:
+                if col not in df.columns:
+                    df[col] = None
+            df = df[schema.names]
+            table = pa.Table.from_pandas(df, schema=schema, preserve_index=False)
 
         pq.write_table(table, local_parquet_path, compression="zstd")
 
