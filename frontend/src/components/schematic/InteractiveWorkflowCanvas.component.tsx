@@ -706,7 +706,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   }, [effectiveStage, simulationStage, isPipelineRunning, isStreaming]);
 
   const isStageActive = (stage: string) => {
-    if (isStreaming && (stage === 'harvest' || stage === 'bronze')) return true;
+    // When live streaming ingestion is running, data flows down the entire Lakehouse:
+    // Harvest -> Cloudflare R2 Bronze -> DuckDB OLAP -> Parallel Fork -> Parquet Silver & LanceDB Gold Vectors
+    if (isStreaming && (stage === 'harvest' || stage === 'bronze' || stage === 'duckdb' || stage === 'parallel' || stage === 'silver' || stage === 'gold')) return true;
     if (!isPipelineRunning) return false;
     if (effectiveStage === 'completed') return false;
     if (effectiveStage === stage) return true;
@@ -1415,28 +1417,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               </div>
             </div>
 
-            {/* Modular Hardware Output Port (Right) */}
-            <div
-              style={{
-                position: 'absolute',
-                right: '-6px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                backgroundColor: isDark ? '#0b1120' : '#ffffff',
-                border: `2px solid ${isStageActive('harvest') ? '#8b5cf6' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 14,
-                boxShadow: isStageActive('harvest') ? '0 0 8px #8b5cf6' : '0 1px 3px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#8b5cf6' }} />
-            </div>
-
           </div>
 
           {/* ============================================================== */}
@@ -1855,50 +1835,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               </div>
             </div>
 
-            {/* Modular Hardware Input Port (Left) */}
-            <div
-              style={{
-                position: 'absolute',
-                left: '-6px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                backgroundColor: isDark ? '#0b1120' : '#ffffff',
-                border: `2px solid ${isStageActive('bronze') ? '#e11d48' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 14,
-                boxShadow: isStageActive('bronze') ? '0 0 8px #e11d48' : '0 1px 3px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e11d48' }} />
-            </div>
-
-            {/* Modular Hardware Output Port (Right) */}
-            <div
-              style={{
-                position: 'absolute',
-                right: '-6px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                backgroundColor: isDark ? '#0b1120' : '#ffffff',
-                border: `2px solid ${isStageActive('bronze') ? '#e11d48' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 14,
-                boxShadow: isStageActive('bronze') ? '0 0 8px #e11d48' : '0 1px 3px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e11d48' }} />
-            </div>
-
           </div>
 
       {/* ============================================================== */}
@@ -2266,50 +2202,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   &lt;18ms Query
                 </span>
               </div>
-            </div>
-
-            {/* Modular Hardware Input Port (Left) */}
-            <div
-              style={{
-                position: 'absolute',
-                left: '-6px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                backgroundColor: isDark ? '#0b1120' : '#ffffff',
-                border: `2px solid ${isStageActive('duckdb') ? '#f59e0b' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 14,
-                boxShadow: isStageActive('duckdb') ? '0 0 8px #f59e0b' : '0 1px 3px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-            </div>
-
-            {/* Modular Hardware Output Port (Right) */}
-            <div
-              style={{
-                position: 'absolute',
-                right: '-6px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                backgroundColor: isDark ? '#0b1120' : '#ffffff',
-                border: `2px solid ${isStageActive('duckdb') ? '#f59e0b' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 14,
-                boxShadow: isStageActive('duckdb') ? '0 0 8px #f59e0b' : '0 1px 3px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
             </div>
 
           </div>
@@ -2820,50 +2712,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   </div>
                 </div>
 
-                {/* Modular Hardware Input Port (Left) */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '-6px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    backgroundColor: isDark ? '#0b1120' : '#ffffff',
-                    border: `2px solid ${isStageActive('parallel') ? '#10b981' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 14,
-                    boxShadow: isStageActive('parallel') ? '0 0 8px #10b981' : '0 1px 3px rgba(0, 0, 0, 0.2)',
-                  }}
-                >
-                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                </div>
-
-                {/* Modular Hardware Output Port (Right) */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    right: '-6px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    backgroundColor: isDark ? '#0b1120' : '#ffffff',
-                    border: `2px solid ${isStageActive('parallel') ? '#10b981' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 14,
-                    boxShadow: isStageActive('parallel') ? '0 0 8px #10b981' : '0 1px 3px rgba(0, 0, 0, 0.2)',
-                  }}
-                >
-                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                </div>
-
               </div>
 
               {/* PATH 2 (BOTTOM): LanceDB & 4 Pillars (Blue) */}
@@ -3121,50 +2969,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                       IVF-PQ &lt;15ms
                     </span>
                   </div>
-                </div>
-
-                {/* Modular Hardware Input Port (Left) */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '-6px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    backgroundColor: isDark ? '#0b1120' : '#ffffff',
-                    border: `2px solid ${isStageActive('parallel') ? '#2563eb' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 14,
-                    boxShadow: isStageActive('parallel') ? '0 0 8px #2563eb' : '0 1px 3px rgba(0, 0, 0, 0.2)',
-                  }}
-                >
-                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
-                </div>
-
-                {/* Modular Hardware Output Port (Right) */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    right: '-6px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    backgroundColor: isDark ? '#0b1120' : '#ffffff',
-                    border: `2px solid ${isStageActive('parallel') ? '#2563eb' : (isDark ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8')}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 14,
-                    boxShadow: isStageActive('parallel') ? '0 0 8px #2563eb' : '0 1px 3px rgba(0, 0, 0, 0.2)',
-                  }}
-                >
-                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
                 </div>
 
               </div>
