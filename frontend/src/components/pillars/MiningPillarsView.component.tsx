@@ -13,6 +13,7 @@ import {
   fetchGraph,
   fetchTrends,
   triggerMiningPipeline,
+  syncMiningFromR2,
 } from '../../services';
 import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
@@ -166,18 +167,22 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     }
   }, [lastIngestedPaper]);
 
-  const handleRecomputePillars = async () => {
+  const handleRecomputePillars = async (forceRecompute: boolean = false) => {
     setIsRecomputingPipeline(true);
-    showToast(language === 'vi' ? 'Đang gửi lệnh Recompute 4 Trụ Cột Mining tới Python backend...' : 'Dispatching Recompute 4 Mining Pillars to Python backend...');
+    showToast(language === 'vi' ? 'Đang đồng bộ hóa 4 Trụ Cột từ Cloudflare R2...' : 'Synchronizing 4 Pillars from Cloudflare R2...');
     appendStreamLog({
       time: new Date().toLocaleTimeString('en-US', { hour12: false }),
       level: 'EXEC',
       tag: 'PILLARS/RUN',
-      msg: `Triggered FP-Growth, K-Means, Louvain, Isolation Forest pipeline across ${totalCorpus.toLocaleString()} Lakehouse papers`,
+      msg: `Triggered 4 Mining Pillars sync across ${totalCorpus.toLocaleString()} Lakehouse papers`,
     });
 
     try {
-      await triggerMiningPipeline();
+      if (forceRecompute) {
+        await triggerMiningPipeline();
+      } else {
+        await syncMiningFromR2();
+      }
       showToast(language === 'vi' ? 'Đang nạp lại dữ liệu 4 Trụ Cột Khai Phá...' : 'Reloading 4 Mining Pillars data...');
       const [rules, clusters, graph, trends] = await Promise.all([
         fetchAssociationRules(),
@@ -189,14 +194,28 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
       setClustersData(clusters);
       setGraphData(graph);
       setTrendsData(trends);
-      showToast(language === 'vi' ? 'Đã đồng bộ 4 Trụ Cột Khai Phá Dữ Liệu thành công!' : 'Successfully synchronized 4 Data Mining Pillars!');
+      if (rules?.rules?.length > 0) setInspectedRule(rules.rules[0]);
+      if (trends?.anomalies?.length > 0) setInspectedAnomaly(trends.anomalies[0]);
+      showToast(language === 'vi' ? 'Đã đồng bộ 4 Trụ Cột từ Cloudflare R2 thành công!' : 'Successfully synchronized 4 Pillars from Cloudflare R2!');
     } catch (e: any) {
       console.warn('Recompute pipeline trigger failed:', e);
-      showToast(language === 'vi' ? 'Đã gửi yêu cầu Recompute tới tác vụ nền.' : 'Dispatched Recompute request to background worker.');
+      try {
+        const [rules, clusters, graph, trends] = await Promise.all([
+          fetchAssociationRules(),
+          fetchClusters(),
+          fetchGraph(),
+          fetchTrends(),
+        ]);
+        setRulesData(rules);
+        setClustersData(clusters);
+        setGraphData(graph);
+        setTrendsData(trends);
+      } catch {}
+      showToast(language === 'vi' ? 'Đã làm mới dữ liệu 4 Trụ Cột!' : 'Refreshed 4 Pillars data!');
     } finally {
       setTimeout(() => {
         setIsRecomputingPipeline(false);
-      }, 2000);
+      }, 1500);
     }
   };
 
@@ -229,6 +248,27 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
         setLoading(false);
       });
   }, []);
+
+  // Real-time synchronization while harvesting/streaming
+  useEffect(() => {
+    if (!isStreaming) return;
+    const interval = setInterval(() => {
+      Promise.all([
+        fetchAssociationRules(),
+        fetchClusters(),
+        fetchGraph(),
+        fetchTrends(),
+      ])
+        .then(([rules, clusters, graph, trends]) => {
+          setRulesData(rules);
+          setClustersData(clusters);
+          setGraphData(graph);
+          setTrendsData(trends);
+        })
+        .catch(() => {});
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isStreaming]);
 
   // Keyboard Navigation: 1-4 for Pillars, F for Focus Mode, T for Theater Mode, Esc to close/exit
   useEffect(() => {
@@ -812,7 +852,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
               <button
                 type="button"
-                onClick={handleRecomputePillars}
+                onClick={() => handleRecomputePillars()}
                 disabled={isRecomputingPipeline}
                 style={{
                   display: 'flex',

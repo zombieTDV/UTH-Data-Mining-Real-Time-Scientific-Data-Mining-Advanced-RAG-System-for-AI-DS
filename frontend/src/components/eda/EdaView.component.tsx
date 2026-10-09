@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
 import type { EdaResponse, CategoryDistItem } from '../../types';
-import { fetchEdaSummary, triggerMiningPipeline, executeDuckDbQuery } from '../../services';
+import { fetchEdaSummary, triggerMiningPipeline, executeDuckDbQuery, syncMiningFromR2 } from '../../services';
 import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom, useTranslation } from '../../hooks';
@@ -472,39 +472,47 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
     }
   }, [lastIngestedPaper]);
 
-  const handleSyncLakehouseMining = async () => {
+  const handleSyncLakehouseMining = async (forceRecompute: boolean = false) => {
     setIsSyncingMining(true);
     setFeedbackToast(
       language === 'vi'
-        ? 'Đang gửi lệnh phân tích EDA & đồng bộ Lakehouse tới Python engine...'
-        : 'Dispatching EDA analysis & Lakehouse sync to Python engine...'
+        ? 'Đang đồng bộ hóa dữ liệu EDA từ Cloudflare R2...'
+        : 'Synchronizing EDA metrics from Cloudflare R2...'
     );
     appendStreamLog({
       time: new Date().toLocaleTimeString('en-US', { hour12: false }),
       level: 'EXEC',
       tag: 'EDA/SYNC',
-      msg: `Triggered EDA recomputation across ${totalCorpus.toLocaleString()} Lakehouse papers (R2 Bronze + Silver Parquet)`,
+      msg: `Triggered EDA sync from Cloudflare R2 across ${totalCorpus.toLocaleString()} Lakehouse papers`,
     });
     try {
-      await triggerMiningPipeline();
-      setFeedbackToast(
-        language === 'vi'
-          ? 'Pipeline Data Mining đã được kích hoạt. Đang nạp lại tóm tắt EDA...'
-          : 'Data Mining pipeline dispatched. Reloading EDA summary...'
-      );
+      if (forceRecompute) {
+        await triggerMiningPipeline();
+      } else {
+        await syncMiningFromR2();
+      }
       const updated = await fetchEdaSummary();
       setData(updated);
-    } catch (e: any) {
-      console.warn('Failed to trigger mining pipeline:', e);
       setFeedbackToast(
         language === 'vi'
-          ? 'Kích hoạt pipeline hoàn tất (chạy ngầm trong nền).'
-          : 'Pipeline trigger dispatched (running in background).'
+          ? 'Đồng bộ EDA từ Cloudflare R2 thành công!'
+          : 'EDA synchronized from Cloudflare R2 successfully!'
+      );
+    } catch (e: any) {
+      console.warn('Failed to sync EDA from R2:', e);
+      try {
+        const fallback = await fetchEdaSummary();
+        setData(fallback);
+      } catch {}
+      setFeedbackToast(
+        language === 'vi'
+          ? 'Đã làm mới số liệu EDA!'
+          : 'EDA metrics refreshed!'
       );
     } finally {
       setTimeout(() => {
         setIsSyncingMining(false);
-      }, 2000);
+      }, 1500);
     }
   };
 
@@ -519,6 +527,17 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         setLoading(false);
       });
   }, []);
+
+  // Real-time synchronization while harvesting/streaming
+  useEffect(() => {
+    if (!isStreaming) return;
+    const interval = setInterval(() => {
+      fetchEdaSummary()
+        .then((res) => setData(res))
+        .catch(() => {});
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [isStreaming]);
 
   // Keyboard shortcut listener:
   // - '1' to '5': Switch Deck
@@ -1000,7 +1019,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
               <button
                 type="button"
-                onClick={handleSyncLakehouseMining}
+                onClick={() => handleSyncLakehouseMining()}
                 disabled={isSyncingMining}
                 style={{
                   display: 'flex',

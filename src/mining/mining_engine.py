@@ -59,10 +59,18 @@ class MiningEngine:
         # Auto-detect LanceDB URI
         if lancedb_uri is None:
             env_uri = getattr(settings, "LANCEDB_URI", None)
-            if env_uri:
+            if env_uri and env_uri.startswith("s3://"):
                 self.lancedb_uri = env_uri
-            elif os.path.exists("data/gold/lancedb"):
-                self.lancedb_uri = "data/gold/lancedb"
+            elif os.path.exists("data/gold/lancedb/scientific_papers_gold.lance"):
+                try:
+                    import lancedb
+                    _t = lancedb.connect("data/gold/lancedb").open_table("scientific_papers_gold")
+                    if _t.count_rows() > 1000:
+                        self.lancedb_uri = "data/gold/lancedb"
+                    else:
+                        self.lancedb_uri = f"s3://{settings.R2_BUCKET_NAME}/gold/lancedb"
+                except Exception:
+                    self.lancedb_uri = f"s3://{settings.R2_BUCKET_NAME}/gold/lancedb"
             else:
                 self.lancedb_uri = f"s3://{settings.R2_BUCKET_NAME}/gold/lancedb"
         else:
@@ -129,8 +137,8 @@ class MiningEngine:
         # ----------------------------------------------------------------------
         t0 = time.time()
         logger.info("[CHECKPOINT 3/5] Executing Pillar 2: Semantic Topic Clustering...")
-        cluster_analyzer = SemanticClusterAnalyzer(self.lancedb_uri)
-        cluster_results = cluster_analyzer.run_clustering_benchmarks(sample_size=3000, n_clusters=6)
+        cluster_analyzer = SemanticClusterAnalyzer(self.lancedb_uri, table_name="scientific_papers_gold")
+        cluster_results = cluster_analyzer.run_clustering_benchmarks(sample_size=1500, n_clusters=6)
         clusters_file = os.path.join(self.output_dir, "clusters.json")
         with open(clusters_file, "w", encoding="utf-8") as f:
             json.dump(cluster_results, f, indent=2, ensure_ascii=False)

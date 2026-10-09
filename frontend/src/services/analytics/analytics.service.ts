@@ -36,3 +36,11 @@ export async function fetchTrends(): Promise<TrendsResponse> {
   if (!res.ok) throw new Error(`Failed to load Trends: ${res.statusText}`);
   return res.json();
 }
+
+export async function syncMiningFromR2(): Promise<{ status: string; synced_files: string[]; count: number }> {
+  const res = await fetch(`${API_CONFIG.baseUrl}/api/mining/sync-r2`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Failed to sync Mining artifacts from R2: ${res.statusText}`);
+  return res.json();
+}

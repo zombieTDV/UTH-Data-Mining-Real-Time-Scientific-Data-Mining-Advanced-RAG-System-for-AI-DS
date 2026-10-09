@@ -90,3 +90,13 @@ async def trigger_mining_execution(background_tasks: BackgroundTasks) -> Dict[st
         "status": "QUEUED",
         "message": "Data Mining pipeline has been triggered in the background.",
     }
+
+
+@router.post("/sync-r2")
+async def sync_mining_from_r2() -> Dict[str, Any]:
+    """Synchronizes latest data mining artifacts from Cloudflare R2 bucket to local runtime."""
+    try:
+        return mining_service.sync_from_r2()
+    except Exception as e:
+        logger.error("[MINING SYNC] R2 sync failed: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

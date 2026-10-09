@@ -68,7 +68,7 @@ class ScientificGraphMiner:
         logger.info("[PILLAR 3] Building co-authorship fallback network from: %s...", self.parquet_path)
         con = duckdb.connect()
         df = con.execute(
-            f"SELECT paper_id, authors FROM read_parquet('{self.parquet_path}') WHERE authors IS NOT NULL"
+            f"SELECT paper_id, authors FROM read_parquet('{self.parquet_path}') WHERE authors IS NOT NULL LIMIT 4000"
         ).fetchdf()
 
         G = nx.Graph()
@@ -79,7 +79,7 @@ class ScientificGraphMiner:
             if raw_authors is None or not hasattr(raw_authors, "__iter__") or isinstance(raw_authors, str):
                 continue
 
-            clean_authors = [str(a).strip() for a in raw_authors if str(a).strip()]
+            clean_authors = [str(a).strip() for a in raw_authors if str(a).strip()][:8]
             for author in clean_authors:
                 author_paper_counts[author] = author_paper_counts.get(author, 0) + 1
 
@@ -255,7 +255,13 @@ class ScientificGraphMiner:
             return {"network_summary": empty_summary, "top_influencers": [], "communities": [], "graph_export": {}}
 
         pagerank_scores = nx.pagerank(G, weight="weight", alpha=0.85)
-        communities_raw = list(greedy_modularity_communities(G))
+        if G.number_of_nodes() > 800:
+            top_sub_nodes = [n for n, _ in sorted(pagerank_scores.items(), key=lambda x: x[1], reverse=True)[:800]]
+            subG_comm = G.subgraph(top_sub_nodes)
+            communities_raw = list(greedy_modularity_communities(subG_comm))
+        else:
+            communities_raw = list(greedy_modularity_communities(G))
+
         community_mapping = {}
         for comm_id, members in enumerate(communities_raw):
             for member in members:
