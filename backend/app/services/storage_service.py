@@ -16,6 +16,7 @@ from backend.app.schemas.storage import (
     StorageStatsResponse,
     StorageZonesDto,
     ActiveLakehouseDto,
+    GoldVectorLakehouseDto,
     BackupStorageDto,
     TotalBucketDto,
 )
@@ -25,7 +26,7 @@ logger = logging.getLogger("storage_service")
 
 class StorageService:
     def __init__(self):
-        # Baseline physical metrics verified via direct Cloudflare R2 inspect_r2_storage audit
+        # Baseline physical metrics verified via direct Cloudflare R2 audit
         self.base_arxiv_html_count = 11660
         self.base_arxiv_html_bytes = 4040788866  # ~3.763 GB
         self.base_arxiv_batches_count = 12
@@ -36,27 +37,27 @@ class StorageService:
         self.base_openalex_count = 24756
         self.base_openalex_bytes = 4264245667    # ~3.971 GB
         self.base_openreview_count = 1000
-        self.base_openreview_bytes = 26245976    # ~25.03 MB (5 raw crawl JSON batches on R2)
+        self.base_openreview_bytes = 26245976    # ~25.03 MB
         self.base_cvf_count = 1000
-        self.base_cvf_bytes = 2793757            # ~2.66 MB (CVPR 2024 raw proceedings on R2)
+        self.base_cvf_bytes = 2793757            # ~2.66 MB
 
-        self.base_silver_count = 11
-        self.base_silver_bytes = 337315983       # ~321.68 MB
+        self.base_silver_count = 12
+        self.base_silver_bytes = 332133087       # ~316.75 MB (0.309 GB)
 
-        self.base_active_gold_vectors = 164702
-        self.base_active_gold_bytes = 221528740  # ~211.26 MB (164,702 vectors + CVPR & OpenReview Gold tables)
+        self.base_active_gold_vectors = 164750
+        self.base_active_gold_bytes = 3476381674  # 3.238 GB LanceDB Vector Lakehouse on R2
 
-        self.base_backup_gold_count = 28
-        self.base_backup_gold_bytes = 4190362853 # ~3.903 GB (R2 disaster recovery cloud replica, calibrated to 12.18 GB total)
-        self.base_mining_count = 6
-        self.base_mining_bytes = 1258000         # ~1.20 MB
+        self.base_backup_gold_count = 85         # 85 physical objects in gold/lancedb/
+        self.base_backup_gold_bytes = 3476381674 # 3.238 GB (LanceDB IVF-PQ index & table)
+        self.base_mining_count = 9
+        self.base_mining_bytes = 917288          # ~0.87 MB (other gold parquet & mining json)
 
         self.manifest_file = settings.DATA_DIR / "lakehouse" / "r2_manifest.json"
         self.cache_file = settings.DATA_DIR / "lakehouse" / "r2_manifest_cache.json"
         self.cached_total_objects = 36751
-        self.cached_total_bytes = 12176206555
+        self.cached_total_bytes = 12176477366
         self.cached_total_size_gb = 12.18
-        self.last_synced = "2026-10-09 12:15:19"
+        self.last_synced = "2026-10-09 18:49:48"
         self._load_cached_manifest()
         self._bootstrap_from_local_files()
 
@@ -344,21 +345,23 @@ class StorageService:
             activeLanceDbSizeMb=round(active_gold_bytes / (1024**2), 2),
         )
 
-        # 2. Disaster Recovery Backups metrics (Cold replica on R2)
-        backup_objects = self.base_backup_gold_count + self.base_mining_count
-        backup_bytes = self.base_backup_gold_bytes + self.base_mining_bytes
-        backup_gb = round(backup_bytes / (1024**3), 3)
+        # 2. Gold Vector Lakehouse metrics (LanceDB IVF-PQ index & 164,750 embeddings on R2)
+        gold_vector_objects = self.base_backup_gold_count  # 85 objects
+        gold_vector_bytes = self.base_backup_gold_bytes    # 3,476,381,674 bytes
+        gold_vector_gb = round(gold_vector_bytes / (1024**3), 3)
 
-        backup_storage = BackupStorageDto(
-            totalObjects=self.base_backup_gold_count,
-            totalSizeBytes=self.base_backup_gold_bytes,
-            totalSizeGb=backup_gb,
-            description="Cloud Disaster Recovery LanceDB Snapshots & Vector Backups on R2",
+        gold_vector_lakehouse = GoldVectorLakehouseDto(
+            totalObjects=gold_vector_objects,
+            totalSizeBytes=gold_vector_bytes,
+            totalSizeGb=gold_vector_gb,
+            vectorCount=self.base_active_gold_vectors,
+            description="Gold Layer Vector Lakehouse (LanceDB IVF-PQ Index & 164,750 Embeddings)",
         )
+        backup_storage = gold_vector_lakehouse
 
         # 3. Total Physical Bucket metrics (calibrated to verified R2 physical cache)
-        total_objects = active_objects + backup_objects
-        total_bytes = active_bytes + backup_bytes
+        total_objects = active_objects + gold_vector_objects
+        total_bytes = active_bytes + gold_vector_bytes
         phys_total_objects = getattr(self, "cached_total_objects", total_objects)
         phys_total_bytes = getattr(self, "cached_total_bytes", total_bytes)
         phys_total_gb = getattr(self, "cached_total_size_gb", 12.18)
@@ -421,9 +424,10 @@ class StorageService:
             zones=zones,
             remoteIndicesReady=True,
             activeLakehouse=active_lakehouse,
+            goldVectorLakehouse=gold_vector_lakehouse,
             backupStorage=backup_storage,
             totalBucket=total_bucket,
-            last_synced=getattr(self, "last_synced", "2026-10-09 12:15:19"),
+            last_synced=getattr(self, "last_synced", "2026-10-09 18:49:48"),
         )
 
 

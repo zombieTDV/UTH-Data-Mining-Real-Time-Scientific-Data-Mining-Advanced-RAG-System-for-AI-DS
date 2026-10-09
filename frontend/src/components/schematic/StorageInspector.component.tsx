@@ -87,7 +87,6 @@ export function StorageInspector() {
   const openalexGb = (activeData?.openalexSizeGb ?? 4.066).toFixed(3);
   const silverMb = (activeData?.silverParquetSizeMb ?? 321.68).toFixed(2);
   const goldChunks = (activeData?.activeLanceDbVectors ?? 164750).toLocaleString();
-  const goldMb = (activeData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
   const backupGb = (backupData?.totalSizeGb ?? 4.107).toFixed(3);
 
   const activeGb = (storageUsedGb || Number(activeData?.totalSizeGb ?? 8.191)).toFixed(3);
@@ -157,29 +156,16 @@ export function StorageInspector() {
     },
     {
       zone: 'GOLD',
-      name: language === 'vi' ? 'Hồ Vector Ngữ Cảnh (Bộ nhớ đệm hoạt động)' : 'Contextual Vector Lakehouse (Active Cache)',
-      storageType: language === 'vi' ? 'Chỉ mục phục vụ trên SSD NVMe cục bộ' : 'Local SSD NVMe Serving Index',
-      format: 'Lance Columnar (.lance) & Parquet',
-      itemsCount: `${goldChunks} vectors`,
-      sizeBytes: `${goldMb} MB`,
-      r2Location: 'data/gold/ & s3://uth-scientific-lakehouse/gold/ (lancedb, cvf, openreview)',
-      color: '#eab308',
-      description: language === 'vi'
-        ? 'Các vector nhúng 768 chiều theo ngữ cảnh và parquet tầng Gold trải dài qua CVPR, OpenReview và arXiv.'
-        : 'Contextualized 768-dimensional dense embeddings and Gold parquets spanning CVPR, OpenReview, and arXiv.'
-    },
-    {
-      zone: 'BACKUP',
-      name: language === 'vi' ? 'Bản sao lưu Vector phục hồi thảm họa' : 'Cloud Disaster Recovery Vector Replica',
-      storageType: language === 'vi' ? 'Bản chụp nguội Cloudflare R2' : 'Cloudflare R2 Cold Snapshots',
-      format: language === 'vi' ? 'Kho lưu trữ LanceDB đa phân đoạn' : 'LanceDB Multi-Segment Archives',
-      itemsCount: language === 'vi' ? '32 phân đoạn chunk' : '32 chunk segments',
+      name: language === 'vi' ? 'Hồ Vector LanceDB Tầng Gold (Lưu trữ Đám mây R2)' : 'Gold Layer Vector Lakehouse (Cloudflare R2)',
+      storageType: language === 'vi' ? 'Lưu trữ đối tượng Cloudflare R2 (Chỉ mục IVF-PQ)' : 'Cloudflare R2 Object Store (IVF-PQ Index)',
+      format: 'Lance Columnar (.lance) & Arrow',
+      itemsCount: `${goldChunks} vectors (85 ${language === 'vi' ? 'tệp' : 'files'})`,
       sizeBytes: `${backupGb} GB`,
       r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
       color: '#f59e0b',
       description: language === 'vi'
-        ? 'Bản sao lưu đám mây phục hồi thảm họa cho phép tái tạo tức thì cụm dữ liệu với chi phí egress bằng không.'
-        : 'Disaster recovery cloud backup replica enabling instant cluster reconstitution with zero egress fees.'
+        ? 'Toàn bộ 164,750 vector embeddings 768 chiều nhúng bởi Nomic AI kèm chỉ mục IVF-PQ phục vụ RAG và tìm kiếm thông minh.'
+        : 'Complete 164,750 768-dimensional dense embeddings indexed with IVF-PQ for sub-second RAG retrieval.'
     }
   ];
 
@@ -240,7 +226,7 @@ export function StorageInspector() {
                 transition: 'all 0.15s ease',
               }}
             >
-              {language === 'vi' ? 'Hoạt động' : 'Active'} (<AnimatedCounter value={Number(activeGb)} decimals={3} /> GB)
+              {language === 'vi' ? 'Bronze + Silver' : 'Bronze + Silver'} (<AnimatedCounter value={Number(activeGb)} decimals={3} /> GB)
             </button>
             <button
               type="button"
@@ -256,7 +242,7 @@ export function StorageInspector() {
                 transition: 'all 0.15s ease',
               }}
             >
-              {language === 'vi' ? 'Toàn bộ Bucket' : 'Total Bucket'} (<AnimatedCounter value={Number(totalGb)} decimals={3} /> GB)
+              {language === 'vi' ? 'Toàn bộ Bucket (+Gold)' : 'Total Bucket (+Gold)'} (<AnimatedCounter value={Number(totalGb)} decimals={3} /> GB)
             </button>
           </div>
 
@@ -326,7 +312,7 @@ export function StorageInspector() {
         gap: '12px',
         marginBottom: '20px',
       }}>
-        {/* Box 1: Primary Active Lakehouse */}
+        {/* Box 1: Bronze + Silver Zone */}
         <div style={{
           background: 'var(--bg-elevated)',
           padding: '14px',
@@ -334,7 +320,7 @@ export function StorageInspector() {
           border: '1px solid var(--border-subtle)',
         }}>
           <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-            {language === 'vi' ? 'HỒ DỮ LIỆU HOẠT ĐỘNG CHÍNH' : 'PRIMARY ACTIVE LAKEHOUSE'}
+            {language === 'vi' ? 'TẦNG BRONZE + SILVER (VẬN HÀNH)' : 'BRONZE + SILVER ZONE (OPERATION)'}
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
             <AnimatedCounter value={Number(activeGb)} decimals={3} suffix=" GB" />{' '}
@@ -347,7 +333,7 @@ export function StorageInspector() {
           </div>
         </div>
 
-        {/* Box 2: Disaster Recovery Backup */}
+        {/* Box 2: Gold Vector Lakehouse */}
         <div style={{
           background: 'var(--bg-elevated)',
           padding: '14px',
@@ -355,14 +341,14 @@ export function StorageInspector() {
           border: '1px solid var(--border-subtle)',
         }}>
           <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-            {language === 'vi' ? 'BẢN SAO LƯU PHỤC HỒI THẢM HỌA' : 'DISASTER RECOVERY SNAPSHOTS'}
+            {language === 'vi' ? 'TẦNG GOLD VECTOR LAKEHOUSE (RAG)' : 'GOLD LAYER VECTOR LAKEHOUSE (RAG)'}
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>
             <AnimatedCounter value={Number(backupGb)} decimals={3} suffix=" GB" />{' '}
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>(28 {language === 'vi' ? 'phân đoạn' : 'segments'})</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>(164,750 vectors · 85 {language === 'vi' ? 'tệp' : 'files'})</span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {language === 'vi' ? 'Bản sao lưu đám mây LanceDB tầng Gold trên R2 phục hồi nhanh' : 'Gold LanceDB cloud replica on R2 for instant cold recovery'}
+            {language === 'vi' ? 'LanceDB IVF-PQ index phục vụ Semantic Search & Grounded RAG' : 'LanceDB IVF-PQ index serving Semantic Search & Grounded RAG'}
           </div>
         </div>
 
@@ -383,7 +369,7 @@ export function StorageInspector() {
             </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {language === 'vi' ? '36,673 tệp · 1.14 GB vượt mức (~0.017$/tháng / 400 VNĐ)' : '36,673 files · 1.14 GB overage (~$0.017/month / 400 VND)'}
+            {language === 'vi' ? '36,751 tệp (gồm Bronze, Silver & Gold Vector)' : '36,751 files (across Bronze, Silver & Gold Vector)'}
           </div>
         </div>
       </div>
@@ -456,10 +442,10 @@ export function StorageInspector() {
               background: '#10b981',
             }}
           />
-          {/* Backup LanceDB Segment (Amber) */}
+          {/* Gold LanceDB Segment (Amber) */}
           {isTotalView && (
             <div
-              title={`LanceDB Backup: ${backupGb} GB`}
+              title={`Gold LanceDB: ${backupGb} GB`}
               style={{
                 width: `${backupBarPct}%`,
                 height: '100%',
@@ -497,13 +483,13 @@ export function StorageInspector() {
             {isTotalView && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} />
-                {language === 'vi' ? 'Bản sao lưu LanceDB' : 'LanceDB Backup'} ({backupGb} GB)
+                {language === 'vi' ? 'Gold LanceDB Vectors' : 'Gold LanceDB Vectors'} ({backupGb} GB)
               </span>
             )}
           </div>
           <span style={{ color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)', fontWeight: 600 }}>
             {isTotalView
-              ? `+${backupGb} GB Cold Snapshot`
+              ? `+${backupGb} GB Gold Vectors`
               : (language === 'vi' ? 'An toàn trong hạn mức 10GB' : 'Within 10GB Free Tier')}
           </span>
         </div>

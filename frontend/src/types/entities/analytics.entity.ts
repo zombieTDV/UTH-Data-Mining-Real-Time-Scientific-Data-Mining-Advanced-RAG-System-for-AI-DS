@@ -258,12 +258,15 @@ export interface ActiveLakehouseInfo {
   activeLanceDbSizeMb: number;
 }
 
-export interface BackupStorageInfo {
+export interface GoldVectorLakehouseInfo {
   totalObjects: number;
   totalSizeBytes: number;
   totalSizeGb: number;
+  vectorCount?: number;
   description: string;
 }
+
+export interface BackupStorageInfo extends GoldVectorLakehouseInfo {}
 
 export interface TotalBucketInfo {
   totalObjects: number;
@@ -286,6 +289,7 @@ export interface StorageStatsResponse {
   zones: StorageZoneInfo;
   remoteIndicesReady: boolean;
   activeLakehouse?: ActiveLakehouseInfo;
+  goldVectorLakehouse?: GoldVectorLakehouseInfo;
   backupStorage?: BackupStorageInfo;
   totalBucket?: TotalBucketInfo;
   last_synced?: string;

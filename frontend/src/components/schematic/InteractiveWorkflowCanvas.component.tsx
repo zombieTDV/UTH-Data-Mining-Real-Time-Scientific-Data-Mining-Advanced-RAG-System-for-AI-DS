@@ -607,8 +607,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
+  const liveTotalStorageGb = storageStats?.totalBucket?.totalSizeGb ?? (storageStats?.total_size_gb ?? 12.18);
+  const liveGoldGb = storageStats?.goldVectorLakehouse?.totalSizeGb ?? (storageStats?.backupStorage?.totalSizeGb ?? 3.238);
   const liveActiveStorageGb = storageStats?.activeLakehouse?.totalSizeGb ?? (storageUsedGb > 10 ? 8.277 : (storageUsedGb || 8.277));
   const liveActiveStoragePct = storageStats?.activeLakehouse?.usedPercentage ?? Math.min(100, (liveActiveStorageGb / liveQuotaGb) * 100);
+
+  // Exact layer percentages of total 12.18 GB bucket
+  const bronzePctOfTotal = ((parseFloat(liveBronzeGb) / liveTotalStorageGb) * 100).toFixed(1);
+  const openalexPctOfTotal = (((storageStats?.activeLakehouse?.openalexSizeGb ?? 3.971) / liveTotalStorageGb) * 100).toFixed(1);
+  const silverPctOfTotal = (((liveSilverMb / 1024) / liveTotalStorageGb) * 100).toFixed(1);
+  const goldPctOfTotal = ((liveGoldGb / liveTotalStorageGb) * 100).toFixed(1);
   const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || liveTotalWorks);
   const displayWorks = isPipelineRunning && simulationStage !== 'completed' ? papersHarvested : (totalCorpus || liveTotalWorks);
 
@@ -872,18 +880,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 ├── silver/
 │   └── papers/year=2026/ (${liveSilverPartitions} Parquet partitions · ${liveSilverMb.toFixed(2)} MB)
 └── gold/
-    └── lancedb/ (${liveVectors.toLocaleString()} vectors · ${(storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2)} MB active / ${(storageStats?.backupStorage?.totalObjects ?? 28)} backup segments · ${(storageStats?.backupStorage?.totalSizeGb ?? 3.20).toFixed(2)} GB)
-[Storage Quota: ${liveActiveStorageGb.toFixed(3)} GB / ${liveQuotaGb.toFixed(1)} GB (${liveActiveStoragePct.toFixed(1)}% utilized, 0 egress)]`;
+    └── lancedb/ (${liveVectors.toLocaleString()} vectors · 85 R2 objects · ${(storageStats?.goldVectorLakehouse?.totalSizeGb ?? storageStats?.backupStorage?.totalSizeGb ?? 3.24).toFixed(2)} GB IVF-PQ indexed)
+[Bucket Storage: ${liveTotalStorageGb.toFixed(2)} GB Total · Bronze: ${bronzePctOfTotal}% (${parseFloat(liveBronzeGb).toFixed(2)} GB), OpenAlex: ${openalexPctOfTotal}% (3.97 GB), Silver: ${silverPctOfTotal}% (0.31 GB), Gold: ${goldPctOfTotal}% (${liveGoldGb.toFixed(2)} GB)]`;
 
       return {
         ...baseTool,
         status: storageStats?.activeLakehouse ? 'ONLINE (S3)' : 'ONLINE',
-        engineVersion: `Cloudflare R2 (${liveActiveStorageGb.toFixed(3)} GB / ${liveQuotaGb.toFixed(1)} GB)`,
+        engineVersion: `Cloudflare R2 (${liveTotalStorageGb.toFixed(2)} GB Total Bucket)`,
         samplePreviewTitle: language === 'vi' ? 'Cấu Trúc Cây Thư Mục & Dung Lượng R2' : 'Cloudflare R2 Bucket Key Hierarchy & Object Count',
         sampleCodeOrSchema: hierarchySchema,
         telemetrySummary: {
-          primaryMetric: `${liveActiveStorageGb.toFixed(3)} GB Active Storage`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} HTML5 • ${liveOpenAlexCount.toLocaleString()} JSON (${liveActiveStoragePct.toFixed(1)}% Quota)`,
+          primaryMetric: `${liveTotalStorageGb.toFixed(2)} GB Total Bucket Storage`,
+          secondaryMetric: `Bronze: ${parseFloat(liveBronzeGb).toFixed(2)} GB • OpenAlex: 3.97 GB • Silver: 0.31 GB • Gold: ${liveGoldGb.toFixed(2)} GB`,
           latency: '< 42ms S3 HeadObject',
           throughput: 'Zero Egress Fees ($0.00) • SHA-256 Digest Required',
         },
@@ -1742,7 +1750,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '6px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 900, color: isStageActive('bronze') ? (isDark ? '#fb7185' : '#e11d48') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
-                  <AnimatedCounter value={liveActiveStorageGb} decimals={2} suffix=" GB" />
+                  <AnimatedCounter value={liveTotalStorageGb} decimals={2} suffix=" GB" />
                 </span>
                 <span style={{
                   fontSize: '11px',
@@ -1751,62 +1759,109 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   color: 'var(--text-muted)',
                   whiteSpace: 'nowrap',
                 }}>
-                  82.8% (10 GB max)
+                  {language === 'vi' ? 'Tổng Lưu Trữ R2' : 'Total R2 Storage'}
                 </span>
               </div>
 
-              {/* Visual Storage Progress Bar: Calibrated strictly to 82.8% */}
-              <div style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={language === 'vi' ? `Hạn mức Cloudflare R2: ${liveActiveStorageGb.toFixed(3)} GB / 10.0 GB (${liveActiveStoragePct.toFixed(1)}%)` : `Cloudflare R2 Quota: ${liveActiveStorageGb.toFixed(3)} GB / 10.0 GB (${liveActiveStoragePct.toFixed(1)}%)`}>
-                <div style={{
-                  width: `${Math.min(100, liveActiveStoragePct)}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #f59e0b, #ea580c)',
-                  borderRadius: '9999px',
-                  transition: 'width 0.4s ease',
-                }} />
+              {/* Visual Storage Progress Bar showing multi-layer distribution */}
+              <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)', display: 'flex' }} title={`Tổng Bucket R2: ${liveTotalStorageGb.toFixed(2)} GB (Bronze: ${bronzePctOfTotal}%, OpenAlex: ${openalexPctOfTotal}%, Silver: ${silverPctOfTotal}%, Gold: ${goldPctOfTotal}%)`}>
+                <div style={{ width: `${bronzePctOfTotal}%`, height: '100%', backgroundColor: '#e11d48' }} title={`arXiv Bronze: ${parseFloat(liveBronzeGb).toFixed(2)} GB (${bronzePctOfTotal}%)`} />
+                <div style={{ width: `${openalexPctOfTotal}%`, height: '100%', backgroundColor: '#8b5cf6' }} title={`OpenAlex: 3.97 GB (${openalexPctOfTotal}%)`} />
+                <div style={{ width: `${silverPctOfTotal}%`, height: '100%', backgroundColor: '#10b981' }} title={`Silver Parquet: ${(liveSilverMb / 1024).toFixed(2)} GB (${silverPctOfTotal}%)`} />
+                <div style={{ width: `${goldPctOfTotal}%`, height: '100%', backgroundColor: '#f59e0b' }} title={`Gold Vector: ${liveGoldGb.toFixed(2)} GB (${goldPctOfTotal}%)`} />
               </div>
 
-              {/* Color-Coded Lakehouse Layer Chips - Clean Flex Wrap with Border Containment */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+              {/* Color-Coded Lakehouse Layer Chips - Clean GB values without clutter */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
                   <span style={{
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
-                    padding: '2.5px 5px',
+                    padding: '3px 6px',
                     borderRadius: '5px',
                     backgroundColor: isDark ? 'rgba(225, 29, 72, 0.18)' : '#ffe4e6',
                     color: isDark ? '#fb7185' : '#e11d48',
                     border: '1px solid rgba(225, 29, 72, 0.3)',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    justifyContent: 'space-between',
                     whiteSpace: 'nowrap',
                     minWidth: 0,
-                    justifyContent: 'flex-start',
-                  }}>
-                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e11d48', flexShrink: 0 }} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>HTML5 {parseFloat(liveBronzeGb).toFixed(2)} GB</span>
+                  }} title={`arXiv HTML5: ${parseFloat(liveBronzeGb).toFixed(2)} GB`}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#e11d48', flexShrink: 0 }} />
+                      arXiv
+                    </span>
+                    <span>{parseFloat(liveBronzeGb).toFixed(2)} GB</span>
                   </span>
 
                   <span style={{
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
-                    padding: '2.5px 5px',
+                    padding: '3px 6px',
                     borderRadius: '5px',
-                    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
-                    color: isDark ? '#818cf8' : '#4338ca',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#ede9fe',
+                    color: isDark ? '#a78bfa' : '#6d28d9',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    justifyContent: 'space-between',
                     whiteSpace: 'nowrap',
                     minWidth: 0,
-                    justifyContent: 'flex-start',
-                  }}>
-                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#6366f1', flexShrink: 0 }} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Meta 3.97 GB</span>
+                  }} title="OpenAlex: 3.97 GB">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#8b5cf6', flexShrink: 0 }} />
+                      OpenAlex
+                    </span>
+                    <span>3.97 GB</span>
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                  <span style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '3px 6px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                    color: isDark ? '#34d399' : '#059669',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                  }} title={`Silver Parquet: ${(liveSilverMb / 1024).toFixed(2)} GB`}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
+                      Silver
+                    </span>
+                    <span>{(liveSilverMb / 1024).toFixed(2)} GB</span>
+                  </span>
+
+                  <span style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '3px 6px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fef3c7',
+                    color: isDark ? '#fbbf24' : '#b45309',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                  }} title={`Gold Vectors: ${liveGoldGb.toFixed(2)} GB`}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b', flexShrink: 0 }} />
+                      Gold
+                    </span>
+                    <span>{liveGoldGb.toFixed(2)} GB</span>
                   </span>
                 </div>
 
@@ -4793,7 +4848,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                             padding: '10px 14px',
                           }}>
                             <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                              {language === 'vi' ? 'HỒ DỮ LIỆU HOẠT ĐỘNG CHÍNH' : 'PRIMARY ACTIVE LAKEHOUSE'}
+                              {language === 'vi' ? 'TẦNG BRONZE + SILVER (VẬN HÀNH)' : 'BRONZE + SILVER ZONE (OPERATION)'}
                             </div>
                             <div style={{ fontSize: '18px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '4px' }}>
                               <AnimatedCounter value={Number(r2ActiveGb)} decimals={3} suffix=" GB" />{' '}
@@ -4814,14 +4869,14 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                             padding: '10px 14px',
                           }}>
                             <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                              {language === 'vi' ? 'BẢN SAO LƯU PHỤC HỒI THẢM HỌA' : 'DISASTER RECOVERY SNAPSHOTS'}
+                              {language === 'vi' ? 'TẦNG GOLD VECTOR LAKEHOUSE (RAG)' : 'GOLD LAYER VECTOR LAKEHOUSE (RAG)'}
                             </div>
                             <div style={{ fontSize: '18px', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>
                               <AnimatedCounter value={Number(r2BackupGb)} decimals={3} suffix=" GB" />{' '}
-                              <span style={{ fontSize: '12px', color: themeStyles.textMuted, fontWeight: 500 }}>(28 {language === 'vi' ? 'phân đoạn' : 'segments'})</span>
+                              <span style={{ fontSize: '12px', color: themeStyles.textMuted, fontWeight: 500 }}>(164,750 vectors · 85 {language === 'vi' ? 'tệp' : 'files'})</span>
                             </div>
                             <div style={{ fontSize: '10.5px', color: themeStyles.textSecondary, marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
-                              {language === 'vi' ? 'Bản sao lưu LanceDB trên R2 phục hồi tức thì' : 'Gold LanceDB replica on R2 for instant recovery'}
+                              {language === 'vi' ? 'LanceDB IVF-PQ index phục vụ Semantic Search & Grounded RAG' : 'LanceDB IVF-PQ index serving Semantic Search & Grounded RAG'}
                             </div>
                           </div>
 
@@ -4842,7 +4897,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                               </span>
                             </div>
                             <div style={{ fontSize: '10.5px', color: themeStyles.textSecondary, marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
-                              {language === 'vi' ? '36,673 tệp • 1.14 GB vượt mức (~0.017$/tháng / 400 VNĐ)' : '36,673 files • 1.14 GB overage (~$0.017/mo / 400 VND)'}
+                              {language === 'vi' ? '36,751 tệp (gồm Bronze, Silver & Gold Vector)' : '36,751 files (across Bronze, Silver & Gold Vector)'}
                             </div>
                           </div>
                         </div>

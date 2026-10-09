@@ -46,11 +46,15 @@ class ActiveLakehouseDto(BaseModel):
     activeLanceDbSizeMb: float = Field(121.21, examples=[121.21])
 
 
-class BackupStorageDto(BaseModel):
-    totalObjects: int = Field(28, examples=[28])
-    totalSizeBytes: int = Field(3295282176, examples=[3295282176])
-    totalSizeGb: float = Field(3.069, examples=[3.069])
-    description: str = Field("Cloud Disaster Recovery LanceDB Snapshots & Vector Backups on R2")
+class GoldVectorLakehouseDto(BaseModel):
+    totalObjects: int = Field(85, examples=[85])
+    totalSizeBytes: int = Field(3476381674, examples=[3476381674])
+    totalSizeGb: float = Field(3.238, examples=[3.238])
+    vectorCount: int = Field(164750, examples=[164750])
+    description: str = Field("Gold Layer Vector Lakehouse (LanceDB IVF-PQ Index & 164,750 Embeddings)")
+
+# Backward compatibility alias
+BackupStorageDto = GoldVectorLakehouseDto
 
 
 class TotalBucketDto(BaseModel):
@@ -74,6 +78,7 @@ class StorageStatsResponse(BaseModel):
     zones: StorageZonesDto
     remoteIndicesReady: bool = Field(True)
     activeLakehouse: ActiveLakehouseDto
+    goldVectorLakehouse: Optional[GoldVectorLakehouseDto] = None
     backupStorage: BackupStorageDto
     totalBucket: TotalBucketDto
     last_synced: Optional[str] = Field(None, examples=["2026-10-09 12:15:19"])
