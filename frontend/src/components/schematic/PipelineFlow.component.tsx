@@ -28,18 +28,18 @@ export function PipelineFlow() {
     storageStats,
   } = useLakehouseStreamStore();
 
-  const currentCorpus = totalCorpus || 36414;
+  const currentCorpus = totalCorpus || 37103;
   const currentBronzeCount = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.arxivHtmlCount + sessionIngested
-    : (storageStats?.zones?.bronzeCount ?? 11660) + sessionIngested;
-  const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
+    : (storageStats?.zones?.bronzeCount ?? 11698) + sessionIngested;
+  const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24756;
   const currentBatchesCount = 12;
-  const currentVectors = (storageStats?.zones?.goldChunkCount ?? 143523) + (sessionIngested * 16);
-  const currentFormulas = 2220938 + (sessionIngested * 24);
+  const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
+    ?? storageStats?.zones?.goldChunkCount 
+    ?? 164750;
+  const currentFormulas = 2220938;
   const currentEnriched = currentBronzeCount;
-  const currentGoldMb = storageStats?.activeLakehouse
-    ? (storageStats.activeLakehouse.activeLanceDbSizeMb + (sessionIngested * 0.04)).toFixed(2)
-    : (121.21 + (sessionIngested * 0.04)).toFixed(2);
+  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
   const currentSilverMb = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.silverParquetSizeMb.toFixed(2)
     : '316.06';

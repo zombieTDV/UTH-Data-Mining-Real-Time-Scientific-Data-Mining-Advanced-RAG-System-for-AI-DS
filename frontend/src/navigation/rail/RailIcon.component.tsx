@@ -19,6 +19,18 @@ export const RailIcon: FC<RailIconProps> = ({ tab, size = 16 }) => {
     );
   }
 
+  if (tab === 'r2') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <ellipse cx="12" cy="5" rx="8" ry="2.5" />
+        <path d="M4 5v5c0 1.38 3.58 2.5 8 2.5s8-1.12 8-2.5V5" />
+        <path d="M4 10v5c0 1.38 3.58 2.5 8 2.5s8-1.12 8-2.5v-5" />
+        <path d="M4 15v4c0 1.38 3.58 2.5 8 2.5s8-1.12 8-2.5v-4" />
+        <circle cx="12" cy="5" r="1" fill="currentColor" />
+      </svg>
+    );
+  }
+
   if (tab === 'eda') {
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">

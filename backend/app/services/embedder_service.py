@@ -21,7 +21,7 @@ class EmbedderService:
     """Manages offline embedding generation using Nomic-embed-text-v1.5 (768-D)."""
 
     def __init__(self, model_path: Optional[str] = None):
-        self.model_path = model_path or settings.EMBEDDING_MODEL_PATH
+        self.model_path = model_path or getattr(settings, "EMBEDDING_MODEL_PATH", "nomic-ai/nomic-embed-text-v1.5")
         self.tokenizer = None
         self.model = None
         self.device = None
@@ -41,6 +41,22 @@ class EmbedderService:
             else:
                 self.device = torch.device("cpu")
 
+            from transformers import PreTrainedModel
+
+            def _patch_extended_mask(self_m, attention_mask, input_shape, device=None, dtype=None):
+                if dtype is None:
+                    dtype = self_m.dtype if hasattr(self_m, 'dtype') else torch.float32
+                if attention_mask.dim() == 3:
+                    extended = attention_mask[:, None, :, :]
+                elif attention_mask.dim() == 2:
+                    extended = attention_mask[:, None, None, :]
+                else:
+                    raise ValueError('Wrong shape')
+                extended = extended.to(dtype=dtype)
+                return (1.0 - extended) * -10000.0
+
+            PreTrainedModel.get_extended_attention_mask = _patch_extended_mask
+
             self.tokenizer = AutoTokenizer.from_pretrained(str(model_target))
             self.model = AutoModel.from_pretrained(str(model_target), trust_remote_code=True)
             self.model.to(self.device)
@@ -52,7 +68,7 @@ class EmbedderService:
             self._ready = False
 
     def embed_query(self, query: str) -> Optional[List[float]]:
-        """Generates a 768-dimensional L2-normalized embedding for a search query."""
+        """Generates a 768-dimensional L2-normalized embedding for a search query (with search_query: prefix)."""
         self._lazy_init()
         if not self._ready or self.model is None or self.tokenizer is None:
             return None
@@ -63,7 +79,7 @@ class EmbedderService:
                 [formatted_query],
                 padding=True,
                 truncation=True,
-                max_length=1024,
+                max_length=2048,
                 return_tensors="pt",
             ).to(self.device)
 

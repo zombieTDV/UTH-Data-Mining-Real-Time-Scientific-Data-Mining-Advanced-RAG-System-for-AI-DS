@@ -29,7 +29,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
   streamActive,
   totalPapers,
   totalFormulas = 2220938,
-  totalVectors = 143523,
+  totalVectors = 164702,
   sessionIngested = 0,
   streamSpeed,
   storageUsedGb,

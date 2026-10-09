@@ -53,6 +53,7 @@ def test_env_variables_present():
     )
 
 
+@pytest.mark.live_r2
 def test_r2_connection_and_permissions():
     """Kiểm tra kết nối tới Cloudflare R2: Head Bucket, Write, Read, Delete."""
     import boto3

@@ -3621,7 +3621,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  143,523 vector chunks 384 chiều &bull; Cửa sổ ngữ cảnh 485 tokens &bull; Cấu trúc Section
+                  164,702 vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; Cấu trúc Section
                 </div>
 
                 <ChartToolbar

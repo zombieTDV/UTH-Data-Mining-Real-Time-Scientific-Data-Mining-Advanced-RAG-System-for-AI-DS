@@ -30,6 +30,7 @@ class ActiveLakehouseDto(BaseModel):
     silverParquetCount: int = Field(9, examples=[9])
     silverParquetSizeBytes: int = Field(331411456, examples=[331411456])
     silverParquetSizeMb: float = Field(316.06, examples=[316.06])
+    conferenceCount: int = Field(2000, examples=[2000])
     activeLanceDbVectors: int = Field(143523, examples=[143523])
     activeLanceDbSizeBytes: int = Field(127097720, examples=[127097720])
     activeLanceDbSizeMb: float = Field(121.21, examples=[121.21])
@@ -65,3 +66,4 @@ class StorageStatsResponse(BaseModel):
     activeLakehouse: ActiveLakehouseDto
     backupStorage: BackupStorageDto
     totalBucket: TotalBucketDto
+    last_synced: Optional[str] = Field(None, examples=["2026-10-09 12:15:19"])

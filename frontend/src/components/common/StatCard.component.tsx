@@ -4,11 +4,11 @@ export interface StatCardProps {
   label: string;
   badge: string;
   badgeColor: string;
-  value: string;
+  value: ReactNode;
   unit?: string;
   description: string;
-  footerLeft: string;
-  footerRight: string;
+  footerLeft: ReactNode;
+  footerRight: ReactNode;
   progressPercent?: number;
   glowColor?: string;
   gridColumn?: string;

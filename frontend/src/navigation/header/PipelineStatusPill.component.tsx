@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import { useTranslation } from '../../hooks';
 import type { PipelineStatus } from '../../types';
+import { AnimatedCounter } from '../../components/common';
 
 export interface PipelineStatusPillProps {
   pipelineStatus: PipelineStatus;
@@ -17,7 +18,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
   streamActive,
   totalPapers,
   totalFormulas = 2220938,
-  totalVectors = 143523,
+  totalVectors = 164702,
   streamSpeed = 0,
   sessionIngested = 0,
 }) => {
@@ -102,7 +103,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
             <line x1="16" y1="17" x2="8" y2="17" />
           </svg>
           <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
-            {totalPapers.toLocaleString()}
+            <AnimatedCounter value={totalPapers} />
           </span>
           <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
             {language === 'vi' ? 'bài' : 'works'}
@@ -118,7 +119,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
                 borderRadius: '4px',
               }}
             >
-              +{sessionIngested}
+              <AnimatedCounter value={sessionIngested} prefix="+" />
             </span>
           )}
         </div>
@@ -129,7 +130,10 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span style={{ color: '#f59e0b', fontWeight: 900, fontSize: '11px' }}>∑</span>
           <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
-            {(totalFormulas / 1000000).toFixed(2)}M
+            <AnimatedCounter
+              value={totalFormulas}
+              formatter={(v) => `${(v / 1000000).toFixed(2)}M`}
+            />
           </span>
           <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
             {language === 'vi' ? 'công thức' : 'math'}
@@ -146,7 +150,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
             <polyline points="2 12 12 17 22 12" />
           </svg>
           <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
-            {totalVectors.toLocaleString()}
+            <AnimatedCounter value={totalVectors} />
           </span>
           <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
             vectors

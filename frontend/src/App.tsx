@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavRail } from './navigation/rail';
 import { HeaderBar } from './navigation/header';
-import { SchematicScreen, EdaScreen, PillarsScreen, RagScreen, LogsScreen } from './screens';
+import { SchematicScreen, R2Screen, EdaScreen, PillarsScreen, RagScreen, LogsScreen } from './screens';
 import {
   fetchHealth,
   subscribeTelemetry,
@@ -21,7 +21,9 @@ export default function App() {
     streamSpeed,
     storageUsedGb,
     storageUsedPct,
+    storageStats,
     initializeStream,
+    refreshStorageStats,
   } = useLakehouseStreamStore();
 
   const [activeTab, setActiveTab] = useState<AppTab>('schematic');
@@ -30,10 +32,10 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 36,414 works, 2.22M formulas, 143,523 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(36414);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 38,414 works, 164,702 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(38414);
   const [totalFormulas, setTotalFormulas] = useState<number>(2220938);
-  const [totalVectors, setTotalVectors] = useState<number>(143523);
+  const [totalVectors, setTotalVectors] = useState<number>(164702);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 
@@ -56,19 +58,28 @@ export default function App() {
       })
       .catch(() => {});
 
-    fetchStorageStats()
-      .then((data) => {
-        if (data?.activeLakehouse) {
-          const works = (data.activeLakehouse.arxivHtmlCount || 11660) + (data.activeLakehouse.openalexCount || 24754);
-          setTotalPapers(works);
-          if (data.activeLakehouse.activeLanceDbVectors) {
-            setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
+    const syncStorageStats = () => {
+      refreshStorageStats();
+      fetchStorageStats()
+        .then((data) => {
+          if (data?.activeLakehouse) {
+            const works =
+              (data.activeLakehouse.arxivHtmlCount || 11660) +
+              (data.activeLakehouse.openalexCount || 24754) +
+              (data.activeLakehouse.conferenceCount || 0);
+            setTotalPapers(works);
+            if (data.activeLakehouse.activeLanceDbVectors) {
+              setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
+            }
+          } else if (data?.zones?.goldChunkCount) {
+            setTotalVectors(data.zones.goldChunkCount);
           }
-        } else if (data?.zones?.goldChunkCount) {
-          setTotalVectors(data.zones.goldChunkCount);
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    };
+
+    // Initial cold-start fetch once; real-time updates are delivered via SSE stream
+    syncStorageStats();
 
     const unsubscribeTelemetry = subscribeTelemetry(
       (data) => {
@@ -96,10 +107,11 @@ export default function App() {
         return;
       }
       if (e.altKey && e.key === '1') setActiveTab('schematic');
-      else if (e.altKey && e.key === '2') setActiveTab('eda');
-      else if (e.altKey && e.key === '3') setActiveTab('pillars');
-      else if (e.altKey && e.key === '4') setActiveTab('rag');
-      else if (e.altKey && e.key === '5') setActiveTab('logs');
+      else if (e.altKey && e.key === '2') setActiveTab('r2');
+      else if (e.altKey && e.key === '3') setActiveTab('eda');
+      else if (e.altKey && e.key === '4') setActiveTab('pillars');
+      else if (e.altKey && e.key === '5') setActiveTab('rag');
+      else if (e.altKey && e.key === '6') setActiveTab('logs');
       else if (e.shiftKey && (e.key === 'T' || e.key === 't')) toggleTheme();
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -126,9 +138,11 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = totalCorpus || totalPapers || 36414;
-  const effectiveTotalVectors = totalVectors + (sessionIngested * 14);
-  const effectiveTotalFormulas = totalFormulas;
+  const effectiveTotalPapers = (totalCorpus || totalPapers || 37103) + sessionIngested;
+  const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164750;
+  const effectiveTotalFormulas = totalFormulas || 2220938;
+  const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb || storageUsedGb || 12.18;
+  const effectiveStoragePct = storageStats?.totalBucket?.usedPercentage || storageUsedPct || 121.8;
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>
@@ -160,16 +174,16 @@ export default function App() {
           totalVectors={effectiveTotalVectors}
           sessionIngested={sessionIngested}
           streamSpeed={streamSpeed}
-          storageUsedGb={storageUsedGb}
-          storageUsedPct={storageUsedPct}
+          storageUsedGb={effectiveStorageGb}
+          storageUsedPct={effectiveStoragePct}
           onTriggerPipeline={handleTriggerPipeline}
         />
         <main
           style={{
             flex: 1,
-            overflowY: activeTab === 'logs' ? 'auto' : 'hidden',
+            overflowY: (activeTab === 'logs' || activeTab === 'r2') ? 'auto' : 'hidden',
             overflowX: 'hidden',
-            padding: activeTab === 'schematic' ? '0' : activeTab === 'rag' ? '0' : activeTab === 'logs' ? '16px 20px' : '12px 20px',
+            padding: (activeTab === 'schematic' || activeTab === 'rag' || activeTab === 'r2') ? '0' : activeTab === 'logs' ? '16px 20px' : '12px 20px',
             backgroundColor: 'transparent',
             display: 'flex',
             flexDirection: 'column',
@@ -185,6 +199,10 @@ export default function App() {
               onNavigateTab={setActiveTab}
               onTriggerPipeline={handleTriggerPipeline}
             />
+          )}
+
+          {activeTab === 'r2' && (
+            <R2Screen theme={theme} />
           )}
 
           {activeTab === 'eda' && (

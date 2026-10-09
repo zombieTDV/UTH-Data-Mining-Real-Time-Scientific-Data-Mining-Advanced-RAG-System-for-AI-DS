@@ -37,3 +37,10 @@ async def stop_streaming_ingestion() -> Dict[str, Any]:
 async def stream_ingestion_events():
     """Server-Sent Events (SSE) streaming live paper ingestion events and speed telemetry."""
     return EventSourceResponse(streaming_service.stream_events())
+
+
+@router.post("/broadcast")
+async def broadcast_ingestion_event(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Allows external ingestion pipelines (e.g. OpenReview, CVF) to broadcast progress directly to connected Frontend clients."""
+    await streaming_service.broadcast_event(payload)
+    return {"status": "BROADCASTED"}

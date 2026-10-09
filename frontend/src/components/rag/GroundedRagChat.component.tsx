@@ -60,7 +60,7 @@ const RESEARCH_PROMPT_SUGGESTIONS = [
 ];
 
 const RAG_STREAMING_STATUSES = [
-  'Querying LanceDB Gold Lakehouse (143,523 vectors 384-D)...',
+  'Querying LanceDB Gold Lakehouse (164,702 vectors 768-D)...',
   'Verifying context & arXiv citations...',
   'Qwen2.5-7B synthesizing academic response...',
 ];
@@ -845,7 +845,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       }}
                     >
                       <span style={{ color: '#10b981', fontWeight: 700 }}>
-                        ● LanceDB Vector ANN (384-D)
+                        ● LanceDB Vector ANN (768-D)
                       </span>
                       <span>·</span>
                       <span>Sim: <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{msg.similarity_score || '0.8510'}</strong></span>

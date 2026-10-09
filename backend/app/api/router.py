@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from backend.app.api.endpoints import health, search, chat, papers, storage, mining, ingestion
+from backend.app.api.endpoints import health, search, chat, papers, storage, mining, ingestion, scheduler, r2_explorer
 
 api_router = APIRouter()
 
@@ -10,3 +10,6 @@ api_router.include_router(papers.router)
 api_router.include_router(storage.router)
 api_router.include_router(mining.router)
 api_router.include_router(ingestion.router)
+api_router.include_router(scheduler.router)
+api_router.include_router(r2_explorer.router)
+

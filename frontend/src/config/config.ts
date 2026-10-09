@@ -11,10 +11,11 @@ export const APP_CONFIG = {
   defaultEnrichHtmlLimit: 100,
   keyboardShortcuts: {
     tab1: { key: '1', alt: true, action: 'schematic' },
-    tab2: { key: '2', alt: true, action: 'eda' },
-    tab3: { key: '3', alt: true, action: 'pillars' },
-    tab4: { key: '4', alt: true, action: 'rag' },
-    tab5: { key: '5', alt: true, action: 'logs' },
+    tab2: { key: '2', alt: true, action: 'r2' },
+    tab3: { key: '3', alt: true, action: 'eda' },
+    tab4: { key: '4', alt: true, action: 'pillars' },
+    tab5: { key: '5', alt: true, action: 'rag' },
+    tab6: { key: '6', alt: true, action: 'logs' },
     theme: { key: 'T', shift: true, action: 'toggleTheme' },
   },
 } as const;
@@ -27,6 +28,9 @@ export const API_CONFIG = {
   baseUrl: (import.meta.env.VITE_API_URL as string) || (isLocalhost ? 'http://127.0.0.1:8000' : ''),
   endpoints: {
     health: '/health',
+    r2Tree: '/api/r2/tree',
+    r2Sync: '/api/r2/sync',
+    r2Preview: '/api/r2/preview',
     eda: '/api/mining/eda',
     associationRules: '/api/mining/pillars/association-rules',
     clusters: '/api/mining/pillars/clusters',
@@ -44,6 +48,12 @@ export const API_CONFIG = {
     paperById: '/api/papers',
     storageQuery: '/api/storage/query',
     search: '/api/search',
+    schedulerStatus: '/api/scheduler/status',
+    schedulerTrigger: '/api/scheduler/trigger',
+    schedulerStart: '/api/scheduler/start',
+    schedulerStop: '/api/scheduler/stop',
+    schedulerToggle: '/api/scheduler/toggle',
+    schedulerCancel: '/api/scheduler/cancel',
   },
   devProxy: {
     target: 'http://127.0.0.1:8000',

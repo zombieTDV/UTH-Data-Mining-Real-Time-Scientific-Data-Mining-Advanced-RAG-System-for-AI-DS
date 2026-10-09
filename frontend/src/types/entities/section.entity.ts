@@ -1,4 +1,4 @@
-export type AppTab = 'schematic' | 'eda' | 'pillars' | 'rag' | 'logs';
+export type AppTab = 'schematic' | 'r2' | 'eda' | 'pillars' | 'rag' | 'logs';
 
 export type AppTheme = 'dark' | 'light';
 

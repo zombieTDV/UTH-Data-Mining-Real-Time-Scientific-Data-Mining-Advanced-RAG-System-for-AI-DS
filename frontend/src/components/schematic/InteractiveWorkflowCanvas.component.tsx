@@ -8,6 +8,7 @@ import {
 } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
+import { AnimatedCounter } from '../common/AnimatedCounter.component';
 
 export type PipelineStageKey =
   | 'idle'
@@ -46,8 +47,8 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '36,414 Works Harvested',
-      secondaryMetric: '11,660 arXiv • 24,754 OpenAlex • 184 Conf',
+      primaryMetric: '37,103 Lakehouse Papers',
+      secondaryMetric: '11,698 arXiv • 23,103 OpenAlex • 2,000 Conf',
       latency: '6.0s Rate-Limit Delay',
       throughput: '100% Validated DOI / Canonical ID',
     },
@@ -80,27 +81,27 @@ Payload: {
     badgeColor: '#e11d48',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '8.184 GB Stored (Primary Active)',
-      secondaryMetric: '11,660 HTML5 + 24,754 Metadata (81.8% Quota)',
+      primaryMetric: '12.18 GB Cloud Bucket (36,751 Objects)',
+      secondaryMetric: 'Active: 8.07 GB • Backup Replicas: 4.11 GB',
       latency: '< 45ms S3 HeadObject',
       throughput: 'Zero Egress Fees (Cloudflare Global Edge)',
     },
     features: [
       'Global low-latency S3-compatible cloud object store with 0 egress costs',
       'Strict partitioning scheme: bronze/raw_html/year=2026/ and bronze/openalex/year=2026/',
-      'Stores 11,660 raw HTML5 files and 24,754 OpenAlex metadata JSON records',
+      'Stores 11,698 raw HTML5 files and 24,756 OpenAlex metadata records in Bronze',
       'Dual automated MD5 and SHA-256 integrity verification on upload',
     ],
     samplePreviewTitle: 'Cloudflare R2 Bucket Key Hierarchy',
     sampleCodeOrSchema: `s3://uth-scientific-lakehouse/
 ├── bronze/
-│   ├── raw_html/year=2026/ (11,660 HTML5 preprints · 3.763 GB)
-│   ├── openalex/year=2026/ (24,754 JSON records · 3.971 GB)
+│   ├── raw_html/year=2026/ (11,698 HTML5 preprints · 3.763 GB)
+│   ├── openalex/ (24,756 records · 4.066 GB)
 │   └── oai_batches/ (12 batch checkpoints · 26.4 MB)
 ├── silver/
 │   └── papers/year=2026/ (9 Parquet partitions · 316.06 MB)
 └── gold/
-    └── lancedb/ (143,523 vectors · 121.21 MB active / 28 backup segments · 4.88 GB)`,
+    └── lancedb/ (164,750 vectors · 221.5 MB active / 85 physical R2 fragments · 3.31 GB)`,
   },
   'review-duckdb': {
     id: 'review-duckdb',
@@ -176,8 +177,8 @@ ORDER BY paper_count DESC;
     badgeColor: '#2563eb',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '143,523 Vectors Indexed',
-      secondaryMetric: '768 Dimensions · 127.10 MB Index',
+      primaryMetric: '164,750 Vectors Indexed',
+      secondaryMetric: '12,816 Papers • 768 Dimensions (Nomic)',
       latency: '< 18ms Cosine ANN Lookup',
       throughput: '4 Mining Pillars Fully Computed',
     },
@@ -194,7 +195,7 @@ ORDER BY paper_count DESC;
 db = lancedb.connect("data/gold/lancedb")
 tbl = db.open_table("scientific_papers_gold")
 
-# Hardware-accelerated Cosine ANN retrieval over 143,523 chunks
+# Hardware-accelerated Cosine ANN retrieval over 164,750 chunks (12,816 papers)
 results = tbl.search(query_embedding) \\
              .metric("cosine") \\
              .where("category = 'cs.AI'") \\
@@ -363,9 +364,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     { id: 1, time: '12:00:01', level: 'INFO', tag: 'SYSTEM', msg: 'Lakehouse Engine v2.4 initialized. Ready for scientific ingestion.' },
     { id: 2, time: '12:00:03', level: 'SUCCESS', tag: 'STORAGE', msg: 'Cloudflare R2 bucket s3://uth-scientific-lakehouse connected (Zero egress).' },
     { id: 3, time: '12:00:05', level: 'SUCCESS', tag: 'OLAP', msg: 'DuckDB in-process vector OLAP engine online (Apache Arrow SIMD zero-copy).' },
-    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 143,523 embeddings (dim=768, metric=cosine).' },
+    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 164,750 embeddings (dim=768, metric=cosine).' },
     { id: 5, time: '12:00:09', level: 'INFO', tag: 'RAG', msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate armed with Metal GPU offload.' },
-    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 36,414 works (11.6k arXiv + 24.7k OpenAlex), 2,220,938 formulas, 143,523 LanceDB vectors synced.' },
+    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 37,103 works (11.7k arXiv + 23.1k OpenAlex + 2.0k Conf), 2,220,938 formulas, 164,750 LanceDB vectors synced.' },
   ]);
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -471,6 +472,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     storageUsedPct,
     storageStats,
     lastPaperDeltaBytes,
+    activePipelineStage,
   } = useLakehouseStreamStore();
 
   const liveBronzeCount = storageStats?.activeLakehouse
@@ -490,8 +492,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const liveVectors = isPipelineRunning && simulationStage !== 'completed'
     ? vectorsIndexed
-    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 143523) + (streamSessionCount * 14);
-  const liveFormulas = (formulasExtracted || 2220938) + (streamSessionCount * 170);
+    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702);
+  const liveFormulas = (formulasExtracted || 2220938);
 
   const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
@@ -557,16 +559,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       setVectorsIndexed(72000);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,220,938 formulas, 143,523 vectors indexed.' },
+        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,220,938 formulas, 164,750 vectors indexed.' },
       ]);
     }, 4000);
 
     const t4 = setTimeout(() => {
       setSimulationStage('completed');
-      setVectorsIndexed(143523);
+      setVectorsIndexed(164750);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 36,414 works, 143,523 vectors online.' },
+        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 37,103 works, 164,750 vectors online.' },
       ]);
     }, 6000);
 
@@ -578,12 +580,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     };
   }, [isPipelineRunning]);
 
+  const effectiveStage = (activePipelineStage && activePipelineStage !== 'idle') ? activePipelineStage : simulationStage;
   const isStageActive = (stage: string) => {
-    if (simulationStage === 'completed') return false;
-    if (simulationStage === stage) return true;
-    if (simulationStage === 'parallel' && (stage === 'silver' || stage === 'gold')) return true;
+    if (effectiveStage === 'completed') return false;
+    if (effectiveStage === stage) return true;
+    if ((effectiveStage === 'harvest' || effectiveStage === 'bronze') && (stage === 'harvest' || stage === 'bronze')) return true;
+    if ((effectiveStage === 'duckdb' || effectiveStage === 'silver') && (stage === 'duckdb' || stage === 'silver')) return true;
+    if ((effectiveStage === 'parallel' || effectiveStage === 'gold' || effectiveStage === 'embedding') && (stage === 'parallel' || stage === 'gold' || stage === 'silver')) return true;
+    if (effectiveStage === 'r2_sync' && (stage === 'bronze' || stage === 'silver' || stage === 'gold')) return true;
     return false;
   };
+
+  const isGroundedRagReady = effectiveStage === 'completed' || activePipelineStage === 'completed' || simulationStage === 'completed';
 
   const handleOpenInspector = (nodeId: string) => {
     setSelectedNodeId(nodeId);
@@ -678,7 +686,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (143,523 vectors).` },
+        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (164,750 vectors).` },
       ]);
     } catch (err: any) {
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -716,12 +724,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const baseTool = TOOL_DETAILS_MAP[selectedNodeId] || TOOL_DETAILS_MAP['start-flow'];
   const selectedTool = useMemo(() => {
     if (selectedNodeId === 'review-r2' || selectedNodeId === 'bronze-instance') {
+      const totalR2Gb = storageStats?.totalBucket?.totalSizeGb ?? (storageUsedGb || 12.18);
+      const totalR2Objects = storageStats?.totalBucket?.totalObjects ?? 36751;
+      const activeGb = storageStats?.activeLakehouse?.totalSizeGb ?? 8.07;
+      const backupGb = storageStats?.backupStorage?.totalSizeGb ?? 4.11;
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${storageUsedGb.toFixed(3)} GB Raw Storage`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} HTML5 + ${liveBatchesCount} Batches`,
+          primaryMetric: `${totalR2Gb.toFixed(2)} GB Cloud Storage (${totalR2Objects.toLocaleString()} Objects)`,
+          secondaryMetric: `Active: ${activeGb.toFixed(2)} GB • Backups: ${backupGb.toFixed(2)} GB`,
         }
       };
     }
@@ -736,12 +748,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       };
     }
     if (selectedNodeId === 'gold-lancedb') {
+      const totalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164750;
+      const activeMb = storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26;
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${((storageStats?.zones?.goldChunkCount ?? 143523) + streamSessionCount * 16).toLocaleString()} Vectors Indexed`,
-          secondaryMetric: `768 Dimensions · ${(127.10 + streamSessionCount * 0.04).toFixed(2)} MB Index`,
+          primaryMetric: `${totalVectors.toLocaleString()} Vectors Indexed`,
+          secondaryMetric: `12,816 Papers • 768 Dim • ${activeMb.toFixed(2)} MB Index`,
         }
       };
     }
@@ -756,12 +770,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       };
     }
     if (selectedNodeId === 'start-flow') {
+      const works = totalCorpus || 37103;
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${(totalCorpus || liveTotalWorks).toLocaleString()} Works Ingested`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv + ${liveOpenAlexCount.toLocaleString()} OpenAlex + 184 Conf`,
+          primaryMetric: `${works.toLocaleString()} Lakehouse Papers`,
+          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv + ${liveOpenAlexCount.toLocaleString()} OpenAlex + 2,000 Conf`,
         }
       };
     }
@@ -885,7 +900,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '13px', fontWeight: 900, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                  {displayWorks.toLocaleString()}
+                  <AnimatedCounter value={displayWorks} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
                   {isStreaming ? `+${streamSessionCount} mới (${streamSpeed}/m)` : 'Works Ingested'}
@@ -973,19 +988,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Horizontal Connector 1 */}
-          <div style={{ width: '42px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: '42px',
+            height: '2px',
+            backgroundColor: isStageActive('harvest') ? 'rgba(124, 58, 237, 0.4)' : themeStyles.wire,
+            position: 'relative',
+            flexShrink: 0,
+            overflow: 'hidden',
+            boxShadow: isStageActive('harvest') ? '0 0 10px rgba(124, 58, 237, 0.6)' : 'none',
+            transition: 'all 0.3s ease',
+          }}>
             {isStageActive('harvest') && (
               <div
                 style={{
                   position: 'absolute',
-                  top: '-3px',
-                  left: '0',
-                  width: '16px',
-                  height: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#7c3aed',
-                  boxShadow: '0 0 8px #7c3aed',
-                  animation: 'pulseFlowHorizontal 0.8s infinite',
+                  top: 0,
+                  height: '100%',
+                  width: '32px',
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(168, 85, 247, 0.4) 30%, #c084fc 80%, #ffffff 100%)',
+                  boxShadow: '0 0 10px #c084fc, 0 0 4px #ffffff',
+                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                 }}
               />
             )}
@@ -1062,7 +1084,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                  {storageUsedGb.toFixed(3)} GB
+                  <AnimatedCounter value={storageUsedGb} decimals={3} suffix=" GB" />
                 </span>
                 <span style={{
                   fontSize: '10px',
@@ -1183,19 +1205,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Horizontal Connector 2 */}
-          <div style={{ width: '42px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: '42px',
+            height: '2px',
+            backgroundColor: isStageActive('bronze') ? 'rgba(225, 29, 72, 0.4)' : themeStyles.wire,
+            position: 'relative',
+            flexShrink: 0,
+            overflow: 'hidden',
+            boxShadow: isStageActive('bronze') ? '0 0 10px rgba(225, 29, 72, 0.6)' : 'none',
+            transition: 'all 0.3s ease',
+          }}>
             {isStageActive('bronze') && (
               <div
                 style={{
                   position: 'absolute',
-                  top: '-3px',
-                  left: '0',
-                  width: '16px',
-                  height: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#e11d48',
-                  boxShadow: '0 0 8px #e11d48',
-                  animation: 'pulseFlowHorizontal 0.8s infinite',
+                  top: 0,
+                  height: '100%',
+                  width: '32px',
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(244, 63, 94, 0.4) 30%, #fb7185 80%, #ffffff 100%)',
+                  boxShadow: '0 0 10px #fb7185, 0 0 4px #ffffff',
+                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                 }}
               />
             )}
@@ -1272,7 +1301,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                  {liveFormulas.toLocaleString()}
+                  <AnimatedCounter value={liveFormulas} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
                   Formulas Parsed
@@ -1353,19 +1382,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* Horizontal Connector 3 into Red Split Node */}
-          <div style={{ width: '36px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: '36px',
+            height: '2px',
+            backgroundColor: isStageActive('duckdb') ? 'rgba(245, 158, 11, 0.4)' : themeStyles.wire,
+            position: 'relative',
+            flexShrink: 0,
+            overflow: 'hidden',
+            boxShadow: isStageActive('duckdb') ? '0 0 10px rgba(245, 158, 11, 0.6)' : 'none',
+            transition: 'all 0.3s ease',
+          }}>
             {isStageActive('duckdb') && (
               <div
                 style={{
                   position: 'absolute',
-                  top: '-3px',
-                  left: '0',
-                  width: '16px',
-                  height: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#f59e0b',
-                  boxShadow: '0 0 8px #f59e0b',
-                  animation: 'pulseFlowHorizontal 0.8s infinite',
+                  top: 0,
+                  height: '100%',
+                  width: '30px',
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.4) 30%, #fbbf24 80%, #ffffff 100%)',
+                  boxShadow: '0 0 10px #fbbf24, 0 0 4px #ffffff',
+                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                 }}
               />
             )}
@@ -1479,7 +1515,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
                     <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
-                      {liveSilverMb.toFixed(2)} MB
+                      <AnimatedCounter value={liveSilverMb} decimals={2} suffix=" MB" />
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
                       Silver Parquet
@@ -1606,7 +1642,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
                     <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
-                      {liveVectors.toLocaleString()}
+                      <AnimatedCounter value={liveVectors} />
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
                       Gold Vectors
@@ -1669,109 +1705,153 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Merge Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
             </div>
 
-            {/* Orange Convergence Anchor Ring */}
+            {/* Convergence Anchor Ring */}
             <div
               style={{
                 width: '22px',
                 height: '22px',
                 borderRadius: '50%',
                 backgroundColor: isDark ? '#0b0f19' : '#ffffff',
-                border: '4px solid #ea580c',
-                boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
+                border: isGroundedRagReady ? '4px solid #6366f1' : '4px solid #ea580c',
+                boxShadow: isGroundedRagReady ? '0 0 16px rgba(99, 102, 241, 0.85), 0 0 6px #818cf8' : '0 2px 6px rgba(234, 88, 12, 0.3)',
                 flexShrink: 0,
                 zIndex: 10,
+                transition: 'all 0.4s ease',
               }}
               title="Parallel Convergence Anchor"
             />
 
             {/* Final Horizontal Connector into Grounded RAG */}
-            <div style={{ width: '36px', height: '2px', backgroundColor: themeStyles.wire, position: 'relative', flexShrink: 0 }}>
-              {simulationStage === 'completed' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '-3px',
-                    left: '0',
-                    width: '16px',
-                    height: '8px',
-                    borderRadius: '4px',
-                    backgroundColor: '#6366f1',
-                    boxShadow: '0 0 8px #6366f1',
-                    animation: 'pulseFlowHorizontal 0.8s infinite',
-                  }}
-                />
-              )}
-            </div>
+            <div style={{
+                    width: '36px',
+                    height: '2px',
+                    backgroundColor: isGroundedRagReady ? 'rgba(99, 102, 241, 0.5)' : themeStyles.wire,
+                    position: 'relative',
+                    flexShrink: 0,
+                    overflow: 'hidden',
+                    boxShadow: isGroundedRagReady ? '0 0 10px rgba(99, 102, 241, 0.7)' : 'none',
+                    transition: 'all 0.3s ease',
+                  }}>
+                    {isGroundedRagReady && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          height: '100%',
+                          width: '30px',
+                          background: 'linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.4) 30%, #818cf8 80%, #ffffff 100%)',
+                          boxShadow: '0 0 10px #818cf8, 0 0 4px #ffffff',
+                          animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+                        }}
+                      />
+                    )}
+                  </div>
 
-            {/* ============================================================== */}
-            {/* STAGE 5: Grounded RAG Console (Indigo) */}
-            {/* ============================================================== */}
-            <div
-              onClick={() => handleOpenInspector('grounded-rag')}
-              style={{
-                width: '240px',
-                backgroundColor: themeStyles.cardBg,
-                borderRadius: '14px',
-                padding: '14px 16px',
-                border: simulationStage === 'completed'
-                  ? '2px solid #6366f1'
-                  : selectedNodeId === 'grounded-rag' && drawerOpen
-                  ? '2px solid #6366f1'
-                  : `1px solid ${themeStyles.cardBorder}`,
-                boxShadow: isDark
-                  ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                  : '0 4px 16px rgba(99, 102, 241, 0.1)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                flexShrink: 0,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {/* ============================================================== */}
+                  {/* STAGE 5: Grounded RAG Console (Indigo) */}
+                  {/* ============================================================== */}
                   <div
+                    onClick={() => handleOpenInspector('grounded-rag')}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '9px',
-                      backgroundColor: '#6366f1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#ffffff',
-                      boxShadow: '0 2px 6px rgba(99, 102, 241, 0.3)',
+                      width: '240px',
+                      backgroundColor: isGroundedRagReady
+                        ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#f5f3ff')
+                        : themeStyles.cardBg,
+                      borderRadius: '14px',
+                      padding: '14px 16px',
+                      border: isGroundedRagReady
+                        ? '2px solid #6366f1'
+                        : selectedNodeId === 'grounded-rag' && drawerOpen
+                        ? '2px solid #6366f1'
+                        : `1px solid ${themeStyles.cardBorder}`,
+                      boxShadow: isGroundedRagReady
+                        ? (isDark
+                            ? '0 0 32px rgba(99, 102, 241, 0.75), 0 0 12px rgba(129, 140, 248, 0.5)'
+                            : '0 0 24px rgba(99, 102, 241, 0.45), 0 4px 16px rgba(99, 102, 241, 0.2)')
+                        : isDark
+                        ? '0 4px 16px rgba(0, 0, 0, 0.45)'
+                        : '0 4px 16px rgba(99, 102, 241, 0.1)',
+                      animation: isGroundedRagReady ? 'ragBeaconGlow 2.4s infinite' : 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
                       flexShrink: 0,
                     }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                  </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '9px',
+                            backgroundColor: '#6366f1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#ffffff',
+                            boxShadow: isGroundedRagReady
+                              ? '0 0 14px rgba(99, 102, 241, 0.8)'
+                              : '0 2px 6px rgba(99, 102, 241, 0.3)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                        </div>
 
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
-                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
-                  </div>
-                </div>
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
+                          <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
+                        </div>
+                      </div>
 
-                <span style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  color: isDark ? '#a5b4fc' : '#6366f1',
-                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe',
-                  border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
-                  padding: '1px 5px',
-                  borderRadius: '4px',
-                }}>
-                  Metal
-                </span>
-              </div>
+                      <span style={{
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        color: isGroundedRagReady ? '#ffffff' : (isDark ? '#a5b4fc' : '#6366f1'),
+                        backgroundColor: isGroundedRagReady ? '#6366f1' : (isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe'),
+                        border: `1px solid ${isGroundedRagReady ? '#818cf8' : (isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent')}`,
+                        boxShadow: isGroundedRagReady ? '0 0 12px rgba(99, 102, 241, 0.65)' : 'none',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}>
+                        {isGroundedRagReady && (
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
+                        )}
+                        {isGroundedRagReady ? '● READY FOR RAG' : 'Metal'}
+                      </span>
+                    </div>
+
+                    {isGroundedRagReady && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '4px 8px',
+                        borderRadius: '5px',
+                        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.12)',
+                        border: '1px solid rgba(99, 102, 241, 0.4)',
+                        color: isDark ? '#c7d2fe' : '#4338ca',
+                        fontSize: '9.5px',
+                        fontWeight: 800,
+                        fontFamily: 'var(--font-mono)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                      }}>
+                        <span style={{ color: '#10b981' }}>✔</span> PIPELINE PRIMED · READY TO QUERY
+                      </div>
+                    )}
 
               <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
@@ -2682,7 +2762,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        TÌM KIẾM SEMANTIC VECTOR ANN (143,523 EMBEDDINGS)
+                        TÌM KIẾM SEMANTIC VECTOR ANN (164,750 EMBEDDINGS)
                       </span>
 
                       <input
@@ -2804,7 +2884,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · 26.42 MB)
                         </div>
                         <div style={{ color: isDark ? '#34d399' : '#059669' }}>
-                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.zones?.goldChunkCount ?? 143523).toLocaleString()} vectors)
+                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702).toLocaleString()} vectors)
                         </div>
                       </div>
                     </div>
@@ -3584,7 +3664,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>LANCEDB VECTOR INDEX</div>
                         <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '2px' }}>
-                          143,523 embeddings
+                          {(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164750).toLocaleString()} embeddings
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
