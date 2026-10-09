@@ -3,7 +3,7 @@
 Coordinates and schedules real-time & adaptive ingestion across 4 academic sources:
 1. arXiv:       Daily at 07:30 VN (OAI-PMH preprint batch ingestion).
 2. OpenReview:  Every 4 Hours (Conference peer reviews & rebuttal updates).
-3. OpenAlex:    Daily at 02:00 VN (Global citation graph & concept enrichment).
+3. Zenodo:      Daily at 02:00 VN (Open Science papers & Marker PDF LaTeX extraction).
 4. CVF:         Weekly on Monday 09:00 VN (CVPR & ICCV conference proceedings).
 
 Maintains persistent scheduler checkpoint in data/lakehouse/scheduler_state.json.
@@ -62,13 +62,13 @@ SCHEDULE_CONFIGS = {
         "default_limit": 100,
         "description": "Harvests conference review threads and rebuttal scores (ICLR, NeurIPS)",
     },
-    "openalex": {
-        "name": "OpenAlex Citation Graph",
+    "zenodo": {
+        "name": "Zenodo Open Science (Marker PDF Engine)",
         "frequency": "Daily at 00:18 VN (17:18 UTC)",
         "cron_hour": 0,
         "cron_minute": 18,
-        "default_limit": 150,
-        "description": "Harvests global metadata and citation graph with reconstructed abstracts",
+        "default_limit": 50,
+        "description": "Harvests research publications, downloads PDFs, and extracts LaTeX Markdown via Marker",
     },
     "cvf": {
         "name": "CVF Open Access (CVPR / ICCV)",
@@ -559,8 +559,8 @@ class AdaptiveHarvesterScheduler:
             cmd.extend(["src.pipelines.run_openreview_end_to_end", "--limit", str(target_limit), "--venue", "ALL"])
             if sync_r2:
                 cmd.append("--sync-r2")
-        elif source_key == "openalex":
-            cmd.extend(["src.pipelines.run_openalex_end_to_end", "--limit", str(target_limit)])
+        elif source_key == "zenodo":
+            cmd.extend(["src.pipelines.run_zenodo_end_to_end", "--limit", str(target_limit)])
             if sync_r2:
                 cmd.append("--sync-r2")
         elif source_key == "cvf":
@@ -620,12 +620,12 @@ scheduler_instance = AdaptiveHarvesterScheduler()
 def main():
     parser = argparse.ArgumentParser(description="Adaptive Multi-Source Harvester Orchestrator & Scheduler.")
     parser.add_argument("--status", action="store_true", help="Print status and schedule of all 4 sources.")
-    parser.add_argument("--trigger", type=str, default=None, help="Trigger immediate harvest for a source (arxiv, openreview, openalex, cvf, all).")
+    parser.add_argument("--trigger", type=str, default=None, help="Trigger immediate harvest for a source (arxiv, openreview, zenodo, cvf, all).")
     parser.add_argument("--limit", type=int, default=None, help="Override target paper count for triggered job.")
     parser.add_argument("--sync-r2", action="store_true", default=True, help="Synchronize results to Cloudflare R2.")
     parser.add_argument("--daemon", action="store_true", help="Run foreground daemon scheduler loop.")
     parser.add_argument("--interval", type=int, default=30, help="Daemon loop check interval in seconds (default: 30s).")
-    parser.add_argument("--toggle", type=str, default=None, help="Toggle ON/OFF for a source (arxiv, openreview, openalex, cvf, all).")
+    parser.add_argument("--toggle", type=str, default=None, help="Toggle ON/OFF for a source (arxiv, openreview, zenodo, cvf, all).")
     parser.add_argument("--enable", action="store_true", help="Explicitly enable the toggled source.")
     parser.add_argument("--disable", action="store_true", help="Explicitly disable the toggled source.")
     parser.add_argument("--start", action="store_true", help="Start the scheduler daemon in background.")
