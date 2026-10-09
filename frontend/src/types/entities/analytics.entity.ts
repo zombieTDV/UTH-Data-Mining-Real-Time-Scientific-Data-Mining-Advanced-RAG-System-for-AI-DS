@@ -219,6 +219,10 @@ export interface StorageZoneInfo {
   bronzeSizeBytes: number;
   openalexCount?: number;
   openalexSizeBytes?: number;
+  openreviewCount?: number;
+  openreviewSizeBytes?: number;
+  cvfCount?: number;
+  cvfSizeBytes?: number;
   silverTables: string[];
   silverSizeBytes: number;
   goldTables: string[];
@@ -239,6 +243,12 @@ export interface ActiveLakehouseInfo {
   openalexCount: number;
   openalexSizeBytes: number;
   openalexSizeGb: number;
+  openreviewCount?: number;
+  openreviewSizeBytes?: number;
+  openreviewSizeMb?: number;
+  cvfCount?: number;
+  cvfSizeBytes?: number;
+  cvfSizeMb?: number;
   silverParquetCount: number;
   silverParquetSizeBytes: number;
   silverParquetSizeMb: number;

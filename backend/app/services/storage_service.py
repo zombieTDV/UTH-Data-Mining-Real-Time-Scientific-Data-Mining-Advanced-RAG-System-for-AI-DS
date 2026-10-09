@@ -33,8 +33,12 @@ class StorageService:
         self.base_conferences_count = 184
         self.base_conferences_bytes = 1950361    # ~1.86 MB
 
-        self.base_openalex_count = 24754
-        self.base_openalex_bytes = 4264028211    # ~3.971 GB
+        self.base_openalex_count = 24756
+        self.base_openalex_bytes = 4264245667    # ~3.971 GB
+        self.base_openreview_count = 1000
+        self.base_openreview_bytes = 26245976    # ~25.03 MB (5 raw crawl JSON batches on R2)
+        self.base_cvf_count = 1000
+        self.base_cvf_bytes = 2793757            # ~2.66 MB (CVPR 2024 raw proceedings on R2)
 
         self.base_silver_count = 11
         self.base_silver_bytes = 337315983       # ~321.68 MB
@@ -61,6 +65,10 @@ class StorageService:
                     self.base_arxiv_html_bytes = data.get("arxiv_html_bytes", self.base_arxiv_html_bytes)
                     self.base_openalex_count = data.get("openalex_count", self.base_openalex_count)
                     self.base_openalex_bytes = data.get("openalex_bytes", self.base_openalex_bytes)
+                    self.base_openreview_count = data.get("openreview_count", self.base_openreview_count)
+                    self.base_openreview_bytes = data.get("openreview_bytes", self.base_openreview_bytes)
+                    self.base_cvf_count = data.get("cvf_count", self.base_cvf_count)
+                    self.base_cvf_bytes = data.get("cvf_bytes", self.base_cvf_bytes)
                     self.base_backup_gold_bytes = data.get("backup_gold_bytes", self.base_backup_gold_bytes)
                     # Also persist dynamically updated fields
                     self.base_conferences_count = data.get("conferences_count", self.base_conferences_count)
@@ -121,6 +129,10 @@ class StorageService:
                     "arxiv_html_bytes": self.base_arxiv_html_bytes,
                     "openalex_count": self.base_openalex_count,
                     "openalex_bytes": self.base_openalex_bytes,
+                    "openreview_count": self.base_openreview_count,
+                    "openreview_bytes": self.base_openreview_bytes,
+                    "cvf_count": self.base_cvf_count,
+                    "cvf_bytes": self.base_cvf_bytes,
                     "backup_gold_bytes": self.base_backup_gold_bytes,
                     "conferences_count": self.base_conferences_count,
                     "conferences_bytes": self.base_conferences_bytes,
@@ -145,6 +157,8 @@ class StorageService:
             arxiv_bytes = 0
             openalex_count = 0
             openalex_bytes = 0
+            openreview_bytes = 0
+            cvf_bytes = 0
             silver_bytes = 0
             backup_gold_bytes = 0
 
@@ -152,12 +166,16 @@ class StorageService:
                 for item in page.get("Contents", []):
                     k = item.get("Key", "")
                     sz = item.get("Size", 0)
-                    if k.startswith("bronze/arxiv/raw_html/"):
+                    if k.startswith("bronze/arxiv/"):
                         arxiv_html += 1
                         arxiv_bytes += sz
                     elif k.startswith("bronze/openalex/"):
                         openalex_count += 1
                         openalex_bytes += sz
+                    elif k.startswith("bronze/openreview/"):
+                        openreview_bytes += sz
+                    elif k.startswith("bronze/cvf/"):
+                        cvf_bytes += sz
                     elif k.startswith("silver/"):
                         silver_bytes += sz
                     elif k.startswith("gold/lancedb/"):
@@ -169,6 +187,10 @@ class StorageService:
             if openalex_count > 0:
                 self.base_openalex_count = openalex_count
                 self.base_openalex_bytes = openalex_bytes
+            if openreview_bytes > 0:
+                self.base_openreview_bytes = openreview_bytes
+            if cvf_bytes > 0:
+                self.base_cvf_bytes = cvf_bytes
             if backup_gold_bytes > 0:
                 self.base_backup_gold_bytes = backup_gold_bytes
 
@@ -232,6 +254,8 @@ class StorageService:
             + self.base_arxiv_batches_count
             + self.base_conferences_count
             + self.base_openalex_count
+            + self.base_openreview_count
+            + self.base_cvf_count
             + self.base_silver_count
         )
         active_bytes = (
@@ -239,6 +263,8 @@ class StorageService:
             + self.base_arxiv_batches_bytes
             + self.base_conferences_bytes
             + self.base_openalex_bytes
+            + self.base_openreview_bytes
+            + self.base_cvf_bytes
             + self.base_silver_bytes
             + active_gold_bytes
         )
@@ -257,6 +283,12 @@ class StorageService:
             openalexCount=self.base_openalex_count,
             openalexSizeBytes=self.base_openalex_bytes,
             openalexSizeGb=round(self.base_openalex_bytes / (1024**3), 3),
+            openreviewCount=self.base_openreview_count,
+            openreviewSizeBytes=self.base_openreview_bytes,
+            openreviewSizeMb=round(self.base_openreview_bytes / (1024**2), 2),
+            cvfCount=self.base_cvf_count,
+            cvfSizeBytes=self.base_cvf_bytes,
+            cvfSizeMb=round(self.base_cvf_bytes / (1024**2), 2),
             silverParquetCount=self.base_silver_count,
             silverParquetSizeBytes=self.base_silver_bytes,
             silverParquetSizeMb=round(self.base_silver_bytes / (1024**2), 2),
@@ -297,14 +329,30 @@ class StorageService:
         )
 
         # 4. Detailed Zones DTO
-        bronze_count = arxiv_html_count + self.base_arxiv_batches_count + self.base_conferences_count
-        bronze_bytes = arxiv_html_bytes + self.base_arxiv_batches_bytes + self.base_conferences_bytes
+        bronze_count = (
+            arxiv_html_count
+            + self.base_arxiv_batches_count
+            + self.base_conferences_count
+            + self.base_openreview_count
+            + self.base_cvf_count
+        )
+        bronze_bytes = (
+            arxiv_html_bytes
+            + self.base_arxiv_batches_bytes
+            + self.base_conferences_bytes
+            + self.base_openreview_bytes
+            + self.base_cvf_bytes
+        )
 
         zones = StorageZonesDto(
             bronzeCount=bronze_count,
             bronzeSizeBytes=bronze_bytes,
             openalexCount=self.base_openalex_count,
             openalexSizeBytes=self.base_openalex_bytes,
+            openreviewCount=self.base_openreview_count,
+            openreviewSizeBytes=self.base_openreview_bytes,
+            cvfCount=self.base_cvf_count,
+            cvfSizeBytes=self.base_cvf_bytes,
             silverTables=["papers.parquet", "year=2026/papers.parquet", "cvf/cvpr2024.parquet", "openreview/openreview_all.parquet"],
             silverSizeBytes=self.base_silver_bytes,
             goldTables=["scientific_papers_gold.lance", "cvf/cvpr2024_gold.parquet", "openreview/openreview_gold.parquet"],

@@ -587,9 +587,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     ? storageStats.activeLakehouse.arxivHtmlCount
     : 11660 + streamSessionCount;
 
-  const liveOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
+  const liveOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24756;
+  const liveOpenReviewCount = storageStats?.activeLakehouse?.openreviewCount ?? 1000;
+  const liveCvfCount = storageStats?.activeLakehouse?.cvfCount ?? 1000;
   const liveConfCount = storageStats?.activeLakehouse?.conferenceCount ?? 184;
-  const liveTotalWorks = liveBronzeCount + liveOpenAlexCount;
+  const liveTotalWorks = liveBronzeCount + liveOpenAlexCount + liveOpenReviewCount + liveCvfCount;
 
   const liveBronzeGb = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.arxivHtmlSizeGb.toFixed(3)
@@ -828,6 +830,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           sources: {
             arxiv_html5: liveBronzeCount,
             openalex_metadata: liveOpenAlexCount,
+            openreview_proceedings: liveOpenReviewCount,
+            cvf_proceedings: liveCvfCount,
             conference_proceedings: liveConfCount,
           },
           harvest_config: {
@@ -845,7 +849,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         }, null, 2),
         telemetrySummary: {
           primaryMetric: `${(totalCorpus || liveTotalWorks).toLocaleString()} Works Ingested`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv • ${liveOpenAlexCount.toLocaleString()} OpenAlex • ${liveConfCount} Conf`,
+          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv • ${liveOpenAlexCount.toLocaleString()} OpenAlex • ${liveOpenReviewCount.toLocaleString()} OpenReview • ${liveCvfCount.toLocaleString()} CVF`,
           latency: isStreaming ? `${streamSpeed.toFixed(1)} papers/min` : `${harvestDelay.toFixed(1)}s Jitter Delay`,
           throughput: isStreaming ? `+${streamSessionCount} session papers (Target: ${streamTarget})` : `${harvestCategories.length} Categories active • 100% DOI`,
         },
@@ -854,10 +858,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     if (selectedNodeId === 'review-r2' || selectedNodeId === 'bronze-instance') {
       const openalexMb = ((storageStats?.activeLakehouse?.openalexSizeGb ?? 3.971) * 1024).toFixed(0);
+      const openreviewMb = (storageStats?.activeLakehouse?.openreviewSizeMb ?? 25.03).toFixed(1);
+      const cvfMb = (storageStats?.activeLakehouse?.cvfSizeMb ?? 2.66).toFixed(1);
       const hierarchySchema = `s3://uth-scientific-lakehouse/
 ├── bronze/
 │   ├── raw_html/year=2026/ (${liveBronzeCount.toLocaleString()} HTML5 preprints · ${liveBronzeGb} GB)
 │   ├── openalex/year=2026/ (${liveOpenAlexCount.toLocaleString()} JSON records · ${openalexMb} MB)
+│   ├── openreview/ (${liveOpenReviewCount.toLocaleString()} peer-reviews · ${openreviewMb} MB)
+│   ├── cvf/ (${liveCvfCount.toLocaleString()} CVPR proceedings · ${cvfMb} MB)
 │   └── oai_batches/ (${liveBatchesCount} batch checkpoints · 26.4 MB)
 ├── silver/
 │   └── papers/year=2026/ (${liveSilverPartitions} Parquet partitions · ${liveSilverMb.toFixed(2)} MB)
@@ -1297,53 +1305,110 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               </div>
 
               {/* Segmented Distribution Bar */}
-              <div style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', display: 'flex', border: '1px solid var(--border-subtle)' }} title={language === 'vi' ? `Phân bổ: arXiv ${liveBronzeCount.toLocaleString()} (${Math.round((liveBronzeCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%)` : `Distribution: arXiv ${liveBronzeCount.toLocaleString()} (${Math.round((liveBronzeCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%)`}>
+              <div
+                style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', display: 'flex', border: '1px solid var(--border-subtle)' }}
+                title={language === 'vi'
+                  ? `Phân bổ: arXiv ${liveBronzeCount.toLocaleString()} (${Math.round((liveBronzeCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%) • OpenReview ${liveOpenReviewCount.toLocaleString()} (${Math.round((liveOpenReviewCount / liveTotalWorks) * 100)}%) • CVF ${liveCvfCount.toLocaleString()} (${Math.round((liveCvfCount / liveTotalWorks) * 100)}%)`
+                  : `Distribution: arXiv ${liveBronzeCount.toLocaleString()} (${Math.round((liveBronzeCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%) • OpenReview ${liveOpenReviewCount.toLocaleString()} (${Math.round((liveOpenReviewCount / liveTotalWorks) * 100)}%) • CVF ${liveCvfCount.toLocaleString()} (${Math.round((liveCvfCount / liveTotalWorks) * 100)}%)`}
+              >
                 <div style={{ width: `${(liveBronzeCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#8b5cf6', transition: 'width 0.3s' }} />
-                <div style={{ width: `${(liveOpenAlexCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#6366f1', transition: 'width 0.3s' }} />
+                <div style={{ width: `${(liveOpenAlexCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#0284c7', transition: 'width 0.3s' }} />
+                <div style={{ width: `${(liveOpenReviewCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#2563eb', transition: 'width 0.3s' }} />
+                <div style={{ width: `${(liveCvfCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.3s' }} />
               </div>
 
-              {/* High-Contrast Visual Source Chips: 1-Row Symmetrical 2-Pill Grid */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2.5px 5px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
-                  color: isDark ? '#c084fc' : '#7c3aed',
-                  border: '1px solid rgba(139, 92, 246, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  flex: '1 1 auto',
-                  minWidth: 0,
-                  justifyContent: 'center',
-                }}>
+              {/* High-Contrast Visual Source Chips: Symmetrical 2x2 Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                <span
+                  title={`arXiv: ${liveBronzeCount.toLocaleString()} papers`}
+                  style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2.5px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(139, 92, 246, 0.18)' : '#f3e8ff',
+                    color: isDark ? '#c084fc' : '#7c3aed',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    justifyContent: 'flex-start',
+                  }}
+                >
                   <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#8b5cf6', flexShrink: 0 }} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>arXiv {liveBronzeCount.toLocaleString()}</span>
                 </span>
 
-                <span style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2.5px 5px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
-                  color: isDark ? '#818cf8' : '#4338ca',
-                  border: '1px solid rgba(99, 102, 241, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  flex: '1 1 auto',
-                  minWidth: 0,
-                  justifyContent: 'center',
-                }}>
-                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#6366f1', flexShrink: 0 }} />
+                <span
+                  title={`OpenAlex: ${liveOpenAlexCount.toLocaleString()} works`}
+                  style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2.5px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(2, 132, 199, 0.18)' : '#e0f2fe',
+                    color: isDark ? '#38bdf8' : '#0369a1',
+                    border: '1px solid rgba(2, 132, 199, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    justifyContent: 'flex-start',
+                  }}
+                >
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#0284c7', flexShrink: 0 }} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>OpenAlex {liveOpenAlexCount.toLocaleString()}</span>
+                </span>
+
+                <span
+                  title={`OpenReview: ${liveOpenReviewCount.toLocaleString()} peer reviews`}
+                  style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2.5px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.18)' : '#dbeafe',
+                    color: isDark ? '#60a5fa' : '#1d4ed8',
+                    border: '1px solid rgba(37, 99, 235, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    justifyContent: 'flex-start',
+                  }}
+                >
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#2563eb', flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>OpenReview {liveOpenReviewCount.toLocaleString()}</span>
+                </span>
+
+                <span
+                  title={`CVF: ${liveCvfCount.toLocaleString()} proceedings`}
+                  style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2.5px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                    color: isDark ? '#34d399' : '#047857',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    justifyContent: 'flex-start',
+                  }}
+                >
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>CVF {liveCvfCount.toLocaleString()}</span>
                 </span>
               </div>
             </div>
