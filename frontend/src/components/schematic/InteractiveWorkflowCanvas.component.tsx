@@ -1115,6 +1115,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
                   width: '260px',
+                  minHeight: '190px',
+                  boxSizing: 'border-box',
                   backgroundColor: themeStyles.cardBg,
                   backdropFilter: 'blur(12px)',
                   borderRadius: '14px',
@@ -1549,6 +1551,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
               width: '260px',
+              minHeight: '190px',
+              boxSizing: 'border-box',
               backgroundColor: themeStyles.cardBg,
               backdropFilter: 'blur(12px)',
               borderRadius: '14px',
@@ -1782,51 +1786,53 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 }} />
               </div>
 
-              {/* Color-Coded Lakehouse Layer Chips */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(225, 29, 72, 0.18)' : '#ffe4e6',
-                  color: isDark ? '#fb7185' : '#e11d48',
-                  border: '1px solid rgba(225, 29, 72, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  flex: '1 1 0',
-                  justifyContent: 'center',
-                }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#e11d48' }} />
-                  HTML5 {parseFloat(liveBronzeGb).toFixed(2)} GB
-                </span>
+              {/* Color-Coded Lakehouse Layer Chips - Clean Flex Wrap with Border Containment */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                  <span style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2.5px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(225, 29, 72, 0.18)' : '#ffe4e6',
+                    color: isDark ? '#fb7185' : '#e11d48',
+                    border: '1px solid rgba(225, 29, 72, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    justifyContent: 'flex-start',
+                  }}>
+                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e11d48', flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>HTML5 {parseFloat(liveBronzeGb).toFixed(2)} GB</span>
+                  </span>
 
-                <span style={{
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
-                  color: isDark ? '#818cf8' : '#4338ca',
-                  border: '1px solid rgba(99, 102, 241, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  flex: '1 1 0',
-                  justifyContent: 'center',
-                }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
-                  Meta 3.97 GB
-                </span>
+                  <span style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2.5px 5px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
+                    color: isDark ? '#818cf8' : '#4338ca',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    justifyContent: 'flex-start',
+                  }}>
+                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#6366f1', flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Meta 3.97 GB</span>
+                  </span>
+                </div>
 
                 {isStreaming && lastPaperDeltaBytes > 0 && (
-                  <span style={{
-                    fontSize: '11px',
+                  <div style={{
+                    fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
                     padding: '2px 6px',
@@ -1836,12 +1842,15 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     border: '1px solid rgba(6, 182, 212, 0.3)',
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '4px',
                     whiteSpace: 'nowrap',
-                    flex: '0 0 auto',
+                    width: '100%',
+                    boxSizing: 'border-box',
                   }}>
-                    +{Math.round(lastPaperDeltaBytes / 1024)} KB CDC
-                  </span>
+                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#06b6d4', flexShrink: 0 }} />
+                    <span>+{Math.round(lastPaperDeltaBytes / 1024)} KB STREAM CDC</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -2004,6 +2013,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             onMouseLeave={() => setHoveredNodeId(null)}
             style={{
               width: '260px',
+              minHeight: '190px',
+              boxSizing: 'border-box',
               backgroundColor: themeStyles.cardBg,
               backdropFilter: 'blur(12px)',
               borderRadius: '14px',
