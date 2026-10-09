@@ -1,5 +1,7 @@
 export { SchematicScreen } from './schematic.screen';
 export type { SchematicScreenProps } from './schematic.screen';
+export { R2Screen } from './r2.screen';
+export type { R2ScreenProps } from './r2.screen';
 export { EdaScreen } from './eda.screen';
 export type { EdaScreenProps } from './eda.screen';
 export { PillarsScreen } from './pillars.screen';

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavRail } from './navigation/rail';
 import { HeaderBar } from './navigation/header';
-import { SchematicScreen, EdaScreen, PillarsScreen, RagScreen, LogsScreen } from './screens';
+import { SchematicScreen, R2Screen, EdaScreen, PillarsScreen, RagScreen, LogsScreen } from './screens';
 import {
   fetchHealth,
   subscribeTelemetry,
@@ -107,10 +107,11 @@ export default function App() {
         return;
       }
       if (e.altKey && e.key === '1') setActiveTab('schematic');
-      else if (e.altKey && e.key === '2') setActiveTab('eda');
-      else if (e.altKey && e.key === '3') setActiveTab('pillars');
-      else if (e.altKey && e.key === '4') setActiveTab('rag');
-      else if (e.altKey && e.key === '5') setActiveTab('logs');
+      else if (e.altKey && e.key === '2') setActiveTab('r2');
+      else if (e.altKey && e.key === '3') setActiveTab('eda');
+      else if (e.altKey && e.key === '4') setActiveTab('pillars');
+      else if (e.altKey && e.key === '5') setActiveTab('rag');
+      else if (e.altKey && e.key === '6') setActiveTab('logs');
       else if (e.shiftKey && (e.key === 'T' || e.key === 't')) toggleTheme();
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -182,7 +183,7 @@ export default function App() {
             flex: 1,
             overflowY: activeTab === 'logs' ? 'auto' : 'hidden',
             overflowX: 'hidden',
-            padding: activeTab === 'schematic' ? '0' : activeTab === 'rag' ? '0' : activeTab === 'logs' ? '16px 20px' : '12px 20px',
+            padding: (activeTab === 'schematic' || activeTab === 'rag' || activeTab === 'r2') ? '0' : activeTab === 'logs' ? '16px 20px' : '12px 20px',
             backgroundColor: 'transparent',
             display: 'flex',
             flexDirection: 'column',
@@ -198,6 +199,10 @@ export default function App() {
               onNavigateTab={setActiveTab}
               onTriggerPipeline={handleTriggerPipeline}
             />
+          )}
+
+          {activeTab === 'r2' && (
+            <R2Screen theme={theme} />
           )}
 
           {activeTab === 'eda' && (

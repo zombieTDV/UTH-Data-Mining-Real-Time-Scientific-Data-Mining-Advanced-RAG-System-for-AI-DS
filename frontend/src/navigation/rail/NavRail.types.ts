@@ -15,8 +15,9 @@ export interface NavRailProps {
 
 export const NAV_RAIL_ITEMS: NavRailItem[] = [
   { id: 'schematic', label: 'FLOW', title: '[Alt+1] Lakehouse Schematic & Storage' },
-  { id: 'eda', label: 'EDA', title: '[Alt+2] Real-Time Scientific EDA (DuckDB)' },
-  { id: 'pillars', label: 'MODEL', title: '[Alt+3] 4 Mining Pillars' },
-  { id: 'rag', label: 'RAG', title: '[Alt+4] Grounded Scientific RAG Chat' },
-  { id: 'logs', label: 'LOGS', title: '[Alt+5] Telemetry Logs & Core Engines' },
+  { id: 'r2', label: 'R2', title: '[Alt+2] Cloudflare R2 Lakehouse Explorer & Viewer' },
+  { id: 'eda', label: 'EDA', title: '[Alt+3] Real-Time Scientific EDA (DuckDB)' },
+  { id: 'pillars', label: 'MODEL', title: '[Alt+4] 4 Mining Pillars' },
+  { id: 'rag', label: 'RAG', title: '[Alt+5] Grounded Scientific RAG Chat' },
+  { id: 'logs', label: 'LOGS', title: '[Alt+6] Telemetry Logs & Core Engines' },
 ];
