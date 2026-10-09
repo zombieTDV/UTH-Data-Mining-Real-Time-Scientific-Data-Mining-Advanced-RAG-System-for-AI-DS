@@ -20,7 +20,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   onTriggerPipeline,
 }) => {
   const { language } = useTranslation();
-  const { storageUsedGb, isStreaming } = useLakehouseStreamStore();
+  const { isStreaming } = useLakehouseStreamStore();
   const [inspectNodeTrigger, setInspectNodeTrigger] = useState<string | null>(null);
 
   return (
@@ -71,36 +71,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
             {/* Micro Badges */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
               <span
-                role="button"
-                tabIndex={0}
-                onClick={() => setInspectNodeTrigger('bronze-instance')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setInspectNodeTrigger('bronze-instance');
-                  }
-                }}
-                style={{
-                  fontSize: '9.5px',
-                  fontFamily: 'var(--font-mono)',
-                  padding: '2px 7px',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                  color: '#38bdf8',
-                  border: '1px solid rgba(56, 189, 248, 0.25)',
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-                title={language === 'vi' ? 'Xem chi tiết lưu trữ Cloudflare R2' : 'View Cloudflare R2 Storage Details'}
-              >
-                <span>R2: {(storageUsedGb || 8.28).toFixed(2)} GB / 10 GB</span>
-                <span style={{ opacity: 0.7, fontSize: '8.5px' }}>↗</span>
-              </span>
-              <span
                 style={{
                   fontSize: '9.5px',
                   fontFamily: 'var(--font-mono)',
@@ -134,63 +104,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               </span>
             </div>
           </div>
-        </div>
-
-        {/* Right Side: Quick Jump to RAG and Pipeline Trigger */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          {/* Quick Jump to RAG */}
-          {onNavigateTab && (
-            <button
-              type="button"
-              onClick={() => onNavigateTab('rag')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '5px 10px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                backgroundColor: 'rgba(99, 102, 241, 0.15)',
-                color: '#818cf8',
-                border: '1px solid rgba(99, 102, 241, 0.35)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title={language === 'vi' ? 'Chuyển sang RAG Chat hỏi đáp' : 'Switch to RAG Chat'}
-            >
-              <span>{language === 'vi' ? '▶ HỎI ĐÁP RAG' : '▶ RAG CHAT'}</span>
-            </button>
-          )}
-
-          {/* Run Pipeline Button */}
-          {onTriggerPipeline && (
-            <button
-              type="button"
-              onClick={onTriggerPipeline}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '5px 12px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                backgroundColor: pipelineStatus === 'RUNNING' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)',
-                color: pipelineStatus === 'RUNNING' ? '#ef4444' : '#10b981',
-                border: pipelineStatus === 'RUNNING' ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(16, 185, 129, 0.4)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-              <span>{language === 'vi' ? 'CHẠY PIPELINE' : 'RUN PIPELINE'}</span>
-            </button>
-          )}
         </div>
       </div>
 
