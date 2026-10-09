@@ -85,6 +85,7 @@ export interface LakehouseStreamState {
   logs: StreamingLogEntry[];
   isSyncingR2: boolean;
   lastSyncedR2: string | null;
+  miningSyncVersion: number;
 }
 
 const getStoredViewMode = (): 'active' | 'total' => {
@@ -147,6 +148,7 @@ let state: LakehouseStreamState = {
   logs: getStoredLogs(),
   isSyncingR2: false,
   lastSyncedR2: initialCachedStats?.last_synced ?? '2026-10-09 12:15:19',
+  miningSyncVersion: 0,
 };
 
 const listeners = new Set<() => void>();
@@ -229,10 +231,11 @@ export async function triggerR2ManualSync(): Promise<{ status: string; message: 
       tag: 'R2-SYNC',
       msg: res.message || 'Live Cloudflare R2 bucket synchronized successfully.',
     });
-    updateState({
+    updateState((prev) => ({
       isSyncingR2: false,
       lastSyncedR2: new Date().toLocaleTimeString(),
-    });
+      miningSyncVersion: prev.miningSyncVersion + 1,
+    }));
     return { status: 'SUCCESS', message: res.message || 'R2 synchronized' };
   } catch (err: any) {
     updateState({ isSyncingR2: false });

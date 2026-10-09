@@ -138,7 +138,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   }, [trendsData]);
 
   // Centralized Lakehouse Stream Store Connection
-  const { totalCorpus, isStreaming, lastIngestedPaper } = useLakehouseStreamStore();
+  const { totalCorpus, isStreaming, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
   const [isRecomputingPipeline, setIsRecomputingPipeline] = useState<boolean>(false);
   const [streamedClusterPoints, setStreamedClusterPoints] = useState<ScatterPointItem[]>([]);
 
@@ -247,7 +247,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [miningSyncVersion]);
 
   // Real-time synchronization while harvesting/streaming
   useEffect(() => {
@@ -849,43 +849,6 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               >
                 GOLD ZONE PARTITION
               </span>
-
-              <button
-                type="button"
-                onClick={() => handleRecomputePillars()}
-                disabled={isRecomputingPipeline}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  backgroundColor: isDark ? 'rgba(234, 88, 12, 0.16)' : '#fff7ed',
-                  border: `1px solid ${isDark ? 'rgba(234, 88, 12, 0.4)' : '#fed7aa'}`,
-                  color: '#ea580c',
-                  padding: '3px 10px',
-                  borderRadius: '6px',
-                  fontSize: '10.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  cursor: isRecomputingPipeline ? 'wait' : 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title={language === 'vi' ? 'Kích hoạt tính toán lại toàn bộ 4 Trụ Cột Khai Phá trên dữ liệu Lakehouse mới nhất' : 'Trigger recomputation of all 4 Mining Pillars on latest Lakehouse data'}
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ animation: isRecomputingPipeline ? 'spin 1s linear infinite' : 'none' }}
-                >
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                </svg>
-                <span>{isRecomputingPipeline ? (language === 'vi' ? 'ĐANG TÍNH TOÁN...' : 'RECOMPUTING...') : (language === 'vi' ? 'CHẠY LẠI 4 TRỤ CỘT' : 'RECOMPUTE 4 PILLARS')}</span>
-              </button>
             </div>
           </div>
 

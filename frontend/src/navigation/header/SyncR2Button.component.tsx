@@ -1,5 +1,4 @@
 import { useState, type FC } from 'react';
-import { syncR2Storage } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
 import { useTranslation } from '../../hooks';
 
@@ -9,7 +8,7 @@ export interface SyncR2ButtonProps {
 
 export const SyncR2Button: FC<SyncR2ButtonProps> = ({ onSyncComplete }) => {
   const { language } = useTranslation();
-  const { refreshStorageStats } = useLakehouseStreamStore();
+  const { triggerR2ManualSync, refreshStorageStats } = useLakehouseStreamStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [feedback, setFeedback] = useState<'success' | 'error' | null>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -20,10 +19,14 @@ export const SyncR2Button: FC<SyncR2ButtonProps> = ({ onSyncComplete }) => {
     setIsSyncing(true);
     setFeedback(null);
     try {
-      const res = await syncR2Storage();
+      const res = await triggerR2ManualSync();
       await refreshStorageStats(true);
-      setFeedback('success');
-      onSyncComplete?.(res.message || 'R2 storage synchronized successfully');
+      if (res.status === 'SUCCESS') {
+        setFeedback('success');
+        onSyncComplete?.(res.message || 'R2 storage synchronized successfully');
+      } else {
+        setFeedback('error');
+      }
       setTimeout(() => setFeedback(null), 3500);
     } catch {
       setFeedback('error');

@@ -448,7 +448,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   });
 
 
-  const { totalCorpus, isStreaming, streamSpeed, sessionIngested, lastIngestedPaper } = useLakehouseStreamStore();
+  const { totalCorpus, isStreaming, streamSpeed, sessionIngested, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
   const [isSyncingMining, setIsSyncingMining] = useState<boolean>(false);
   const [streamedPapers, setStreamedPapers] = useState<ScatterPaperPoint[]>([]);
 
@@ -526,7 +526,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [miningSyncVersion]);
 
   // Real-time synchronization while harvesting/streaming
   useEffect(() => {
@@ -1016,43 +1016,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 />
                 <span>LAKEHOUSE: {totalCorpus.toLocaleString()} {language === 'vi' ? 'BÀI BÁO' : 'WORKS'} {isStreaming ? `• ${streamSpeed.toFixed(1)} p/s` : '• ACTIVE'}</span>
               </div>
-
-              <button
-                type="button"
-                onClick={() => handleSyncLakehouseMining()}
-                disabled={isSyncingMining}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.14)' : '#f0f9ff',
-                  border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.35)' : '#bae6fd'}`,
-                  color: '#0284c7',
-                  padding: '2px 9px',
-                  borderRadius: '6px',
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  cursor: isSyncingMining ? 'wait' : 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title={language === 'vi' ? 'Đồng bộ kho bài báo Lakehouse và kích hoạt tái phân tích các chỉ số EDA' : 'Sync Lakehouse corpus and trigger re-analysis of EDA metrics'}
-              >
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ animation: isSyncingMining ? 'spin 1s linear infinite' : 'none' }}
-                >
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                </svg>
-                <span>{isSyncingMining ? (language === 'vi' ? 'ĐANG ĐỒNG BỘ...' : 'SYNCING...') : (language === 'vi' ? 'ĐỒNG BỘ LAKEHOUSE ML' : 'SYNC LAKEHOUSE ML')}</span>
-              </button>
             </div>
           </div>
 

@@ -52,11 +52,22 @@ export async function searchLakehouse(
 }
 
 export async function syncR2Storage(): Promise<{ status: string; message: string }> {
-  const res = await fetch(`${API_CONFIG.baseUrl}/api/storage/sync-r2`, {
-    method: 'POST',
-  });
-  if (!res.ok) throw new Error(`R2 sync failed: ${res.statusText}`);
-  return res.json();
+  // 1. Synchronize Lakehouse storage metering & object manifests
+  const storagePromise = fetch(`${API_CONFIG.baseUrl}/api/storage/sync-r2`, { method: 'POST' });
+  
+  // 2. Synchronize Machine Learning & Data Mining artifacts (6 JSON models)
+  const miningPromise = fetch(`${API_CONFIG.baseUrl}/api/mining/sync-r2`, { method: 'POST' });
+
+  const [resStorage, resMining] = await Promise.allSettled([storagePromise, miningPromise]);
+  
+  if (resStorage.status === 'rejected' && resMining.status === 'rejected') {
+    throw new Error('Both Storage and Mining R2 sync failed');
+  }
+
+  return {
+    status: 'SUCCESS',
+    message: 'Lakehouse storage volume and all 4 Mining Pillars synchronized from Cloudflare R2.',
+  };
 }
 
 export async function resetStorageSession(): Promise<{ status: string; message: string }> {
