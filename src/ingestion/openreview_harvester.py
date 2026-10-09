@@ -192,7 +192,6 @@ class OpenReviewHarvester:
                         )
                 except Exception:
                     pass
-
                 curr_offset += len(rows)
             except Exception as e:
                 logger.error("[OPENREVIEW] Error at offset %d: %s", curr_offset, str(e))

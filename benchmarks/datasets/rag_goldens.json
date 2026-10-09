@@ -149,6 +149,41 @@
   {
     "id": "gold-022",
     "category": "cs.LG",
+    "query": "What are the reviewer ratings and primary critiques for the paper 'Semi-supervised Knowledge Transfer for Deep Learning from Private Training Data'?",
+    "expected_output": "Reviewers rated the paper favorably with scores of 9 (Top 15%, strong accept), 9 (strong accept), and 7 (good paper, accept). Reviewer #1 commended the elegant perturbation error formulation for differential privacy. Reviewer #2 highlighted the lack of theoretical guarantees on learning performance and privacy epsilon release nuances. Reviewer #3 noted the empirical parameters in the probabilistic bound and suggested real medical history evaluation.",
+    "expected_context_keywords": ["Reviewer", "Differential Privacy", "Rating", "Confidence", "teachers", "student", "noisy voting"]
+  },
+  {
+    "id": "gold-023",
+    "category": "cs.AI",
+    "query": "What is the consensus score and reviewer feedback on Predicting Auction Price of Vehicle License Plate with Deep Recurrent Neural Network?",
+    "expected_output": "The paper achieved a consensus score of approximately 0.47, with Reviewer #1 providing a normalized score of 0.6 and rating 6 (marginally above acceptance threshold) with high confidence 5.",
+    "expected_context_keywords": ["Reviewer", "Consensus Score", "Auction Price", "Normalized Score", "Vehicle License Plate"]
+  },
+  {
+    "id": "gold-024",
+    "category": "cs.LG",
+    "query": "What methodology critique was raised by Reviewer #1 regarding Cross-View Training for Semi-Supervised Learning?",
+    "expected_output": "Reviewer #1 gave a normalized score of 0.5 (rating 5: marginally below acceptance threshold) with confidence 4, evaluating the cross-view training approach for semi-supervised learning.",
+    "expected_context_keywords": ["Cross-View Training", "Reviewer", "Semi-Supervised", "Rating", "Normalized Score"]
+  },
+  {
+    "id": "gold-025",
+    "category": "cs.CV",
+    "query": "How does Unmixing Diffusion perform self-supervised hyperspectral image denoising in CVPR 2024?",
+    "expected_output": "Unmixing Diffusion addresses narrow-band spectral filtering noise in hyperspectral images (HSIs) by integrating spectral unmixing with diffusion probabilistic models in a self-supervised formulation without clean ground-truth reference images.",
+    "expected_context_keywords": ["Hyperspectral", "Unmixing Diffusion", "denoising", "spectral unmixing", "CVPR 2024"]
+  },
+  {
+    "id": "gold-026",
+    "category": "cs.CV",
+    "query": "What is the citation format and venue for Unmixing Diffusion for Self-Supervised Hyperspectral Image Denoising?",
+    "expected_output": "The paper is published in CVPR 2024 by authors Haijin Zeng, Jiezhang Cao, Kai Zhang, Yongyong Chen, Hiep Luong, and Wilfried Philips under the title Unmixing Diffusion for Self-Supervised Hyperspectral Image Denoising.",
+    "expected_context_keywords": ["Zeng", "CVPR 2024", "InProceedings", "Unmixing Diffusion"]
+  },
+  {
+    "id": "gold-027",
+    "category": "cs.LG",
     "query": "What trade-off is involved in Gradient Checkpointing (Activation Recomputation) during neural network training?",
     "expected_output": "Gradient checkpointing trades additional computational time (typically ~20-30% extra forward pass operations) for substantial memory reduction. Instead of storing all intermediate activation tensors for the backward pass, it saves activations only at designated checkpoint layers and recomputes missing activations dynamically during backpropagation.",
     "expected_context_keywords": ["Gradient Checkpointing", "activation recomputation", "memory reduction", "backward pass", "forward recomputation"]

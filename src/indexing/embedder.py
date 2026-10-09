@@ -38,8 +38,8 @@ class NomicEmbedder:
             self.device = torch.device(device)
 
         # Khởi tạo Tokenizer và Model
-        self.tokenizer = AutoTokenizer.from_pretrained(str(self.model_path))
-        self.model = AutoModel.from_pretrained(str(self.model_path), trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(load_identifier)
+        self.model = AutoModel.from_pretrained(load_identifier, trust_remote_code=True)
         self.model.to(self.device)
         self.model.eval()
 

@@ -199,10 +199,12 @@ class RetrievalService:
                     target_table = None
                     if settings.LANCEDB_TABLE in table_names:
                         target_table = settings.LANCEDB_TABLE
-                    elif "academic_chunks" in table_names:
-                        target_table = "academic_chunks"
+                    elif settings.LANCEDB_URI.startswith("s3://"):
+                        logger.info("[RETRIEVAL] Target table '%s' not found locally. Connecting to remote Cloudflare R2...", settings.LANCEDB_TABLE)
                     elif "scientific_papers_gold" in table_names:
                         target_table = "scientific_papers_gold"
+                    elif "academic_chunks" in table_names:
+                        target_table = "academic_chunks"
                     elif table_names:
                         target_table = table_names[0]
 
@@ -444,8 +446,8 @@ class RetrievalService:
                     except Exception as th_err:
                         logger.debug("[RETRIEVAL] Title candidate fetch error: %s", th_err)
 
-            # Retrieve rich candidate pool for authority reranking and fusion
-            candidate_limit = max(k * 8, 40)
+            # Retrieve candidate pool for authority reranking and fusion (bounded to prevent R2 S3 throttling)
+            candidate_limit = min(max(k * 2, 25), 40)
 
             # Execute search on LanceDB
             query_builder = None
@@ -453,6 +455,10 @@ class RetrievalService:
                 query_vector = embedder_service.embed_query(req.query)
                 if query_vector is not None and self.vector_dim == len(query_vector):
                     query_builder = self.table.search(query_vector, vector_column_name="vector").metric("cosine")
+                    try:
+                        query_builder = query_builder.nprobes(20)
+                    except Exception:
+                        pass
                 else:
                     query_builder = self.table.search(req.query)
             else:
@@ -460,6 +466,20 @@ class RetrievalService:
 
             if req.category and "primary_category" in self.table.schema.names:
                 query_builder = query_builder.where(f"primary_category = '{req.category}'")
+
+            # Project specific columns to prevent transmitting raw 768-D float vectors over S3
+            target_cols = [
+                c for c in [
+                    "chunk_id", "paper_id", "title", "authors",
+                    "primary_category", "section_title", "section_type",
+                    "text", "context_text", "doi"
+                ] if c in self.table.schema.names
+            ]
+            if target_cols:
+                try:
+                    query_builder = query_builder.select(target_cols)
+                except Exception as proj_err:
+                    logger.debug("[RETRIEVAL] Projection error: %s", proj_err)
 
             rows = query_builder.limit(candidate_limit).to_pandas()
 
