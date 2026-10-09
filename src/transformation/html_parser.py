@@ -15,12 +15,12 @@ class AcademicHTMLParser:
     # Phân loại section types phổ biến trong bài báo khoa học
     SECTION_TYPE_PATTERNS = {
         "abstract": re.compile(r"abstract", re.IGNORECASE),
-        "introduction": re.compile(r"^\s*(\d+(\.\d+)*\s+)?(intro|introduction)", re.IGNORECASE),
-        "related_work": re.compile(r"^\s*(\d+(\.\d+)*\s+)?(related|background|prior)", re.IGNORECASE),
-        "methodology": re.compile(r"^\s*(\d+(\.\d+)*\s+)?(method|approach|proposed|architecture|model|formulation|algorithm)", re.IGNORECASE),
-        "experiments": re.compile(r"^\s*(\d+(\.\d+)*\s+)?(experiment|eval|evaluation|result|ablation|benchmark)", re.IGNORECASE),
-        "discussion": re.compile(r"^\s*(\d+(\.\d+)*\s+)?(discussion|analysis|limitation)", re.IGNORECASE),
-        "conclusion": re.compile(r"^\s*(\d+(\.\d+)*\s+)?(conclu|future work|summary)", re.IGNORECASE),
+        "introduction": re.compile(r"^\s*(\d+(\.\d+)*\.?\s+)?(intro|introduction)", re.IGNORECASE),
+        "related_work": re.compile(r"^\s*(\d+(\.\d+)*\.?\s+)?(related|background|prior)", re.IGNORECASE),
+        "methodology": re.compile(r"^\s*(\d+(\.\d+)*\.?\s+)?(method|approach|proposed|architecture|model|formulation|algorithm)", re.IGNORECASE),
+        "experiments": re.compile(r"^\s*(\d+(\.\d+)*\.?\s+)?(experiment|eval|evaluation|result|ablation|benchmark)", re.IGNORECASE),
+        "discussion": re.compile(r"^\s*(\d+(\.\d+)*\.?\s+)?(discussion|analysis|limitation)", re.IGNORECASE),
+        "conclusion": re.compile(r"^\s*(\d+(\.\d+)*\.?\s+)?(conclu|future work|summary)", re.IGNORECASE),
         "references": re.compile(r"^\s*(reference|bibliography)", re.IGNORECASE),
         "appendix": re.compile(r"^\s*(appendix|supplementary)", re.IGNORECASE),
     }
