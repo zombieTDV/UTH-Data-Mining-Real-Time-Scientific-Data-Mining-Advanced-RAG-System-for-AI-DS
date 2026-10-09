@@ -2369,35 +2369,35 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             </div>
 
             {/* Split Horizontal-to-Vertical Conduits */}
-            <div style={{ width: '32px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              {/* Horizontal lead-in wire from Fork */}
+            <div style={{ width: '32px', height: '300px', position: 'relative', flexShrink: 0 }}>
+              {/* Horizontal lead-in wire from Fork (center = 150px) */}
               <div style={{
                 position: 'absolute',
-                top: '70px',
+                top: '147px',
                 left: '0',
-                width: '14px',
+                width: '17px',
                 height: '6px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isLineageHighlighted('fork')) ? '#ef4444' : themeStyles.wire,
                 boxShadow: isStageActive('parallel') ? '0 0 10px rgba(239, 68, 68, 0.7)' : 'none',
               }} />
 
-              {/* Vertical distribution bus */}
+              {/* Vertical distribution bus (from top card center 70px to bottom card center 230px) */}
               <div style={{
                 position: 'absolute',
-                top: '16px',
+                top: '67px',
                 left: '14px',
                 width: '6px',
-                height: '112px',
+                height: '166px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isLineageHighlighted('fork')) ? '#38bdf8' : themeStyles.wire,
                 boxShadow: isStageActive('parallel') ? '0 0 10px rgba(56, 189, 248, 0.6)' : 'none',
               }} />
 
-              {/* Top horizontal branch into Parquet */}
+              {/* Top horizontal branch into Parquet socket (top: 70px center) */}
               <div style={{
                 position: 'absolute',
-                top: '16px',
+                top: '67px',
                 left: '14px',
                 width: '18px',
                 height: '6px',
@@ -2406,10 +2406,10 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 boxShadow: isStageActive('parallel') ? '0 0 10px #10b981' : 'none',
               }} />
 
-              {/* Bottom horizontal branch into LanceDB */}
+              {/* Bottom horizontal branch into LanceDB socket (top: 230px center) */}
               <div style={{
                 position: 'absolute',
-                bottom: '16px',
+                top: '227px',
                 left: '14px',
                 width: '18px',
                 height: '6px',
@@ -2424,7 +2424,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   <div
                     style={{
                       position: 'absolute',
-                      top: '13px',
+                      top: '64px',
                       left: '12px',
                       width: '10px',
                       height: '10px',
@@ -2437,7 +2437,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   <div
                     style={{
                       position: 'absolute',
-                      bottom: '13px',
+                      top: '224px',
                       left: '12px',
                       width: '10px',
                       height: '10px',
@@ -2452,7 +2452,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             </div>
 
             {/* Parallel Cards: Apache Parquet (Top) & LanceDB (Bottom) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
               {/* PATH 1 (TOP): Apache Parquet (Green) */}
               <div
                 onClick={() => handleOpenInspector('silver-parquet')}
@@ -2460,6 +2460,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
                   width: '260px',
+                  height: '140px',
+                  boxSizing: 'border-box',
                   backgroundColor: themeStyles.cardBg,
                   backdropFilter: 'blur(12px)',
                   borderRadius: '14px',
@@ -2721,6 +2723,8 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 onMouseLeave={() => setHoveredNodeId(null)}
                 style={{
                   width: '260px',
+                  height: '140px',
+                  boxSizing: 'border-box',
                   backgroundColor: themeStyles.cardBg,
                   backdropFilter: 'blur(12px)',
                   borderRadius: '14px',
@@ -2978,14 +2982,14 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             <div
               onMouseEnter={() => setHoveredNodeId('merge')}
               onMouseLeave={() => setHoveredNodeId(null)}
-              style={{ width: '32px', height: '144px', position: 'relative', flexShrink: 0, cursor: 'pointer' }}
+              style={{ width: '32px', height: '300px', position: 'relative', flexShrink: 0, cursor: 'pointer' }}
             >
-              {/* Top horizontal branch from Parquet */}
+              {/* Top horizontal branch from Parquet socket (top: 70px center) */}
               <div style={{
                 position: 'absolute',
-                top: '16px',
+                top: '67px',
                 left: '0',
-                width: '14px',
+                width: '18px',
                 height: '6px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isGroundedRagReady || isLineageHighlighted('silver-parquet')) ? '#10b981' : themeStyles.wire,
@@ -2993,12 +2997,12 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 transition: 'all 0.3s ease',
               }} />
 
-              {/* Bottom horizontal branch from LanceDB */}
+              {/* Bottom horizontal branch from LanceDB socket (top: 230px center) */}
               <div style={{
                 position: 'absolute',
-                bottom: '16px',
+                top: '227px',
                 left: '0',
-                width: '14px',
+                width: '18px',
                 height: '6px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isGroundedRagReady || isLineageHighlighted('gold-lancedb')) ? '#2563eb' : themeStyles.wire,
@@ -3006,23 +3010,23 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 transition: 'all 0.3s ease',
               }} />
 
-              {/* Vertical convergence bus */}
+              {/* Vertical convergence bus (from 70px to 230px) */}
               <div style={{
                 position: 'absolute',
-                top: '16px',
+                top: '67px',
                 left: '14px',
                 width: '6px',
-                height: '112px',
+                height: '166px',
                 borderRadius: '3px',
                 backgroundColor: (isStageActive('parallel') || isGroundedRagReady || isLineageHighlighted('merge') || isLineageHighlighted('anchor')) ? '#6366f1' : themeStyles.wire,
                 boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 10px rgba(99, 102, 241, 0.8)' : 'none',
                 transition: 'all 0.3s ease',
               }} />
 
-              {/* Center horizontal lead-out into Anchor */}
+              {/* Center horizontal lead-out into Anchor (center = 150px) */}
               <div style={{
                 position: 'absolute',
-                top: '69px',
+                top: '147px',
                 left: '14px',
                 width: '18px',
                 height: '6px',
@@ -3038,7 +3042,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   <div
                     style={{
                       position: 'absolute',
-                      top: '20px',
+                      top: '70px',
                       left: '12px',
                       width: '10px',
                       height: '10px',
@@ -3051,7 +3055,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   <div
                     style={{
                       position: 'absolute',
-                      bottom: '20px',
+                      bottom: '70px',
                       left: '12px',
                       width: '10px',
                       height: '10px',
