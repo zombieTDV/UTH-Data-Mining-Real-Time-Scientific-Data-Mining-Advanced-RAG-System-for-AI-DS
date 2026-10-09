@@ -48,33 +48,33 @@ logger, log_file = setup_pipeline_logging("adaptive_scheduler")
 SCHEDULE_CONFIGS = {
     "arxiv": {
         "name": "arXiv Preprints (OAI-PMH)",
-        "frequency": "Daily at 00:10 VN (17:10 UTC)",
+        "frequency": "Daily at 00:18 VN (17:18 UTC)",
         "cron_hour": 0,
-        "cron_minute": 10,
+        "cron_minute": 18,
         "default_limit": 200,
         "description": "Harvests daily preprint releases across cs.AI, cs.LG, cs.CV",
     },
     "openreview": {
         "name": "OpenReview Peer Reviews",
-        "frequency": "Daily at 00:10 VN (17:10 UTC)",
+        "frequency": "Daily at 00:18 VN (17:18 UTC)",
         "cron_hour": 0,
-        "cron_minute": 10,
+        "cron_minute": 18,
         "default_limit": 100,
         "description": "Harvests conference review threads and rebuttal scores (ICLR, NeurIPS)",
     },
     "openalex": {
         "name": "OpenAlex Citation Graph",
-        "frequency": "Daily at 00:10 VN (17:10 UTC)",
+        "frequency": "Daily at 00:18 VN (17:18 UTC)",
         "cron_hour": 0,
-        "cron_minute": 10,
+        "cron_minute": 18,
         "default_limit": 150,
         "description": "Harvests global metadata and citation graph with reconstructed abstracts",
     },
     "cvf": {
         "name": "CVF Open Access (CVPR / ICCV)",
-        "frequency": "Daily at 00:10 VN (17:10 UTC)",
+        "frequency": "Daily at 00:18 VN (17:18 UTC)",
         "cron_hour": 0,
-        "cron_minute": 10,
+        "cron_minute": 18,
         "default_limit": 100,
         "description": "Harvests proceedings papers from CVPR & ICCV Open Access",
     },
@@ -135,6 +135,22 @@ class AdaptiveHarvesterScheduler:
                             default_state[key]["name"] = cfg["name"]
                             if "enabled" not in default_state[key]:
                                 default_state[key]["enabled"] = True
+
+                            # Check if saved next_run matches current cron schedule
+                            next_run_str = default_state[key].get("next_run")
+                            needs_recalc = False
+                            if not next_run_str:
+                                needs_recalc = True
+                            else:
+                                try:
+                                    nr_dt = datetime.datetime.strptime(next_run_str, "%Y-%m-%d %H:%M:%S")
+                                    if "cron_hour" in cfg and (nr_dt.hour != cfg["cron_hour"] or nr_dt.minute != cfg.get("cron_minute", 0)):
+                                        needs_recalc = True
+                                except ValueError:
+                                    needs_recalc = True
+                            if needs_recalc:
+                                default_state[key]["next_run"] = self._calculate_next_run(key, now).strftime("%Y-%m-%d %H:%M:%S")
+
                     if "_meta" in loaded and isinstance(loaded["_meta"], dict):
                         default_state["_meta"].update(loaded["_meta"])
                     return default_state
@@ -193,6 +209,12 @@ class AdaptiveHarvesterScheduler:
 
     def get_status(self) -> Dict[str, Any]:
         """Returns the current snapshot of all 4 scheduled ingestion sources and daemon state."""
+        disk_state = self._load_state()
+        for k in SCHEDULE_CONFIGS:
+            if k in disk_state:
+                if self.state.get(k, {}).get("status") != "RUNNING":
+                    self.state[k] = disk_state[k]
+
         sources: Dict[str, Any] = {}
         now = datetime.datetime.now()
         for key in SCHEDULE_CONFIGS:
@@ -385,6 +407,11 @@ class AdaptiveHarvesterScheduler:
             while self.is_daemon_running and not self._stop_event.is_set():
                 now = datetime.datetime.now()
                 now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
+                disk_state = self._load_state()
+                for k in SCHEDULE_CONFIGS:
+                    if k in disk_state and self.state.get(k, {}).get("status") != "RUNNING":
+                        self.state[k] = disk_state[k]
 
                 for source_key in SCHEDULE_CONFIGS:
                     if not self.is_daemon_running or self._stop_event.is_set():
