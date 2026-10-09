@@ -23,20 +23,23 @@ export const MetricsBento: FC = () => {
   const backupData = storageStats?.backupStorage;
   const totalBucket = storageStats?.totalBucket;
 
-  const arxivCount = activeData?.arxivHtmlCount ?? (11660 + sessionIngested);
-  const arxivGb = activeData?.arxivHtmlSizeGb ?? 3.763;
-  const openalexCount = activeData?.openalexCount ?? 24754;
+  const arxivCount = (activeData?.arxivHtmlCount ?? 11660) + sessionIngested;
+  const arxivGb = activeData?.arxivHtmlSizeGb ?? 3.649;
+  const openalexCount = activeData?.openalexCount ?? 24756;
   const openalexGb = activeData?.openalexSizeGb ?? 3.971;
+  const openreviewCount = activeData?.openreviewCount ?? 1000;
+  const cvfCount = activeData?.cvfCount ?? 1000;
+  const totalWorks = arxivCount + openalexCount + openreviewCount + cvfCount;
   const silverMb = activeData?.silverParquetSizeMb ?? 321.68;
   const activeVectors = activeData?.activeLanceDbVectors ?? 164702;
   const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 211.26;
-  const backupGb = backupData?.totalSizeGb ?? 3.069;
+  const backupGb = backupData?.totalSizeGb ?? 3.239;
 
   // Active vs Total calculations linked directly to real-time storageUsedGb
-  const activeGb = storageUsedGb || (activeData?.totalSizeGb ?? 8.277);
-  const activePct = storageUsedPct || (activeData?.usedPercentage ?? 82.77);
-  const totalGb = totalBucket?.totalSizeGb ?? 11.348;
-  const totalPct = totalBucket?.usedPercentage ?? 113.48;
+  const activeGb = storageUsedGb || (activeData?.totalSizeGb ?? 8.191);
+  const activePct = storageUsedPct || (activeData?.usedPercentage ?? 81.91);
+  const totalGb = totalBucket?.totalSizeGb ?? 11.43;
+  const totalPct = totalBucket?.usedPercentage ?? 114.3;
 
   const displayGb = isTotalView ? totalGb : activeGb;
   const displayPct = isTotalView ? totalPct : activePct;
@@ -62,10 +65,10 @@ export const MetricsBento: FC = () => {
         label={language === 'vi' ? 'Quy mô Corpus' : 'Corpus Scale'}
         badge={language === 'vi' ? 'Hồ Medallion' : 'Medallion Lakehouse'}
         badgeColor="var(--accent-emerald)"
-        value={<AnimatedCounter value={arxivCount + openalexCount} />}
+        value={<AnimatedCounter value={totalWorks} />}
         unit={language === 'vi' ? 'bài' : 'works'}
-        description={language === 'vi' ? 'arXiv HTML5 + OpenAlex (cs.AI, cs.LG, cs.CV, cs.CL, cs.RO)' : 'arXiv HTML5 + OpenAlex (cs.AI, cs.LG, cs.CV, cs.CL, cs.RO)'}
-        footerLeft={<>arXiv HTML5: <AnimatedCounter value={arxivCount} /></>}
+        description={language === 'vi' ? '4 Nguồn: arXiv • OpenAlex • OpenReview • CVF' : '4 Sources: arXiv • OpenAlex • OpenReview • CVF'}
+        footerLeft={<>arXiv: <AnimatedCounter value={arxivCount} /></>}
         footerRight={<>OpenAlex: <AnimatedCounter value={openalexCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
       />

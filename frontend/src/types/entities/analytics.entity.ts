@@ -288,6 +288,7 @@ export interface StorageStatsResponse {
   activeLakehouse?: ActiveLakehouseInfo;
   backupStorage?: BackupStorageInfo;
   totalBucket?: TotalBucketInfo;
+  last_synced?: string;
 }
 
 export interface HealthResponse {

@@ -92,6 +92,8 @@ class NomicEmbedder:
 
         return all_embeddings
 
+    embed_batch = embed_documents
+
     def embed_query(self, query: str) -> List[float]:
         """Sinh vector nhúng cho câu truy vấn tìm kiếm của người dùng (tự động gắn tiền tố search_query:)."""
         formatted_query = f"search_query: {query}"
