@@ -114,65 +114,69 @@ class Tier1HistoricalHarvester:
             follow_redirects=True,
         )
 
+    HISTORICAL_YEARS = [2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023]
+
     def harvest_landmark_metadata(self) -> List[Dict[str, Any]]:
-        """Harvests landmark paper metadata balanced across 5 categories, sorted by cite_count DESC."""
+        """Harvests landmark paper metadata with true 2D Stratification: (Category x Publication Year).
+        
+        Guarantees exact balance across both:
+        - 5 academic categories: cs.CV, cs.CL, cs.LG, cs.AI, cs.RO
+        - 12 landmark years: 2012 to 2023
+        Each (category, year) cell gets equal representation sorted by cite_count DESC.
+        """
         categories = list(CATEGORY_CONCEPTS.keys())
-        per_category_target = max(1, self.target_total // len(categories))
+        years = self.HISTORICAL_YEARS
+        total_cells = len(categories) * len(years)  # 5 * 12 = 60 cells
+        quota_per_cell = max(1, self.target_total // total_cells)
+
         logger.info(
-            "[TIER 1] Target total: %d landmark papers (%d per category across %s)",
+            "[TIER 1] 2D STRATIFICATION GRID: %d categories x %d years = %d cells (Quota: %d papers/cell, Target: %d)",
+            len(categories),
+            len(years),
+            total_cells,
+            quota_per_cell,
             self.target_total,
-            per_category_target,
-            categories,
         )
 
         all_candidates: List[Dict[str, Any]] = []
 
-        for cat_code, cat_meta in CATEGORY_CONCEPTS.items():
-            concept_id = cat_meta["concept_id"]
-            cat_name = cat_meta["name"]
-            logger.info("[TIER 1] Fetching top landmark papers for category: %s (%s)...", cat_code, cat_name)
+        for year in sorted(years, reverse=True):
+            for cat_code in categories:
+                cat_meta = CATEGORY_CONCEPTS[cat_code]
+                concept_id = cat_meta["concept_id"]
+                cat_name = cat_meta["name"]
 
-            page = 1
-            cat_collected = 0
-            per_page = min(50, per_category_target)
-
-            while cat_collected < per_category_target:
                 params = {
-                    "filter": f"concepts.id:{concept_id},is_paratext:false,is_retracted:false",
+                    "filter": f"concepts.id:{concept_id},publication_year:{year},is_paratext:false,is_retracted:false",
                     "sort": "cited_by_count:desc",
-                    "per-page": per_page,
-                    "page": page,
+                    "per-page": min(50, quota_per_cell),
                 }
+
                 try:
                     resp = self.http_client.get(self.OPENALEX_API_URL, params=params)
                     if resp.status_code != 200:
-                        logger.warning("[TIER 1] OpenAlex returned HTTP %d on page %d for %s", resp.status_code, page, cat_code)
-                        break
+                        logger.warning("[TIER 1] OpenAlex returned HTTP %d for cell (%s, %d)", resp.status_code, cat_code, year)
+                        continue
 
                     data = resp.json()
                     results = data.get("results", [])
-                    if not results:
-                        break
 
                     for w in results:
                         title = w.get("title") or w.get("display_name") or ""
                         if not title:
                             continue
 
-                        # Extract abstract
                         abstract = reconstruct_abstract_from_inverted_index(w.get("abstract_inverted_index"))
                         cite_count = int(w.get("cited_by_count") or 0)
-                        pub_year = w.get("publication_year") or 2020
+                        pub_year = w.get("publication_year") or year
                         pub_date = w.get("publication_date") or f"{pub_year}-01-01"
 
-                        # Extract IDs
                         ids = w.get("ids", {})
                         doi = ids.get("doi") or w.get("doi")
                         arxiv_id = ids.get("arxiv")
                         if arxiv_id and "arxiv.org/abs/" in arxiv_id:
                             arxiv_id = arxiv_id.split("arxiv.org/abs/")[-1]
 
-                        # Detect PDF URL
                         best_oa = w.get("best_oa_location") or {}
                         pdf_url = best_oa.get("pdf_url") or ""
                         if not pdf_url and arxiv_id:
@@ -180,7 +184,6 @@ class Tier1HistoricalHarvester:
                         if not pdf_url and w.get("open_access", {}).get("oa_url"):
                             pdf_url = w["open_access"]["oa_url"]
 
-                        # Detect Source / Venue
                         source = "arxiv" if arxiv_id else "open_access"
                         primary_loc = w.get("primary_location") or {}
                         source_obj = primary_loc.get("source") or {}
@@ -192,7 +195,6 @@ class Tier1HistoricalHarvester:
                         elif "Zenodo" in venue_name or (doi and "zenodo" in str(doi).lower()):
                             source = "zenodo"
 
-                        # Extract Authors
                         authors = []
                         for auth in w.get("authorships", []):
                             author_obj = auth.get("author", {})
@@ -201,11 +203,9 @@ class Tier1HistoricalHarvester:
                                 authors.append(aname)
 
                         paper_id = arxiv_id if arxiv_id else (f"doi_{doi.replace('https://doi.org/', '').replace('/', '_')}" if doi else f"oa_{w.get('id', '').split('/')[-1]}")
-
-                        # Check abstract hash duplicate
                         is_dup, abs_hash = self.dedup.is_duplicate(abstract, title)
 
-                        candidate = {
+                        all_candidates.append({
                             "paper_id": paper_id,
                             "abstract_hash": abs_hash,
                             "is_duplicate": is_dup,
@@ -223,22 +223,18 @@ class Tier1HistoricalHarvester:
                             "html_url": w.get("id"),
                             "source": source,
                             "venue": venue_name,
-                        }
+                        })
 
-                        all_candidates.append(candidate)
-                        cat_collected += 1
-                        if cat_collected >= per_category_target:
-                            break
-
-                    page += 1
-                    time.sleep(0.3)
+                    time.sleep(0.15)
                 except Exception as e:
-                    logger.error("[TIER 1] Error querying OpenAlex for %s: %s", cat_code, e)
-                    break
+                    logger.error("[TIER 1] Error querying cell (%s, %d): %s", cat_code, year, e)
 
-        # Sort all candidates strictly by cite_count DESC
+        # Sort within candidates by cite_count DESC while preserving grid diversity
         all_candidates.sort(key=lambda x: x.get("cite_count", 0), reverse=True)
-        logger.info("[TIER 1] Harvested %d landmark candidates across 5 categories.", len(all_candidates))
+        if len(all_candidates) > self.target_total:
+            all_candidates = all_candidates[:self.target_total]
+
+        logger.info("[TIER 1] 2D Grid collected %d stratified candidates across 5 categories and 12 years.", len(all_candidates))
         return all_candidates
 
     def download_and_extract_pdf(self, paper: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:

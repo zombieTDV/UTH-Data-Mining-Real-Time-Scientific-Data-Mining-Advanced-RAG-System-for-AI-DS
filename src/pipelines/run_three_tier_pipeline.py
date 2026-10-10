@@ -143,6 +143,7 @@ def print_status_table():
 def run_pipeline(
     tier: str = "all",
     limit: Optional[int] = None,
+    days: int = 1,
     use_marker: bool = True,
     sync_r2: bool = False,
 ) -> Dict[str, Any]:
@@ -164,8 +165,8 @@ def run_pipeline(
     # 2. Tier 2 Execution
     if tier_choice in ["2", "tier2", "all"]:
         t2_limit = limit or 50
-        print(f"\n>>> [2/3] EXECUTING TIER 2: NEAR-PAST TRENDING (Target: {t2_limit} papers)...")
-        h2 = Tier2NearPastHarvester(start_date="2024-01-01", max_total=t2_limit, use_marker=use_marker, sync_r2=sync_r2)
+        print(f"\n>>> [2/3] EXECUTING TIER 2: NEAR-PAST TRENDING (Days: {days}, Limit: {t2_limit} papers)...")
+        h2 = Tier2NearPastHarvester(start_date="2024-01-01", max_total=t2_limit, num_days=days, use_marker=use_marker, sync_r2=sync_r2)
         results["tier2"] = h2.run()
 
     # 3. Tier 3 Execution
@@ -188,6 +189,7 @@ def main():
     parser = argparse.ArgumentParser(description="Master Orchestrator for 3-Tier Scientific Data Mining Architecture.")
     parser.add_argument("--tier", type=str, default="all", choices=["1", "2", "3", "tier1", "tier2", "tier3", "all"], help="Tier to execute (1, 2, 3, or all)")
     parser.add_argument("--limit", type=int, default=None, help="Target paper limit per tier")
+    parser.add_argument("--days", type=int, default=1, help="Number of days backwards to harvest for Tier 2 (default 1)")
     parser.add_argument("--no-marker", action="store_true", help="Disable Marker neural extraction (use resilient fallback)")
     parser.add_argument("--sync-r2", action="store_true", help="Synchronize Bronze, Silver, Gold to Cloudflare R2")
     parser.add_argument("--status", action="store_true", help="Display current 3-Tier Lakehouse status table")
@@ -200,6 +202,7 @@ def main():
     run_pipeline(
         tier=args.tier,
         limit=args.limit,
+        days=args.days,
         use_marker=not args.no_marker,
         sync_r2=args.sync_r2,
     )

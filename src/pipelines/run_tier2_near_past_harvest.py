@@ -88,6 +88,7 @@ class Tier2NearPastHarvester:
         end_date: Optional[str] = None,
         per_day_limit: int = 50,
         max_total: Optional[int] = None,
+        num_days: int = 1,
         use_marker: bool = True,
         sync_r2: bool = False,
     ):
@@ -95,6 +96,7 @@ class Tier2NearPastHarvester:
         self.end_date = end_date or datetime.date.today().isoformat()
         self.per_day_limit = per_day_limit
         self.max_total = max_total
+        self.num_days = num_days
         self.use_marker = use_marker
         self.sync_r2 = sync_r2
 
@@ -109,6 +111,8 @@ class Tier2NearPastHarvester:
         self.bronze_dir.mkdir(parents=True, exist_ok=True)
         self.pdf_dir.mkdir(parents=True, exist_ok=True)
         self.markdown_dir.mkdir(parents=True, exist_ok=True)
+        self.checkpoint_file = settings.ROOT_DIR / "data" / "manifests" / "tier2_daily_checkpoint.json"
+        self.checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
 
         self.http_client = httpx.Client(
             headers={
@@ -118,115 +122,165 @@ class Tier2NearPastHarvester:
             follow_redirects=True,
         )
 
-    def harvest_near_past_candidates(self) -> List[Dict[str, Any]]:
-        """Harvests papers published between start_date and end_date, sorted by cite_count DESC."""
-        logger.info(
-            "[TIER 2] Harvesting near-past window: [%s to %s] (Max/Day: %d, Cap: %s)",
-            self.start_date,
-            self.end_date,
-            self.per_day_limit,
-            self.max_total or "unlimited",
-        )
+    def load_checkpoint(self) -> Dict[str, Any]:
+        """Loads last processed timeline date from checkpoint."""
+        if self.checkpoint_file.exists():
+            try:
+                with open(self.checkpoint_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {
+            "last_processed_date": None,
+            "total_days_processed": 0,
+            "total_papers_harvested": 0,
+        }
 
+    def save_checkpoint(self, last_date: str, days_increment: int = 1, papers_increment: int = 0):
+        """Saves daily crawl progress to checkpoint."""
+        data = self.load_checkpoint()
+        data["last_processed_date"] = last_date
+        data["total_days_processed"] = data.get("total_days_processed", 0) + days_increment
+        data["total_papers_harvested"] = data.get("total_papers_harvested", 0) + papers_increment
+        data["updated_at"] = datetime.datetime.now().isoformat()
+        with open(self.checkpoint_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+    def harvest_near_past_candidates(self, num_days: int = 1) -> List[Dict[str, Any]]:
+        """Harvests papers day-by-day backwards along the 2-year timeline.
+        
+        For each individual day:
+        - Takes up to top 50 papers (balanced across 5 categories: ~10 papers/cat).
+        - Sorted strictly by cite_count DESC for that day.
+        """
+        chk = self.load_checkpoint()
+        last_date_str = chk.get("last_processed_date")
+
+        if last_date_str:
+            try:
+                start_dt = datetime.datetime.strptime(last_date_str, "%Y-%m-%d").date() - datetime.timedelta(days=1)
+            except ValueError:
+                start_dt = datetime.date.today()
+        else:
+            start_dt = datetime.date.today()
+
+        earliest_dt = datetime.date(2024, 1, 1)
         categories = list(CATEGORY_CONCEPTS.keys())
         all_candidates: List[Dict[str, Any]] = []
-        target_cap = self.max_total if self.max_total else 500
 
-        # Query each category to guarantee balanced representation
-        per_cat_cap = max(10, target_cap // len(categories))
+        logger.info(
+            "[TIER 2] DAY-BY-DAY HARVEST: Stepping %d days backwards starting from %s (Earliest limit: %s)",
+            num_days,
+            start_dt.isoformat(),
+            earliest_dt.isoformat(),
+        )
 
-        for cat_code, cat_meta in CATEGORY_CONCEPTS.items():
-            concept_id = cat_meta["concept_id"]
-            cat_name = cat_meta["name"]
-            logger.info("[TIER 2] Querying trending papers for category: %s (%s)...", cat_code, cat_name)
+        curr_dt = start_dt
+        days_harvested = 0
 
-            params = {
-                "filter": f"concepts.id:{concept_id},from_publication_date:{self.start_date},to_publication_date:{self.end_date},is_paratext:false,is_retracted:false",
-                "sort": "cited_by_count:desc",
-                "per-page": min(50, per_cat_cap),
-            }
+        while days_harvested < num_days and curr_dt >= earliest_dt:
+            date_str = curr_dt.isoformat()
+            logger.info("[TIER 2] Harvesting date: %s (Target: up to 50 papers, sorted by cite_count DESC)...", date_str)
 
-            try:
-                resp = self.http_client.get(self.OPENALEX_API_URL, params=params)
-                if resp.status_code != 200:
-                    logger.warning("[TIER 2] OpenAlex returned HTTP %d for %s", resp.status_code, cat_code)
-                    continue
+            day_candidates: List[Dict[str, Any]] = []
+            per_cat_quota = max(1, self.per_day_limit // len(categories))  # 50 // 5 = 10 per category
 
-                data = resp.json()
-                results = data.get("results", [])
-                for w in results:
-                    title = w.get("title") or w.get("display_name") or ""
-                    if not title:
+            for cat_code in categories:
+                concept_id = CATEGORY_CONCEPTS[cat_code]["concept_id"]
+
+                params = {
+                    "filter": f"concepts.id:{concept_id},from_publication_date:{date_str},to_publication_date:{date_str},is_paratext:false,is_retracted:false",
+                    "sort": "cited_by_count:desc",
+                    "per-page": per_cat_quota,
+                }
+
+                try:
+                    resp = self.http_client.get(self.OPENALEX_API_URL, params=params)
+                    if resp.status_code != 200:
                         continue
 
-                    abstract = reconstruct_abstract_from_inverted_index(w.get("abstract_inverted_index"))
-                    cite_count = int(w.get("cited_by_count") or 0)
-                    pub_date = w.get("publication_date") or self.start_date
-                    pub_year = w.get("publication_year") or int(pub_date[:4])
+                    data = resp.json()
+                    results = data.get("results", [])
 
-                    ids = w.get("ids", {})
-                    doi = ids.get("doi") or w.get("doi")
-                    arxiv_id = ids.get("arxiv")
-                    if arxiv_id and "arxiv.org/abs/" in arxiv_id:
-                        arxiv_id = arxiv_id.split("arxiv.org/abs/")[-1]
+                    for w in results:
+                        title = w.get("title") or w.get("display_name") or ""
+                        if not title:
+                            continue
 
-                    best_oa = w.get("best_oa_location") or {}
-                    pdf_url = best_oa.get("pdf_url") or ""
-                    if not pdf_url and arxiv_id:
-                        pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
-                    if not pdf_url and w.get("open_access", {}).get("oa_url"):
-                        pdf_url = w["open_access"]["oa_url"]
+                        abstract = reconstruct_abstract_from_inverted_index(w.get("abstract_inverted_index"))
+                        cite_count = int(w.get("cited_by_count") or 0)
+                        pub_date = date_str
+                        pub_year = int(date_str[:4])
 
-                    source = "arxiv" if arxiv_id else "open_access"
-                    primary_loc = w.get("primary_location") or {}
-                    source_obj = primary_loc.get("source") or {}
-                    venue_name = source_obj.get("display_name", "")
-                    if "CVPR" in venue_name or "ICCV" in venue_name:
-                        source = "cvf"
-                    elif "ICLR" in venue_name or "NeurIPS" in venue_name or "OpenReview" in venue_name:
-                        source = "openreview"
-                    elif "Zenodo" in venue_name or (doi and "zenodo" in str(doi).lower()):
-                        source = "zenodo"
+                        ids = w.get("ids", {})
+                        doi = ids.get("doi") or w.get("doi")
+                        arxiv_id = ids.get("arxiv")
+                        if arxiv_id and "arxiv.org/abs/" in arxiv_id:
+                            arxiv_id = arxiv_id.split("arxiv.org/abs/")[-1]
 
-                    authors = []
-                    for auth in w.get("authorships", []):
-                        aname = auth.get("author", {}).get("display_name")
-                        if aname:
-                            authors.append(aname)
+                        best_oa = w.get("best_oa_location") or {}
+                        pdf_url = best_oa.get("pdf_url") or ""
+                        if not pdf_url and arxiv_id:
+                            pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+                        if not pdf_url and w.get("open_access", {}).get("oa_url"):
+                            pdf_url = w["open_access"]["oa_url"]
 
-                    paper_id = arxiv_id if arxiv_id else (f"doi_{doi.replace('https://doi.org/', '').replace('/', '_')}" if doi else f"oa_{w.get('id', '').split('/')[-1]}")
-                    is_dup, abs_hash = self.dedup.is_duplicate(abstract, title)
+                        source = "arxiv" if arxiv_id else "open_access"
+                        primary_loc = w.get("primary_location") or {}
+                        source_obj = primary_loc.get("source") or {}
+                        venue_name = source_obj.get("display_name", "")
+                        if "CVPR" in venue_name or "ICCV" in venue_name:
+                            source = "cvf"
+                        elif "ICLR" in venue_name or "NeurIPS" in venue_name or "OpenReview" in venue_name:
+                            source = "openreview"
+                        elif "Zenodo" in venue_name or (doi and "zenodo" in str(doi).lower()):
+                            source = "zenodo"
 
-                    all_candidates.append({
-                        "paper_id": paper_id,
-                        "arxiv_id": arxiv_id,
-                        "abstract_hash": abs_hash,
-                        "is_duplicate": is_dup,
-                        "title": title,
-                        "abstract": abstract,
-                        "authors": authors,
-                        "categories": [cat_code],
-                        "primary_category": cat_code,
-                        "published_date": pub_date,
-                        "publication_year": pub_year,
-                        "cite_count": cite_count,
-                        "doi": doi,
-                        "pdf_url": pdf_url,
-                        "html_url": w.get("id"),
-                        "source": source,
-                        "venue": venue_name,
-                    })
+                        authors = []
+                        for auth in w.get("authorships", []):
+                            aname = auth.get("author", {}).get("display_name")
+                            if aname:
+                                authors.append(aname)
 
-                time.sleep(0.3)
-            except Exception as e:
-                logger.error("[TIER 2] Error querying %s: %s", cat_code, e)
+                        paper_id = arxiv_id if arxiv_id else (f"doi_{doi.replace('https://doi.org/', '').replace('/', '_')}" if doi else f"oa_{w.get('id', '').split('/')[-1]}")
+                        is_dup, abs_hash = self.dedup.is_duplicate(abstract, title)
 
-        # Sort all candidates by cite_count DESC
-        all_candidates.sort(key=lambda x: x.get("cite_count", 0), reverse=True)
-        if self.max_total and len(all_candidates) > self.max_total:
-            all_candidates = all_candidates[:self.max_total]
+                        day_candidates.append({
+                            "paper_id": paper_id,
+                            "arxiv_id": arxiv_id,
+                            "abstract_hash": abs_hash,
+                            "is_duplicate": is_dup,
+                            "title": title,
+                            "abstract": abstract,
+                            "authors": authors,
+                            "categories": [cat_code],
+                            "primary_category": cat_code,
+                            "published_date": pub_date,
+                            "publication_year": pub_year,
+                            "cite_count": cite_count,
+                            "doi": doi,
+                            "pdf_url": pdf_url,
+                            "html_url": w.get("id"),
+                            "source": source,
+                            "venue": venue_name,
+                        })
 
-        logger.info("[TIER 2] Harvested %d candidates for near-past window.", len(all_candidates))
+                    time.sleep(0.15)
+                except Exception as e:
+                    logger.error("[TIER 2] Error querying %s on %s: %s", cat_code, date_str, e)
+
+            # Sort the day's candidate papers strictly by cite_count DESC
+            day_candidates.sort(key=lambda x: x.get("cite_count", 0), reverse=True)
+            if len(day_candidates) > self.per_day_limit:
+                day_candidates = day_candidates[:self.per_day_limit]
+
+            all_candidates.extend(day_candidates)
+            self.save_checkpoint(last_date=date_str, days_increment=1, papers_increment=len(day_candidates))
+
+            days_harvested += 1
+            curr_dt -= datetime.timedelta(days=1)
+
+        logger.info("[TIER 2] Day-by-day harvest collected %d candidates across %d days.", len(all_candidates), days_harvested)
         return all_candidates
 
     def download_and_extract_pdf(self, paper: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
@@ -333,7 +387,7 @@ class Tier2NearPastHarvester:
             "title": f"Starting Tier 2 Near-Past Harvest ({self.start_date} to {self.end_date})",
         })
 
-        candidates = self.harvest_near_past_candidates()
+        candidates = self.harvest_near_past_candidates(num_days=self.num_days)
         if not candidates:
             logger.warning("[TIER 2] No candidates found in timeline.")
             return {"status": "NO_RECORDS", "ingested": 0}
@@ -478,9 +532,11 @@ class Tier2NearPastHarvester:
 
 def main():
     parser = argparse.ArgumentParser(description="Run Tier 2 Near-Past Trending Pipeline (2024 to Present).")
+    parser.add_argument("--days", type=int, default=1, help="Number of days backwards to harvest (default 1)")
+    parser.add_argument("--per-day", type=int, default=50, help="Max papers per day (default 50)")
     parser.add_argument("--start-date", type=str, default="2024-01-01", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", type=str, default=None, help="End date (default today)")
-    parser.add_argument("--limit", type=int, default=50, help="Max total papers to harvest")
+    parser.add_argument("--limit", type=int, default=None, help="Max total papers to harvest across all days")
     parser.add_argument("--no-marker", action="store_true", help="Disable Marker PDF extraction")
     parser.add_argument("--sync-r2", action="store_true", help="Synchronize to Cloudflare R2")
     args = parser.parse_args()
@@ -488,7 +544,9 @@ def main():
     harvester = Tier2NearPastHarvester(
         start_date=args.start_date,
         end_date=args.end_date,
+        per_day_limit=args.per_day,
         max_total=args.limit,
+        num_days=args.days,
         use_marker=not args.no_marker,
         sync_r2=args.sync_r2,
     )
