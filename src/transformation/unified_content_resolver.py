@@ -162,7 +162,8 @@ class UnifiedContentResolver:
                 try:
                     resp = client.get(u, timeout=10.0)
                     if resp.status_code == 200 and len(resp.content) > 1000:
-                        if resp.content.startswith(b"%PDF"):
+                        header = resp.content[:200].lower()
+                        if resp.content.startswith(b"%PDF") and b"<!doctype" not in header and b"<html" not in header:
                             with open(local_pdf, "wb") as pf:
                                 pf.write(resp.content)
                             pdf_downloaded = True

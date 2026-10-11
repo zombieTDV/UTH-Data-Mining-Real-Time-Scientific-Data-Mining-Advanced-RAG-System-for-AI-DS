@@ -258,6 +258,7 @@ class RetrievalService:
         clean_pid = paper_id.replace("arXiv:", "").strip()
         search_paths = [
             settings.PROJECT_ROOT_DIR / "data" / "silver" / "tier1" / "landmark_papers.parquet",
+            settings.PROJECT_ROOT_DIR / "data" / "silver" / "tier2" / "near_past_papers.parquet",
             settings.PROJECT_ROOT_DIR / "data" / "silver" / "papers.parquet",
             settings.PROJECT_ROOT_DIR / "data" / "silver" / "year=2026" / "papers.parquet",
             settings.SILVER_PARQUET,

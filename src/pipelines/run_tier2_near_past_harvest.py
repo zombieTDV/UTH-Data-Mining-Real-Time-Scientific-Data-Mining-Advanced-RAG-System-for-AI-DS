@@ -1,18 +1,19 @@
-"""Tier 2: Near-Past Trending Pipeline (2024 to Present).
+"""Tier 2: Near-Past Trending Pipeline (2024 to Present) — Hardened & Batch-Oriented.
 
 Harvests influential and trending papers published in the last 2 years (2024-01-01 to Present):
-- Sliced by time window (daily / interval) with top 50 papers per slice sorted by cite_count DESC.
+- Sliced by time window (daily / interval) with top papers per slice sorted by cite_count DESC.
 - Balanced across 5 core categories:
     cs.CV (Computer Vision), cs.CL (NLP/LLMs), cs.LG (Machine Learning),
     cs.AI (Foundational AI), cs.RO (Robotics).
-- Ingested across 4 canonical sources: arXiv, OpenReview, CVF, Zenodo.
+- Ingested across 4 canonical sources: arXiv, OpenReview, CVF, Zenodo / OpenAlex.
 - Deduplication via normalized SHA-256 abstract hashing (LakehouseDeduplicator).
-- PDF extraction powered by Marker (marker-pdf) with LaTeX math preservation ($ ... $, $$ ... $$).
-- Lakehouse Vaulting: Bronze JSON -> Silver Parquet -> Gold LanceDB (Nomic-Embed 768-D).
+- HTML-First Waterfall extraction (arXiv HTML5 -> ar5iv HTML5 -> PDF via Marker -> Abstract).
+- Zero-Leak Guardrails: immediate temporary binary PDF purging with < 15 GB disk abort protection.
+- Lakehouse Vaulting: Bronze JSON -> Silver Parquet (tier2/near_past_papers.parquet) -> Gold LanceDB.
 - Zero-polling cost-shield telemetry via local FastAPI SSE bridge.
 
 Usage:
-    python -m src.pipelines.run_tier2_near_past_harvest --days 7 --per-day 50
+    python -m src.pipelines.run_tier2_near_past_harvest --days 1 --per-day 10 --batch-size 25
     python -m src.pipelines.run_tier2_near_past_harvest --start-date 2024-01-01 --limit 50
 """
 
@@ -28,8 +29,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import httpx
 import pandas as pd
+import psutil
 import pyarrow as pa
 import pyarrow.parquet as pq
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
@@ -40,8 +47,8 @@ from src.indexing.embedder import NomicEmbedder
 from src.indexing.lancedb_manager import LanceDBManager
 from src.storage.r2_client import R2Client
 from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
-from src.transformation.marker_extractor import MarkerPdfExtractor
 from src.transformation.silver_writer import SilverLakehouseWriter
+from src.transformation.unified_content_resolver import UnifiedContentResolver
 from src.utils.hasher import compute_abstract_hash
 from src.utils.logger import setup_pipeline_logging
 
@@ -81,6 +88,7 @@ class Tier2NearPastHarvester:
     """Orchestrates ingestion of trending papers from the 2-year timeline (2024 to present)."""
 
     OPENALEX_API_URL = "https://api.openalex.org/works"
+    MIN_FREE_DISK_GB = 15.0
 
     def __init__(
         self,
@@ -89,6 +97,7 @@ class Tier2NearPastHarvester:
         per_day_limit: int = 50,
         max_total: Optional[int] = None,
         num_days: int = 1,
+        batch_size: int = 25,
         use_marker: bool = True,
         sync_r2: bool = False,
     ):
@@ -97,12 +106,12 @@ class Tier2NearPastHarvester:
         self.per_day_limit = per_day_limit
         self.max_total = max_total
         self.num_days = num_days
+        self.batch_size = batch_size
         self.use_marker = use_marker
         self.sync_r2 = sync_r2
 
         self.r2 = R2Client() if sync_r2 else None
         self.dedup = LakehouseDeduplicator()
-        self.marker_extractor = MarkerPdfExtractor(use_marker=use_marker, max_pages=15)
         self.silver_writer = SilverLakehouseWriter(r2_client=self.r2)
 
         self.bronze_dir = settings.ROOT_DIR / "data" / "raw" / "tier2"
@@ -114,6 +123,13 @@ class Tier2NearPastHarvester:
         self.checkpoint_file = settings.ROOT_DIR / "data" / "manifests" / "tier2_daily_checkpoint.json"
         self.checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
 
+        self.content_resolver = UnifiedContentResolver(
+            r2_client=self.r2,
+            sync_r2=self.sync_r2,
+            use_marker_fallback=self.use_marker,
+            local_cache_dir=self.markdown_dir,
+        )
+
         self.http_client = httpx.Client(
             headers={
                 "User-Agent": "UTH-DataMining-Tier2NearPast/2.0 (academic research; contact: datamining@uth.edu.vn)"
@@ -121,6 +137,31 @@ class Tier2NearPastHarvester:
             timeout=30.0,
             follow_redirects=True,
         )
+
+    def check_disk_space(self) -> float:
+        """Returns free disk space in GB; raises RuntimeError if below guardrail."""
+        free_bytes = psutil.disk_usage(str(settings.ROOT_DIR)).free
+        free_gb = free_bytes / (1024**3)
+        if free_gb < self.MIN_FREE_DISK_GB:
+            raise RuntimeError(
+                f"Disk space guardrail breached: {free_gb:.2f} GB free "
+                f"(min required: {self.MIN_FREE_DISK_GB:.2f} GB). Execution halted."
+            )
+        return free_gb
+
+    def purge_temp_pdfs(self):
+        """Zero-leak policy: cleans any residual temporary PDFs from buffer."""
+        if not self.pdf_dir.exists():
+            return
+        purged = 0
+        for f in self.pdf_dir.glob("*.pdf"):
+            try:
+                f.unlink(missing_ok=True)
+                purged += 1
+            except Exception:
+                pass
+        if purged > 0:
+            logger.debug("[TIER 2 ZERO LEAK] Purged %d residual PDFs from buffer.", purged)
 
     def load_checkpoint(self) -> Dict[str, Any]:
         """Loads last processed timeline date from checkpoint."""
@@ -147,12 +188,7 @@ class Tier2NearPastHarvester:
             json.dump(data, f, indent=2)
 
     def harvest_near_past_candidates(self, num_days: int = 1) -> List[Dict[str, Any]]:
-        """Harvests papers day-by-day backwards along the 2-year timeline.
-        
-        For each individual day:
-        - Takes up to top 50 papers (balanced across 5 categories: ~10 papers/cat).
-        - Sorted strictly by cite_count DESC for that day.
-        """
+        """Harvests papers day-by-day backwards along the 2-year timeline."""
         chk = self.load_checkpoint()
         last_date_str = chk.get("last_processed_date")
 
@@ -180,10 +216,10 @@ class Tier2NearPastHarvester:
 
         while days_harvested < num_days and curr_dt >= earliest_dt:
             date_str = curr_dt.isoformat()
-            logger.info("[TIER 2] Harvesting date: %s (Target: up to 50 papers, sorted by cite_count DESC)...", date_str)
+            logger.info("[TIER 2] Harvesting date: %s (Target: up to %d papers, sorted by cite_count DESC)...", date_str, self.per_day_limit)
 
             day_candidates: List[Dict[str, Any]] = []
-            per_cat_quota = max(1, self.per_day_limit // len(categories))  # 50 // 5 = 10 per category
+            per_cat_quota = max(1, self.per_day_limit // len(categories))
 
             for cat_code in categories:
                 concept_id = CATEGORY_CONCEPTS[cat_code]["concept_id"]
@@ -218,14 +254,21 @@ class Tier2NearPastHarvester:
                         if arxiv_id and "arxiv.org/abs/" in arxiv_id:
                             arxiv_id = arxiv_id.split("arxiv.org/abs/")[-1]
 
-                        best_oa = w.get("best_oa_location") or {}
-                        pdf_url = best_oa.get("pdf_url") or ""
-                        if not pdf_url and arxiv_id:
-                            pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
-                        if not pdf_url and w.get("open_access", {}).get("oa_url"):
-                            pdf_url = w["open_access"]["oa_url"]
+                        candidate_pdf_urls: List[str] = []
+                        if arxiv_id:
+                            candidate_pdf_urls.append(f"https://arxiv.org/pdf/{arxiv_id}.pdf")
 
-                        source = "arxiv" if arxiv_id else "open_access"
+                        best_oa = w.get("best_oa_location") or {}
+                        best_pdf = best_oa.get("pdf_url")
+                        if best_pdf and best_pdf not in candidate_pdf_urls:
+                            candidate_pdf_urls.append(best_pdf)
+
+                        for loc in w.get("locations", []):
+                            pu = loc.get("pdf_url")
+                            if pu and pu not in candidate_pdf_urls:
+                                candidate_pdf_urls.append(pu)
+
+                        source = "arxiv" if arxiv_id else "openalex"
                         primary_loc = w.get("primary_location") or {}
                         source_obj = primary_loc.get("source") or {}
                         venue_name = source_obj.get("display_name", "")
@@ -259,10 +302,12 @@ class Tier2NearPastHarvester:
                             "publication_year": pub_year,
                             "cite_count": cite_count,
                             "doi": doi,
-                            "pdf_url": pdf_url,
+                            "pdf_urls": candidate_pdf_urls,
+                            "pdf_url": candidate_pdf_urls[0] if candidate_pdf_urls else "",
                             "html_url": w.get("id"),
                             "source": source,
-                            "venue": venue_name,
+                            "tier": "tier2",
+                            "venue": venue_name or "Trending AI",
                         })
 
                     time.sleep(0.15)
@@ -280,55 +325,12 @@ class Tier2NearPastHarvester:
             days_harvested += 1
             curr_dt -= datetime.timedelta(days=1)
 
+            if self.max_total and len(all_candidates) >= self.max_total:
+                all_candidates = all_candidates[:self.max_total]
+                break
+
         logger.info("[TIER 2] Day-by-day harvest collected %d candidates across %d days.", len(all_candidates), days_harvested)
         return all_candidates
-
-    def download_and_extract_pdf(self, paper: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
-        """Downloads PDF and runs Marker PDF-to-Markdown with LaTeX formula preservation."""
-        paper_id = paper["paper_id"]
-        pdf_url = paper.get("pdf_url", "")
-        safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", paper_id)
-        local_pdf = self.pdf_dir / f"{safe_id}.pdf"
-        local_md = self.markdown_dir / f"{safe_id}.md"
-
-        if local_md.exists() and local_md.stat().st_size > 100:
-            try:
-                with open(local_md, "r", encoding="utf-8") as f:
-                    return f.read(), {"extractor": "marker_cache", "cached": True}
-            except Exception:
-                pass
-
-        if not local_pdf.exists() or local_pdf.stat().st_size < 1000:
-            download_urls = []
-            if "arxiv_id" in paper and paper["arxiv_id"]:
-                download_urls.append(f"https://arxiv.org/pdf/{paper['arxiv_id']}.pdf")
-            if pdf_url and pdf_url not in download_urls:
-                download_urls.append(pdf_url)
-
-            downloaded = False
-            for target_url in download_urls:
-                try:
-                    resp = self.http_client.get(target_url, timeout=45.0)
-                    if resp.status_code == 200 and len(resp.content) > 1000:
-                        if resp.content.startswith(b"%PDF"):
-                            with open(local_pdf, "wb") as f:
-                                f.write(resp.content)
-                            downloaded = True
-                            break
-                except Exception:
-                    continue
-
-            if not downloaded:
-                return "", {"status": "NO_VALID_PDF_STREAM"}
-
-        try:
-            markdown_text, meta = self.marker_extractor.convert_pdf_to_markdown(local_pdf)
-            with open(local_md, "w", encoding="utf-8") as f:
-                f.write(markdown_text)
-            return markdown_text, meta
-        except Exception as e:
-            logger.warning("[TIER 2] Marker error for %s: %s", paper_id, e)
-            return "", {"status": "MARKER_ERROR", "error": str(e)}
 
     def build_chunks(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Builds contextual chunks preserving LaTeX equations and section hierarchies."""
@@ -340,6 +342,9 @@ class Tier2NearPastHarvester:
             primary_cat = r.get("primary_category", "cs.AI")
             abstract = r.get("abstract", "")
             cite_count = r.get("cite_count", 0)
+            source = r.get("source", "near_past")
+            tier = r.get("tier", "tier2")
+            content_origin = r.get("content_origin", "unknown")
 
             if abstract:
                 abs_context = f"Trending Paper (2024-Present): {title} (Citations: {cite_count:,})\nCategory: {primary_cat}\nAbstract: {abstract}"
@@ -354,31 +359,41 @@ class Tier2NearPastHarvester:
                     "text": abstract,
                     "context_text": abs_context,
                     "word_count": len(abstract.split()),
+                    "source": source,
+                    "tier": tier,
+                    "content_origin": content_origin,
                 })
 
-            markdown_content = r.get("markdown_content", "")
+            markdown_content = r.get("clean_full_text") or r.get("markdown_content", "")
             if markdown_content and len(markdown_content) > 200:
                 paragraphs = [p.strip() for p in markdown_content.split("\n\n") if len(p.strip()) > 80]
-                for idx, p in enumerate(paragraphs[:10]):
+                for idx, p in enumerate(paragraphs[:8]):
                     chunks.append({
-                        "chunk_id": f"{paper_id}_marker_{idx}",
+                        "chunk_id": f"{paper_id}_section_{idx}",
                         "paper_id": paper_id,
                         "title": title,
                         "authors": authors,
                         "primary_category": primary_cat,
-                        "section_title": f"Section {idx+1} (Marker LaTeX)",
+                        "section_title": f"Section {idx+1}",
                         "section_type": "full_text",
                         "text": p,
-                        "context_text": f"Paper: {title} [Trending, Citations: {cite_count:,}]\nSection Content: {p}",
+                        "context_text": f"Paper: {title} [Trending, Citations: {cite_count:,}]\nSection: {p}",
                         "word_count": len(p.split()),
+                        "source": source,
+                        "tier": tier,
+                        "content_origin": content_origin,
                     })
 
         return chunks
 
     def run(self) -> Dict[str, Any]:
-        """Runs the Tier 2 near-past trending pipeline."""
+        """Runs the hardened Tier 2 near-past trending pipeline in concurrent batches."""
         start_time = time.time()
-        logger.info("[TIER 2] Launching Near-Past Trending Harvest [%s -> %s]...", self.start_date, self.end_date)
+        initial_disk_gb = self.check_disk_space()
+        logger.info("=" * 80)
+        logger.info("[TIER 2 HARVEST] Launching Near-Past Trending Pipeline [%s -> %s]", self.start_date, self.end_date)
+        logger.info("[TIER 2 HARVEST] Initial free disk space: %.2f GB (Batch size: %d)", initial_disk_gb, self.batch_size)
+        logger.info("=" * 80)
 
         broadcast_telemetry({
             "type": "STAGE_CHANGE",
@@ -392,68 +407,69 @@ class Tier2NearPastHarvester:
             logger.warning("[TIER 2] No candidates found in timeline.")
             return {"status": "NO_RECORDS", "ingested": 0}
 
-        ingested_records: List[Dict[str, Any]] = []
-        new_papers_count = 0
-        duplicate_count = 0
+        # Filter duplicates in memory before batching
+        unique_candidates: List[Dict[str, Any]] = []
+        dup_skipped = 0
+        for p in candidates:
+            if p.get("is_duplicate"):
+                dup_skipped += 1
+            else:
+                unique_candidates.append(p)
 
-        for idx, paper in enumerate(candidates):
-            p_id = paper["paper_id"]
-            title = paper["title"]
-            cite_count = paper["cite_count"]
-            abs_hash = paper["abstract_hash"]
+        logger.info(
+            "[TIER 2] Candidates harvested: %d | Duplicates skipped: %d | Unique to process: %d",
+            len(candidates),
+            dup_skipped,
+            len(unique_candidates),
+        )
 
-            if paper.get("is_duplicate"):
-                duplicate_count += 1
-                logger.info("[TIER 2] [DEDUP SKIP] (%d/%d) %s (Citations: %d) already in Lakehouse.", idx + 1, len(candidates), title[:50], cite_count)
-                continue
+        if not unique_candidates:
+            return {"status": "ALL_DUPLICATES", "ingested": 0, "dedup_skipped": dup_skipped}
 
-            md_text, meta = self.download_and_extract_pdf(paper)
-            math_count = meta.get("latex_formulas_count", len(re.findall(r"\$[^$]+\$|\$\$[^$]+\$\$", md_text)))
+        all_ingested: List[Dict[str, Any]] = []
+        embedder = NomicEmbedder()
+        lancedb_mgr = LanceDBManager(r2_client=self.r2)
 
-            paper["markdown_content"] = md_text
-            paper["total_math_count"] = math_count
-            paper["total_words"] = len(md_text.split()) if md_text else len(paper.get("abstract", "").split())
-            paper["crawled_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        num_batches = (len(unique_candidates) + self.batch_size - 1) // self.batch_size
 
-            self.dedup.record(abs_hash, p_id)
+        for b_idx in range(num_batches):
+            b_start = b_idx * self.batch_size
+            b_end = min(b_start + self.batch_size, len(unique_candidates))
+            batch = unique_candidates[b_start:b_end]
 
-            safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", p_id)
-            bronze_file = self.bronze_dir / f"{safe_id}.json"
-            with open(bronze_file, "w", encoding="utf-8") as f:
-                json.dump(paper, f, ensure_ascii=False, indent=2)
+            b_t0 = time.time()
+            free_disk = self.check_disk_space()
+            logger.info("\n>>> [TIER 2 BATCH %d/%d] Processing papers %d to %d (Disk Free: %.2f GB)...", b_idx + 1, num_batches, b_start + 1, b_end, free_disk)
 
-            ingested_records.append(paper)
-            new_papers_count += 1
+            # 1. HTML-First Waterfall Resolution (arXiv HTML5 -> ar5iv -> PDF Marker Fallback -> Abstract)
+            extracted_records = self.content_resolver.resolve_batch_concurrent(batch, max_workers=6)
+            self.purge_temp_pdfs()
 
-            broadcast_telemetry({
-                "type": "PAPER_INGESTED",
-                "tier": "tier2",
-                "source": paper.get("source", "near_past"),
-                "paper_id": p_id,
-                "title": title,
-                "cite_count": cite_count,
-                "math_count": math_count,
-                "category": paper.get("primary_category"),
-                "progress": f"{idx + 1}/{len(candidates)}",
-            })
+            origins = {}
+            for r in extracted_records:
+                orig = r.get("content_origin", "unknown")
+                origins[orig] = origins.get(orig, 0) + 1
+            logger.info("[TIER 2 BATCH %d/%d] Resolved %d papers in %.1fs: %s", b_idx + 1, num_batches, len(extracted_records), time.time() - b_t0, origins)
 
-            logger.info(
-                "[TIER 2] [INGESTED] (%d/%d) %s | Citations: %d | LaTeX formulas: %d",
-                idx + 1,
-                len(candidates),
-                title[:50],
-                cite_count,
-                math_count,
-            )
+            # 2. Record hashes in deduplicator
+            for r in extracted_records:
+                self.dedup.record(r["abstract_hash"], r["paper_id"])
 
-        self.dedup.save()
+            # 3. Save Bronze JSONs
+            for r in extracted_records:
+                safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", r["paper_id"])
+                b_file = self.bronze_dir / f"{safe_id}.json"
+                with open(b_file, "w", encoding="utf-8") as bf:
+                    json.dump(r, bf, ensure_ascii=False, indent=2)
 
-        # Write to Silver Parquet
-        logger.info("[TIER 2] Writing %d newly ingested papers to Silver Lakehouse...", len(ingested_records))
-        if ingested_records:
-            transformed_rows = []
-            for r in ingested_records:
-                transformed_rows.append({
+            # 4. Append to Silver Parquet (Strict 23-column Lakehouse Schema)
+            tier2_silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier2"
+            tier2_silver_dir.mkdir(parents=True, exist_ok=True)
+            t2_file = tier2_silver_dir / "near_past_papers.parquet"
+
+            silver_rows = []
+            for r in extracted_records:
+                silver_rows.append({
                     "paper_id": r["paper_id"],
                     "abstract_hash": r["abstract_hash"],
                     "doi": r.get("doi"),
@@ -463,48 +479,76 @@ class Tier2NearPastHarvester:
                     "authors": r.get("authors", []),
                     "categories": r.get("categories", ["cs.AI"]),
                     "primary_category": r.get("primary_category", "cs.AI"),
-                    "published_date": r.get("published_date", ""),
-                    "crawled_at": r["crawled_at"],
-                    "pdf_url": r.get("pdf_url", ""),
+                    "published_date": r.get("published_date") or r.get("publication_date", ""),
+                    "crawled_at": r.get("crawled_at") or datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "pdf_url": r.get("pdf_urls", [""])[0] if r.get("pdf_urls") else (r.get("pdf_url") or ""),
                     "html_url": r.get("html_url", ""),
-                    "total_sections": 5 if r.get("markdown_content") else 1,
+                    "total_sections": r.get("total_sections", 1),
                     "total_math_count": r.get("total_math_count", 0),
                     "total_words": r.get("total_words", 0),
-                    "sections_json": json.dumps([]),
-                    "clean_full_text": r.get("markdown_content") or r.get("abstract", ""),
+                    "sections_json": r.get("sections_json") or "[]",
+                    "clean_full_text": r.get("clean_full_text") or r.get("markdown_content") or r.get("abstract", ""),
                     "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     "cite_count": r.get("cite_count", 0),
+                    "source": r.get("source", "openalex"),
+                    "tier": "tier2",
+                    "content_origin": r.get("content_origin", "unknown"),
                 })
 
-            tier2_silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier2"
-            tier2_silver_dir.mkdir(parents=True, exist_ok=True)
-            df_tier2 = pd.DataFrame(transformed_rows)
-            t2_file = tier2_silver_dir / "near_past_papers.parquet"
+            df_new = pd.DataFrame(silver_rows)
             if t2_file.exists():
                 ex_df = pq.read_table(t2_file).to_pandas()
-                df_tier2 = pd.concat([ex_df, df_tier2], ignore_index=True).drop_duplicates(subset=["abstract_hash"], keep="last")
-            pq.write_table(pa.Table.from_pandas(df_tier2, preserve_index=False), t2_file, compression="zstd")
+                for c, d in [("source", "openalex"), ("tier", "tier2"), ("content_origin", "unknown")]:
+                    if c not in ex_df.columns:
+                        ex_df[c] = d
+                df_combined = pd.concat([ex_df, df_new], ignore_index=True).drop_duplicates(subset=["abstract_hash"], keep="last")
+            else:
+                df_combined = df_new
+            pq.write_table(pa.Table.from_pandas(df_combined, preserve_index=False), t2_file, compression="zstd")
 
-            by_year: Dict[str, List[Dict[str, Any]]] = {}
-            for row in transformed_rows:
-                y = str(row.get("published_date", "")[:4]) or "2024"
-                by_year.setdefault(y, []).append(row)
-            for y, rows in by_year.items():
-                self.silver_writer.save_and_upload_parquet(rows, year=y)
-
-            # LanceDB Gold Indexing
-            logger.info("[TIER 2] Indexing contextual chunks into LanceDB Gold...")
-            chunks = self.build_chunks(ingested_records)
+            # 5. Batch Chunking, Embedding, and LanceDB Upsert
+            chunks = self.build_chunks(extracted_records)
             if chunks:
-                embedder = NomicEmbedder()
                 texts = [c["context_text"] for c in chunks]
-                embeddings = embedder.embed_documents(texts, batch_size=8)
+                embeddings = embedder.embed_documents(texts, batch_size=32)
                 for c, emb in zip(chunks, embeddings):
                     c["vector"] = emb
-
-                lancedb_mgr = LanceDBManager(r2_client=self.r2)
                 lancedb_mgr.insert_chunks(chunks)
-                logger.info("[TIER 2] Indexed %d vector chunks into LanceDB Gold table.", len(chunks))
+                logger.info("[TIER 2 BATCH %d/%d] Indexed %d vector chunks into LanceDB Gold.", b_idx + 1, num_batches, len(chunks))
+
+            all_ingested.extend(extracted_records)
+            batch_duration = time.time() - b_t0
+            speed_ppm = round(len(extracted_records) / (batch_duration / 60.0), 1) if batch_duration > 0 else 0.0
+
+            # 6. Telemetry Pulses
+            for r in extracted_records:
+                broadcast_telemetry({
+                    "type": "PAPER_INGESTED",
+                    "stage": "GOLD",
+                    "tier": "tier2",
+                    "source": r.get("source", "openalex"),
+                    "paper_id": r["paper_id"],
+                    "title": r["title"],
+                    "category": r.get("primary_category", "cs.AI"),
+                    "cite_count": r.get("cite_count", 0),
+                    "math_count": r.get("total_math_count", 0),
+                    "vectors_synced": 4,
+                    "speed_ppm": speed_ppm,
+                })
+
+            broadcast_telemetry({
+                "type": "STAGE_CHANGE",
+                "tier": "tier2",
+                "stage": "BATCH_PROGRESS",
+                "batch_index": b_idx + 1,
+                "total_batches": num_batches,
+                "batch_papers": len(extracted_records),
+                "total_ingested": len(all_ingested),
+                "speed_ppm": speed_ppm,
+                "free_disk_gb": round(self.check_disk_space(), 2),
+            })
+
+            self.dedup.save()
 
         duration = round(time.time() - start_time, 2)
         summary = {
@@ -513,8 +557,8 @@ class Tier2NearPastHarvester:
             "start_date": self.start_date,
             "end_date": self.end_date,
             "candidates_found": len(candidates),
-            "newly_ingested": new_papers_count,
-            "dedup_skipped": duplicate_count,
+            "newly_ingested": len(all_ingested),
+            "dedup_skipped": dup_skipped,
             "duration_s": duration,
         }
         logger.info("[TIER 2] Completed successfully: %s", summary)
@@ -523,7 +567,7 @@ class Tier2NearPastHarvester:
             "type": "STAGE_CHANGE",
             "tier": "tier2",
             "stage": "completed",
-            "title": f"Tier 2 completed: {new_papers_count} trending papers ingested in {duration}s",
+            "title": f"Tier 2 completed: {len(all_ingested)} trending papers ingested in {duration}s",
             "summary": summary,
         })
 
@@ -531,12 +575,13 @@ class Tier2NearPastHarvester:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run Tier 2 Near-Past Trending Pipeline (2024 to Present).")
+    parser = argparse.ArgumentParser(description="Run Hardened Tier 2 Near-Past Trending Pipeline (2024 to Present).")
     parser.add_argument("--days", type=int, default=1, help="Number of days backwards to harvest (default 1)")
     parser.add_argument("--per-day", type=int, default=50, help="Max papers per day (default 50)")
     parser.add_argument("--start-date", type=str, default="2024-01-01", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", type=str, default=None, help="End date (default today)")
     parser.add_argument("--limit", type=int, default=None, help="Max total papers to harvest across all days")
+    parser.add_argument("--batch-size", type=int, default=25, help="Batch size for concurrent processing (default 25)")
     parser.add_argument("--no-marker", action="store_true", help="Disable Marker PDF extraction")
     parser.add_argument("--sync-r2", action="store_true", help="Synchronize to Cloudflare R2")
     args = parser.parse_args()
@@ -547,6 +592,7 @@ def main():
         per_day_limit=args.per_day,
         max_total=args.limit,
         num_days=args.days,
+        batch_size=args.batch_size,
         use_marker=not args.no_marker,
         sync_r2=args.sync_r2,
     )

@@ -284,7 +284,8 @@ class Tier1BatchBootstrapper:
             try:
                 resp = client.get(url, timeout=10.0)
                 if resp.status_code == 200 and len(resp.content) > 1000:
-                    if resp.content.startswith(b"%PDF"):
+                    header = resp.content[:200].lower()
+                    if resp.content.startswith(b"%PDF") and b"<!doctype" not in header and b"<html" not in header:
                         with open(local_pdf, "wb") as f:
                             f.write(resp.content)
                         return paper_id, True, local_pdf
@@ -724,7 +725,11 @@ def main():
         cleanup_pdfs=not args.keep_pdfs,
         sync_r2=args.sync_r2,
     )
-    bootstrapper.run()
+    try:
+        bootstrapper.run()
+    except Exception as e:
+        logger.exception("[TIER 1 BATCH BOOTSTRAP CRASH] Unhandled error: %s", e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

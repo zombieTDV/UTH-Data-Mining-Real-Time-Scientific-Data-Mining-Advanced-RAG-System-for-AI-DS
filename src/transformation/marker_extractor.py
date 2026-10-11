@@ -38,6 +38,11 @@ class MarkerPdfExtractor:
             return None
 
         try:
+            # Decouple external Docker spawns from Surya/Marker
+            os.environ["SURYA_INFERENCE_AUTOSTART"] = "false"
+            if "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
+                os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
             import torch
             device = "cuda" if torch.cuda.is_available() else "cpu"
             dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -46,9 +51,12 @@ class MarkerPdfExtractor:
             from marker.converters.pdf import PdfConverter
 
             model_dict = create_model_dict(device=device, dtype=dtype)
-            self._converter = PdfConverter(artifact_dict=model_dict, config={"mode": "fast"})
+            self._converter = PdfConverter(
+                artifact_dict=model_dict,
+                config={"mode": "fast", "disable_ocr": True}
+            )
             self._marker_initialized = True
-            logger.info("[MARKER] Marker 2.0 neural models initialized on %s.", device)
+            logger.info("[MARKER] Marker 2.0 neural models initialized on %s (pure GPU/digital mode).", device)
             return self._converter
         except Exception as e:
             logger.warning("[MARKER] Could not load Marker models (%s). Will use resilient fallback.", e)
@@ -64,6 +72,19 @@ class MarkerPdfExtractor:
         """
         if not pdf_path.exists():
             raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+
+        # Strict PDF validation to prevent PDFium data format errors on HTML responses
+        try:
+            with open(pdf_path, "rb") as pf:
+                header = pf.read(1024)
+            if not header.startswith(b"%PDF"):
+                logger.warning("[MARKER] %s does not start with %%PDF. Falling back to resilient extractor.", pdf_path.name)
+                return self._fallback_extract_markdown(pdf_path)
+            if b"<!DOCTYPE" in header.upper() or b"<HTML" in header.upper():
+                logger.warning("[MARKER] %s is HTML masquerading as PDF. Falling back to resilient extractor.", pdf_path.name)
+                return self._fallback_extract_markdown(pdf_path)
+        except Exception:
+            pass
 
         pdf_path_str = str(pdf_path.resolve())
 

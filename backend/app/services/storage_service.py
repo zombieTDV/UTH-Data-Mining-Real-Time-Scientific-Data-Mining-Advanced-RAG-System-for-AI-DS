@@ -255,11 +255,12 @@ class StorageService:
         except Exception:
             pass
 
-        # Check actual conference and landmark papers (CVPR + OpenReview + Tier 1 Landmark Silver)
+        # Check actual conference and landmark papers (CVPR + OpenReview + Tier 1 Landmark Silver + Tier 2 Near Past Silver)
         try:
             cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
             or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
             tier1_silver = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
+            tier2_silver = settings.DATA_DIR / "silver" / "tier2" / "near_past_papers.parquet"
             conf_count = 0
             import pyarrow.parquet as pq
             if cvf_silver.exists():
@@ -268,6 +269,8 @@ class StorageService:
                 conf_count += pq.read_metadata(or_silver).num_rows
             if tier1_silver.exists():
                 conf_count += pq.read_metadata(tier1_silver).num_rows
+            if tier2_silver.exists():
+                conf_count += pq.read_metadata(tier2_silver).num_rows
             if conf_count > 0 and conf_count != self.base_conferences_count:
                 self.base_conferences_count = conf_count
                 manifest_dirty = True
