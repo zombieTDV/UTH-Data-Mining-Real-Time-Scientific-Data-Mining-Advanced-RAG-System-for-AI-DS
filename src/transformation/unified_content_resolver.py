@@ -18,6 +18,7 @@ import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+import uuid
 import httpx
 
 from src.config.settings import settings
@@ -39,6 +40,7 @@ class UnifiedContentResolver:
         use_marker_fallback: bool = True,
         max_pdf_pages: int = 15,
         local_cache_dir: Optional[Path] = None,
+        temp_pdf_dir: Optional[Path] = None,
     ):
         self.r2 = r2_client or (R2Client() if sync_r2 else None)
         self.sync_r2 = sync_r2 and (self.r2 is not None)
@@ -48,7 +50,7 @@ class UnifiedContentResolver:
         self.cache_dir = local_cache_dir or (settings.ROOT_DIR / "data" / "raw" / "html")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        self.temp_pdf_dir = settings.ROOT_DIR / "data" / "raw" / "temp_pdfs"
+        self.temp_pdf_dir = temp_pdf_dir or (settings.ROOT_DIR / "data" / "raw" / "temp_pdfs")
         self.temp_pdf_dir.mkdir(parents=True, exist_ok=True)
 
         self.headers = {
@@ -156,7 +158,8 @@ class UnifiedContentResolver:
         # 2. Tier B: PDF Download + Resilient Marker Fallback (Rolling buffer)
         pdf_urls = paper.get("pdf_urls", [])
         if pdf_urls:
-            local_pdf = self.temp_pdf_dir / f"{safe_id}.pdf"
+            unique_token = uuid.uuid4().hex[:8]
+            local_pdf = self.temp_pdf_dir / f"{safe_id}_{unique_token}.pdf"
             pdf_downloaded = False
             for u in pdf_urls:
                 try:
@@ -172,24 +175,29 @@ class UnifiedContentResolver:
                     continue
 
             if pdf_downloaded and local_pdf.exists():
+                md_text, meta = "", {}
                 try:
                     md_text, meta = self.marker_extractor.convert_pdf_to_markdown(local_pdf)
-                    # Immediate Zero-Leak Purge
-                    local_pdf.unlink(missing_ok=True)
-
-                    if md_text and len(md_text) > 200:
-                        paper["markdown_content"] = md_text
-                        paper["clean_full_text"] = md_text
-                        paper["total_math_count"] = meta.get("latex_formulas_detected", 0)
-                        paper["total_sections"] = 5
-                        paper["total_words"] = len(md_text.split())
-                        paper["sections_json"] = json.dumps([{"section_title": "Full Text", "content": md_text}], ensure_ascii=False)
-                        paper["content_origin"] = meta.get("engine", "pdf_marker_fallback")
-                        paper["crawled_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                        return paper
                 except Exception as e:
                     logger.debug("[PDF EXTRACT ERROR] %s: %s", paper_id, e)
-                    local_pdf.unlink(missing_ok=True)
+                finally:
+                    # Guaranteed Zero-Leak Purge (safely handled on Windows)
+                    try:
+                        if local_pdf.exists():
+                            local_pdf.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+
+                if md_text and len(md_text) > 200:
+                    paper["markdown_content"] = md_text
+                    paper["clean_full_text"] = md_text
+                    paper["total_math_count"] = meta.get("latex_formulas_detected", 0)
+                    paper["total_sections"] = 5
+                    paper["total_words"] = len(md_text.split())
+                    paper["sections_json"] = json.dumps([{"section_title": "Full Text", "content": md_text}], ensure_ascii=False)
+                    paper["content_origin"] = meta.get("engine", "pdf_marker_fallback")
+                    paper["crawled_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    return paper
 
         # 3. Tier C: Rich Abstract Fallback
         abstract = paper.get("abstract", "")

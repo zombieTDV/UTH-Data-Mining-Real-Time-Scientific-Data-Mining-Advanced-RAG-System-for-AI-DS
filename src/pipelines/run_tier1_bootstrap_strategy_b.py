@@ -102,20 +102,23 @@ class Tier1BatchBootstrapper:
         self.r2 = R2Client() if sync_r2 else None
         self.dedup = LakehouseDeduplicator()
         self.marker_extractor = MarkerPdfExtractor(use_marker=use_marker, max_pages=15)
+        self.bronze_dir = settings.ROOT_DIR / "data" / "raw" / "tier1"
+        self.pdf_dir = self.bronze_dir / "pdfs"
+        self.markdown_dir = self.bronze_dir / "markdowns"
+        self.temp_pdf_dir = self.bronze_dir / "temp_pdfs"
+        self.bronze_dir.mkdir(parents=True, exist_ok=True)
+        self.pdf_dir.mkdir(parents=True, exist_ok=True)
+        self.markdown_dir.mkdir(parents=True, exist_ok=True)
+        self.temp_pdf_dir.mkdir(parents=True, exist_ok=True)
+
         self.silver_writer = SilverLakehouseWriter(r2_client=self.r2)
         self.content_resolver = UnifiedContentResolver(
             r2_client=self.r2,
             sync_r2=sync_r2,
             use_marker_fallback=use_marker,
             max_pdf_pages=15,
+            temp_pdf_dir=self.temp_pdf_dir,
         )
-
-        self.bronze_dir = settings.ROOT_DIR / "data" / "raw" / "tier1"
-        self.pdf_dir = self.bronze_dir / "pdfs"
-        self.markdown_dir = self.bronze_dir / "markdowns"
-        self.bronze_dir.mkdir(parents=True, exist_ok=True)
-        self.pdf_dir.mkdir(parents=True, exist_ok=True)
-        self.markdown_dir.mkdir(parents=True, exist_ok=True)
 
         self.manifest_path = settings.ROOT_DIR / "data" / "manifests" / "tier1_bootstrap_manifest.json"
         self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -468,7 +471,15 @@ class Tier1BatchBootstrapper:
                             "tier": tier,
                             "content_origin": content_origin,
                         })
-        return chunks
+        # Strict deduplication on chunk_id
+        seen_chunk_ids: set = set()
+        deduped_chunks: List[Dict[str, Any]] = []
+        for c in chunks:
+            cid = c.get("chunk_id")
+            if cid and cid not in seen_chunk_ids:
+                seen_chunk_ids.add(cid)
+                deduped_chunks.append(c)
+        return deduped_chunks
 
     def run(self) -> Dict[str, Any]:
         """Executes fast batch-oriented pipeline across candidates."""
@@ -649,6 +660,10 @@ class Tier1BatchBootstrapper:
 
             # Persist dedup hash map incrementally
             self.dedup.save()
+
+            # Enforce zero-leak policy by purging all temporary PDFs
+            self.purge_batch_pdfs()
+            self.content_resolver.purge_temp_pdfs()
 
             # Flush CUDA cache between batches to prevent tensor fragmentation
             if torch and torch.cuda.is_available():

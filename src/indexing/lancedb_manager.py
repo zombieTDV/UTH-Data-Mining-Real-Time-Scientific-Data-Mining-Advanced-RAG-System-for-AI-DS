@@ -52,8 +52,9 @@ class LanceDBManager:
         target_cols = [c for c in df.columns if c in table.schema.names]
         df = df[target_cols]
 
-        # Merge / Upsert theo chunk_id
+        # Merge / Upsert theo chunk_id (deduplicate within batch to prevent ambiguous merge insert errors)
         if "chunk_id" in df.columns:
+            df = df.drop_duplicates(subset=["chunk_id"], keep="last")
             (
                 table.merge_insert("chunk_id")
                 .when_matched_update_all()

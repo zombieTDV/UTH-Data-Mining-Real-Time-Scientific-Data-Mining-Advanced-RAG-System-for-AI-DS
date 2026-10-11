@@ -123,11 +123,15 @@ class Tier2NearPastHarvester:
         self.checkpoint_file = settings.ROOT_DIR / "data" / "manifests" / "tier2_daily_checkpoint.json"
         self.checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
 
+        self.temp_pdf_dir = self.bronze_dir / "temp_pdfs"
+        self.temp_pdf_dir.mkdir(parents=True, exist_ok=True)
+
         self.content_resolver = UnifiedContentResolver(
             r2_client=self.r2,
             sync_r2=self.sync_r2,
             use_marker_fallback=self.use_marker,
             local_cache_dir=self.markdown_dir,
+            temp_pdf_dir=self.temp_pdf_dir,
         )
 
         self.http_client = httpx.Client(
@@ -203,6 +207,8 @@ class Tier2NearPastHarvester:
         earliest_dt = datetime.date(2024, 1, 1)
         categories = list(CATEGORY_CONCEPTS.keys())
         all_candidates: List[Dict[str, Any]] = []
+        seen_paper_ids: set = set()
+        seen_hashes: set = set()
 
         logger.info(
             "[TIER 2] DAY-BY-DAY HARVEST: Stepping %d days backwards starting from %s (Earliest limit: %s)",
@@ -287,6 +293,14 @@ class Tier2NearPastHarvester:
 
                         paper_id = arxiv_id if arxiv_id else (f"doi_{doi.replace('https://doi.org/', '').replace('/', '_')}" if doi else f"oa_{w.get('id', '').split('/')[-1]}")
                         is_dup, abs_hash = self.dedup.is_duplicate(abstract, title)
+
+                        # Filter cross-category and existing duplicates immediately
+                        if is_dup or paper_id in seen_paper_ids or (abs_hash and abs_hash in seen_hashes):
+                            continue
+
+                        seen_paper_ids.add(paper_id)
+                        if abs_hash:
+                            seen_hashes.add(abs_hash)
 
                         day_candidates.append({
                             "paper_id": paper_id,
@@ -384,7 +398,15 @@ class Tier2NearPastHarvester:
                         "content_origin": content_origin,
                     })
 
-        return chunks
+        # Strict deduplication on chunk_id
+        seen_chunk_ids: set = set()
+        deduped_chunks: List[Dict[str, Any]] = []
+        for c in chunks:
+            cid = c.get("chunk_id")
+            if cid and cid not in seen_chunk_ids:
+                seen_chunk_ids.add(cid)
+                deduped_chunks.append(c)
+        return deduped_chunks
 
     def run(self) -> Dict[str, Any]:
         """Runs the hardened Tier 2 near-past trending pipeline in concurrent batches."""

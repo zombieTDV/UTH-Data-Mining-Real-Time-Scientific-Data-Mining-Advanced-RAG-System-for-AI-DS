@@ -9,6 +9,7 @@ Includes fallback extraction via pypdf when GPU/model environments require it.
 import logging
 import os
 import re
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -18,6 +19,7 @@ except ImportError:
     torch = None
 
 logger = logging.getLogger("marker_extractor")
+_MARKER_GPU_LOCK = threading.Lock()
 
 
 class MarkerPdfExtractor:
@@ -93,9 +95,38 @@ class MarkerPdfExtractor:
         if converter is not None:
             try:
                 from marker.output import text_from_rendered
-                logger.info("[MARKER GPU] Converting %s via Marker neural engine...", pdf_path.name)
-                rendered = converter(pdf_path_str)
-                full_text, _, images = text_from_rendered(rendered)
+                from pypdf import PdfReader
+
+                # Dynamically cap Marker neural processing to max_pages (default 15)
+                # only if the document exceeds max_pages (e.g. 300+ page dissertations)
+                doc_len = None
+                try:
+                    with open(pdf_path, "rb") as pf:
+                        reader = PdfReader(pf)
+                        doc_len = len(reader.pages)
+                except Exception:
+                    pass
+
+                max_p = self.max_pages if self.max_pages else 15
+                if doc_len and doc_len > max_p:
+                    converter.config["page_range"] = list(range(max_p))
+                    logger.info(
+                        "[MARKER GPU] Converting %s (capped to pages 1-%d of %d) via Marker neural engine...",
+                        pdf_path.name,
+                        max_p,
+                        doc_len,
+                    )
+                else:
+                    converter.config["page_range"] = None
+                    logger.info(
+                        "[MARKER GPU] Converting %s (%d pages) via Marker neural engine...",
+                        pdf_path.name,
+                        doc_len if doc_len is not None else 0,
+                    )
+
+                with _MARKER_GPU_LOCK:
+                    rendered = converter(pdf_path_str)
+                    full_text, _, images = text_from_rendered(rendered)
                 if full_text and len(full_text.strip()) > 100:
                     cleaned_text = self._sanitize_math_and_text(full_text)
                     latex_count = len(re.findall(r"\$[^$]+\$|\$\$[^$]+\$\$", cleaned_text))
@@ -125,16 +156,17 @@ class MarkerPdfExtractor:
 
         try:
             from pypdf import PdfReader
-            reader = PdfReader(str(pdf_path))
-            total = len(reader.pages)
-            limit = min(total, self.max_pages) if self.max_pages else total
+            with open(pdf_path, "rb") as f:
+                reader = PdfReader(f)
+                total = len(reader.pages)
+                limit = min(total, self.max_pages) if self.max_pages else total
 
-            for i in range(limit):
-                page = reader.pages[i]
-                page_text = page.extract_text() or ""
-                if page_text.strip():
-                    text_pages.append(page_text)
-                page_count += 1
+                for i in range(limit):
+                    page = reader.pages[i]
+                    page_text = page.extract_text() or ""
+                    if page_text.strip():
+                        text_pages.append(page_text)
+                    page_count += 1
         except Exception as e:
             logger.error("[MARKER FALLBACK] Failed to read PDF %s: %s", pdf_path.name, e)
             return "", {"engine": "failed", "error": str(e), "page_count": 0}

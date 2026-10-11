@@ -31,13 +31,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_FILE = PROJECT_ROOT / "data" / "manifests" / "tier1_bootstrap_manifest.json"
 SILVER_FILE = PROJECT_ROOT / "data" / "silver" / "tier1" / "landmark_papers.parquet"
 GOLD_DIR = PROJECT_ROOT / "data" / "gold" / "lancedb"
-TEMP_PDF_DIR1 = PROJECT_ROOT / "data" / "raw" / "temp_pdfs"
-TEMP_PDF_DIR2 = PROJECT_ROOT / "data" / "raw" / "tier1" / "pdfs"
+TEMP_PDF_DIRS = [
+    PROJECT_ROOT / "data" / "raw" / "temp_pdfs",
+    PROJECT_ROOT / "data" / "raw" / "tier1" / "pdfs",
+    PROJECT_ROOT / "data" / "raw" / "tier1" / "temp_pdfs",
+    PROJECT_ROOT / "data" / "raw" / "tier2" / "pdfs",
+    PROJECT_ROOT / "data" / "raw" / "tier2" / "temp_pdfs",
+]
 
 
 def get_residual_pdf_count() -> int:
     count = 0
-    for d in [TEMP_PDF_DIR1, TEMP_PDF_DIR2]:
+    for d in TEMP_PDF_DIRS:
         if d.exists():
             count += len(list(d.glob("*.pdf")))
     return count
