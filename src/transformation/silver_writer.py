@@ -68,6 +68,9 @@ class SilverLakehouseWriter:
             "clean_full_text": clean_full_text,
             "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "cite_count": int(raw_meta.get("cite_count") or raw_meta.get("citation_count") or 0),
+            "source": str(raw_meta.get("source") or "openalex"),
+            "tier": str(raw_meta.get("tier") or "tier1"),
+            "content_origin": str(parsed_html.get("content_origin") or raw_meta.get("content_origin") or "unknown"),
         }
 
     def save_and_upload_parquet(
@@ -93,7 +96,15 @@ class SilverLakehouseWriter:
             df["cite_count"] = 0
         df["cite_count"] = df["cite_count"].fillna(0).astype("int64")
 
-        # Định nghĩa PyArrow Schema chuẩn
+        # Bổ sung provenance mặc định nếu chưa có
+        if "source" not in df.columns:
+            df["source"] = "openalex"
+        if "tier" not in df.columns:
+            df["tier"] = "tier1"
+        if "content_origin" not in df.columns:
+            df["content_origin"] = "unknown"
+
+        # Định nghĩa PyArrow Schema chuẩn (23 columns)
         schema = pa.schema(
             [
                 ("paper_id", pa.string()),
@@ -116,6 +127,9 @@ class SilverLakehouseWriter:
                 ("clean_full_text", pa.string()),
                 ("transformed_at", pa.string()),
                 ("cite_count", pa.int64()),
+                ("source", pa.string()),
+                ("tier", pa.string()),
+                ("content_origin", pa.string()),
             ]
         )
 
@@ -130,6 +144,12 @@ class SilverLakehouseWriter:
             existing_df = existing_table.to_pandas()
             if "cite_count" not in existing_df.columns:
                 existing_df["cite_count"] = 0
+            if "source" not in existing_df.columns:
+                existing_df["source"] = "openalex"
+            if "tier" not in existing_df.columns:
+                existing_df["tier"] = "tier1"
+            if "content_origin" not in existing_df.columns:
+                existing_df["content_origin"] = "unknown"
             if "abstract_hash" not in existing_df.columns:
                 from src.utils.hasher import compute_abstract_hash
                 existing_df["abstract_hash"] = existing_df.apply(

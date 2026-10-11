@@ -60,11 +60,18 @@ class AcademicHTMLParser:
                 abstract = self.clean_text(abstract_sec.get_text())
             abstract = re.sub(r"^(Abstract[:\.\s]*)", "", abstract, flags=re.IGNORECASE).strip()
 
-        # 3. Trích xuất các công thức toán LaTeX
-        math_elements = soup.find_all(class_="ltx_Math")
+        # 3. Trích xuất các công thức toán LaTeX (ưu tiên annotation application/x-tex hoặc alttext)
+        math_elements = soup.find_all(["math", "span"], class_=["ltx_Math", "math"])
         math_equations = []
         for m in math_elements:
-            math_text = self.clean_text(m.get_text())
+            tex_annot = m.find("annotation", attrs={"encoding": "application/x-tex"})
+            if tex_annot and tex_annot.get_text().strip():
+                math_text = f"${tex_annot.get_text().strip()}$"
+            elif m.get("alttext"):
+                math_text = f"${m['alttext'].strip()}$"
+            else:
+                raw_m = self.clean_text(m.get_text())
+                math_text = f"${raw_m}$" if raw_m else ""
             if math_text and math_text not in math_equations:
                 math_equations.append(math_text)
 
@@ -72,7 +79,7 @@ class AcademicHTMLParser:
         sections = []
         section_tags = soup.find_all("section", class_="ltx_section")
         
-        # Nếu không có thẻ section chuyên dụng, fallback sang các heading h2
+        # Nếu không có thẻ section chuyên dụng, fallback sang các heading h2 / section
         if not section_tags:
             section_tags = soup.find_all(["section", "article"])
 
@@ -86,10 +93,23 @@ class AcademicHTMLParser:
             heading = sec.find(["h2", "h3", "h4", "h5"])
             sec_title = self.clean_text(heading.get_text()) if heading else "Untitled Section"
 
-            # Bóc tách các đoạn văn (paragraphs)
+            # Bóc tách các đoạn văn (paragraphs) kèm bảo tồn inline math
             paragraphs = []
             for p in sec.find_all("p"):
-                p_text = self.clean_text(p.get_text())
+                # Clone p tag to avoid mutating soup
+                p_copy = BeautifulSoup(str(p), "lxml")
+                for m in p_copy.find_all(["math", "span"], class_=["ltx_Math", "math"]):
+                    tex = m.find("annotation", attrs={"encoding": "application/x-tex"})
+                    if tex and tex.get_text().strip():
+                        m.replace_with(f" ${tex.get_text().strip()}$ ")
+                    elif m.get("alttext"):
+                        m.replace_with(f" ${m['alttext'].strip()}$ ")
+                    else:
+                        m_txt = m.get_text().strip()
+                        if m_txt:
+                            m.replace_with(f" ${m_txt}$ ")
+
+                p_text = self.clean_text(p_copy.get_text())
                 if len(p_text) > 20:  # Lọc các đoạn quá ngắn hoặc rác
                     paragraphs.append(p_text)
 
@@ -97,7 +117,7 @@ class AcademicHTMLParser:
             if not full_section_text:
                 continue
 
-            sec_math_count = len(sec.find_all(class_="ltx_Math"))
+            sec_math_count = len(sec.find_all(["math", "span"], class_=["ltx_Math", "math"]))
 
             sections.append(
                 {
@@ -117,7 +137,7 @@ class AcademicHTMLParser:
         if abstract:
             total_words += len(abstract.split())
 
-        return {
+        result = {
             "parsed_title": title,
             "parsed_abstract": abstract,
             "sections": sections,
@@ -126,3 +146,16 @@ class AcademicHTMLParser:
             "total_math_count": len(math_elements),
             "total_words": total_words,
         }
+        result["markdown_content"] = self.to_markdown(result)
+        return result
+
+    def to_markdown(self, parsed: Dict[str, Any]) -> str:
+        """Converts parsed academic HTML structure to clean, readable Markdown."""
+        parts = []
+        if parsed.get("parsed_title"):
+            parts.append(f"# {parsed['parsed_title']}\n")
+        if parsed.get("parsed_abstract"):
+            parts.append(f"## Abstract\n\n{parsed['parsed_abstract']}\n")
+        for s in parsed.get("sections", []):
+            parts.append(f"## {s['section_title']}\n\n{s['content']}\n")
+        return "\n".join(parts)

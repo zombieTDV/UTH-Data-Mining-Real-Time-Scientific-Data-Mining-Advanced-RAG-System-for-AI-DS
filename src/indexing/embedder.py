@@ -38,6 +38,22 @@ class NomicEmbedder:
             self.device = torch.device(device)
 
         # Khởi tạo Tokenizer và Model
+        from transformers import PreTrainedModel
+
+        def _patch_extended_mask(self_m, attention_mask, input_shape, device=None, dtype=None):
+            if dtype is None:
+                dtype = self_m.dtype if hasattr(self_m, "dtype") else torch.float32
+            if attention_mask.dim() == 3:
+                extended = attention_mask[:, None, :, :]
+            elif attention_mask.dim() == 2:
+                extended = attention_mask[:, None, None, :]
+            else:
+                raise ValueError("Wrong shape")
+            extended = extended.to(dtype=dtype)
+            return (1.0 - extended) * -10000.0
+
+        PreTrainedModel.get_extended_attention_mask = _patch_extended_mask
+
         self.tokenizer = AutoTokenizer.from_pretrained(load_identifier)
         self.model = AutoModel.from_pretrained(load_identifier, trust_remote_code=True)
         self.model.to(self.device)

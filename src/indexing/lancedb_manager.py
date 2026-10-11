@@ -26,8 +26,9 @@ class LanceDBManager:
         self.r2 = r2_client
 
     def get_or_create_table(self, table_name: str = DEFAULT_TABLE_NAME, data_sample: Optional[List[Dict[str, Any]]] = None):
-        """Mở table đã có hoặc khởi tạo table mới nếu chưa tồn tại."""
-        existing_tables = self.db.table_names()
+        """Mở table đã có hoặc khởi tạo table mới nếu chưa tồn tại (tích lũy, không overwrite)."""
+        tbl_res = self.db.list_tables() if hasattr(self.db, "list_tables") else self.db.table_names()
+        existing_tables = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
         if table_name in existing_tables:
             return self.db.open_table(table_name)
 
@@ -37,7 +38,7 @@ class LanceDBManager:
             )
 
         df = pd.DataFrame(data_sample)
-        return self.db.create_table(table_name, data=df, mode="overwrite")
+        return self.db.create_table(table_name, data=df, mode="create")
 
     def insert_chunks(self, chunks: List[Dict[str, Any]], table_name: str = DEFAULT_TABLE_NAME) -> int:
         """Ghi hoặc cập nhật danh sách chunks kèm vector vào LanceDB."""
@@ -46,6 +47,10 @@ class LanceDBManager:
 
         df = pd.DataFrame(chunks)
         table = self.get_or_create_table(table_name, data_sample=chunks)
+
+        # Filter df to match table schema to prevent schema mismatch errors
+        target_cols = [c for c in df.columns if c in table.schema.names]
+        df = df[target_cols]
 
         # Merge / Upsert theo chunk_id
         if "chunk_id" in df.columns:
