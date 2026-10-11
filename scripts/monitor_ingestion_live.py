@@ -136,7 +136,8 @@ def render_dashboard() -> str:
             import lancedb
             db = lancedb.connect(str(GOLD_DIR))
             table_name = "scientific_papers_gold"
-            tables = db.list_tables()
+            tables_resp = db.list_tables()
+            tables = tables_resp.tables if hasattr(tables_resp, "tables") else list(tables_resp)
             if table_name in tables:
                 tbl = db.open_table(table_name)
                 row_count = tbl.count_rows()

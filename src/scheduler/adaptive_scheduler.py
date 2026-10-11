@@ -591,7 +591,7 @@ class AdaptiveHarvesterScheduler:
             if sync_r2:
                 cmd.append("--sync-r2")
         elif source_key == "tier1":
-            cmd.extend(["src.pipelines.run_tier1_historical_core", "--limit", str(target_limit)])
+            cmd.extend(["src.pipelines.run_tier1_bootstrap_strategy_b", "--limit", str(target_limit), "--batch-size", "25"])
             if sync_r2:
                 cmd.append("--sync-r2")
         elif source_key == "tier2":

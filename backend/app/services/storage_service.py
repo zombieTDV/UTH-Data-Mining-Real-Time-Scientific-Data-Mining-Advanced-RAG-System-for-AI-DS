@@ -87,10 +87,11 @@ class StorageService:
 
     def _bootstrap_from_local_files(self):
         """Bootstrap accurate counts from local files at startup (conference parquet, LanceDB)."""
-        # Conference papers from local silver parquet
+        # Conference and landmark papers from local silver parquet
         try:
             cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
             or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
+            tier1_silver = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
             conf_count = 0
             conf_bytes = 0
             import pyarrow.parquet as pq
@@ -102,10 +103,14 @@ class StorageService:
                 meta = pq.read_metadata(or_silver)
                 conf_count += meta.num_rows
                 conf_bytes += or_silver.stat().st_size
+            if tier1_silver.exists():
+                meta = pq.read_metadata(tier1_silver)
+                conf_count += meta.num_rows
+                conf_bytes += tier1_silver.stat().st_size
             if conf_count > 0:
                 self.base_conferences_count = conf_count
                 self.base_conferences_bytes = max(conf_bytes, self.base_conferences_bytes)
-                logger.info(f"[STORAGE] Bootstrap conferences from local parquet: {conf_count} rows")
+                logger.info(f"[STORAGE] Bootstrap conferences & landmarks from local parquet: {conf_count} rows")
         except Exception as e:
             logger.warning(f"[STORAGE] Bootstrap conferences error: {e}")
 
@@ -113,13 +118,18 @@ class StorageService:
         try:
             from src.indexing.lancedb_manager import LanceDBManager
             l_mgr = LanceDBManager()
-            tbl = l_mgr.db.open_table("scientific_papers_gold")
-            live_rows = len(tbl)
-            if live_rows > 0 and live_rows > self.base_active_gold_vectors:
-                self.base_active_gold_vectors = live_rows
-                logger.info(f"[STORAGE] Bootstrap gold vectors from LanceDB: {live_rows}")
-        except Exception:
-            pass
+            tbl_res = l_mgr.db.list_tables()
+            table_names = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
+            gold_rows = 0
+            if "scientific_papers_gold" in table_names:
+                gold_rows += len(l_mgr.db.open_table("scientific_papers_gold"))
+            if "academic_chunks" in table_names:
+                gold_rows += len(l_mgr.db.open_table("academic_chunks"))
+            if gold_rows > 0:
+                self.base_active_gold_vectors = max(gold_rows, self.base_active_gold_vectors)
+                logger.info(f"[STORAGE] Bootstrap gold vectors from LanceDB: {self.base_active_gold_vectors}")
+        except Exception as e:
+            logger.warning(f"[STORAGE] Bootstrap gold vectors error: {e}")
 
         self._save_manifest()
 
@@ -245,16 +255,19 @@ class StorageService:
         except Exception:
             pass
 
-        # Check actual conference papers (CVPR + OpenReview Silver)
+        # Check actual conference and landmark papers (CVPR + OpenReview + Tier 1 Landmark Silver)
         try:
             cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
             or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
+            tier1_silver = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
             conf_count = 0
             import pyarrow.parquet as pq
             if cvf_silver.exists():
                 conf_count += pq.read_metadata(cvf_silver).num_rows
             if or_silver.exists():
                 conf_count += pq.read_metadata(or_silver).num_rows
+            if tier1_silver.exists():
+                conf_count += pq.read_metadata(tier1_silver).num_rows
             if conf_count > 0 and conf_count != self.base_conferences_count:
                 self.base_conferences_count = conf_count
                 manifest_dirty = True

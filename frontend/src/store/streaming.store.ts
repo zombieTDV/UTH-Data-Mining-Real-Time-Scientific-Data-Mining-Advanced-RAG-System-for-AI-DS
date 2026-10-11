@@ -318,14 +318,15 @@ export function initializeLakehouseStream(): () => void {
             };
           });
 
-          const isGold = event.stage?.toUpperCase() === 'GOLD' || (typeof event.vectors_synced === 'number' && event.vectors_synced > 0 && (event.bronze_bytes_delta === 0 || !event.bronze_bytes_delta));
+          const isGold = event.stage?.toUpperCase() === 'GOLD';
+          const pTitle = (event.title || '').slice(0, 50);
           appendStreamLog({
             time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
             level: 'SUCCESS',
             tag: isGold ? 'GOLD-VECTOR' : 'STREAM-CDC',
             msg: isGold
-              ? `[GOLD ZONE] Upserted ${(event.vectors_synced || 0).toLocaleString()} vectors to LanceDB Lakehouse ('scientific_papers_gold')`
-              : `[BRONZE HARVEST] ${event.paper_id} (${event.category}) -> "${(event.title || '').slice(0, 48)}..." -> (+${Math.round(paperDelta / 1024)} KB raw payload)`,
+              ? `[GOLD INGEST] ${event.paper_id} (${event.category}) -> "${pTitle}..." (+${event.vectors_synced || 3} vectors to LanceDB)`
+              : `[BRONZE HARVEST] ${event.paper_id} (${event.category}) -> "${pTitle}..." (+${Math.round(paperDelta / 1024)} KB)`,
           });
         } else if (event.type === 'STAGE_CHANGE') {
           const rawStage = (event.stage || '').toLowerCase();

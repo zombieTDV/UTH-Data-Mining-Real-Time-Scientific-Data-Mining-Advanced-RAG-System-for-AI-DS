@@ -95,6 +95,14 @@ class StreamingService:
 
     async def broadcast_event(self, event: Dict[str, Any]):
         """Dispatches an event to all active SSE subscribers."""
+        if event.get("type") == "PAPER_INGESTED":
+            self.session_ingested += 1
+            if event.get("speed_ppm"):
+                self.current_speed_ppm = float(event["speed_ppm"])
+            if event.get("bronze_bytes_delta"):
+                self.accumulated_bytes_delta += int(event["bronze_bytes_delta"])
+            self._save_persisted_state()
+
         self.recent_events.append(event)
         if len(self.recent_events) > 50:
             self.recent_events.pop(0)

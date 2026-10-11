@@ -34,38 +34,38 @@ export const PIPELINE_LOGS: LogLine[] = [
   },
   {
     id: 'l-04',
-    time: '2026-10-03 13:38:42',
+    time: '2026-10-11 19:30:42',
     level: 'INFO',
     tag: 'LLM/INIT',
-    message: 'Qwen2.5-7B-Instruct (GGUF Q4_K_M) loaded into Apple Silicon Metal GPU memory (n_ctx=4096, n_gpu_layers=28)'
+    message: 'Qwen2.5-7B-Instruct (GGUF Q4_K_M) loaded into GPU memory with CUDA acceleration'
   },
   {
     id: 'l-05',
-    time: '2026-10-03 06:30:14',
+    time: '2026-10-11 19:35:14',
     level: 'STORAGE',
     tag: 'R2/SYNC',
-    message: 'Cloudflare R2 lakehouse synchronized: 8.184 GB total across Bronze (7.734 GB), Silver (316.06 MB), Gold (121.21 MB)'
+    message: 'Cloudflare R2 lakehouse synchronized: 12.18 GB total across Bronze (7.73 GB), Silver (321.68 MB), Gold (221.5 MB)'
   },
   {
     id: 'l-06',
-    time: '2026-10-03 06:29:48',
+    time: '2026-10-11 19:40:48',
     level: 'SUCCESS',
     tag: 'GOLD/INDEX',
-    message: '143,523 chunks indexed into LanceDB table scientific_papers_gold (768-dim embeddings, Cosine ANN)'
+    message: 'Landmark chunks indexed into LanceDB table scientific_papers_gold (768-dim embeddings, Cosine ANN)'
   },
   {
     id: 'l-07',
-    time: '2026-10-03 06:25:10',
+    time: '2026-10-11 20:25:10',
     level: 'INFO',
     tag: 'GOLD/EMBED',
-    message: 'Batch 17,940/17,940 embedded on MPS Metal GPU: 100% complete (Total duration: 1h 12m)'
+    message: 'Nomic Embed 768-D dense embeddings accelerated on NVIDIA GeForce RTX 4060 Laptop GPU (torch-2.6.0+cu124)'
   },
   {
     id: 'l-08',
-    time: '2026-10-03 06:18:22',
+    time: '2026-10-11 20:30:22',
     level: 'INFO',
     tag: 'GOLD/EMBED',
-    message: 'Batch 17,000/17,940 embedded on MPS Metal GPU (batch_size=8, torch.mps.empty_cache applied)'
+    message: 'CUDA memory cache managed between batches (torch.cuda.empty_cache applied, zero tensor fragmentation)'
   },
   {
     id: 'l-09',
@@ -146,17 +146,17 @@ export const PIPELINE_LOGS: LogLine[] = [
   },
   {
     id: 'l-20',
-    time: '2026-10-03 01:29:55',
+    time: '2026-10-11 19:25:55',
     level: 'INFO',
     tag: 'ENV/HARDWARE',
-    message: 'Hardware inspection: Apple M-Series chip with Metal MPS backend verified (16 GB Unified Memory)'
+    message: 'Hardware inspection: NVIDIA GeForce RTX 4060 Laptop GPU (8 GB GDDR6, CUDA 12.4, Windows 11 x64)'
   },
   {
     id: 'l-21',
-    time: '2026-10-03 01:29:50',
+    time: '2026-10-11 19:25:50',
     level: 'START',
     tag: 'MASTER/INIT',
-    message: 'Master Pipeline execution initiated on macOS Darwin arm64 (Dual logging stream to logs/master_pipeline_20261003.log)'
+    message: 'Master Lakehouse pipeline initiated on Windows 11 (Dual logging stream to logs/tier1_bootstrap_strategy_b.log)'
   }
 ];
 
