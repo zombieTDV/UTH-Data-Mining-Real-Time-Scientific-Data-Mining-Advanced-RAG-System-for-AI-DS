@@ -16,8 +16,9 @@
 - [2. Deep Multi-Section Chunking Architecture](#2-deep-multi-section-chunking-architecture)
 - [3. Lakehouse Vector Inventory & Distribution](#3-lakehouse-vector-inventory--distribution)
 - [4. GPU Embedding & Streaming Performance](#4-gpu-embedding--streaming-performance)
-- [5. Scaled Option 2 IVF-PQ Index (K=1024, M=192)](#5-scaled-option-2-ivf-pq-index-k1024-m192)
-- [6. Repository Hygiene & Ignore Policy](#6-repository-hygiene--ignore-policy)
+- [5. Scaled Option 2 IVF-PQ Index (K=1024, M=192) & Retrieval Benchmarks](#5-scaled-option-2-ivf-pq-index-k1024-m192--retrieval-benchmarks)
+- [6. Multi-Threaded Cloudflare R2 Cloud Synchronization](#6-multi-threaded-cloudflare-r2-cloud-synchronization)
+- [7. Repository Hygiene & Ignore Policy](#7-repository-hygiene--ignore-policy)
 
 ---
 
@@ -82,25 +83,47 @@ Direct inventory of the 252,855 extracted chunks across the 103,000 papers:
 ## 4. GPU Embedding & Streaming Performance
 
 * **Hardware**: NVIDIA GeForce RTX 4060 Laptop GPU (8GB GDDR6, FP16 CUDA acceleration).
+* **Execution Time**: Vectorized **155,967 new section chunks in 2,141.97s (35.7 min)**.
+* **Throughput**: **73.0 chunks/s** average sustained inference speed.
 * **Memory Management**: Peak VRAM stable at **~2.3 GB / 8.0 GB** (zero WDDM memory paging).
-* **Streaming Insertion**: Chunks are processed in batches of 1,000, inserted into [`scientific_papers_gold.lance`](file:///C:/document/Study%20documents/Uth-Data-Mining/data/gold/lancedb/scientific_papers_gold.lance), and broadcast to the FastAPI SSE bridge in real time.
-* **Throughput**: ~70.5 chunks/s average across multi-paragraph text bodies.
+* **Total Gold Vectors**: **268,233 vectors** fully indexed in [`scientific_papers_gold.lance`](file:///C:/document/Study%20documents/Uth-Data-Mining/data/gold/lancedb/scientific_papers_gold.lance).
 
 ---
 
-## 5. Scaled Option 2 IVF-PQ Index ($K=1024, M=192$)
+## 5. Scaled Option 2 IVF-PQ Index ($K=1024, M=192$) & Retrieval Benchmarks
 
-With the corpus expanded to **252,855 vectors**, the IVF partition count was scaled from 512 to **1,024 clusters** ($\sqrt{N} \approx 503$, setting $K=1024$ provides ~247 vectors per Voronoi cell, optimal for candidate routing):
+The IVF-PQ index was successfully built and trained on all 268,233 vectors:
 
-* **Clusters ($K$)**: **1,024 Voronoi partitions**
-* **Sub-vectors ($M$)**: **192 sub-vectors** (4 dimensions per codebook centroid, 16x compression)
-* **Query Probing**: `nprobes = 32`
-* **Exact Refinement**: `refine_factor = 10`
-* **Expected Query Latency**: **~45–60 ms** across 252k vectors with **>99.5% recall**.
+* **Index Type**: `IvfPq` (Metric: `COSINE`)
+* **Index UUID**: `b77a0189-1f54-4fc6-adc5-3667867ce1ab`
+* **Partitions ($K$)**: **1,024 Voronoi centroids** (~262 vectors per cell)
+* **Sub-vectors ($M$)**: **192 sub-vectors** (4 dimensions per centroid, 16x compression)
+* **Training Time**: **264.61s (4.4 min)**
+* **Index Size**: **57.49 MB** on disk (100% indexed, 0 unindexed rows)
+* **Query Probing**: `nprobes = 32`, `refine_factor = 10`
+
+### Empirical Retrieval Benchmarks (Post-Indexing Verification)
+
+| Test Query | Target Concept | Warm Latency | Top-1 Section Type | Distance |
+| :--- | :--- | :---: | :--- | :---: |
+| *"deep residual learning for image recognition architecture and skip connections"* | ResNet Skip Connections | **33.72 ms** | `Abstract` (Kernel Perspective of Skip Connections) | 0.2033 |
+| *"attention is all you need multi-head self-attention mechanisms in transformer"* | Multi-Head Attention | **43.71 ms** | `Abstract` (Horizontal & Vertical Attention) | 0.2091 |
+| *"diffusion models for generative high resolution image synthesis"* | Generative Latent Diffusion | **38.16 ms** | `Abstract: Problem & Context` (DemoFusion CVPR) | 0.1681 |
+| **Mean Query Latency** | | **38.53 ms** | **Section Grounding Verified** | **High Fidelity** |
 
 ---
 
-## 6. Repository Hygiene & Ignore Policy
+## 6. Multi-Threaded Cloudflare R2 Cloud Synchronization
+
+* **Strategy**: Multi-threaded incremental sync via `ThreadPoolExecutor(max_workers=16)`.
+* **Objects Analyzed**: 1,284 local files scanned against remote R2 keys.
+* **Upload Scope**: **862 new/modified LanceDB files (960.20 MB)**.
+* **Upload Duration**: **162.00s (2.7 min)** at an effective transfer rate of **5.93 MB/s**.
+* **Status**: Remote Cloudflare R2 bucket `uth-scientific-lakehouse/gold/lancedb/scientific_papers_gold.lance` is 100% synchronized.
+
+---
+
+## 7. Repository Hygiene & Ignore Policy
 
 To maintain a clean and maintainable Git repository:
 * Added `scratch/` to [`.gitignore`](file:///C:/document/Study%20documents/Uth-Data-Mining/.gitignore) to exclude temporary benchmark, diagnostic, and experiment scripts.
