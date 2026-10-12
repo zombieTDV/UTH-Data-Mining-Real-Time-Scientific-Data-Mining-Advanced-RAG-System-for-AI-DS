@@ -177,21 +177,26 @@ class Tier2FullTextHarvester:
         return papers
 
     def download_pdf(self, paper_id: str, pdf_url: str) -> Optional[Path]:
-        """Downloads scientific PDF to Bronze zone with retry logic."""
-        dest_path = self.bronze_pdf_dir / f"{paper_id}.pdf"
+        """Downloads scientific PDF to Bronze zone with retry logic and safe filename."""
+        safe_id = "".join([c if c.isalnum() or c in "-_." else "_" for c in str(paper_id)])
+        dest_path = self.bronze_pdf_dir / f"{safe_id}.pdf"
         if dest_path.exists() and dest_path.stat().st_size > 10000:
             return dest_path
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
 
         for attempt in range(3):
             try:
                 time.sleep(self.request_delay)
-                resp = self.http_client.get(pdf_url)
+                resp = self.http_client.get(pdf_url, headers=headers)
                 if resp.status_code == 200 and len(resp.content) > 10000 and resp.content.startswith(b"%PDF"):
                     with open(dest_path, "wb") as f:
                         f.write(resp.content)
                     return dest_path
                 elif resp.status_code == 429:
-                    logger.warning("[RATE LIMIT] 429 received from arXiv. Sleeping 5s (attempt %d/3)...", attempt + 1)
+                    logger.warning("[RATE LIMIT] 429 received from %s. Sleeping 5s (attempt %d/3)...", pdf_url[:40], attempt + 1)
                     time.sleep(5.0)
             except Exception as e:
                 logger.warning("[DOWNLOAD ERROR] %s (attempt %d/3): %s", paper_id, attempt + 1, e)
@@ -286,104 +291,228 @@ class Tier2FullTextHarvester:
 
         return sections
 
+    def load_multi_source_candidates(self, max_total: int = 50000) -> List[Dict[str, Any]]:
+        """Loads candidates across OpenReview, CVF, DOI, and arXiv in interleaved round-robin order."""
+        near_past_path = settings.ROOT_DIR / "data" / "silver" / "tier2" / "near_past_papers.parquet"
+        if not near_past_path.exists():
+            logger.warning("[CANDIDATES] %s not found. Will use live arXiv stream.", near_past_path.name)
+            return []
+
+        logger.info("[CANDIDATES] Loading multi-source candidates from %s...", near_past_path.name)
+        df = pd.read_parquet(near_past_path)
+        valid_mask = (
+            df["pdf_url"].notna()
+            & df["pdf_url"].astype(str).str.startswith("http")
+            & (~df["paper_id"].astype(str).isin(self.existing_ids))
+        )
+        df_valid = df[valid_mask]
+
+        queues = {
+            "openreview": df_valid[df_valid["source"] == "openreview"].to_dict(orient="records"),
+            "cvf": df_valid[df_valid["source"] == "cvf"].to_dict(orient="records"),
+            "doi": df_valid[df_valid["source"] == "doi"].to_dict(orient="records"),
+            "arxiv": df_valid[df_valid["source"] == "arxiv"].to_dict(orient="records"),
+        }
+
+        logger.info(
+            "[CANDIDATES POOL] Available uncollected: OpenReview=%d | CVF=%d | DOI=%d | arXiv=%d",
+            len(queues["openreview"]), len(queues["cvf"]), len(queues["doi"]), len(queues["arxiv"])
+        )
+
+        interleaved: List[Dict[str, Any]] = []
+        pointers = {s: 0 for s in queues}
+        sources_list = ["openreview", "cvf", "doi", "arxiv"]
+
+        while len(interleaved) < max_total:
+            added_in_round = False
+            for s in sources_list:
+                idx = pointers[s]
+                if idx < len(queues[s]):
+                    interleaved.append(queues[s][idx])
+                    pointers[s] += 1
+                    added_in_round = True
+                    if len(interleaved) >= max_total:
+                        break
+            if not added_in_round:
+                break
+
+        logger.info("[INTERLEAVED QUEUE] Prepared %d balanced candidates across all 4 sources.", len(interleaved))
+        return interleaved
+
     def run_harvest(self, max_papers: int = 50000, batch_size: int = 50) -> int:
-        """Executes the full-text collection loop up to max_papers."""
+        """Executes balanced multi-source full-text collection across OpenReview, CVF, DOI, and arXiv."""
         logger.info("=" * 80)
-        logger.info("STARTING TIER 2 FULL-TEXT HARVESTER VIA MARKER (Target: %d papers)", max_papers)
+        logger.info("STARTING UNIFIED MULTI-SOURCE FULL-TEXT HARVESTER (Target: %d papers)", max_papers)
+        logger.info("Distribution: OpenReview (ICLR/NeurIPS) + CVF (CVPR) + DOI (Journals) + arXiv (Preprints)")
         logger.info("=" * 80)
 
         collected_this_run = 0
+        source_counts = {"openreview": 0, "cvf": 0, "doi": 0, "arxiv": 0}
         batch_records: List[Dict[str, Any]] = []
         t0_global = time.time()
 
-        for category in self.categories:
+        # 1. First exhaust interleaved multi-source candidate pool
+        candidates = self.load_multi_source_candidates(max_total=max_papers)
+
+        for paper in candidates:
             if collected_this_run >= max_papers:
                 break
 
-            logger.info("[CATEGORY] Querying arXiv category: %s", category)
-            start_offset = 0
+            pid = str(paper["paper_id"])
+            if pid in self.existing_ids:
+                continue
 
-            while start_offset < 10000 and collected_this_run < max_papers:
-                candidates = self.fetch_arxiv_candidates(category, start=start_offset, max_results=50)
-                if not candidates:
+            src = str(paper.get("source", "arxiv")).lower()
+            pdf_url = str(paper.get("pdf_url", "")).strip()
+            if not pdf_url.startswith("http"):
+                continue
+
+            # Download PDF to Bronze
+            pdf_path = self.download_pdf(pid, pdf_url)
+            if not pdf_path:
+                continue
+
+            # Neural Marker Conversion on GPU/CPU
+            t0_ext = time.time()
+            extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+            if not extracted:
+                continue
+
+            ext_duration = time.time() - t0_ext
+            abs_text = str(paper.get("abstract", "")).strip()
+            abs_hash = compute_abstract_hash(abs_text)
+
+            full_record = {
+                "paper_id": pid,
+                "abstract_hash": abs_hash,
+                "doi": paper.get("doi"),
+                "journal_ref": paper.get("journal_ref"),
+                "title": paper.get("title", ""),
+                "abstract": abs_text,
+                "authors": paper.get("authors", []),
+                "categories": paper.get("categories", [paper.get("primary_category", "cs.AI")]),
+                "primary_category": paper.get("primary_category", "cs.AI"),
+                "published_date": str(paper.get("published_date", "")),
+                "crawled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "pdf_url": pdf_url,
+                "html_url": paper.get("html_url", pdf_url),
+                "total_sections": extracted["total_sections"],
+                "total_math_count": extracted["total_math_count"],
+                "total_words": extracted["total_words"],
+                "sections_json": extracted["sections_json"],
+                "clean_full_text": extracted["clean_full_text"],
+                "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "cite_count": float(paper.get("cite_count", 0.0) or 0.0),
+                "source": src,
+                "tier": "tier2",
+                "content_origin": f"{src}_marker_fulltext",
+            }
+
+            batch_records.append(full_record)
+            self.existing_ids.add(pid)
+            collected_this_run += 1
+            source_counts[src] = source_counts.get(src, 0) + 1
+
+            logger.info(
+                "[FULLTEXT ACCEPTED] #%d [%s] | %s | %d sections | %d words | %.2fs Marker | Pool: [OR=%d, CVF=%d, DOI=%d, arXiv=%d] | Title: %s",
+                collected_this_run, src.upper(), pid, extracted["total_sections"], extracted["total_words"], ext_duration,
+                source_counts.get("openreview", 0), source_counts.get("cvf", 0), source_counts.get("doi", 0), source_counts.get("arxiv", 0),
+                paper.get("title", "")[:50]
+            )
+
+            # Stream Telemetry to FLOW Panel
+            broadcast_telemetry({
+                "stage": "BATCH_PROGRESS",
+                "paper_id": pid,
+                "title": paper.get("title", ""),
+                "source": src,
+                "tier": "tier2",
+                "total_sections": extracted["total_sections"],
+                "total_words": extracted["total_words"],
+                "accepted_count": len(self.existing_ids),
+                "source_breakdown": source_counts,
+            })
+
+            # Flush batch to Parquet
+            if len(batch_records) >= batch_size:
+                self._save_batch_to_silver(batch_records)
+                batch_records = []
+
+        # 2. If more papers needed, supplement from arXiv API
+        if collected_this_run < max_papers:
+            logger.info("[ARXIV LIVE SUPPLEMENT] Candidates pool exhausted; supplementing from arXiv API...")
+            for category in self.categories:
+                if collected_this_run >= max_papers:
                     break
-
-                for paper in candidates:
-                    pid = paper["paper_id"]
-                    if pid in self.existing_ids:
-                        continue
-
-                    # 1. Download PDF to Bronze
-                    pdf_path = self.download_pdf(pid, paper["pdf_url"])
-                    if not pdf_path:
-                        continue
-
-                    # 2. Neural Marker Conversion on GPU
-                    t0_ext = time.time()
-                    extracted = self.extract_fulltext_and_sections(pdf_path, paper)
-                    if not extracted:
-                        continue
-
-                    ext_duration = time.time() - t0_ext
-
-                    # 3. Construct Standardized 23-column Silver Record
-                    abs_hash = compute_abstract_hash(paper["abstract"])
-                    full_record = {
-                        "paper_id": pid,
-                        "abstract_hash": abs_hash,
-                        "doi": paper["doi"],
-                        "journal_ref": paper["journal_ref"],
-                        "title": paper["title"],
-                        "abstract": paper["abstract"],
-                        "authors": paper["authors"],
-                        "categories": paper["categories"],
-                        "primary_category": paper["primary_category"],
-                        "published_date": paper["published_date"],
-                        "crawled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                        "pdf_url": paper["pdf_url"],
-                        "html_url": paper["html_url"],
-                        "total_sections": extracted["total_sections"],
-                        "total_math_count": extracted["total_math_count"],
-                        "total_words": extracted["total_words"],
-                        "sections_json": extracted["sections_json"],
-                        "clean_full_text": extracted["clean_full_text"],
-                        "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                        "cite_count": 0.0,
-                        "source": "arxiv",
-                        "tier": "tier2",
-                        "content_origin": "arxiv_marker_fulltext",
-                    }
-
-                    batch_records.append(full_record)
-                    self.existing_ids.add(pid)
-                    collected_this_run += 1
-
-                    logger.info(
-                        "[FULLTEXT ACCEPTED] #%d | %s | %d sections | %d words | %.2fs Marker GPU | Title: %s",
-                        collected_this_run, pid, extracted["total_sections"], extracted["total_words"], ext_duration, paper["title"][:60]
-                    )
-
-                    # 4. Stream Telemetry to FLOW Panel
-                    broadcast_telemetry({
-                        "stage": "BATCH_PROGRESS",
-                        "paper_id": pid,
-                        "title": paper["title"],
-                        "source": "arxiv_marker",
-                        "tier": "tier2",
-                        "total_sections": extracted["total_sections"],
-                        "total_words": extracted["total_words"],
-                        "accepted_count": len(self.existing_ids),
-                    })
-
-                    # 5. Flush batch to Parquet
-                    if len(batch_records) >= batch_size:
-                        self._save_batch_to_silver(batch_records)
-                        batch_records = []
-
-                    if collected_this_run >= max_papers:
+                start_offset = 0
+                while start_offset < 10000 and collected_this_run < max_papers:
+                    live_candidates = self.fetch_arxiv_candidates(category, start=start_offset, max_results=50)
+                    if not live_candidates:
                         break
+                    for paper in live_candidates:
+                        pid = paper["paper_id"]
+                        if pid in self.existing_ids:
+                            continue
+                        pdf_path = self.download_pdf(pid, paper["pdf_url"])
+                        if not pdf_path:
+                            continue
+                        t0_ext = time.time()
+                        extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+                        if not extracted:
+                            continue
+                        ext_duration = time.time() - t0_ext
+                        abs_hash = compute_abstract_hash(paper["abstract"])
+                        full_record = {
+                            "paper_id": pid,
+                            "abstract_hash": abs_hash,
+                            "doi": paper["doi"],
+                            "journal_ref": paper["journal_ref"],
+                            "title": paper["title"],
+                            "abstract": paper["abstract"],
+                            "authors": paper["authors"],
+                            "categories": paper["categories"],
+                            "primary_category": paper["primary_category"],
+                            "published_date": paper["published_date"],
+                            "crawled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            "pdf_url": paper["pdf_url"],
+                            "html_url": paper["html_url"],
+                            "total_sections": extracted["total_sections"],
+                            "total_math_count": extracted["total_math_count"],
+                            "total_words": extracted["total_words"],
+                            "sections_json": extracted["sections_json"],
+                            "clean_full_text": extracted["clean_full_text"],
+                            "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            "cite_count": 0.0,
+                            "source": "arxiv",
+                            "tier": "tier2",
+                            "content_origin": "arxiv_marker_fulltext",
+                        }
+                        batch_records.append(full_record)
+                        self.existing_ids.add(pid)
+                        collected_this_run += 1
+                        source_counts["arxiv"] = source_counts.get("arxiv", 0) + 1
 
-                start_offset += 50
+                        logger.info(
+                            "[FULLTEXT ACCEPTED] #%d [ARXIV LIVE] | %s | %d sections | %d words | %.2fs Marker",
+                            collected_this_run, pid, extracted["total_sections"], extracted["total_words"], ext_duration
+                        )
+                        broadcast_telemetry({
+                            "stage": "BATCH_PROGRESS",
+                            "paper_id": pid,
+                            "title": paper["title"],
+                            "source": "arxiv",
+                            "tier": "tier2",
+                            "total_sections": extracted["total_sections"],
+                            "total_words": extracted["total_words"],
+                            "accepted_count": len(self.existing_ids),
+                            "source_breakdown": source_counts,
+                        })
+                        if len(batch_records) >= batch_size:
+                            self._save_batch_to_silver(batch_records)
+                            batch_records = []
+                        if collected_this_run >= max_papers:
+                            break
+                    start_offset += 50
 
         # Save remaining records
         if batch_records:
@@ -393,6 +522,9 @@ class Tier2FullTextHarvester:
         logger.info("=" * 80)
         logger.info("HARVEST COMPLETE: Collected %d full-text papers in %.2fs (Total in Silver: %d)",
                     collected_this_run, duration, len(self.existing_ids))
+        logger.info("Distribution: OpenReview=%d | CVF=%d | DOI=%d | arXiv=%d",
+                    source_counts.get("openreview", 0), source_counts.get("cvf", 0),
+                    source_counts.get("doi", 0), source_counts.get("arxiv", 0))
         logger.info("=" * 80)
         return collected_this_run
 
