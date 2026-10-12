@@ -52,15 +52,24 @@ class LanceDBManager:
         target_cols = [c for c in df.columns if c in table.schema.names]
         df = df[target_cols]
 
-        # Merge / Upsert theo chunk_id (deduplicate within batch to prevent ambiguous merge insert errors)
+        # Merge / Upsert theo chunk_id (with retry backoff for multi-process concurrency safety)
         if "chunk_id" in df.columns:
             df = df.drop_duplicates(subset=["chunk_id"], keep="last")
-            (
-                table.merge_insert("chunk_id")
-                .when_matched_update_all()
-                .when_not_matched_insert_all()
-                .execute(df)
-            )
+            import time
+            for attempt in range(5):
+                try:
+                    (
+                        table.merge_insert("chunk_id")
+                        .when_matched_update_all()
+                        .when_not_matched_insert_all()
+                        .execute(df)
+                    )
+                    break
+                except Exception as e:
+                    if attempt == 4:
+                        logger.error("[LANCEDB CONCURRENCY ERROR] Merge insert failed after 5 attempts: %s", e)
+                        raise
+                    time.sleep(1.0 + attempt * 0.5)
         else:
             table.add(df)
 

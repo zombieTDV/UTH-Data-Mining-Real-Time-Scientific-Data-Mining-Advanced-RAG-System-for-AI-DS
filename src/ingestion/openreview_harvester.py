@@ -190,10 +190,15 @@ class OpenReviewHarvester:
                             },
                             timeout=0.2,
                         )
-                except Exception:
-                    pass
                 curr_offset += len(rows)
             except Exception as e:
+                if "429" in str(e):
+                    logger.warning("[OPENREVIEW] Rate limit (429) hit at offset %d. Backing off for 6s...", curr_offset)
+                    time.sleep(6.0)
+                    empty_count += 1
+                    if empty_count >= 5:
+                        break
+                    continue
                 logger.error("[OPENREVIEW] Error at offset %d: %s", curr_offset, str(e))
                 break
 
