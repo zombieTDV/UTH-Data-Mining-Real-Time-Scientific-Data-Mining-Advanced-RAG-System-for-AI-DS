@@ -21,6 +21,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
+import httpx
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -37,6 +38,14 @@ from src.storage.r2_client import R2Client
 from src.utils.logger import setup_pipeline_logging
 
 logger, log_file = setup_pipeline_logging("embed_all_fulltext")
+
+
+def broadcast_telemetry(payload: dict):
+    """Broadcasts live ingestion/embedding telemetry to local FastAPI SSE bridge."""
+    try:
+        httpx.post("http://127.0.0.1:8000/api/ingestion/broadcast", json=payload, timeout=0.25)
+    except Exception:
+        pass
 
 
 class FullTextLakehouseEmbedder:
@@ -200,10 +209,18 @@ class FullTextLakehouseEmbedder:
             # Flush to LanceDB in chunks of 2,000
             if len(buffer) >= 2000 or i + self.batch_size >= len(chunks_to_embed):
                 tbl.add(buffer)
+                speed = total_embedded / max(time.time() - t0_embed, 0.1)
+                pct = (total_embedded / len(chunks_to_embed)) * 100
                 logger.info("  [STREAMING INSERT] %d/%d chunks embedded & vaulted (%.1f%%) | Speed: %.1f chunks/s",
-                            total_embedded, len(chunks_to_embed),
-                            (total_embedded / len(chunks_to_embed)) * 100,
-                            total_embedded / max(time.time() - t0_embed, 0.1))
+                            total_embedded, len(chunks_to_embed), pct, speed)
+                broadcast_telemetry({
+                    "stage": "EMBEDDING_PROGRESS",
+                    "chunks_embedded": total_embedded,
+                    "chunks_target": len(chunks_to_embed),
+                    "percentage": round(pct, 1),
+                    "speed_chunks_sec": round(speed, 1),
+                    "total_gold_rows": len(tbl),
+                })
                 buffer = []
 
         duration = time.time() - t0_embed
