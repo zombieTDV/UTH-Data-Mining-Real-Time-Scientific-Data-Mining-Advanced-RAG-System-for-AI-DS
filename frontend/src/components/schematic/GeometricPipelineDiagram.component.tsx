@@ -29,11 +29,15 @@ export function GeometricPipelineDiagram() {
     isStreaming,
   } = useLakehouseStreamStore();
 
-  const currentCorpus = totalCorpus || 36414;
-  const currentBronzeCount = storageStats?.activeLakehouse
-    ? storageStats.activeLakehouse.arxivHtmlCount + sessionIngested
-    : (storageStats?.zones?.bronzeCount ?? 11660) + sessionIngested;
-  const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
+  const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
+  const currentArxivCount = (sourceBreakdown?.arxiv ?? 21717) + sessionIngested;
+  const currentOpenAlexCount = sourceBreakdown?.openalex ?? 19361;
+  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 6135;
+  const currentCvfCount = sourceBreakdown?.cvf ?? 4796;
+  const currentZenodoCount = sourceBreakdown?.zenodo ?? 97;
+  const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? totalCorpus ?? (currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
+  const currentCorpus = currentTotalCorpus;
+  const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 12;
   const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
     ?? storageStats?.zones?.goldChunkCount 
@@ -43,14 +47,14 @@ export function GeometricPipelineDiagram() {
   const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
 
   const [statusText, setStatusText] = useState<string>(
-    `PIPELINE READY · ${currentCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`
+    `PIPELINE READY · ${currentTotalCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`
   );
 
   useEffect(() => {
     if (!isRunning) {
-      setStatusText(`PIPELINE READY · ${currentCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`);
+      setStatusText(`PIPELINE READY · ${currentTotalCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`);
     }
-  }, [currentCorpus, currentVectors, isRunning]);
+  }, [currentTotalCorpus, currentVectors, isRunning]);
 
   const nodes = useMemo<DiagramNode[]>(() => [
     {
@@ -60,13 +64,19 @@ export function GeometricPipelineDiagram() {
       zone: 'HARVEST',
       zoneColor: '#ef4444',
       toolName: 'Source Harvester',
-      toolCategory: 'arXiv + OpenAlex + Conf',
+      toolCategory: 'arXiv + OpenAlex + OpenReview + CVF + Zenodo',
       metricLabel: 'TOTAL CORPUS',
-      metricValue: `${(currentBronzeCount + currentOpenAlexCount).toLocaleString()} Works`,
-      secondaryMetric: `${(currentBronzeCount / 1000).toFixed(1)}k arXiv · ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex · 184 Conf`,
+      metricValue: `${currentTotalCorpus.toLocaleString()} Works`,
+      secondaryMetric: `${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${currentZenodoCount} Zenodo`,
       status: isStreaming ? 'ACTIVE' : 'SYNCED',
       iconType: 'arxiv',
-      specList: ['arXiv OAI-PMH & ar5iv HTML5', 'OpenAlex REST API & Citations', 'NeurIPS / ICML / ICLR / KDD']
+      specList: [
+        'arXiv OAI-PMH & ar5iv HTML5 (21.7k)',
+        'OpenAlex REST & Graph (19.4k)',
+        'OpenReview ICLR/NeurIPS (6.1k)',
+        'CVF CVPR/ICCV Open Access (4.8k)',
+        'Zenodo Marker PDF Engine (97)',
+      ]
     },
     {
       id: 'node-bronze',
@@ -78,7 +88,7 @@ export function GeometricPipelineDiagram() {
       toolCategory: 'Multi-Tier Raw Lake',
       metricLabel: 'ACTIVE STORED',
       metricValue: `${storageUsedGb.toFixed(3)} GB`,
-      secondaryMetric: `${currentBronzeCount.toLocaleString()} HTML5 · ${currentOpenAlexCount.toLocaleString()} Meta`,
+      secondaryMetric: `${currentArxivCount.toLocaleString()} Preprints · ${currentOpenAlexCount.toLocaleString()} Meta · ${(currentOpenReviewCount + currentCvfCount + currentZenodoCount).toLocaleString()} Conf`,
       status: 'ONLINE',
       iconType: 'r2',
       specList: ['S3 Compatible Global Edge', 'Zero Egress Fees (100% Free)', 'SHA-256 Content Addressed']

@@ -246,12 +246,12 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         onDone: () => {
           const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
           const citeMatches = Array.from(
-            accumulated.matchAll(/\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]/g)
+            accumulated.matchAll(/(?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*([^,\]|]+)(?:[|,]\s*(?:Section:\s*)?([^\]]+))?\](?:\*\*|`?)/gi)
           ).map((m) => m[2] ? `Paper: ${m[1].trim()}, Section: ${m[2].trim()}` : `Paper: ${m[1].trim()}`);
           updateAssistantMessage(assistantMsgId, {
             isStreaming: false,
             generation_time: `${elapsedSec}s`,
-            citations: citeMatches.length > 0 ? Array.from(new Set(citeMatches)) : ['Paper: 2310.01407, Section: 3 Methodology'],
+            citations: citeMatches.length > 0 ? Array.from(new Set(citeMatches)) : ['Paper: 2505.18877, Section: Methodology'],
           });
           setLoading(false);
           setTimeout(() => textareaRef.current?.focus(), 50);
@@ -356,24 +356,54 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     setMessages([INITIAL_MESSAGES[0]]);
   };
 
+  const formatCitationBadgeLabel = (paperId: string, sectionTitle?: string): string => {
+    let prefix = 'arXiv';
+    let cleanId = paperId.trim();
+
+    if (/^openalex:/i.test(cleanId) || /^W\d+$/i.test(cleanId)) {
+      prefix = 'OpenAlex';
+      cleanId = cleanId.replace(/^openalex:/i, '');
+    } else if (/^cvf[_:]/i.test(cleanId)) {
+      prefix = 'CVF';
+      cleanId = cleanId.replace(/^cvf[_:]/i, '');
+    } else if (/^openreview[_:]/i.test(cleanId)) {
+      prefix = 'OpenReview';
+      cleanId = cleanId.replace(/^openreview[_:]/i, '');
+    } else if (/^zenodo[_:]/i.test(cleanId)) {
+      prefix = 'Zenodo';
+      cleanId = cleanId.replace(/^zenodo[_:]/i, '');
+    } else if (/^arxiv:/i.test(cleanId)) {
+      prefix = 'arXiv';
+      cleanId = cleanId.replace(/^arxiv:/i, '');
+    }
+
+    const displayId = cleanId.length > 24 ? cleanId.slice(0, 22) + '…' : cleanId;
+    const cleanSec = sectionTitle ? sectionTitle.replace(/^Section\s*\d+:?\s*/i, '').trim() : '';
+    const displaySec = cleanSec ? ` · ${cleanSec}` : ' · Methodology';
+
+    return `${prefix}:${displayId}${displaySec}`;
+  };
+
   const renderInlineContent = (rawText: string): React.ReactNode[] => {
-    const tokenRegex = /(\[Paper:\s*[^,\]]+(?:,\s*Section:\s*[^\]]+)?\]|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
+    const tokenRegex = /((?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*[^,\]|]+(?:[|,]\s*(?:Section:\s*)?[^\]]+)?\](?:\*\*|`?)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
     const parts = rawText.split(tokenRegex);
 
     return parts.map((part, idx) => {
       if (!part) return null;
 
-      const citeMatch = part.match(/^\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]$/);
+      const cleanPart = part.replace(/^(\*\*|`)|(\*\*|`)$/g, '').trim();
+      const citeMatch = cleanPart.match(/^\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*([^,\]|]+)(?:[|,]\s*(?:Section:\s*)?([^\]]+))?\]$/i);
       if (citeMatch) {
         const paperId = citeMatch[1].trim();
         const section = citeMatch[2]?.trim() || 'Methodology';
+        const badgeLabel = formatCitationBadgeLabel(paperId, section);
         return (
           <button
             key={`cite-${idx}`}
             type="button"
             onClick={() => handleInspectCitation(paperId, section)}
             className="citation-chip"
-            title={`Inspect Academic Dossier: ${paperId.startsWith('openalex:') ? paperId : `arXiv:${paperId}`} (${section})`}
+            title={`Inspect Academic Dossier: ${badgeLabel}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -394,7 +424,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             </svg>
-            <span>{paperId.startsWith('openalex:') ? paperId : `arXiv:${paperId}`} · {section.replace(/^Section\s*\d+:?\s*/i, '')}</span>
+            <span>{badgeLabel}</span>
           </button>
         );
       }

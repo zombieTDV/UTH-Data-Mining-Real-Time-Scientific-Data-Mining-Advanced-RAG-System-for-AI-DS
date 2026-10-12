@@ -16,6 +16,19 @@ class StorageZonesDto(BaseModel):
     goldBackupSizeBytes: int = Field(3295282176, examples=[3295282176])
 
 
+class SourceBreakdownDto(BaseModel):
+    arxiv: int = Field(21717, description="arXiv preprints across AI/ML categories")
+    openalex: int = Field(19361, description="OpenAlex rich academic records & citation graphs")
+    openreview: int = Field(6135, description="OpenReview ICLR/NeurIPS peer-review threads")
+    cvf: int = Field(4796, description="CVF Open Access CVPR & ICCV proceedings")
+    zenodo: int = Field(97, description="Zenodo Open Science publications (Marker PDF engine)")
+    total_deduplicated: int = Field(52106, description="Total unique papers in deduplication shield")
+    tier1_landmark: int = Field(3000, description="Tier 1 Landmark historical papers")
+    tier2_near_past: int = Field(30100, description="Tier 2 Near-Past (2024-Present) papers")
+    active_rag_papers: int = Field(33150, description="Active lakehouse papers (Tier 1 + Tier 2)")
+    active_rag_vectors: int = Field(40399, description="Active LanceDB vectors indexed with IVF-PQ")
+
+
 class ActiveLakehouseDto(BaseModel):
     totalObjects: int = Field(36619, examples=[36619])
     totalSizeBytes: int = Field(8668472480, examples=[8668472480])
@@ -34,6 +47,7 @@ class ActiveLakehouseDto(BaseModel):
     activeLanceDbVectors: int = Field(143523, examples=[143523])
     activeLanceDbSizeBytes: int = Field(127097720, examples=[127097720])
     activeLanceDbSizeMb: float = Field(121.21, examples=[121.21])
+    sourceBreakdown: Optional[SourceBreakdownDto] = None
 
 
 class BackupStorageDto(BaseModel):
@@ -66,4 +80,5 @@ class StorageStatsResponse(BaseModel):
     activeLakehouse: ActiveLakehouseDto
     backupStorage: BackupStorageDto
     totalBucket: TotalBucketDto
+    sourceBreakdown: Optional[SourceBreakdownDto] = None
     last_synced: Optional[str] = Field(None, examples=["2026-10-09 12:15:19"])

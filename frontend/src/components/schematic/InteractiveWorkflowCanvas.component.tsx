@@ -47,30 +47,25 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '37,103 Lakehouse Papers',
-      secondaryMetric: '11,698 arXiv • 23,103 OpenAlex • 2,000 Conf',
-      latency: '6.0s Rate-Limit Delay',
-      throughput: '100% Validated DOI / Canonical ID',
+      primaryMetric: '52,106 Deduplicated Works',
+      secondaryMetric: '21.7k arXiv · 19.4k OpenAlex · 6.1k OpenReview · 4.8k CVF · 97 Zenodo',
+      latency: 'Adaptive Jitter Rate Limiter',
+      throughput: '100% Cryptographic SHA-256 Verified',
     },
     features: [
-      'Asynchronous HTTPX client with rate limiter complying with arXiv & OpenAlex policies',
-      'Full-text HTML5 crawler extracting abstract, introduction, methods, results, and formulas',
-      'Federated academic ingestion capturing arXiv preprints and OpenAlex global metadata',
-      'SHA-256 cryptographic content verification on each harvested document',
+      'Multi-source ingestion across arXiv, OpenAlex, OpenReview (ICLR/NeurIPS), CVF (CVPR/ICCV), and Zenodo',
+      'Full-text HTML5 and Marker PDF LaTeX crawler extracting abstract, methods, formulas, and references',
+      'Dual-tier architectural harvest: Tier 1 Landmarks (3,000 papers) & Tier 2 Near-Past (30,100 papers)',
+      'Deduplication Shield with 52,106 unique papers and cross-source metadata fusion',
     ],
-    samplePreviewTitle: 'Source Ingestion Protocol Spec',
-    sampleCodeOrSchema: `POST https://export.arxiv.org/oai2
-verb=ListRecords&metadataPrefix=arXivRaw&set=cs
-GET https://api.openalex.org/works?filter=has_doi:true,publication_year:2026
-Payload: {
-  "id": "2602.10001",
-  "sources": ["arXiv", "OpenAlex"],
-  "categories": ["cs.AI", "cs.LG"],
-  "title": "Scalable Vector Indexing over Multi-Modal Academic Repositories",
-  "authors": ["Yang Liu", "Hao Chen", "Wei Wang"],
-  "format": "text/html5; charset=utf-8",
-  "sha256": "8f3b...e109"
-}`,
+    samplePreviewTitle: 'Multi-Source Federated Ingestion Spec',
+    sampleCodeOrSchema: `POST https://export.arxiv.org/oai2 (arXiv OAI-PMH)
+GET https://api.openalex.org/works (OpenAlex REST API)
+GET https://api.openreview.net/notes (OpenReview ICLR/NeurIPS)
+GET https://openaccess.thecvf.com (CVF CVPR/ICCV)
+GET https://zenodo.org/api/records (Zenodo Open Science)
+Corpus Shield: 52,106 Unique Papers (33,150 Active in Lakehouse)
+Tiers: Tier 1 Landmark (3,000) · Tier 2 Near-Past (30,100) · Real-Time (SSE)`,
   },
   'bronze-instance': {
     id: 'bronze-instance',
@@ -475,13 +470,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     activePipelineStage,
   } = useLakehouseStreamStore();
 
-  const liveBronzeCount = storageStats?.activeLakehouse
-    ? storageStats.activeLakehouse.arxivHtmlCount + streamSessionCount
-    : 11660 + streamSessionCount;
-
-  const liveOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
-  const liveConfCount = 184;
-  const liveTotalWorks = liveBronzeCount + liveOpenAlexCount;
+  const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
+  const liveArxivCount = (sourceBreakdown?.arxiv ?? 21717) + streamSessionCount;
+  const liveOpenAlexCount = sourceBreakdown?.openalex ?? 19361;
+  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 6135;
+  const liveCvfCount = sourceBreakdown?.cvf ?? 4796;
+  const liveZenodoCount = sourceBreakdown?.zenodo ?? 97;
+  const liveTotalWorks = liveArxivCount + liveOpenAlexCount + liveOpenReviewCount + liveCvfCount + liveZenodoCount;
+  const liveBronzeCount = liveArxivCount;
 
   const liveBronzeGb = storageStats?.activeLakehouse
     ? (storageStats.activeLakehouse.arxivHtmlSizeGb + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3)
@@ -776,12 +772,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         telemetrySummary: {
           ...baseTool.telemetrySummary,
           primaryMetric: `${works.toLocaleString()} Lakehouse Papers`,
-          secondaryMetric: `${liveBronzeCount.toLocaleString()} arXiv + ${liveOpenAlexCount.toLocaleString()} OpenAlex + 2,000 Conf`,
+          secondaryMetric: `${(liveArxivCount / 1000).toFixed(1)}k arXiv · ${(liveOpenAlexCount / 1000).toFixed(1)}k OpenAlex · ${(liveOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${(liveCvfCount / 1000).toFixed(1)}k CVF · ${liveZenodoCount} Zenodo`,
         }
       };
     }
     return baseTool;
-  }, [baseTool, selectedNodeId, storageUsedGb, liveBronzeCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveOpenAlexCount, liveSilverMb, liveSilverPartitions]);
+  }, [baseTool, selectedNodeId, storageUsedGb, liveArxivCount, liveOpenAlexCount, liveOpenReviewCount, liveCvfCount, liveZenodoCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveSilverMb, liveSilverPartitions]);
 
   return (
     <div
@@ -908,9 +904,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               </div>
 
               {/* Segmented Distribution Bar */}
-              <div style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', display: 'flex', border: '1px solid var(--border-subtle)' }} title={`Phân bổ: arXiv ${liveBronzeCount.toLocaleString()} (${Math.round((liveBronzeCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%)`}>
-                <div style={{ width: `${(liveBronzeCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#8b5cf6', transition: 'width 0.3s' }} />
-                <div style={{ width: `${(liveOpenAlexCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#6366f1', transition: 'width 0.3s' }} />
+              <div
+                style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', display: 'flex', border: '1px solid var(--border-subtle)' }}
+                title={`Phân bổ 5 Nguồn: arXiv ${liveArxivCount.toLocaleString()} (${Math.round((liveArxivCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%) • OpenReview ${liveOpenReviewCount.toLocaleString()} (${Math.round((liveOpenReviewCount / liveTotalWorks) * 100)}%) • CVF ${liveCvfCount.toLocaleString()} (${Math.round((liveCvfCount / liveTotalWorks) * 100)}%) • Zenodo ${liveZenodoCount.toLocaleString()} (<1%)`}
+              >
+                <div style={{ width: `${(liveArxivCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#8b5cf6', transition: 'width 0.3s' }} title={`arXiv: ${liveArxivCount.toLocaleString()}`} />
+                <div style={{ width: `${(liveOpenAlexCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#6366f1', transition: 'width 0.3s' }} title={`OpenAlex: ${liveOpenAlexCount.toLocaleString()}`} />
+                <div style={{ width: `${(liveOpenReviewCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#f59e0b', transition: 'width 0.3s' }} title={`OpenReview: ${liveOpenReviewCount.toLocaleString()}`} />
+                <div style={{ width: `${(liveCvfCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.3s' }} title={`CVF: ${liveCvfCount.toLocaleString()}`} />
+                <div style={{ width: `${Math.max(1, (liveZenodoCount / liveTotalWorks) * 100)}%`, height: '100%', backgroundColor: '#06b6d4', transition: 'width 0.3s' }} title={`Zenodo: ${liveZenodoCount.toLocaleString()}`} />
               </div>
 
               {/* High-Contrast Visual Source Chips */}
@@ -962,7 +964,42 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   alignItems: 'center',
                   gap: '4px',
                 }}>
-                  Conf {liveConfCount}
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+                  OpenReview {liveOpenReviewCount.toLocaleString()}
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#d1fae5',
+                  color: isDark ? '#34d399' : '#059669',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                  CVF {liveCvfCount.toLocaleString()}
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(6, 182, 212, 0.15)' : '#cffafe',
+                  color: isDark ? '#22d3ee' : '#0891b2',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#06b6d4' }} />
+                  Zenodo {liveZenodoCount.toLocaleString()}
                 </span>
               </div>
             </div>

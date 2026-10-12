@@ -119,6 +119,28 @@ export function StorageInspector() {
       description: 'Raw metadata harvesting batches retrieved through arXiv OAI-PMH protocol across 5 AI/DS categories.'
     },
     {
+      zone: 'BRONZE',
+      name: 'OpenReview & CVF Conference Proceedings',
+      storageType: 'Cloudflare R2 Object Store & Disk',
+      format: 'Parquet & Raw Markdown',
+      itemsCount: '10,931 proceedings (6.1k OpenRev + 4.8k CVF)',
+      sizeBytes: '24.2 MB',
+      r2Location: 's3://uth-scientific-lakehouse/silver/ (openreview, cvf)',
+      color: '#f59e0b',
+      description: 'Peer-reviewed conference manuscripts and rating threads from ICLR, NeurIPS, CVPR, and ICCV with extracted mathematical claims.'
+    },
+    {
+      zone: 'BRONZE',
+      name: 'Zenodo Open Science Publications',
+      storageType: 'Marker PDF Engine & Lakehouse',
+      format: 'Marker Extracted LaTeX Markdown',
+      itemsCount: '97 manuscripts',
+      sizeBytes: '184.2 MB',
+      r2Location: 's3://uth-scientific-lakehouse/bronze/zenodo/',
+      color: '#06b6d4',
+      description: 'Open Science research publications converted via Marker PDF neural OCR engine with full LaTeX formula retention.'
+    },
+    {
       zone: 'SILVER',
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',

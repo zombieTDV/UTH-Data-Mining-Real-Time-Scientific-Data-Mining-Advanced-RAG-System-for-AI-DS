@@ -228,6 +228,19 @@ export interface StorageZoneInfo {
   goldBackupSizeBytes?: number;
 }
 
+export interface SourceBreakdownInfo {
+  arxiv: number;
+  openalex: number;
+  openreview: number;
+  cvf: number;
+  zenodo: number;
+  total_deduplicated: number;
+  tier1_landmark: number;
+  tier2_near_past: number;
+  active_rag_papers: number;
+  active_rag_vectors: number;
+}
+
 export interface ActiveLakehouseInfo {
   totalObjects: number;
   totalSizeBytes: number;
@@ -246,6 +259,7 @@ export interface ActiveLakehouseInfo {
   activeLanceDbVectors: number;
   activeLanceDbSizeBytes: number;
   activeLanceDbSizeMb: number;
+  sourceBreakdown?: SourceBreakdownInfo;
 }
 
 export interface BackupStorageInfo {
@@ -278,6 +292,7 @@ export interface StorageStatsResponse {
   activeLakehouse?: ActiveLakehouseInfo;
   backupStorage?: BackupStorageInfo;
   totalBucket?: TotalBucketInfo;
+  sourceBreakdown?: SourceBreakdownInfo;
   last_synced?: string;
 }
 

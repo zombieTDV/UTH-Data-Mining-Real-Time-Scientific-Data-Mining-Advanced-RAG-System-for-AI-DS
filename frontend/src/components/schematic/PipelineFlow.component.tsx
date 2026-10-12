@@ -28,11 +28,15 @@ export function PipelineFlow() {
     storageStats,
   } = useLakehouseStreamStore();
 
-  const currentCorpus = totalCorpus || 37103;
-  const currentBronzeCount = storageStats?.activeLakehouse
-    ? storageStats.activeLakehouse.arxivHtmlCount + sessionIngested
-    : (storageStats?.zones?.bronzeCount ?? 11698) + sessionIngested;
-  const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24756;
+  const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
+  const currentArxivCount = (sourceBreakdown?.arxiv ?? 21717) + sessionIngested;
+  const currentOpenAlexCount = sourceBreakdown?.openalex ?? 19361;
+  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 6135;
+  const currentCvfCount = sourceBreakdown?.cvf ?? 4796;
+  const currentZenodoCount = sourceBreakdown?.zenodo ?? 97;
+  const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? totalCorpus ?? (currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
+  const currentCorpus = currentTotalCorpus;
+  const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 12;
   const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
     ?? storageStats?.zones?.goldChunkCount 
@@ -52,19 +56,27 @@ export function PipelineFlow() {
       zone: 'BRONZE',
       zoneColor: 'var(--accent-bronze)',
       status: 'COMPLETED',
-      inputs: ['arXiv OAI-PMH & ar5iv HTML5', 'OpenAlex REST API & Citations', 'Top AI Conference Proceedings'],
-      outputs: [
-        `${currentBronzeCount.toLocaleString()} arXiv HTML5 Files`,
-        `${currentOpenAlexCount.toLocaleString()} OpenAlex Metadata JSONs`,
-        `${currentBatchesCount} OAI Batch Checkpoints (26.4MB)`
+      inputs: [
+        'arXiv OAI-PMH & ar5iv HTML5',
+        'OpenAlex REST API & Citation Graph',
+        'OpenReview ICLR & NeurIPS Discussions',
+        'CVF CVPR & ICCV Open Access',
+        'Zenodo Open Science (Marker PDF Engine)',
       ],
-      tools: ['HTTPX Async', 'Cloudflare R2 S3 API', 'SHA-256 Hasher'],
+      outputs: [
+        `${currentArxivCount.toLocaleString()} arXiv Preprints`,
+        `${currentOpenAlexCount.toLocaleString()} OpenAlex Rich Metadata`,
+        `${currentOpenReviewCount.toLocaleString()} OpenReview Peer Reviews`,
+        `${currentCvfCount.toLocaleString()} CVF Conference Proceedings`,
+        `${currentZenodoCount.toLocaleString()} Zenodo Marker Manuscripts`,
+      ],
+      tools: ['HTTPX Async', 'Cloudflare R2 S3 API', 'SHA-256 Hasher', 'Marker PDF Engine'],
       metrics: {
-        processed: `${(currentBronzeCount + currentOpenAlexCount).toLocaleString()} Works Harvested`,
-        rate: `${(currentBronzeCount / 1000).toFixed(1)}k arXiv + ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex`,
-        latency: `${storageUsedGb.toFixed(3)} GB Transferred`
+        processed: `${currentTotalCorpus.toLocaleString()} Deduplicated Works`,
+        rate: `${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${currentZenodoCount} Zenodo`,
+        latency: `${storageUsedGb.toFixed(3)} GB Transferred`,
       },
-      details: `Harvests metadata and full-content preprints across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably streams ${currentBronzeCount.toLocaleString()} raw HTML5 preprints and ${currentOpenAlexCount.toLocaleString()} OpenAlex rich records into Cloudflare R2 Bronze Lakehouse.`
+      details: `Harvests metadata, peer reviews, and full-content preprints across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably catalogs ${currentTotalCorpus.toLocaleString()} deduplicated records across 5 primary scientific sources (33,150 active papers in Tier 1 & Tier 2 RAG Lakehouse).`,
     },
     {
       id: 'phase-2',
