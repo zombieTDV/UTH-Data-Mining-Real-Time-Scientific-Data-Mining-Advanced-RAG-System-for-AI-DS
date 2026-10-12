@@ -29,10 +29,12 @@ class MarkerPdfExtractor:
         self.use_marker = use_marker
         self.max_pages = max_pages
         self._converter = None
+        self._converter_type = None
+        self._device = None
         self._marker_initialized = False
 
     def _init_marker_models(self):
-        """Lazy loads Marker OCR and layout models into memory on GPU."""
+        """Lazy loads Marker OCR and layout models into memory on GPU (CUDA or Apple MPS)."""
         if self._marker_initialized:
             return self._converter
 
@@ -46,9 +48,31 @@ class MarkerPdfExtractor:
                 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
             import torch
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-            logger.info("[MARKER] Loading Marker 2.0 neural models onto %s (dtype=%s)...", device, dtype)
+            if torch.cuda.is_available():
+                device = "cuda"
+                dtype = torch.float16
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                device = "mps"
+                dtype = torch.float16
+            else:
+                device = "cpu"
+                dtype = torch.float32
+
+            self._device = device
+            logger.info("[MARKER] Loading Marker neural models onto %s (dtype=%s)...", device, dtype)
+
+            # 1. Try Marker v0.2.x API (e.g. marker-pdf 0.2.17)
+            try:
+                from marker.models import load_all_models
+                self._converter = load_all_models(device=device, dtype=dtype)
+                self._converter_type = "v0_models"
+                self._marker_initialized = True
+                logger.info("[MARKER] Marker neural models initialized on %s (v0 model list).", device)
+                return self._converter
+            except (ImportError, AttributeError):
+                pass
+
+            # 2. Try Marker v1.0+ / 2.0 API (PdfConverter)
             from marker.models import create_model_dict
             from marker.converters.pdf import PdfConverter
 
@@ -57,22 +81,34 @@ class MarkerPdfExtractor:
                 artifact_dict=model_dict,
                 config={"mode": "fast", "disable_ocr": True}
             )
+            self._converter_type = "v1_converter"
             self._marker_initialized = True
-            logger.info("[MARKER] Marker 2.0 neural models initialized on %s (pure GPU/digital mode).", device)
+            logger.info("[MARKER] Marker neural models initialized on %s (pure GPU/digital mode).", device)
             return self._converter
         except Exception as e:
-            logger.warning("[MARKER] Could not load Marker models on %s (%s). Retrying Marker on CPU...", device, e)
+            logger.warning("[MARKER] Could not load Marker models on %s (%s). Retrying Marker on CPU...", getattr(self, "_device", "device"), e)
             try:
-                from marker.models import create_model_dict
-                from marker.converters.pdf import PdfConverter
-                model_dict = create_model_dict(device="cpu", dtype=torch.float32)
-                self._converter = PdfConverter(
-                    artifact_dict=model_dict,
-                    config={"mode": "fast", "disable_ocr": True}
-                )
-                self._marker_initialized = True
-                logger.info("[MARKER] Marker 2.0 initialized successfully on CPU fallback.")
-                return self._converter
+                import torch
+                self._device = "cpu"
+                try:
+                    from marker.models import load_all_models
+                    self._converter = load_all_models(device="cpu", dtype=torch.float32)
+                    self._converter_type = "v0_models"
+                    self._marker_initialized = True
+                    logger.info("[MARKER] Marker initialized successfully on CPU fallback (v0 model list).")
+                    return self._converter
+                except (ImportError, AttributeError):
+                    from marker.models import create_model_dict
+                    from marker.converters.pdf import PdfConverter
+                    model_dict = create_model_dict(device="cpu", dtype=torch.float32)
+                    self._converter = PdfConverter(
+                        artifact_dict=model_dict,
+                        config={"mode": "fast", "disable_ocr": True}
+                    )
+                    self._converter_type = "v1_converter"
+                    self._marker_initialized = True
+                    logger.info("[MARKER] Marker initialized successfully on CPU fallback.")
+                    return self._converter
             except Exception as e2:
                 logger.warning("[MARKER CPU NOTE] Could not load Marker on CPU (%s). Will use resilient fallback.", e2)
                 self._marker_initialized = True
@@ -103,59 +139,44 @@ class MarkerPdfExtractor:
 
         pdf_path_str = str(pdf_path.resolve())
 
-        # Attempt 1: Full Marker Neural Conversion on GPU
+        # Attempt 1: Full Marker Neural Conversion on GPU/MPS
         converter = self._init_marker_models()
         if converter is not None:
             try:
-                from marker.output import text_from_rendered
-                from pypdf import PdfReader
-
-                doc_len = None
-                try:
-                    import pypdfium2 as pdfium
-                    doc = pdfium.PdfDocument(pdf_path_str)
-                    doc_len = len(doc)
-                    doc.close()
-                except Exception:
-                    try:
-                        with open(pdf_path, "rb") as pf:
-                            reader = PdfReader(pf)
-                            doc_len = len(reader.pages)
-                    except Exception:
-                        pass
-
                 max_p = self.max_pages if self.max_pages else 15
-
                 with _MARKER_GPU_LOCK:
-                    # Dynamically set page_range inside GPU lock to prevent thread race conditions
-                    if doc_len and doc_len > 0:
-                        page_limit = min(doc_len, max_p)
-                        converter.config["page_range"] = list(range(page_limit))
-                        logger.info(
-                            "[MARKER GPU] Converting %s (pages 1-%d of %d) via Marker neural engine...",
-                            pdf_path.name,
-                            page_limit,
-                            doc_len,
+                    logger.info(
+                        "[MARKER %s] Converting %s (capped to %d pages) via Marker neural engine...",
+                        str(self._device).upper(),
+                        pdf_path.name,
+                        max_p,
+                    )
+                    if self._converter_type == "v0_models":
+                        from marker.convert import convert_single_pdf
+                        full_text, images, out_meta_raw = convert_single_pdf(
+                            pdf_path_str,
+                            converter,
+                            max_pages=max_p,
+                            ocr_all_pages=False,
                         )
                     else:
-                        converter.config["page_range"] = None
-                        logger.info(
-                            "[MARKER GPU] Converting %s via Marker neural engine...",
-                            pdf_path.name,
-                        )
+                        from marker.output import text_from_rendered
+                        if hasattr(converter, "config"):
+                            converter.config["page_range"] = list(range(max_p))
+                        rendered = converter(pdf_path_str)
+                        full_text, _, images = text_from_rendered(rendered)
 
-                    rendered = converter(pdf_path_str)
-                    full_text, _, images = text_from_rendered(rendered)
                 if full_text and len(full_text.strip()) > 100:
                     cleaned_text = self._sanitize_math_and_text(full_text)
                     latex_count = len(re.findall(r"\$[^$]+\$|\$\$[^$]+\$\$", cleaned_text))
                     out_meta = {
-                        "engine": "marker-pdf-cuda" if (torch and torch.cuda.is_available()) else "marker-pdf-cpu",
+                        "engine": f"marker-pdf-{self._device}",
                         "latex_formulas_detected": latex_count,
                         "char_count": len(cleaned_text),
                     }
                     logger.info(
-                        "[MARKER GPU] Converted %s successfully (%d chars, %d LaTeX math blocks).",
+                        "[MARKER %s] Converted %s successfully (%d chars, %d LaTeX math blocks).",
+                        str(self._device).upper(),
                         pdf_path.name,
                         len(cleaned_text),
                         latex_count,
