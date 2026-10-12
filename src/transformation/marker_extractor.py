@@ -61,10 +61,23 @@ class MarkerPdfExtractor:
             logger.info("[MARKER] Marker 2.0 neural models initialized on %s (pure GPU/digital mode).", device)
             return self._converter
         except Exception as e:
-            logger.warning("[MARKER] Could not load Marker models (%s). Will use resilient fallback.", e)
-            self._marker_initialized = True
-            self._converter = None
-            return None
+            logger.warning("[MARKER] Could not load Marker models on %s (%s). Retrying Marker on CPU...", device, e)
+            try:
+                from marker.models import create_model_dict
+                from marker.converters.pdf import PdfConverter
+                model_dict = create_model_dict(device="cpu", dtype=torch.float32)
+                self._converter = PdfConverter(
+                    artifact_dict=model_dict,
+                    config={"mode": "fast", "disable_ocr": True}
+                )
+                self._marker_initialized = True
+                logger.info("[MARKER] Marker 2.0 initialized successfully on CPU fallback.")
+                return self._converter
+            except Exception as e2:
+                logger.warning("[MARKER CPU NOTE] Could not load Marker on CPU (%s). Will use resilient fallback.", e2)
+                self._marker_initialized = True
+                self._converter = None
+                return None
 
     def convert_pdf_to_markdown(self, pdf_path: Path) -> Tuple[str, Dict[str, Any]]:
         """Converts a scientific PDF into Markdown text with LaTeX formulas preserved.
