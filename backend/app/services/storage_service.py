@@ -159,11 +159,30 @@ class StorageService:
         try:
             import duckdb
             con = duckdb.connect()
-            if fulltext_path.exists():
-                arxiv_ft += int(con.execute(f"SELECT count(*) FROM '{fulltext_path.as_posix()}'").fetchone()[0])
-            if cvf_path.exists():
+            # Tally across all local fulltext_papers parquets (master + all peer shards)
+            tier2_dir = settings.DATA_DIR / "silver" / "tier2"
+            ft_files = list(tier2_dir.glob("fulltext_papers*.parquet"))
+            if ft_files:
+                posix_files = [f.as_posix() for f in ft_files]
+                res = con.execute(f"""
+                    SELECT source, count(distinct paper_id)
+                    FROM read_parquet({posix_files})
+                    GROUP BY source
+                """).fetchall()
+                for src, cnt in res:
+                    s = str(src).lower()
+                    if "arxiv" in s:
+                        arxiv_ft += cnt
+                    elif "doi" in s:
+                        doi_ft += cnt
+                    elif "cvf" in s:
+                        cvf_ft += cnt
+                    elif "openreview" in s:
+                        openreview_ft += cnt
+
+            if cvf_path.exists() and cvf_ft == 0:
                 cvf_ft = int(con.execute(f"SELECT count(*) FROM '{cvf_path.as_posix()}'").fetchone()[0])
-            if or_path.exists():
+            if or_path.exists() and openreview_ft == 0:
                 openreview_ft = int(con.execute(f"SELECT count(*) FROM '{or_path.as_posix()}'").fetchone()[0])
             if tier1_path.exists():
                 tier1_ft = int(con.execute(f"SELECT count(*) FROM '{tier1_path.as_posix()}'").fetchone()[0])
@@ -254,6 +273,15 @@ class StorageService:
                         openalex_bytes += sz
                     elif k.startswith("silver/"):
                         silver_bytes += sz
+                        if k.startswith("silver/tier2/fulltext_papers_shard") and k.endswith(".parquet"):
+                            peer_local = settings.DATA_DIR / "silver" / "tier2" / Path(k).name
+                            # Only download if local does not exist or size changed
+                            if not peer_local.exists() or peer_local.stat().st_size != sz:
+                                try:
+                                    client.download_file(k, peer_local)
+                                    logger.info(f"[STORAGE R2 SYNC] Synced peer shard from R2: {k} -> {peer_local.name}")
+                                except Exception as e_dl:
+                                    logger.debug(f"[STORAGE R2 SYNC] Shard download note: {e_dl}")
                     elif k.startswith("gold/lancedb/"):
                         backup_gold_bytes += sz
 
