@@ -329,19 +329,22 @@ class Tier2FullTextHarvester:
         )
         df_valid = df[valid_mask]
 
-        if self.total_shards > 1 and self.shard_index is not None:
+        if not df_valid.empty and self.total_shards > 1 and self.shard_index is not None:
             def _match_shard(pid: str) -> bool:
                 return int(hashlib.md5(str(pid).encode("utf-8")).hexdigest(), 16) % self.total_shards == self.shard_index
             df_valid = df_valid[df_valid["paper_id"].apply(_match_shard)]
             logger.info("[SHARDING FILTER] Shard %d/%d assigned %d partitioned candidates.",
                         self.shard_index, self.total_shards, len(df_valid))
 
-        queues = {
-            "openreview": df_valid[df_valid["source"] == "openreview"].to_dict(orient="records"),
-            "cvf": df_valid[df_valid["source"] == "cvf"].to_dict(orient="records"),
-            "doi": df_valid[df_valid["source"] == "doi"].to_dict(orient="records"),
-            "arxiv": df_valid[df_valid["source"] == "arxiv"].to_dict(orient="records"),
-        }
+        if df_valid.empty or "source" not in df_valid.columns:
+            queues = {"openreview": [], "cvf": [], "doi": [], "arxiv": []}
+        else:
+            queues = {
+                "openreview": df_valid[df_valid["source"] == "openreview"].to_dict(orient="records"),
+                "cvf": df_valid[df_valid["source"] == "cvf"].to_dict(orient="records"),
+                "doi": df_valid[df_valid["source"] == "doi"].to_dict(orient="records"),
+                "arxiv": df_valid[df_valid["source"] == "arxiv"].to_dict(orient="records"),
+            }
 
         logger.info(
             "[CANDIDATES POOL] Available uncollected: OpenReview=%d | CVF=%d | DOI=%d | arXiv=%d",
