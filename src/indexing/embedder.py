@@ -111,7 +111,7 @@ class NomicEmbedder:
                 all_embeddings.extend(embeddings.float().cpu().tolist())
 
             del encoded_input, model_output, embeddings
-            if self.device.type == "cuda" and (i // batch_size) % 10 == 0:
+            if self.device.type == "cuda" and (i // batch_size) % 100 == 0 and i > 0:
                 torch.cuda.empty_cache()
             elif self.device.type == "mps":
                 torch.mps.empty_cache()

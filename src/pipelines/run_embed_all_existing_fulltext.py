@@ -44,7 +44,7 @@ class FullTextLakehouseEmbedder:
 
     TABLE_NAME = "scientific_papers_gold"
 
-    def __init__(self, batch_size: int = 128, sync_r2: bool = False):
+    def __init__(self, batch_size: int = 256, sync_r2: bool = False):
         self.batch_size = batch_size
         self.sync_r2 = sync_r2
         self.r2 = R2Client() if sync_r2 else None
@@ -296,7 +296,7 @@ class FullTextLakehouseEmbedder:
 
 def main():
     parser = argparse.ArgumentParser(description="Full-Text Lakehouse Vectorization & Option 2 IVF-PQ.")
-    parser.add_argument("--batch-size", type=int, default=128, help="GPU forward batch size.")
+    parser.add_argument("--batch-size", type=int, default=256, help="GPU forward batch size.")
     parser.add_argument("--max-chunks", type=int, default=None, help="Limit number of chunks for testing.")
     parser.add_argument("--force-reset", action="store_true", help="Purge existing table records before indexing.")
     parser.add_argument("--skip-ivf-pq", action="store_true", help="Skip IVF-PQ index build.")
