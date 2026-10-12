@@ -89,8 +89,34 @@ During execution of `run_tier2_near_past_harvest --days 30 --per-day 50 --batch-
 
 1. **Tier 2 Test Harvest Run**:
    - Harvested and ingested papers across multiple days with 0 residual temporary PDFs.
-   - LanceDB gold vector store successfully grew to **2,521 chunks** with 0 merge conflicts.
-   - Parquet table `data/silver/tier2/near_past_papers.parquet` reached **78 papers** with 23 standard columns.
+   - LanceDB gold vector store successfully grew with 0 merge conflicts.
+   - Parquet table `data/silver/tier2/near_past_papers.parquet` reached **453 papers** with 23 standard columns.
 2. **Telemetry Status**:
-   - Free disk space: **109.87 GB** (Threshold: > 15.00 GB).
+   - Free disk space: **109.80 GB** (Threshold: > 15.00 GB).
    - Zero leak policy: **PASSED** across all tier directories.
+
+---
+
+## 6. Marker Multi-Threaded Page-Range Race Condition Fix
+
+1. **Bug Incident**:
+   - Error observed: `Invalid page range, values must be between 0 and 2. Min of provided page range is 0 and max is 14.`
+2. **Root Cause**:
+   - In `MarkerPdfExtractor.extract_markdown_from_pdf()`, `converter.config["page_range"]` was mutated *before* entering `with _MARKER_GPU_LOCK:`.
+   - Thread A (processing a 20-page document) set `converter.config["page_range"] = list(range(15))`.
+   - Thread B (processing a 3-page document) acquired the GPU lock while Thread A's `page_range` was still active, causing Marker's validator to reject pages 3..14 on a 3-page document.
+3. **Remediation**:
+   - Moved `page_limit = min(doc_len, max_p)` and `converter.config["page_range"] = list(range(page_limit))` strictly **inside** `with _MARKER_GPU_LOCK:`.
+   - Added fast `pypdfium2` page count inspection with `pypdf` fallback.
+
+---
+
+## 7. Cloudflare R2 Sync Automation & Storage Manifest Alignment
+
+1. **Automated Silver Upload**:
+   - Added automated R2 upload in `run_tier1_bootstrap_strategy_b.py` (`silver/tier1/landmark_papers.parquet`) and `run_tier2_near_past_harvest.py` (`silver/tier2/near_past_papers.parquet`) when `--sync-r2` flag is provided.
+2. **Sync Pipeline Extension (`src/pipelines/sync_to_r2.py`)**:
+   - Dynamically scans `bronze/tier1`, `bronze/tier2`, `bronze/cvf`, and `bronze/openreview` vault files.
+3. **Storage Service Alignment (`backend/app/services/storage_service.py`)**:
+   - Added `tier2_silver` detection to `_bootstrap_from_local_files()` and `get_stats()`.
+   - Included `tier1/landmark_papers.parquet` and `tier2/near_past_papers.parquet` in `silverTables` metadata.

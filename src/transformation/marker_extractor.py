@@ -97,34 +97,40 @@ class MarkerPdfExtractor:
                 from marker.output import text_from_rendered
                 from pypdf import PdfReader
 
-                # Dynamically cap Marker neural processing to max_pages (default 15)
-                # only if the document exceeds max_pages (e.g. 300+ page dissertations)
                 doc_len = None
                 try:
-                    with open(pdf_path, "rb") as pf:
-                        reader = PdfReader(pf)
-                        doc_len = len(reader.pages)
+                    import pypdfium2 as pdfium
+                    doc = pdfium.PdfDocument(pdf_path_str)
+                    doc_len = len(doc)
+                    doc.close()
                 except Exception:
-                    pass
+                    try:
+                        with open(pdf_path, "rb") as pf:
+                            reader = PdfReader(pf)
+                            doc_len = len(reader.pages)
+                    except Exception:
+                        pass
 
                 max_p = self.max_pages if self.max_pages else 15
-                if doc_len and doc_len > max_p:
-                    converter.config["page_range"] = list(range(max_p))
-                    logger.info(
-                        "[MARKER GPU] Converting %s (capped to pages 1-%d of %d) via Marker neural engine...",
-                        pdf_path.name,
-                        max_p,
-                        doc_len,
-                    )
-                else:
-                    converter.config["page_range"] = None
-                    logger.info(
-                        "[MARKER GPU] Converting %s (%d pages) via Marker neural engine...",
-                        pdf_path.name,
-                        doc_len if doc_len is not None else 0,
-                    )
 
                 with _MARKER_GPU_LOCK:
+                    # Dynamically set page_range inside GPU lock to prevent thread race conditions
+                    if doc_len and doc_len > 0:
+                        page_limit = min(doc_len, max_p)
+                        converter.config["page_range"] = list(range(page_limit))
+                        logger.info(
+                            "[MARKER GPU] Converting %s (pages 1-%d of %d) via Marker neural engine...",
+                            pdf_path.name,
+                            page_limit,
+                            doc_len,
+                        )
+                    else:
+                        converter.config["page_range"] = None
+                        logger.info(
+                            "[MARKER GPU] Converting %s via Marker neural engine...",
+                            pdf_path.name,
+                        )
+
                     rendered = converter(pdf_path_str)
                     full_text, _, images = text_from_rendered(rendered)
                 if full_text and len(full_text.strip()) > 100:

@@ -26,13 +26,18 @@ def sync_multi_source_lakehouse_to_r2():
         # Gold Parquet Cleaned Tables
         ("data/gold/parquets/cvpr2024_gold.parquet", "gold/cvf/cvpr2024_gold.parquet", "application/vnd.apache.parquet"),
         ("data/gold/parquets/openreview_gold.parquet", "gold/openreview/openreview_gold.parquet", "application/vnd.apache.parquet"),
+        # Tier 1 Landmark Silver Parquet
+        ("data/silver/tier1/landmark_papers.parquet", "silver/tier1/landmark_papers.parquet", "application/vnd.apache.parquet"),
+        # Tier 2 Near-Past Trending Silver Parquet
+        ("data/silver/tier2/near_past_papers.parquet", "silver/tier2/near_past_papers.parquet", "application/vnd.apache.parquet"),
     ]
 
-    # Dynamically include all Bronze JSON vault files
-    for cvf_f in (settings.ROOT_DIR / "data" / "raw" / "cvf").glob("*.json"):
-        files_to_sync.append((str(cvf_f.relative_to(settings.ROOT_DIR)), f"bronze/cvf/{cvf_f.name}", "application/json"))
-    for or_f in (settings.ROOT_DIR / "data" / "raw" / "openreview").glob("*.json"):
-        files_to_sync.append((str(or_f.relative_to(settings.ROOT_DIR)), f"bronze/openreview/{or_f.name}", "application/json"))
+    # Dynamically include all Bronze JSON vault files across all tiers and conferences
+    for sub in ["cvf", "openreview", "tier1", "tier2"]:
+        sub_dir = settings.ROOT_DIR / "data" / "raw" / sub
+        if sub_dir.exists():
+            for f in sub_dir.glob("*.json"):
+                files_to_sync.append((str(f.relative_to(settings.ROOT_DIR)), f"bronze/{sub}/{f.name}", "application/json"))
 
     synced_count = 0
     total_bytes = 0

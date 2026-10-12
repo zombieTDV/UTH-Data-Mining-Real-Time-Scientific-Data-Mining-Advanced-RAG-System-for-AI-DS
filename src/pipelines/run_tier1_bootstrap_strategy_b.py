@@ -588,6 +588,17 @@ class Tier1BatchBootstrapper:
                 df_combined = df_new
             pq.write_table(pa.Table.from_pandas(df_combined, preserve_index=False), t1_file, compression="zstd")
 
+            # Upload Silver Parquet and Bronze JSONs to Cloudflare R2 if enabled
+            if self.sync_r2 and self.r2:
+                try:
+                    self.r2.upload_file(
+                        t1_file,
+                        "silver/tier1/landmark_papers.parquet",
+                        content_type="application/vnd.apache.parquet",
+                    )
+                except Exception as e:
+                    logger.warning("[R2 SYNC] Could not upload landmark_papers.parquet to R2: %s", e)
+
             # 7. Batch Chunking, Embedding, and LanceDB Upsert
             chunks = self.build_chunks(extracted_records)
             if chunks:

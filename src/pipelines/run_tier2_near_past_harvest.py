@@ -528,6 +528,16 @@ class Tier2NearPastHarvester:
                 df_combined = df_new
             pq.write_table(pa.Table.from_pandas(df_combined, preserve_index=False), t2_file, compression="zstd")
 
+            if self.sync_r2 and self.r2:
+                try:
+                    self.r2.upload_file(
+                        t2_file,
+                        "silver/tier2/near_past_papers.parquet",
+                        content_type="application/vnd.apache.parquet",
+                    )
+                except Exception as e:
+                    logger.warning("[R2 SYNC] Could not upload near_past_papers.parquet to R2: %s", e)
+
             # 5. Batch Chunking, Embedding, and LanceDB Upsert
             chunks = self.build_chunks(extracted_records)
             if chunks:

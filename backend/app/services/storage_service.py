@@ -92,6 +92,7 @@ class StorageService:
             cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
             or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
             tier1_silver = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
+            tier2_silver = settings.DATA_DIR / "silver" / "tier2" / "near_past_papers.parquet"
             conf_count = 0
             conf_bytes = 0
             import pyarrow.parquet as pq
@@ -107,6 +108,10 @@ class StorageService:
                 meta = pq.read_metadata(tier1_silver)
                 conf_count += meta.num_rows
                 conf_bytes += tier1_silver.stat().st_size
+            if tier2_silver.exists():
+                meta = pq.read_metadata(tier2_silver)
+                conf_count += meta.num_rows
+                conf_bytes += tier2_silver.stat().st_size
             if conf_count > 0:
                 self.base_conferences_count = conf_count
                 self.base_conferences_bytes = max(conf_bytes, self.base_conferences_bytes)
@@ -369,7 +374,14 @@ class StorageService:
             bronzeSizeBytes=bronze_bytes,
             openalexCount=self.base_openalex_count,
             openalexSizeBytes=self.base_openalex_bytes,
-            silverTables=["papers.parquet", "year=2026/papers.parquet", "cvf/cvpr2024.parquet", "openreview/openreview_all.parquet"],
+            silverTables=[
+                "papers.parquet",
+                "year=2026/papers.parquet",
+                "cvf/cvpr2024.parquet",
+                "openreview/openreview_all.parquet",
+                "tier1/landmark_papers.parquet",
+                "tier2/near_past_papers.parquet",
+            ],
             silverSizeBytes=self.base_silver_bytes,
             goldTables=["scientific_papers_gold.lance", "cvf/cvpr2024_gold.parquet", "openreview/openreview_gold.parquet"],
             goldChunkCount=active_gold_vectors,
