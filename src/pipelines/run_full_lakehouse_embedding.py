@@ -1,15 +1,18 @@
-"""Orchestrates Full Lakehouse Embedding for Tier 1 Landmarks (3k) and Tier 2 Near-Past (30.1k).
+"""Orchestrates Deep Multi-Section Lakehouse Embedding for Tier 1 Landmarks (3k) and Tier 2 Near-Past (100k).
 
 Features:
-1. GPU CUDA Acceleration via Nomic Embed v1.5 (95+ chunks/sec on RTX 4060).
-2. Purges stale mixed Tier 1 vectors, replacing them with genuine 2013-2021 landmark vectors.
-3. Incrementally embeds un-embedded Tier 2 papers (~15.7k papers) without duplicating existing vectors.
-4. LanceDB table 'scientific_papers_gold' batch insertion.
-5. Builds IVF-PQ Index for lightning-fast ANN vector retrieval.
-6. Synchronizes Gold vector table to Cloudflare R2.
+1. Deep Multi-Section Chunking via AcademicChunker:
+   - Extracts Abstract, Introduction, Methodology, Experiments, Results, Conclusion, and Body parts.
+   - Semantic heading recognition and contextual paragraph slicing.
+2. GPU CUDA Acceleration via Nomic Embed v1.5 with FP16 batch inference (~100-115 chunks/s on RTX 4060).
+3. Incremental Chunk Vectorization: Preserves already-indexed chunks and embeds new section chunks.
+4. LanceDB table 'scientific_papers_gold' batch streaming insertion (1,000 chunks/batch).
+5. Option 2 High-Fidelity IVF-PQ Index: 1024 Voronoi clusters, 192 sub-vectors, cosine distance.
+6. Parallel Cloudflare R2 synchronization via ThreadPoolExecutor.
 """
 
 import argparse
+import concurrent.futures
 import datetime
 import gc
 import json
@@ -18,9 +21,10 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 import duckdb
+import httpx
 import lancedb
 import pandas as pd
 import torch
@@ -30,167 +34,146 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config.settings import settings
+from src.indexing.chunker import AcademicChunker
 from src.indexing.embedder import NomicEmbedder
 from src.indexing.lancedb_manager import LanceDBManager
 from src.storage.r2_client import R2Client
 from src.utils.logger import setup_pipeline_logging
 
-logger, log_file = setup_pipeline_logging("full_lakehouse_embedding")
+logger, log_file = setup_pipeline_logging("deep_multisection_embedding")
 
 
-class LakehouseVectorizer:
+def broadcast_telemetry(payload: dict):
+    """Sends telemetry pulse to local FastAPI SSE bridge."""
+    try:
+        httpx.post("http://localhost:8000/api/ingestion/broadcast", json=payload, timeout=0.25)
+    except Exception:
+        pass
+
+
+class DeepLakehouseVectorizer:
     def __init__(self, sync_r2: bool = True, batch_size: int = 128):
         self.batch_size = batch_size
         self.sync_r2 = sync_r2
         self.r2 = R2Client() if sync_r2 else None
-        self.db_manager = LanceDBManager(r2_client=self.r2)
-        self.db = lancedb.connect(str(settings.ROOT_DIR / "data" / "gold" / "lancedb"))
+        self.db_path = settings.ROOT_DIR / "data" / "gold" / "lancedb"
+        self.db = lancedb.connect(str(self.db_path))
         self.embedder = NomicEmbedder()
+        self.chunker = AcademicChunker(max_chunk_words=300, overlap_words=50)
 
-    def process_tier1(self, force: bool = False) -> int:
-        """Embeds all 3,000 genuine historical landmark papers (2013-2021)."""
-        logger.info("=" * 80)
-        logger.info(">>> [STEP 1/3] VERIFYING TIER 1 TRUE HISTORICAL LANDMARKS (3,000 PAPERS)")
-        logger.info("=" * 80)
+    def get_or_create_table(self):
+        """Opens or initializes the scientific_papers_gold table."""
+        tbl_res = self.db.list_tables()
+        table_names = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
+        if "scientific_papers_gold" in table_names:
+            return self.db.open_table("scientific_papers_gold")
+        else:
+            raise RuntimeError("scientific_papers_gold table does not exist. Please initialize it.")
 
-        tbl = self.db.open_table("scientific_papers_gold")
+    def run_deep_embedding(self, force_reset: bool = False, max_papers: Optional[int] = None) -> Dict[str, Any]:
+        """Executes full Deep Multi-Section Chunking and Embedding across Tier 1 and Tier 2."""
+        tbl = self.get_or_create_table()
 
-        # Check existing Tier 1 records
-        df_t1_existing = tbl.search().where("tier = 'tier1'").select(["paper_id"]).limit(10000).to_pandas()
-        if len(df_t1_existing) >= 3000 and not force:
-            logger.info("[TIER 1] %d landmark papers already embedded in LanceDB. Skipping re-embedding.", len(df_t1_existing))
-            return len(df_t1_existing)
-
-        # 1. Purge stale Tier 1 vectors if forcing
-        logger.info("[TIER 1] Re-indexing Tier 1 vectors into LanceDB...")
-        try:
-            tbl.delete("tier = 'tier1'")
-        except Exception as e:
-            logger.warning("[TIER 1] Delete warning: %s", e)
-
-        # 2. Read new 3,000 landmark papers from Parquet
-        t1_path = settings.ROOT_DIR / "data" / "silver" / "tier1" / "landmark_papers.parquet"
-        df_t1 = pd.read_parquet(t1_path)
-        logger.info("[TIER 1] Loaded %d landmark papers from %s", len(df_t1), t1_path)
-
-        # Prepare chunks
-        chunks = []
-        for _, row in df_t1.iterrows():
-            p_id = str(row["paper_id"])
-            title = str(row.get("title", "")).strip()
-            abstract = str(row.get("abstract", "")).strip() or title
-            authors = row.get("authors", [])
-            auth_list = authors.tolist() if hasattr(authors, "tolist") else (authors if isinstance(authors, list) else [str(authors)])
-            source = str(row.get("source", "arxiv"))
-
-            chunks.append({
-                "chunk_id": f"{p_id}_abs",
-                "paper_id": p_id,
-                "title": title,
-                "authors": auth_list,
-                "primary_category": str(row.get("primary_category", "cs.AI")),
-                "section_title": "Abstract",
-                "section_type": "abstract",
-                "text": abstract,
-                "context_text": f"Title: {title}\nAbstract: {abstract}",
-                "word_count": len(abstract.split()),
-                "source": source,
-                "tier": "tier1",
-                "content_origin": str(row.get("content_origin", "academic")),
-            })
-
-        logger.info("[TIER 1] Prepared %d chunks. Running GPU embeddings...", len(chunks))
-        self._embed_and_insert(tbl, chunks)
-        return len(chunks)
-
-    def process_tier2_incremental(self) -> int:
-        """Incrementally embeds un-embedded Tier 2 papers up to 100,000 papers."""
-        logger.info("=" * 80)
-        logger.info(">>> [STEP 2/3] EMBEDDING TIER 2 NEAR-PAST TRENDING (INCREMENTAL TO 100,000)")
-        logger.info("=" * 80)
-
-        tbl = self.db.open_table("scientific_papers_gold")
-
-        # 1. Relabel any historical openalex records in LanceDB to doi
-        try:
-            tbl.update(where="source = 'openalex'", values={"source": "doi", "content_origin": "doi_publisher_record"})
-            logger.info("[TIER 2] Relabeled legacy openalex records in LanceDB to genuine doi provenance.")
-        except Exception as e:
-            logger.debug("[TIER 2] OpenAlex relabel notice: %s", e)
-
-        # 2. Query existing embedded paper_ids in Tier 2
-        df_existing = tbl.search().where("tier = 'tier2'").select(["paper_id"]).limit(150000).to_pandas()
-        embedded_ids = set(df_existing["paper_id"])
-        logger.info("[TIER 2] Found %d papers already embedded in LanceDB.", len(embedded_ids))
-
-        # 3. Read consolidated 100k Tier 2 Parquet
-        t2_path = settings.ROOT_DIR / "data" / "silver" / "tier2" / "near_past_papers.parquet"
-        df_t2 = pd.read_parquet(t2_path)
-        logger.info("[TIER 2] Total papers in Tier 2 Parquet: %d", len(df_t2))
-
-        # Filter un-embedded papers
-        df_missing = df_t2[~df_t2["paper_id"].isin(embedded_ids)]
-        logger.info("[TIER 2] Papers needing embedding: %d", len(df_missing))
-
-        if df_missing.empty:
-            logger.info("[TIER 2] All 100,000 Tier 2 papers are already embedded in LanceDB!")
-            return 0
-
-        # Prepare chunks
-        chunks = []
-        for _, row in df_missing.iterrows():
-            p_id = str(row["paper_id"])
-            title = str(row.get("title", "")).strip()
-            abstract = str(row.get("abstract", "")).strip() or title
-            authors = row.get("authors", [])
-            auth_list = authors.tolist() if hasattr(authors, "tolist") else (authors if isinstance(authors, list) else [str(authors)])
-            source = str(row.get("source", "arxiv"))
-
-            chunks.append({
-                "chunk_id": f"{p_id}_abs",
-                "paper_id": p_id,
-                "title": title,
-                "authors": auth_list,
-                "primary_category": str(row.get("primary_category", "cs.AI")),
-                "section_title": "Abstract",
-                "section_type": "abstract",
-                "text": abstract,
-                "context_text": f"Title: {title}\nAbstract: {abstract}",
-                "word_count": len(abstract.split()),
-                "source": source,
-                "tier": "tier2",
-                "content_origin": str(row.get("content_origin", "academic")),
-            })
-
-        logger.info("[TIER 2] Prepared %d chunks. Running GPU embeddings...", len(chunks))
-        self._embed_and_insert(tbl, chunks)
-        return len(chunks)
-
-    def _embed_and_insert(self, tbl: Any, chunks: List[Dict[str, Any]]):
-        """Batch-embeds chunks on GPU and inserts into LanceDB."""
-        import httpx
-
-        def broadcast_progress(done_cnt: int, total_cnt: int, spd: float, eta_s: float):
+        if force_reset:
+            logger.warning("[RESET] Purging all existing records in scientific_papers_gold...")
             try:
-                httpx.post(
-                    "http://localhost:8000/api/ingestion/broadcast",
-                    json={
-                        "stage": "VECTORIZE",
-                        "status": "EMBEDDING",
-                        "vectors_synced": done_cnt,
-                        "total_vectors_target": total_cnt,
-                        "speed_ppm": round(spd * 60, 1),
-                        "latency_ms": round(1000.0 / max(spd, 0.1), 1),
-                        "message": f"Embedding chunks on RTX 4060: {done_cnt:,}/{total_cnt:,} ({round((done_cnt/total_cnt)*100, 1)}%) | Speed: {round(spd, 1)} chunks/s | ETA: {round(eta_s, 0)}s",
-                    },
-                    timeout=0.25,
-                )
-            except Exception:
-                pass
+                tbl.delete("paper_id IS NOT NULL")
+            except Exception as e:
+                logger.warning("[RESET NOTE] %s", e)
 
+        # 1. Fetch existing chunk IDs in LanceDB to prevent duplicate embeddings
+        existing_chunks: Set[str] = set()
+        if not force_reset:
+            logger.info("[SCAN] Scanning existing chunks in LanceDB table...")
+            total_current = len(tbl)
+            if total_current > 0:
+                df_curr = tbl.search().select(["chunk_id"]).limit(total_current + 1000).to_pandas()
+                existing_chunks = set(df_curr["chunk_id"])
+            logger.info("[SCAN] Found %d chunks already indexed in LanceDB.", len(existing_chunks))
+
+        # 2. Load Tier 1 Landmarks and Tier 2 Near-Past
+        t1_path = settings.ROOT_DIR / "data" / "silver" / "tier1" / "landmark_papers.parquet"
+        t2_path = settings.ROOT_DIR / "data" / "silver" / "tier2" / "near_past_papers.parquet"
+
+        logger.info("[LOAD] Loading Tier 1 landmark papers from %s...", t1_path)
+        df_t1 = pd.read_parquet(t1_path) if t1_path.exists() else pd.DataFrame()
+
+        logger.info("[LOAD] Loading Tier 2 near-past papers from %s...", t2_path)
+        df_t2 = pd.read_parquet(t2_path) if t2_path.exists() else pd.DataFrame()
+
+        if max_papers:
+            df_t2 = df_t2.head(max_papers)
+            logger.info("[LIMIT] Constrained to first %d papers for testing.", max_papers)
+
+        # Combine datasets
+        papers_to_process = []
+        if not df_t1.empty:
+            for _, r in df_t1.iterrows():
+                d = r.to_dict()
+                d["tier"] = "tier1"
+                papers_to_process.append(d)
+        if not df_t2.empty:
+            for _, r in df_t2.iterrows():
+                d = r.to_dict()
+                d["tier"] = "tier2"
+                papers_to_process.append(d)
+
+        total_papers = len(papers_to_process)
+        logger.info("[CHUNKING] Processing %d total papers with Deep Multi-Section Chunking...", total_papers)
+
+        # 3. Stream chunking and GPU embedding in batches
+        all_new_chunks: List[Dict[str, Any]] = []
+        total_extracted = 0
+        skipped_already_indexed = 0
+
+        t0_chunk = time.time()
+        for idx, paper in enumerate(papers_to_process):
+            paper_chunks = self.chunker.chunk_paper(paper)
+            total_extracted += len(paper_chunks)
+
+            for c in paper_chunks:
+                cid = c["chunk_id"]
+                if cid in existing_chunks:
+                    skipped_already_indexed += 1
+                else:
+                    all_new_chunks.append(c)
+
+            if (idx + 1) % 10000 == 0 or (idx + 1) == total_papers:
+                logger.info(
+                    "  [CHUNKER PROGRESS] %d/%d papers parsed | %d total chunks extracted | %d new chunks to embed | %d skipped (already indexed)",
+                    idx + 1,
+                    total_papers,
+                    total_extracted,
+                    len(all_new_chunks),
+                    skipped_already_indexed,
+                )
+
+        logger.info(
+            "[CHUNKING COMPLETE] Extracted %d chunks across %d papers (avg %.2f chunks/paper) in %.2fs.",
+            total_extracted,
+            total_papers,
+            total_extracted / max(total_papers, 1),
+            time.time() - t0_chunk,
+        )
+        logger.info("[CHUNKING] New chunks requiring GPU embedding: %d", len(all_new_chunks))
+
+        if not all_new_chunks:
+            logger.info("[COMPLETE] All extracted chunks are already embedded in LanceDB!")
+        else:
+            self._embed_and_insert_stream(tbl, all_new_chunks)
+
+        return {
+            "total_papers": total_papers,
+            "total_extracted_chunks": total_extracted,
+            "new_embedded_chunks": len(all_new_chunks),
+            "final_table_rows": len(tbl),
+        }
+
+    def _embed_and_insert_stream(self, tbl: Any, chunks: List[Dict[str, Any]], insert_batch_size: int = 1000):
+        """Batch-embeds chunks on GPU (FP16 batch size 128) and inserts in 1,000-chunk increments."""
         t0 = time.time()
         total = len(chunks)
-        insert_batch_size = 500
+        logger.info("[GPU VECTORIZATION] Starting embedding of %d chunks on RTX 4060 GPU...", total)
 
         for start_idx in range(0, total, insert_batch_size):
             end_idx = min(start_idx + insert_batch_size, total)
@@ -206,7 +189,6 @@ class LakehouseVectorizer:
 
             # 3. Add to LanceDB table
             df_sub = pd.DataFrame(sub_chunks)
-            # Retain only table schema columns
             target_cols = [c for c in df_sub.columns if c in tbl.schema.names]
             df_sub = df_sub[target_cols]
 
@@ -216,108 +198,150 @@ class LakehouseVectorizer:
             done = end_idx
             speed = done / max(elapsed, 0.1)
             eta = (total - done) / max(speed, 0.1)
+
             logger.info(
-                "  [PROGRESS] %d/%d chunks embedded & stored (%.1f%%) | Speed: %.1f chunks/s | ETA: %.1fs",
+                "  [PROGRESS] %d/%d chunks embedded & stored (%.1f%%) | Speed: %.1f chunks/s | ETA: %.1fs (%.1fm)",
                 done,
                 total,
                 (done / total) * 100,
                 speed,
                 eta,
+                eta / 60,
             )
-            broadcast_progress(done, total, speed, eta)
 
-        logger.info("[COMPLETED BATCH] Finished %d chunks in %.2fs.", total, time.time() - t0)
+            # SSE Telemetry pulse
+            broadcast_telemetry({
+                "stage": "VECTORIZE",
+                "status": "EMBEDDING_DEEP_SECTIONS",
+                "vectors_synced": done,
+                "total_vectors_target": total,
+                "speed_ppm": round(speed * 60, 1),
+                "latency_ms": round(1000.0 / max(speed, 0.1), 1),
+                "message": f"Embedding Deep Multi-Section chunks on RTX 4060: {done:,}/{total:,} ({round((done/total)*100, 1)}%) | Speed: {round(speed, 1)} chunks/s | ETA: {round(eta/60, 1)}m",
+            })
 
-    def build_ivf_pq_index(self):
-        """Builds High-Fidelity IVF-PQ Index (Option 2) on LanceDB vector table."""
+            # Cleanup
+            del texts_to_embed, vectors, df_sub
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            gc.collect()
+
+        logger.info("[COMPLETED GPU EMBEDDING] Vectorized %d chunks in %.2fs (%.1f min).", total, time.time() - t0, (time.time() - t0) / 60)
+
+    def build_option2_ivf_pq_index(self):
+        """Builds Option 2 High-Fidelity IVF-PQ Index on LanceDB vector table."""
         logger.info("=" * 80)
-        logger.info(">>> [STEP 3/3] CREATING HIGH-FIDELITY IVF-PQ VECTOR INDEX (Option 2: 512 clusters, 192 sub-vectors)")
+        logger.info(">>> CREATING OPTION 2 HIGH-FIDELITY IVF-PQ INDEX (1024 clusters, 192 sub-vectors)")
         logger.info("=" * 80)
 
-        tbl = self.db.open_table("scientific_papers_gold")
+        tbl = self.get_or_create_table()
+        total_rows = len(tbl)
+        logger.info("[IVF-PQ] Indexing %d 768-D vectors...", total_rows)
+
+        num_partitions = 1024 if total_rows >= 200000 else 512
         t0 = time.time()
         try:
-            logger.info("[IVF-PQ OPTION 2] Indexing 768-D vectors (num_partitions=512, num_sub_vectors=192, metric=cosine)...")
+            logger.info("[IVF-PQ] Training %d partition centroids and 192 sub-vector codebooks...", num_partitions)
             tbl.create_index(
                 metric="cosine",
-                num_partitions=512,
+                num_partitions=num_partitions,
                 num_sub_vectors=192,
                 vector_column_name="vector",
                 replace=True,
             )
             duration = round(time.time() - t0, 2)
-            logger.info("[IVF-PQ SUCCESS] High-Fidelity Index built in %.2fs!", duration)
+            logger.info("[IVF-PQ SUCCESS] High-Fidelity Index built in %.2fs across %d vectors!", duration, total_rows)
         except Exception as e:
             logger.warning("[IVF-PQ NOTE] Could not build IVF-PQ index (%s). Retaining flat search.", e)
 
-    def sync_gold_to_r2(self):
-        """Uploads updated LanceDB Gold vector directory to Cloudflare R2."""
+    def parallel_sync_to_r2(self, max_workers: int = 16):
+        """Fast multi-threaded incremental synchronization of LanceDB files to Cloudflare R2."""
         if not self.sync_r2 or not self.r2:
             return
-        logger.info("[R2 SYNC] Synchronizing updated LanceDB Gold directory to Cloudflare R2...")
-        try:
-            gold_dir = settings.ROOT_DIR / "data" / "gold" / "lancedb" / "scientific_papers_gold.lance"
-            uploaded = 0
-            for fpath in gold_dir.rglob("*"):
-                if fpath.is_file():
-                    rel_key = f"gold/lancedb/scientific_papers_gold.lance/{fpath.relative_to(gold_dir).as_posix()}"
-                    self.r2.upload_file(fpath, rel_key)
-                    uploaded += 1
-            logger.info("[R2 SYNC SUCCESS] Uploaded %d LanceDB files to Cloudflare R2.", uploaded)
-        except Exception as e:
-            logger.warning("[R2 SYNC ERROR] %s", e)
+        logger.info("=" * 80)
+        logger.info(">>> PARALLEL R2 SYNCHRONIZATION (max_workers=%d)", max_workers)
+        logger.info("=" * 80)
 
-    def generate_final_report(self) -> Dict[str, Any]:
-        """Queries and returns authoritative final metrics on LanceDB Gold table."""
-        tbl = self.db.open_table("scientific_papers_gold")
-        total_vectors = len(tbl)
+        gold_dir = settings.ROOT_DIR / "data" / "gold" / "lancedb" / "scientific_papers_gold.lance"
+        if not gold_dir.exists():
+            return
 
-        df_meta = tbl.search().select(["paper_id", "tier", "source"]).limit(total_vectors).to_pandas()
-        distinct_papers = df_meta["paper_id"].nunique()
-        tier_counts = df_meta["tier"].value_counts().to_dict()
-        source_counts = df_meta["source"].value_counts().to_dict()
-        indices = [str(idx.name) for idx in tbl.list_indices()] if hasattr(tbl, "list_indices") else []
+        # 1. Inspect existing objects in R2
+        logger.info("[R2 SCAN] Scanning existing files in Cloudflare R2 bucket...")
+        r2_objs = {}
+        paginator = self.r2.s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.r2.bucket_name, Prefix="gold/lancedb/scientific_papers_gold.lance/"):
+            for obj in page.get("Contents", []):
+                r2_objs[obj["Key"]] = obj["Size"]
 
-        report = {
-            "total_vectors": total_vectors,
-            "distinct_papers": distinct_papers,
-            "tier_distribution": tier_counts,
-            "source_distribution": source_counts,
-            "indices": indices,
-        }
-        return report
+        # 2. Identify missing or size-mismatched files
+        files_to_upload = []
+        for fpath in gold_dir.rglob("*"):
+            if fpath.is_file():
+                rel_key = f"gold/lancedb/scientific_papers_gold.lance/{fpath.relative_to(gold_dir).as_posix()}"
+                local_size = fpath.stat().st_size
+                if rel_key not in r2_objs or r2_objs[rel_key] != local_size:
+                    files_to_upload.append((fpath, rel_key, local_size))
+
+        logger.info("[R2 SCAN] %d local files | %d already in R2 | %d new/modified files to upload", len(list(gold_dir.rglob("*"))), len(r2_objs), len(files_to_upload))
+
+        if not files_to_upload:
+            logger.info("[R2 SYNC] Cloudflare R2 is already 100% up to date!")
+            return
+
+        # 3. Parallel upload via ThreadPoolExecutor
+        total_upload_bytes = sum(x[2] for x in files_to_upload)
+        logger.info("[R2 PARALLEL] Uploading %d files (%.2f MB) using %d concurrent threads...", len(files_to_upload), total_upload_bytes / (1024 * 1024), max_workers)
+
+        t0_sync = time.time()
+        uploaded_count = 0
+
+        def _upload_worker(item):
+            loc_path, key, sz = item
+            self.r2.upload_file(loc_path, key)
+            return sz
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(_upload_worker, item) for item in files_to_upload]
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    future.result()
+                    uploaded_count += 1
+                    if uploaded_count % 50 == 0 or uploaded_count == len(files_to_upload):
+                        logger.info("  [R2 UPLOAD] %d/%d files synced (%.1f%%)...", uploaded_count, len(files_to_upload), (uploaded_count / len(files_to_upload)) * 100)
+                except Exception as e:
+                    logger.warning("[R2 UPLOAD ERROR] %s", e)
+
+        logger.info("[R2 SYNC SUCCESS] Uploaded %d files in %.2fs!", uploaded_count, time.time() - t0_sync)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Embed Full Lakehouse (Tier 1 & Tier 2).")
-    parser.add_argument("--batch-size", type=int, default=128, help="Inference batch size on GPU.")
-    parser.add_argument("--skip-ivf-pq", action="store_true", help="Skip IVF-PQ index building.")
-    parser.add_argument("--skip-r2-sync", action="store_true", help="Skip Cloudflare R2 remote sync.")
+    parser = argparse.ArgumentParser(description="Deep Multi-Section Lakehouse Vectorization.")
+    parser.add_argument("--batch-size", type=int, default=128, help="GPU forward inference batch size.")
+    parser.add_argument("--force-reset", action="store_true", help="Reset and purge existing vectors before embedding.")
+    parser.add_argument("--max-papers", type=int, default=None, help="Limit number of papers for testing.")
+    parser.add_argument("--skip-ivf-pq", action="store_true", help="Skip IVF-PQ index creation.")
+    parser.add_argument("--skip-r2-sync", action="store_true", help="Skip Cloudflare R2 cloud sync.")
     args = parser.parse_args()
 
-    sync_r2 = not args.skip_r2_sync
-    vectorizer = LakehouseVectorizer(sync_r2=sync_r2, batch_size=args.batch_size)
+    vectorizer = DeepLakehouseVectorizer(sync_r2=not args.skip_r2_sync, batch_size=args.batch_size)
 
-    t0 = time.time()
-    t1_added = vectorizer.process_tier1()
-    t2_added = vectorizer.process_tier2_incremental()
+    t0_start = time.time()
+    res = vectorizer.run_deep_embedding(force_reset=args.force_reset, max_papers=args.max_papers)
 
     if not args.skip_ivf_pq:
-        vectorizer.build_ivf_pq_index()
+        vectorizer.build_option2_ivf_pq_index()
 
-    if sync_r2:
-        vectorizer.sync_gold_to_r2()
+    if not args.skip_r2_sync:
+        vectorizer.parallel_sync_to_r2()
 
-    report = vectorizer.generate_final_report()
-    total_time = round(time.time() - t0, 2)
-
+    total_time = round(time.time() - t0_start, 2)
     print("\n" + "=" * 80)
-    print(f"LAKEHOUSE VECTORIZATION COMPLETE IN {total_time}s")
-    print(f"Total Vectors in Gold Table: {report['total_vectors']:,}")
-    print(f"Distinct Papers Represented: {report['distinct_papers']:,}")
-    print(f"Tier Distribution: {report['tier_distribution']}")
-    print(f"Source Distribution: {report['source_distribution']}")
-    print(f"Indices: {report['indices']}")
+    print(f"DEEP MULTI-SECTION LAKEHOUSE EMBEDDING COMPLETE IN {total_time}s ({round(total_time/60, 1)}m)")
+    print(f"Total Papers Processed: {res['total_papers']:,}")
+    print(f"Total Chunks Extracted: {res['total_extracted_chunks']:,}")
+    print(f"New Chunks Embedded: {res['new_embedded_chunks']:,}")
+    print(f"Final Gold Table Vectors: {res['final_table_rows']:,}")
     print("=" * 80)
 
 

@@ -95,3 +95,7 @@ data_mining/logs/
 Thumbs.db
 desktop.ini
 Desktop.ini
+
+# Scratch Scripts & Scratch Files
+scratch/
+
