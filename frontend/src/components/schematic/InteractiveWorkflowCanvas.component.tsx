@@ -472,13 +472,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   } = useLakehouseStreamStore();
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const liveArxivCount = (sourceBreakdown?.arxiv ?? 39189) + streamSessionCount;
-  const liveDoiCount = sourceBreakdown?.doi ?? 44969;
-  const liveOpenAlexCount = sourceBreakdown?.openalex ?? 0;
-  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 5137;
-  const liveCvfCount = sourceBreakdown?.cvf ?? 8418;
-  const liveZenodoCount = sourceBreakdown?.zenodo ?? 2287;
-  const liveTotalWorks = sourceBreakdown?.tier2_near_past ?? (liveDoiCount + liveArxivCount + liveOpenAlexCount + liveOpenReviewCount + liveCvfCount + liveZenodoCount);
+  const liveArxivCount = (sourceBreakdown?.arxiv ?? 0) + streamSessionCount;
+  const liveDoiCount = sourceBreakdown?.doi ?? 0;
+  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 0;
+  const liveCvfCount = sourceBreakdown?.cvf ?? 0;
+  const liveZenodoCount = sourceBreakdown?.zenodo ?? 0;
+  const liveTotalWorks = liveDoiCount + liveArxivCount + liveOpenReviewCount + liveCvfCount + liveZenodoCount;
   const liveBronzeCount = liveArxivCount;
 
   const liveBronzeGb = storageStats?.activeLakehouse
@@ -779,7 +778,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       };
     }
     return baseTool;
-  }, [baseTool, selectedNodeId, storageUsedGb, liveDoiCount, liveArxivCount, liveOpenAlexCount, liveOpenReviewCount, liveCvfCount, liveZenodoCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveSilverMb, liveSilverPartitions]);
+  }, [baseTool, selectedNodeId, storageUsedGb, liveDoiCount, liveArxivCount, liveOpenReviewCount, liveCvfCount, liveZenodoCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveSilverMb, liveSilverPartitions]);
 
   return (
     <div

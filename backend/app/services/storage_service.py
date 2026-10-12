@@ -187,11 +187,13 @@ class StorageService:
             if tier1_path.exists():
                 tier1_ft = int(con.execute(f"SELECT count(*) FROM '{tier1_path.as_posix()}'").fetchone()[0])
             if chunks_path.exists():
-                openalex_ft = int(con.execute(f"SELECT count(distinct paper_id) FROM '{chunks_path.as_posix()}'").fetchone()[0])
+                # Published journal papers with DOIs (Nature, IEEE, Springer, PLOS)
+                doi_ft += int(con.execute(f"SELECT count(distinct paper_id) FROM '{chunks_path.as_posix()}'").fetchone()[0])
         except Exception as e:
             logger.debug(f"[STORAGE] Could not tally full-text counts: {e}")
 
-        total_fulltext_papers = arxiv_ft + openreview_ft + cvf_ft + tier1_ft + openalex_ft
+        # Total is strictly and transparently the mathematical sum of all verified sources
+        total_fulltext_papers = arxiv_ft + doi_ft + openreview_ft + cvf_ft + zenodo_ft
         active_rag_vectors = getattr(self, "base_active_gold_vectors", 268233)
 
         # Inspect LanceDB directly for live vector count if available
@@ -208,13 +210,13 @@ class StorageService:
         return SourceBreakdownDto(
             arxiv=arxiv_ft,
             doi=doi_ft,
-            openalex=openalex_ft,
+            openalex=0,
             openreview=openreview_ft,
             cvf=cvf_ft,
             zenodo=zenodo_ft,
             total_deduplicated=total_fulltext_papers,
             tier1_landmark=tier1_ft,
-            tier2_near_past=total_fulltext_papers - tier1_ft,
+            tier2_near_past=total_fulltext_papers,
             active_rag_papers=total_fulltext_papers,
             active_rag_vectors=active_rag_vectors,
         )

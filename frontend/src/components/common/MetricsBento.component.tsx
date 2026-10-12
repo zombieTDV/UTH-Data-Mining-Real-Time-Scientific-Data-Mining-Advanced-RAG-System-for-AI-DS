@@ -19,12 +19,12 @@ export const MetricsBento: FC = () => {
   const totalBucket = storageStats?.totalBucket;
 
   const sourceBreakdown = storageStats?.sourceBreakdown || activeData?.sourceBreakdown;
-  const doiCount = sourceBreakdown?.doi ?? 44969;
-  const arxivCount = (sourceBreakdown?.arxiv ?? 39189) + sessionIngested;
-  const cvfCount = sourceBreakdown?.cvf ?? 8418;
-  const openreviewCount = sourceBreakdown?.openreview ?? 5137;
-  const zenodoCount = sourceBreakdown?.zenodo ?? 2287;
-  const totalCorpusCount = sourceBreakdown?.tier2_near_past ?? (doiCount + arxivCount + cvfCount + openreviewCount + zenodoCount);
+  const doiCount = sourceBreakdown?.doi ?? 0;
+  const arxivCount = (sourceBreakdown?.arxiv ?? 0) + sessionIngested;
+  const cvfCount = sourceBreakdown?.cvf ?? 0;
+  const openreviewCount = sourceBreakdown?.openreview ?? 0;
+  const zenodoCount = sourceBreakdown?.zenodo ?? 0;
+  const totalCorpusCount = doiCount + arxivCount + cvfCount + openreviewCount + zenodoCount;
   const arxivGb = activeData?.arxivHtmlSizeGb ?? 1.054;
   const doiGb = 1.897;
   const silverMb = activeData?.silverParquetSizeMb ?? 172.0;
