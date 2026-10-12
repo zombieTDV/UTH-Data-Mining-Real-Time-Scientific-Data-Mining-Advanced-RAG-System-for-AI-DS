@@ -153,6 +153,7 @@ class ArxivBatchHarvester:
         resumption_token: Optional[str] = None,
         set_spec: str = "cs",
         from_date: str = "2024-01-01",
+        until_date: Optional[str] = None,
         max_retries: int = 5,
     ) -> Dict[str, Any]:
         """Gui request OAI-PMH voi co che retry va xu ly Retry-After tu dong."""
@@ -165,6 +166,8 @@ class ArxivBatchHarvester:
                 "set": set_spec,
                 "from": from_date,
             }
+            if until_date:
+                params["until"] = until_date
 
         for attempt in range(1, max_retries + 1):
             try:
