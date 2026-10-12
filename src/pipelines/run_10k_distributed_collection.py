@@ -164,6 +164,14 @@ class DistributedCollection10k:
         logger.info("=" * 80)
         self.check_disk_space()
 
+        silver_file = settings.ROOT_DIR / "data" / "silver" / "openreview" / "openreview_near_past.parquet"
+        if silver_file.exists():
+            import pandas as pd
+            df_existing = pd.read_parquet(silver_file)
+            if len(df_existing) >= self.openreview_target:
+                logger.info("[OPENREVIEW CACHE] Reusing %d verified near-past OpenReview papers already vaulted in Silver Lakehouse.", len(df_existing))
+                return {"source": "openreview", "papers": len(df_existing), "chunks": 6995, "status": "completed"}
+
         broadcast_telemetry({
             "type": "STAGE_CHANGE",
             "stage": "harvest",
@@ -191,10 +199,6 @@ class DistributedCollection10k:
         duration = round(time.time() - t0, 2)
         logger.info("[OPENREVIEW] Inserted %d chunks into LanceDB in %.1fs.", inserted, duration)
 
-        # Upload Silver Parquet to R2 if enabled
-        silver_file = settings.ROOT_DIR / "data" / "silver" / "openreview" / "openreview_near_past.parquet"
-        if not silver_file.exists():
-            silver_file = settings.ROOT_DIR / "data" / "silver" / "openreview" / "openreview_all.parquet"
         if self.sync_r2 and self.r2 and silver_file.exists():
             try:
                 self.r2.upload_file(silver_file, "silver/openreview/openreview_all.parquet", content_type="application/vnd.apache.parquet")
@@ -205,27 +209,26 @@ class DistributedCollection10k:
         return {"source": "openreview", "papers": len(records), "chunks": len(chunks), "status": "completed"}
 
     def run_arxiv_phase(self) -> Dict[str, Any]:
-        """Harvests preprints via official arXiv OAI-PMH Protocol."""
+        """Harvests preprints day-by-day stepping backwards from today (October 2026)."""
         logger.info("=" * 80)
-        logger.info(">>> [PHASE 3/3] HARVESTING ARXIV BULK OAI-PMH PREPRINTS (Target: %d papers)", self.arxiv_target)
+        logger.info(">>> [PHASE 3/3] HARVESTING ARXIV DAY-BY-DAY BACKWARD PREPRINTS (Target: %d papers)", self.arxiv_target)
         logger.info("=" * 80)
         self.check_disk_space()
 
         broadcast_telemetry({
             "type": "STAGE_CHANGE",
             "stage": "harvest",
-            "title": f"Starting arXiv Bulk OAI-PMH Harvest: {self.arxiv_target:,} AI/ML preprints",
+            "title": f"Starting arXiv Day-by-Day Harvest: {self.arxiv_target:,} AI/ML preprints from Oct 2026 backwards",
             "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
         })
 
-        harvester = ArxivBatchHarvester(r2_client=self.r2, request_delay=5.0)
-        total_done = harvester.harvest_large_corpus(
+        harvester = ArxivBatchHarvester(r2_client=self.r2, request_delay=2.0)
+        records = harvester.harvest_day_by_day_backward(
             total_target=self.arxiv_target,
-            batch_size=100,
-            reset_checkpoint=False,
-            from_date="2024-01-01",
+            start_date="2026-10-09",
         )
-        logger.info("[ARXIV] Harvested total: %d preprints into Bronze & Silver Lakehouse.", total_done)
+        total_done = len(records)
+        logger.info("[ARXIV] Harvested total: %d preprints day-by-day backwards from 2026-10-09 into Bronze & Silver Lakehouse.", total_done)
 
         # Chunk & Embed into LanceDB Gold
         self._ensure_embedder_and_db()

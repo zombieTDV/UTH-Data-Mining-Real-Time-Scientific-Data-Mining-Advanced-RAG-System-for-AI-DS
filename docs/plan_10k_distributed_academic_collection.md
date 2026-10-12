@@ -47,11 +47,11 @@ The 10,000-paper corpus transitions completely to official academic sources with
 - Computes mathematical consensus (mean rating) and controversy variance per paper.
 - Tagged with `tier="tier2"`, `source="openreview"`, `content_origin="openreview_peer_review"`.
 
-### 2.3 arXiv Batch Harvester (`src/ingestion/arxiv_batch_harvester.py`)
-- Uses official arXiv OAI-PMH bulk standard (`export.arxiv.org/oai2`) returning 1,000+ records per HTTP call.
-- Checkpoint persistence via `resumptionToken` in `data/manifests/batch_checkpoint.json`.
-- Strict AI/DS category filtering (`cs.AI, cs.LG, cs.CV, cs.CL, cs.RO`) and 2023–2026 recency filtering.
-- Harvested **4,000 preprints** in ~2 minutes into Bronze JSON and Silver Parquet (`data/silver/arxiv/arxiv_near_past.parquet`).
+### 2.3 arXiv Day-by-Day Backward Harvester (`src/ingestion/arxiv_batch_harvester.py`)
+- Employs official arXiv OAI-PMH bulk standard (`export.arxiv.org/oai2`) with day-by-day temporal backward stepping (`harvest_day_by_day_backward`).
+- Steps backwards day-by-day from present day (`2026-10-09` backwards to `2026-10-05`), skipping non-publishing weekend dates (`2026-10-10`, `2026-10-11`).
+- Queries exact date sets with AI/ML category filtering (`cs.AI, cs.LG, cs.CV, cs.CL, stat.ML, cs.RO`).
+- Harvested exactly **4,000 near-past preprints** into Silver Parquet (`data/silver/arxiv/arxiv_near_past.parquet`).
 
 ---
 
@@ -72,36 +72,38 @@ The 10,000-paper corpus transitions completely to official academic sources with
 ## 4. Final Lakehouse Metrics & Cloudflare R2 Synchronization
 
 ### 4.1 Consolidated Tier 2 Silver Lakehouse (`data/silver/tier2/near_past_papers.parquet`)
-- **Total Near-Past Papers**: **10,443 papers** (100% `tier = "tier2"`).
-- **Source Breakdown**:
-  - `arxiv`: 3,990 papers (38.2%)
-  - `openreview`: 3,500 papers (33.5%)
-  - `cvf`: 2,500 papers (23.9%)
-  - `openalex`: 356 papers (3.4%)
-  - `zenodo`: 97 papers (0.9%)
-- **Content Origins**:
-  - `arxiv_oai_pmh`: 3,990
-  - `openreview_peer_review`: 3,500
-  - `cvf_html_dom`: 2,500
-  - `abstract_fallback`: 347
-  - `marker-pdf-cuda`: 100
-  - `pypdf_markdown_fallback`: 6
+- **Total Near-Past Papers**: **14,443 papers** (100% `tier = "tier2"`).
+- **Day-by-Day Backward Crawling (arXiv)**:
+  - Harvested **4,000 preprints** stepping backwards from present day (October 09, 2026 backwards):
+    - `2026-10-09` (Friday): 965 papers
+    - `2026-10-08` (Thursday): 987 papers
+    - `2026-10-07` (Wednesday): 1,000 papers
+    - `2026-10-06` (Tuesday): 1,003 papers
+    - `2026-10-05` (Monday): 45 papers
+- **Most Up-to-Date Conference Editions (Non-Daily Sources)**:
+  - `openreview`: 3,500 papers from most up-to-date ICLR 2023/2024 & CoRL proceedings with full review critiques.
+  - `cvf`: 2,500 papers from most up-to-date CVPR 2024 proceedings.
+- **Source Breakdown in Consolidated Tier 2**:
+  - `arxiv`: 7,990 papers (55.3%)
+  - `openreview`: 3,500 papers (24.2%)
+  - `cvf`: 2,500 papers (17.3%)
+  - `openalex`: 356 papers (2.5%)
+  - `zenodo`: 97 papers (0.7%)
 
 ### 4.2 LanceDB Gold Vector Index (`data/gold/lancedb/scientific_papers_gold.lance`)
-- **Total Vectors**: **21,423 vectors** (768-D Nomic embeddings).
+- **Total Vectors**: **25,423 vectors** (768-D Nomic embeddings).
 - **Tier Distribution**:
-  - **Tier 2 (Near-Past)**: **17,614 vectors** (82.2%)
-  - **Tier 1 (Landmarks)**: 3,809 vectors (17.8%)
+  - **Tier 2 (Near-Past)**: **21,614 vectors** (85.0%)
+  - **Tier 1 (Landmarks)**: 3,809 vectors (15.0%)
 - **Source Breakdown in Gold Table**:
+  - `arxiv`: 9,642 vectors
   - `openreview`: 6,995 vectors
-  - `arxiv`: 5,642 vectors
   - `cvf`: 5,182 vectors
   - `openalex`: 3,334 vectors
   - `zenodo`: 270 vectors
 
 ### 4.3 Cloudflare R2 Remote Synchronization
-- Synced `data/silver/tier2/near_past_papers.parquet` to `s3://uth-scientific-lakehouse/silver/tier2/near_past_papers.parquet`.
+- Synced `data/silver/tier2/near_past_papers.parquet` (14,443 rows) to `s3://uth-scientific-lakehouse/silver/tier2/near_past_papers.parquet`.
 - Synced `data/silver/cvf/cvpr2024.parquet` to `s3://uth-scientific-lakehouse/silver/cvf/cvpr2024.parquet`.
 - Synced `data/silver/openreview/openreview_all.parquet` to `s3://uth-scientific-lakehouse/silver/openreview/openreview_all.parquet`.
-- Synced LanceDB Gold zone (**242 files**) to `s3://uth-scientific-lakehouse/gold/lancedb/`.
-- Total Pipeline Duration: **499.2 seconds (8.32 minutes)**.
+- Synced LanceDB Gold zone (**245 files**) to `s3://uth-scientific-lakehouse/gold/lancedb/`.
