@@ -10,8 +10,11 @@ import logging
 import os
 import re
 import threading
+import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+warnings.filterwarnings("ignore")
 
 try:
     import torch

@@ -19,13 +19,20 @@ Usage:
     python src/pipelines/run_tier2_fulltext_harvest.py --max-papers 50000 --batch-size 50
 """
 
+import os
+import sys
+import warnings
+
+# Suppress annoying C-extension / third-party deprecation spam in log outputs
+warnings.filterwarnings("ignore")
+os.environ["PYTHONWARNINGS"] = "ignore"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import argparse
 import datetime
 import json
 import logging
-import os
 import re
-import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
