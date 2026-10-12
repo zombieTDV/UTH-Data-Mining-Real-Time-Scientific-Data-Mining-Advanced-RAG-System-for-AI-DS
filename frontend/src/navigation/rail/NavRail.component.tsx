@@ -48,37 +48,49 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
         transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}
     >
-      {/* Top Brand Logo Anchor (Replaces orange button, routes to Home/FLOW) */}
+      {/* Top Brand Logo Anchor (Official UTH Brand Icon & Colors, routes to Home/FLOW) */}
       <div
-        title={language === 'vi' ? 'Trang chủ - Lakehouse Dữ liệu Khoa học UTH' : 'Home - UTH Scientific Lakehouse'}
+        title={language === 'vi' ? 'Trang chủ - Trường Đại học Giao thông Vận tải TP.HCM (UTH)' : 'Home - Ho Chi Minh City University of Transport (UTH)'}
         style={{
-          width: '36px',
-          height: '36px',
+          width: '38px',
+          height: '38px',
           borderRadius: '10px',
-          background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+          background: 'linear-gradient(135deg, #025052 0%, #088486 60%, #0d9ea1 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#ffffff',
-          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+          boxShadow: '0 4px 14px rgba(8, 132, 134, 0.4)',
           cursor: 'pointer',
           marginBottom: '20px',
           transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+          position: 'relative',
+          overflow: 'hidden',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
         }}
         onClick={() => onNavigate('schematic')}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = 'scale(1.06)';
-          e.currentTarget.style.boxShadow = '0 6px 16px rgba(124, 58, 237, 0.45)';
+          e.currentTarget.style.boxShadow = '0 6px 18px rgba(8, 132, 134, 0.55)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.35)';
+          e.currentTarget.style.boxShadow = '0 4px 14px rgba(8, 132, 134, 0.4)';
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-          <path d="M6 12v5c3 3 9 3 12 0v-5" />
-        </svg>
+        <span
+          style={{
+            fontFamily: '"Times New Roman", "Playfair Display", Georgia, serif',
+            fontWeight: 900,
+            fontSize: '13px',
+            letterSpacing: '0.04em',
+            color: '#ffffff',
+            textShadow: '0 1px 3px rgba(0,0,0,0.4)',
+            userSelect: 'none',
+          }}
+        >
+          UTH
+        </span>
       </div>
 
       <nav style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', alignItems: 'center' }}>
