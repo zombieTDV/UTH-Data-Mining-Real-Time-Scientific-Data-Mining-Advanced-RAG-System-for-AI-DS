@@ -63,6 +63,17 @@ def broadcast_telemetry(payload: dict):
         pass
 
 
+def sanitize_surrogates(val: Any) -> Any:
+    """Removes lone surrogate unicode characters (e.g. \\ud835) that break PyArrow/Parquet."""
+    if isinstance(val, str):
+        return val.encode("utf-8", errors="ignore").decode("utf-8")
+    elif isinstance(val, list):
+        return [sanitize_surrogates(x) for x in val]
+    elif isinstance(val, dict):
+        return {k: sanitize_surrogates(v) for k, v in val.items()}
+    return val
+
+
 class Tier2FullTextHarvester:
     """Automated high-throughput harvester extracting pure full-text papers via Marker."""
 
@@ -75,12 +86,14 @@ class Tier2FullTextHarvester:
         request_delay: float = 1.0,
         shard_index: Optional[int] = None,
         total_shards: int = 1,
+        clean_pdf: bool = True,
     ):
         self.categories = categories or ["cs.AI", "cs.LG", "cs.CV", "cs.CL", "stat.ML"]
         self.sync_r2 = sync_r2
         self.request_delay = request_delay
         self.shard_index = shard_index
         self.total_shards = max(total_shards, 1)
+        self.clean_pdf = clean_pdf
         self.r2 = R2Client() if sync_r2 else None
 
         self.bronze_pdf_dir = settings.ROOT_DIR / "data" / "bronze" / "pdf_raw"
@@ -414,6 +427,11 @@ class Tier2FullTextHarvester:
             # Neural Marker Conversion on GPU/CPU
             t0_ext = time.time()
             extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+            if self.clean_pdf and pdf_path and pdf_path.exists():
+                try:
+                    pdf_path.unlink()
+                except Exception:
+                    pass
             if not extracted:
                 continue
 
@@ -500,6 +518,11 @@ class Tier2FullTextHarvester:
                             continue
                         t0_ext = time.time()
                         extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+                        if self.clean_pdf and pdf_path and pdf_path.exists():
+                            try:
+                                pdf_path.unlink()
+                            except Exception:
+                                pass
                         if not extracted:
                             continue
                         ext_duration = time.time() - t0_ext
@@ -572,7 +595,8 @@ class Tier2FullTextHarvester:
 
     def _save_batch_to_silver(self, records: List[Dict[str, Any]]):
         """Appends new batch of full-text papers to Silver Parquet table."""
-        df_new = pd.DataFrame(records)
+        sanitized_records = [sanitize_surrogates(r) for r in records]
+        df_new = pd.DataFrame(sanitized_records)
         if self.silver_path.exists():
             df_old = pd.read_parquet(self.silver_path)
             df_combined = pd.concat([df_old, df_new], ignore_index=True).drop_duplicates(subset=["paper_id"], keep="last")
@@ -642,6 +666,7 @@ def main():
     parser.add_argument("--shard-index", type=int, default=None, help="Index of this machine shard (0-indexed, e.g., 0 or 1).")
     parser.add_argument("--total-shards", type=int, default=1, help="Total number of parallel machine shards (e.g., 2).")
     parser.add_argument("--merge-shards", action="store_true", help="Merge all local shard parquets into master fulltext_papers.parquet.")
+    parser.add_argument("--keep-pdf", action="store_true", help="Keep raw PDFs on disk instead of cleaning them after extraction.")
     args = parser.parse_args()
 
     silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier2"
@@ -655,6 +680,7 @@ def main():
         sync_r2=args.sync_r2,
         shard_index=args.shard_index,
         total_shards=args.total_shards,
+        clean_pdf=not args.keep_pdf,
     )
     harvester.run_harvest(max_papers=target, batch_size=args.batch_size if args.test_limit is None else 1)
 
