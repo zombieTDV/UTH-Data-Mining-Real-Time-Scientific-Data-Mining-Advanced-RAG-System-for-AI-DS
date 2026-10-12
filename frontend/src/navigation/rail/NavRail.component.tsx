@@ -48,28 +48,36 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
         transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}
     >
+      {/* Top Brand Logo Anchor (Replaces orange button, routes to Home/FLOW) */}
       <div
-        title="UTH Scientific Data Mining Lakehouse"
+        title={language === 'vi' ? 'Trang chủ - Lakehouse Dữ liệu Khoa học UTH' : 'Home - UTH Scientific Lakehouse'}
         style={{
           width: '36px',
           height: '36px',
-          borderRadius: '9px',
-          backgroundColor: '#ff5722',
+          borderRadius: '10px',
+          background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#ffffff',
-          boxShadow: '0 4px 12px rgba(255, 87, 34, 0.4)',
+          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
           cursor: 'pointer',
           marginBottom: '20px',
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
         }}
-        onClick={() => onNavigate('pillars')}
+        onClick={() => onNavigate('schematic')}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.06)';
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(124, 58, 237, 0.45)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.35)';
+        }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <rect x="5" y="5" width="5" height="5" rx="1.5" />
-          <rect x="14" y="5" width="5" height="5" rx="1.5" />
-          <rect x="5" y="14" width="5" height="5" rx="1.5" />
-          <rect x="14" y="14" width="5" height="5" rx="1.5" />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+          <path d="M6 12v5c3 3 9 3 12 0v-5" />
         </svg>
       </div>
 
@@ -106,27 +114,68 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
         })}
       </nav>
 
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', paddingBottom: '12px' }}>
-        <RailLanguageToggle />
-        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-
+      {/* Bottom Section with Hover-reveal for Controls and Preserved Account Avatar */}
+      <div
+        style={{
+          marginTop: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          alignItems: 'center',
+          paddingBottom: '12px',
+        }}
+      >
+        {/* Controls container with subtle hover reveal */}
         <div
-          title={language === 'vi' ? 'Trường Đại học Giao thông Vận tải TP.HCM (UTH)' : 'Ho Chi Minh City University of Transport (UTH)'}
           style={{
-            width: '30px',
-            height: '30px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            alignItems: 'center',
+            opacity: 0.45,
+            transition: 'opacity 0.2s ease, transform 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '1';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '0.45';
+          }}
+        >
+          <RailLanguageToggle />
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </div>
+
+        {/* User Account / Profile Slot (Preserved for future authentication & profile features) */}
+        <div
+          title={language === 'vi' ? 'Tài khoản người dùng (UTH ID)' : 'User Account (UTH ID)'}
+          style={{
+            width: '32px',
+            height: '32px',
             borderRadius: '50%',
-            backgroundColor: '#3b82f6',
-            color: '#ffffff',
+            backgroundColor: 'var(--rail-active-text)',
+            color: 'var(--bg-card)',
             fontSize: '11px',
             fontWeight: 800,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 6px rgba(59, 130, 246, 0.4)',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+            cursor: 'pointer',
+            transition: 'transform 0.15s ease',
+            border: '2px solid var(--border-subtle)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
           }}
         >
-          UTH
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
         </div>
       </div>
     </aside>
