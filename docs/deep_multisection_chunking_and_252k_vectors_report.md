@@ -14,11 +14,11 @@
 
 - [1. Executive Summary](#1-executive-summary)
 - [2. Deep Multi-Section Chunking Architecture](#2-deep-multi-section-chunking-architecture)
-- [3. Lakehouse Vector Inventory & Distribution](#3-lakehouse-vector-inventory--distribution)
-- [4. GPU Embedding & Streaming Performance](#4-gpu-embedding--streaming-performance)
-- [5. Scaled Option 2 IVF-PQ Index (K=1024, M=192) & Retrieval Benchmarks](#5-scaled-option-2-ivf-pq-index-k1024-m192--retrieval-benchmarks)
+- [3. Lakehouse Vector Inventory &amp; Distribution](#3-lakehouse-vector-inventory--distribution)
+- [4. GPU Embedding &amp; Streaming Performance](#4-gpu-embedding--streaming-performance)
+- [5. Scaled Option 2 IVF-PQ Index (K=1024, M=192) &amp; Retrieval Benchmarks](#5-scaled-option-2-ivf-pq-index-k1024-m192--retrieval-benchmarks)
 - [6. Multi-Threaded Cloudflare R2 Cloud Synchronization](#6-multi-threaded-cloudflare-r2-cloud-synchronization)
-- [7. Repository Hygiene & Ignore Policy](#7-repository-hygiene--ignore-policy)
+- [7. Repository Hygiene &amp; Ignore Policy](#7-repository-hygiene--ignore-policy)
 
 ---
 
@@ -34,13 +34,13 @@ This engineering upgrade transitions the scientific lakehouse from single-vector
    - `Body Sections`: Structured headings (`Methodology`, `Architecture`, `Experiments`, `Ablation Studies`, `Conclusion`).
 3. **GPU Vectorization Throughput**: Vectorized 155,967 newly extracted section chunks on an **NVIDIA GeForce RTX 4060 Laptop GPU** in FP16 batch mode at ~70–85 chunks/s (~35 minutes total).
 4. **Option 2 High-Fidelity Index Scaling**: Scaled the IVF-PQ index to **1,024 Voronoi partitions** and **192 sub-vectors** ($768/192 = 4$ dimensions per codebook) with `refine_factor=10` exact re-ranking.
-5. **Repository Cleanliness**: Added `scratch/` to [`.gitignore`](file:///C:/document/Study%20documents/Uth-Data-Mining/.gitignore) to keep the Git tree free of scratch and exploratory scripts.
+5. **Repository Cleanliness**: Added `scratch/` to [`.gitignore`](<file:///C:/document/Study%20documents/Uth-Data-Mining/.gitignore>) to keep the Git tree free of scratch and exploratory scripts.
 
 ---
 
 ## 2. Deep Multi-Section Chunking Architecture
 
-The upgraded [`AcademicChunker`](file:///C:/document/Study%20documents/Uth-Data-Mining/src/indexing/chunker.py) applies a hierarchical four-tier decomposition to each paper record:
+The upgraded [`AcademicChunker`](<file:///C:/document/Study%20documents/Uth-Data-Mining/src/indexing/chunker.py>) applies a hierarchical four-tier decomposition to each paper record:
 
 ```
 Scientific Paper Record
@@ -68,15 +68,15 @@ Scientific Paper Record
 
 Direct inventory of the 252,855 extracted chunks across the 103,000 papers:
 
-| Source | Paper Count | Total Chunks Extracted | Avg Chunks/Paper | Key Sections Extracted |
-| :--- | :---: | :---: | :---: | :--- |
-| **doi** | 44,969 | **48,285** | 1.07 | Abstract, Extended Methods, Problem Context |
-| **arxiv** | 39,189 | **39,193** | 1.00 | Abstract, Extended Preprints, Topic Overviews |
-| **openreview** | 5,137 | **16,414** | **3.20** | Abstract, Reviews, Methodology, Discussions |
-| **cvf** | 8,418 | **10,877** | **1.29** | Abstract, Introduction, Conference Proceedings |
-| **zenodo** | 2,287 | **2,359** | 1.03 | Marker OCR Extracted Sections, Abstracts |
-| **tier1 (landmarks)** | 3,000 | **5,013** | **1.67** | Foundation Papers, Multi-part Landmark Texts |
-| **Total** | **103,000** | **252,855** | **2.45** | **Pure Genuine Academic Provenance** |
+| Source                      |    Paper Count    | Total Chunks Extracted | Avg Chunks/Paper | Key Sections Extracted                         |
+| :-------------------------- | :---------------: | :--------------------: | :--------------: | :--------------------------------------------- |
+| **doi**               |      44,969      |    **48,285**    |       1.07       | Abstract, Extended Methods, Problem Context    |
+| **arxiv**             |      39,189      |    **39,193**    |       1.00       | Abstract, Extended Preprints, Topic Overviews  |
+| **openreview**        |       5,137       |    **16,414**    |  **3.20**  | Abstract, Reviews, Methodology, Discussions    |
+| **cvf**               |       8,418       |    **10,877**    |  **1.29**  | Abstract, Introduction, Conference Proceedings |
+| **zenodo**            |       2,287       |    **2,359**    |       1.03       | Marker OCR Extracted Sections, Abstracts       |
+| **tier1 (landmarks)** |       3,000       |    **5,013**    |  **1.67**  | Foundation Papers, Multi-part Landmark Texts   |
+| **Total**             | **103,000** |   **252,855**   |  **2.45**  | **Pure Genuine Academic Provenance**     |
 
 ---
 
@@ -86,7 +86,7 @@ Direct inventory of the 252,855 extracted chunks across the 103,000 papers:
 * **Execution Time**: Vectorized **155,967 new section chunks in 2,141.97s (35.7 min)**.
 * **Throughput**: **73.0 chunks/s** average sustained inference speed.
 * **Memory Management**: Peak VRAM stable at **~2.3 GB / 8.0 GB** (zero WDDM memory paging).
-* **Total Gold Vectors**: **268,233 vectors** fully indexed in [`scientific_papers_gold.lance`](file:///C:/document/Study%20documents/Uth-Data-Mining/data/gold/lancedb/scientific_papers_gold.lance).
+* **Total Gold Vectors**: **268,233 vectors** fully indexed in [`scientific_papers_gold.lance`](<file:///C:/document/Study%20documents/Uth-Data-Mining/data/gold/lancedb/scientific_papers_gold.lance>).
 
 ---
 
@@ -104,12 +104,12 @@ The IVF-PQ index was successfully built and trained on all 268,233 vectors:
 
 ### Empirical Retrieval Benchmarks (Post-Indexing Verification)
 
-| Test Query | Target Concept | Warm Latency | Top-1 Section Type | Distance |
-| :--- | :--- | :---: | :--- | :---: |
-| *"deep residual learning for image recognition architecture and skip connections"* | ResNet Skip Connections | **33.72 ms** | `Abstract` (Kernel Perspective of Skip Connections) | 0.2033 |
-| *"attention is all you need multi-head self-attention mechanisms in transformer"* | Multi-Head Attention | **43.71 ms** | `Abstract` (Horizontal & Vertical Attention) | 0.2091 |
-| *"diffusion models for generative high resolution image synthesis"* | Generative Latent Diffusion | **38.16 ms** | `Abstract: Problem & Context` (DemoFusion CVPR) | 0.1681 |
-| **Mean Query Latency** | | **38.53 ms** | **Section Grounding Verified** | **High Fidelity** |
+| Test Query                                                                           | Target Concept              |    Warm Latency    | Top-1 Section Type                                    |        Distance        |
+| :----------------------------------------------------------------------------------- | :-------------------------- | :----------------: | :---------------------------------------------------- | :---------------------: |
+| *"deep residual learning for image recognition architecture and skip connections"* | ResNet Skip Connections     | **33.72 ms** | `Abstract` (Kernel Perspective of Skip Connections) |         0.2033         |
+| *"attention is all you need multi-head self-attention mechanisms in transformer"*  | Multi-Head Attention        | **43.71 ms** | `Abstract` (Horizontal & Vertical Attention)        |         0.2091         |
+| *"diffusion models for generative high resolution image synthesis"*                | Generative Latent Diffusion | **38.16 ms** | `Abstract: Problem & Context` (DemoFusion CVPR)     |         0.1681         |
+| **Mean Query Latency**                                                         |                             | **38.53 ms** | **Section Grounding Verified**                  | **High Fidelity** |
 
 ---
 
@@ -126,5 +126,6 @@ The IVF-PQ index was successfully built and trained on all 268,233 vectors:
 ## 7. Repository Hygiene & Ignore Policy
 
 To maintain a clean and maintainable Git repository:
-* Added `scratch/` to [`.gitignore`](file:///C:/document/Study%20documents/Uth-Data-Mining/.gitignore) to exclude temporary benchmark, diagnostic, and experiment scripts.
-* Production pipelines ([`src/pipelines/run_full_lakehouse_embedding.py`](file:///C:/document/Study%20documents/Uth-Data-Mining/src/pipelines/run_full_lakehouse_embedding.py)) and indexing modules ([`src/indexing/chunker.py`](file:///C:/document/Study%20documents/Uth-Data-Mining/src/indexing/chunker.py)) remain cleanly tracked and maintained.
+
+* Added `scratch/` to [`.gitignore`](<file:///C:/document/Study%20documents/Uth-Data-Mining/.gitignore>) to exclude temporary benchmark, diagnostic, and experiment scripts.
+* Production pipelines ([`src/pipelines/run_full_lakehouse_embedding.py`](<file:///C:/document/Study%20documents/Uth-Data-Mining/src/pipelines/run_full_lakehouse_embedding.py>)) and indexing modules ([`src/indexing/chunker.py`](<file:///C:/document/Study%20documents/Uth-Data-Mining/src/indexing/chunker.py>)) remain cleanly tracked and maintained.

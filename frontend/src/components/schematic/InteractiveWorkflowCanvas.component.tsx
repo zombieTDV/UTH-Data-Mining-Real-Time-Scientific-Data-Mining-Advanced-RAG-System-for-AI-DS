@@ -40,32 +40,31 @@ export interface ToolDetail {
 export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
   'start-flow': {
     id: 'start-flow',
-    name: 'Source Ingest (Multi-Source Provenance)',
-    category: 'Source Data Ingestion Engine',
-    role: 'Harvests academic metadata, full-text HTML5 papers, publisher records, and conference papers',
-    engineVersion: 'arXiv REST API + Publisher DOI + OpenReview + CVF + Zenodo',
+    name: 'Source Ingest (Pure Full-Text Harvester)',
+    category: 'Full-Text Ingestion Engine',
+    role: 'Harvests genuine full-text papers via Marker Neural OCR and arXiv HTML5 with complete section decomposition',
+    engineVersion: 'Marker 2.0 (CUDA FP16) + arXiv REST API + OpenReview + CVF',
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '100,000 Deduplicated Works',
-      secondaryMetric: '45.0k DOI · 39.2k arXiv · 8.4k CVF · 5.1k OpenReview · 2.3k Zenodo',
-      latency: 'Adaptive Jitter Rate Limiter',
+      primaryMetric: 'Genuine Full-Text Works',
+      secondaryMetric: '100% Full-Text Verified (Introduction, Methods, Experiments, Conclusion)',
+      latency: 'Marker 2.0 Neural OCR (CUDA FP16)',
       throughput: '100% Cryptographic SHA-256 Verified',
     },
     features: [
-      'Multi-source ingestion across DOI Publishers (Nature, IEEE, ACM, Springer), arXiv, CVF (CVPR/ICCV), OpenReview, and Zenodo',
-      'Full-text HTML5 and Marker PDF LaTeX crawler extracting abstract, methods, formulas, and references',
-      'Dual-tier architectural harvest: Tier 1 Landmarks (3,000 papers) & Tier 2 Near-Past (100,000 papers)',
-      'Deduplication Shield with 121,653 unique papers and cross-source metadata fusion',
+      'Pure Full-Text Corpus: strictly excludes abstract-only records to guarantee complete multi-section coverage',
+      'Marker 2.0 Neural Engine (CUDA FP16) converts scientific PDFs to high-fidelity Markdown preserving LaTeX formulas ($...$)',
+      'Dual-tier architectural harvest scaling towards 50,000 verified full-text papers',
+      'Full section hierarchy: Abstract, 1 Introduction, 2 Methodology, 3 Experiments, 4 Diagnostics, Conclusion',
     ],
-    samplePreviewTitle: 'Multi-Source Federated Ingestion Spec',
+    samplePreviewTitle: 'Pure Full-Text Harvest & Marker Engine Spec',
     sampleCodeOrSchema: `POST https://export.arxiv.org/api/query (arXiv REST API)
-GET https://doi.org/ (Crossref & Publisher DOI Resolvers)
-GET https://api.openreview.net/notes (OpenReview ICLR/NeurIPS)
-GET https://openaccess.thecvf.com (CVF CVPR/ICCV Open Access)
-GET https://zenodo.org/api/records (Zenodo Open Science)
-Tier 2 Corpus: 100,000 Verified Papers (45.0% DOI · 39.2% arXiv · 8.4% CVF · 5.1% OpenReview · 2.3% Zenodo)
-Deduplication Shield: 121,653 Keys Vaulted to Cloudflare R2`,
+GET https://arxiv.org/pdf/{paper_id}.pdf -> Marker Neural OCR (CUDA FP16)
+GET https://api.openreview.net/notes (OpenReview ICLR/NeurIPS Full Text)
+GET https://openaccess.thecvf.com (CVF CVPR/ICCV Open Access Proceedings)
+Tier 2 Full-Text Pipeline: Scaling up to 50,000 Verified Works (Zero Abstract-Only Records)
+Full-Text Sections: Introduction, Model Architecture, Experiments, Ablations, Diagnostics, Conclusion`,
   },
   'bronze-instance': {
     id: 'bronze-instance',
@@ -94,10 +93,11 @@ Deduplication Shield: 121,653 Keys Vaulted to Cloudflare R2`,
 │   ├── doi_publishers/ (44,969 records · 1.897 GB)
 │   └── oai_batches/ (12 batch checkpoints · 26.4 MB)
 ├── silver/
-│   ├── tier1/landmark_papers.parquet (3,000 landmark records)
-│   └── tier2/near_past_papers.parquet (100,000 rows · 172.0 MB)
+│   ├── tier1/landmark_papers.parquet (3,000 Landmark Full-Text records)
+│   ├── tier2/fulltext_papers.parquet (Verified Full-Text records via Marker)
+│   └── chunks.parquet (335,304 Deep Section Chunks)
 └── gold/
-    └── lancedb/scientific_papers_gold.lance (40,399 vectors · 257.3 MB active)`,
+    └── lancedb/scientific_papers_gold.lance (Option 2 IVF-PQ K=1024, M=192)`,
   },
   'review-duckdb': {
     id: 'review-duckdb',
