@@ -160,7 +160,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           sectionTitle: displayChunk.section_title || sectionTitle || 'Main Methodology',
           score: displayChunk.score ? displayChunk.score.toFixed(4) : (first.score ? first.score.toFixed(4) : '0.8510'),
           chunkText: displayChunk.text ? (displayChunk.text.length > 350 ? displayChunk.text.slice(0, 350) + '...' : displayChunk.text) : '',
-          doi: first.doi || undefined,
+          doi: first.doi || (paperId.startsWith('doi_') ? `https://doi.org/${paperId.replace(/^doi_/, '').replace(/_/g, '/')}` : undefined),
         });
       }
     } catch (err) {
@@ -357,11 +357,14 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   };
 
   const formatCitationBadgeLabel = (paperId: string, sectionTitle?: string): string => {
-    let prefix = 'arXiv';
     let cleanId = paperId.trim();
+    let prefix = 'Paper';
 
-    if (/^openalex:/i.test(cleanId) || /^W\d+$/i.test(cleanId)) {
-      prefix = 'OpenAlex';
+    if (/^doi[_:]/i.test(cleanId) || /^10\.\d{4,9}\//i.test(cleanId)) {
+      prefix = 'DOI';
+      cleanId = cleanId.replace(/^doi[_:]/i, '').replace(/_/g, '/');
+    } else if (/^openalex:/i.test(cleanId) || /^W\d+$/i.test(cleanId)) {
+      prefix = 'DOI';
       cleanId = cleanId.replace(/^openalex:/i, '');
     } else if (/^cvf[_:]/i.test(cleanId)) {
       prefix = 'CVF';

@@ -18,7 +18,8 @@ class StorageZonesDto(BaseModel):
 
 class SourceBreakdownDto(BaseModel):
     arxiv: int = Field(21717, description="arXiv preprints across AI/ML categories")
-    openalex: int = Field(19361, description="OpenAlex rich academic records & citation graphs")
+    doi: int = Field(0, description="Publisher DOIs & Journal Publications (Crossref/Nature/IEEE)")
+    openalex: int = Field(0, description="Catalog records (relabelled to DOI)")
     openreview: int = Field(6135, description="OpenReview ICLR/NeurIPS peer-review threads")
     cvf: int = Field(4796, description="CVF Open Access CVPR & ICCV proceedings")
     zenodo: int = Field(97, description="Zenodo Open Science publications (Marker PDF engine)")
