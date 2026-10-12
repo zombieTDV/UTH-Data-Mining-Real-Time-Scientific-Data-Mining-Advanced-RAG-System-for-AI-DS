@@ -81,10 +81,19 @@ class LanceDBManager:
         limit: int = 5,
         filter_expr: Optional[str] = None,
         table_name: str = DEFAULT_TABLE_NAME,
+        refine_factor: int = 10,
+        nprobes: int = 32,
     ) -> pd.DataFrame:
-        """Tìm kiếm lân cận gần đúng (ANN) trên vector embeddings."""
+        """Tìm kiếm lân cận gần đúng (ANN) trên vector embeddings với Option 2 (exact re-ranking)."""
         table = self.db.open_table(table_name)
-        search_query = table.search(query_vector).metric("cosine").limit(limit)
+        search_query = table.search(query_vector).metric("cosine")
+
+        try:
+            search_query = search_query.nprobes(nprobes).refine_factor(refine_factor)
+        except Exception:
+            pass
+
+        search_query = search_query.limit(limit)
 
         if filter_expr:
             search_query = search_query.where(filter_expr, prefilter=True)

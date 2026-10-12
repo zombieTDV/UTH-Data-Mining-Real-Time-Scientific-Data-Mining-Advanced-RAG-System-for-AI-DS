@@ -54,8 +54,12 @@ class NomicEmbedder:
 
         PreTrainedModel.get_extended_attention_mask = _patch_extended_mask
 
+        model_kwargs = {"trust_remote_code": True}
+        if self.device.type == "cuda":
+            model_kwargs["torch_dtype"] = torch.float16
+
         self.tokenizer = AutoTokenizer.from_pretrained(load_identifier)
-        self.model = AutoModel.from_pretrained(load_identifier, trust_remote_code=True)
+        self.model = AutoModel.from_pretrained(load_identifier, **model_kwargs)
         self.model.to(self.device)
         self.model.eval()
 
@@ -104,7 +108,7 @@ class NomicEmbedder:
                 embeddings = self._mean_pooling(model_output, encoded_input["attention_mask"].to(model_output[0].device))
                 # L2 Normalize
                 embeddings = F.normalize(embeddings, p=2, dim=1)
-                all_embeddings.extend(embeddings.cpu().tolist())
+                all_embeddings.extend(embeddings.float().cpu().tolist())
 
             del encoded_input, model_output, embeddings
             if self.device.type == "cuda" and (i // batch_size) % 10 == 0:

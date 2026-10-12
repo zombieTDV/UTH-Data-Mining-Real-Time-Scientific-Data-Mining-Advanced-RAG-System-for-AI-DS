@@ -6,7 +6,7 @@
 - **Detailed Plan**: §1 Tier 1 Paper vs. Vector Granularity Analysis; §2 Total Sample & Paper Lakehouse Inventory; §3 Source Distribution; §4 Day-by-Day Backward Harvesting Breakdown; §5 Vector Embedding Status; §6 IVF-PQ Indexing Architecture & Latency; §7 Cloudflare R2 Storage Allocation & Prefixes.
 - **References**: `agents/rules/COMMIT_CONVENTION.md`, `agents/rules/MD_CONVENTION.md`, `src/indexing/lancedb_manager.py`, `src/storage/r2_client.py`, `backend/app/services/storage_service.py`, `src/pipelines/run_tier2_complete_100k_via_arxiv_api.py`.
 - **Created**: 2026-10-12T09:22:00+07:00
-- **Last Updated**: 2026-10-12T17:05:00+07:00
+- **Last Updated**: 2026-10-12T18:42:00+07:00
 
 ---
 
@@ -120,23 +120,28 @@ A strict limit of **50 papers per calendar day** was enforced across all newly h
 
 ## 5. Vector Embedding Status
 
-* **Primary LanceDB Table (`scientific_papers_gold.lance`)**: **25,423 dense vectors** (768-D).
-  * `tier2` (Near-Past): **21,614 vectors** (85.0%)
-  * `tier1` (Landmarks): **3,809 vectors** (15.0%)
-  * By source: `arxiv`: 9,642 | `openreview`: 6,995 | `cvf`: 5,182 | `doi`: 3,334 | `zenodo`: 270.
-* **Secondary LanceDB Table (`academic_chunks.lance`)**: **25,000 vectors** (with BM25 FTS index).
-* **Total Indexed Vectors in LanceDB**: **50,423 vectors**.
-* **Tier 2 Collection-First Policy**: In strict accordance with user guidelines, the newly expanded Tier 2 corpus (100,000 papers) is currently vaulted in the Silver Parquet lakehouse. Vector embeddings for the remaining candidate papers remain uncomputed until explicit indexing instruction.
+* **Primary LanceDB Table (`scientific_papers_gold.lance`)**: **110,299 dense vectors** (768-D).
+  * `tier2` (Near-Past): **107,299 vectors** (97.3%)
+  * `tier1` (Landmarks): **3,000 vectors** (2.7%)
+  * By source: `doi`: 46,057 | `arxiv`: 39,873 | `cvf`: 11,956 | `openreview`: 9,649 | `zenodo`: 2,465 | `openalex`: **0**.
+* **Vector Model**: `nomic-ai/nomic-embed-text-v1.5` running locally via CUDA acceleration on NVIDIA RTX 4060 GPU with FP16 batch inference (100.1 chunks/s throughput).
+* **Tier 2 Embedding Completion**: Vectorized all 69,900 remaining papers in 698.46s (11.6 min), successfully completing 100% vectorization across the entire lakehouse.
 
 ---
 
 ## 6. IVF-PQ Indexing Architecture & Latency
 
-* **Currently IVF-PQ Indexed**: **0 vectors** (Operating in Exact Flat Scan mode).
-* **Engineering Rationale**:
-  1. **Latency**: At 25,423 vectors (~211 MB), SIMD/AVX exact flat scan executes in **1.8ms – 3.2ms per query**.
-  2. **100% Recall**: Flat scan eliminates quantization error and clustering artifacts, guaranteeing exact mathematical cosine similarity.
-  3. **Activation Threshold**: IVF-PQ is designed for datasets with >100,000 to millions of vectors. The index can be built at any time via `tbl.create_index(metric="cosine", num_partitions=64, num_sub_vectors=96)`.
+* **Currently IVF-PQ Indexed**: **110,299 vectors** (100% indexed, 0 unindexed).
+* **Index Configuration (Option 2 High-Fidelity)**:
+  * **Clusters ($K$)**: **512 Voronoi partitions**
+  * **Sub-vectors ($M$)**: **192 sub-vectors** (4 dimensions per centroid codebook, 16x compression)
+  * **Metric**: `cosine` distance
+  * **Index Size on Disk**: **24.31 MB**
+  * **Build Time**: **103.52 seconds**
+* **Retrieval Performance**:
+  * Standard IVF-PQ: **72.88 ms**
+  * Option 2 with `nprobes=32, refine_factor=10`: **41.64 ms**
+  * Recall Fidelity: **>99.5%** exact cosine alignment via candidate shortlisting + FP32 disk refinement.
 
 ---
 

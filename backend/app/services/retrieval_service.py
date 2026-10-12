@@ -460,9 +460,12 @@ class RetrievalService:
             if query_vector is not None and self.vector_dim == len(query_vector):
                 query_builder = self.table.search(query_vector, vector_column_name="vector").metric("cosine")
                 try:
-                    query_builder = query_builder.nprobes(20)
+                    query_builder = query_builder.nprobes(32).refine_factor(10)
                 except Exception:
-                    pass
+                    try:
+                        query_builder = query_builder.nprobes(20)
+                    except Exception:
+                        pass
             elif mode == "fts":
                 try:
                     query_builder = self.table.search(req.query)
