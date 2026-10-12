@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 import xml.etree.ElementTree as ET
 
+import hashlib
 import httpx
 import pandas as pd
 
@@ -65,10 +66,14 @@ class Tier2FullTextHarvester:
         categories: Optional[List[str]] = None,
         sync_r2: bool = False,
         request_delay: float = 1.0,
+        shard_index: Optional[int] = None,
+        total_shards: int = 1,
     ):
         self.categories = categories or ["cs.AI", "cs.LG", "cs.CV", "cs.CL", "stat.ML"]
         self.sync_r2 = sync_r2
         self.request_delay = request_delay
+        self.shard_index = shard_index
+        self.total_shards = max(total_shards, 1)
         self.r2 = R2Client() if sync_r2 else None
 
         self.bronze_pdf_dir = settings.ROOT_DIR / "data" / "bronze" / "pdf_raw"
@@ -76,7 +81,12 @@ class Tier2FullTextHarvester:
 
         self.silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier2"
         self.silver_dir.mkdir(parents=True, exist_ok=True)
-        self.silver_path = self.silver_dir / "fulltext_papers.parquet"
+        if self.shard_index is not None:
+            self.silver_path = self.silver_dir / f"fulltext_papers_shard{self.shard_index}.parquet"
+            self.r2_key = f"silver/tier2/fulltext_papers_shard{self.shard_index}.parquet"
+        else:
+            self.silver_path = self.silver_dir / "fulltext_papers.parquet"
+            self.r2_key = "silver/tier2/fulltext_papers.parquet"
 
         self.marker_extractor = MarkerPdfExtractor(use_marker=True)
         self.existing_ids: Set[str] = self._load_existing_ids()
@@ -90,16 +100,16 @@ class Tier2FullTextHarvester:
         )
 
     def _load_existing_ids(self) -> Set[str]:
-        """Loads paper IDs already ingested into fulltext_papers.parquet."""
-        if self.silver_path.exists():
+        """Loads paper IDs already ingested across all fulltext_papers parquets."""
+        existing = set()
+        for p in self.silver_dir.glob("fulltext_papers*.parquet"):
             try:
-                df = pd.read_parquet(self.silver_path, columns=["paper_id"])
-                existing = set(df["paper_id"].astype(str))
-                logger.info("[CACHE] Found %d verified full-text papers already in Silver.", len(existing))
-                return existing
+                df = pd.read_parquet(p, columns=["paper_id"])
+                existing.update(df["paper_id"].astype(str))
             except Exception as e:
-                logger.warning("[CACHE WARNING] Could not read existing Silver parquet: %s", e)
-        return set()
+                logger.warning("[CACHE WARNING] Could not read %s: %s", p.name, e)
+        logger.info("[CACHE] Found %d verified full-text papers already in Silver cache.", len(existing))
+        return existing
 
     def fetch_arxiv_candidates(self, category: str, start: int = 0, max_results: int = 50) -> List[Dict[str, Any]]:
         """Queries arXiv API for preprints in the specified AI/ML category."""
@@ -306,6 +316,13 @@ class Tier2FullTextHarvester:
             & (~df["paper_id"].astype(str).isin(self.existing_ids))
         )
         df_valid = df[valid_mask]
+
+        if self.total_shards > 1 and self.shard_index is not None:
+            def _match_shard(pid: str) -> bool:
+                return int(hashlib.md5(str(pid).encode("utf-8")).hexdigest(), 16) % self.total_shards == self.shard_index
+            df_valid = df_valid[df_valid["paper_id"].apply(_match_shard)]
+            logger.info("[SHARDING FILTER] Shard %d/%d assigned %d partitioned candidates.",
+                        self.shard_index, self.total_shards, len(df_valid))
 
         queues = {
             "openreview": df_valid[df_valid["source"] == "openreview"].to_dict(orient="records"),
@@ -545,24 +562,75 @@ class Tier2FullTextHarvester:
             try:
                 self.r2.upload_file(
                     self.silver_path,
-                    "silver/tier2/fulltext_papers.parquet",
+                    self.r2_key,
                     content_type="application/vnd.apache.parquet"
                 )
-                logger.info("[R2 SYNC] Successfully synced fulltext_papers.parquet to Cloudflare R2.")
+                logger.info("[R2 SYNC] Successfully synced %s to Cloudflare R2 (%s).",
+                            self.silver_path.name, self.r2_key)
             except Exception as e:
                 logger.warning("[R2 SYNC NOTE] %s", e)
 
 
+def merge_shards(silver_dir: Path, sync_r2: bool = False):
+    """Merges all fulltext_papers*.parquet files into a single master fulltext_papers.parquet."""
+    shard_files = list(silver_dir.glob("fulltext_papers*.parquet"))
+    if not shard_files:
+        logger.warning("[MERGE] No fulltext_papers parquet files found in %s.", silver_dir)
+        return
+
+    logger.info("[MERGE] Consolidating %d files: %s", len(shard_files), [f.name for f in shard_files])
+    dfs = []
+    for f in shard_files:
+        try:
+            dfs.append(pd.read_parquet(f))
+        except Exception as e:
+            logger.warning("[MERGE WARNING] Could not read %s: %s", f.name, e)
+
+    if not dfs:
+        return
+
+    combined = pd.concat(dfs, ignore_index=True).drop_duplicates(subset=["paper_id"], keep="last")
+    master_path = silver_dir / "fulltext_papers.parquet"
+    combined.to_parquet(master_path, compression="zstd", index=False)
+    logger.info("[MERGE COMPLETE] Master table %s written with %d unique full-text papers!",
+                master_path.name, len(combined))
+
+    if sync_r2:
+        try:
+            r2 = R2Client()
+            r2.upload_file(
+                master_path,
+                "silver/tier2/fulltext_papers.parquet",
+                content_type="application/vnd.apache.parquet"
+            )
+            logger.info("[R2 SYNC] Successfully uploaded merged master fulltext_papers.parquet to Cloudflare R2.")
+        except Exception as e:
+            logger.warning("[R2 SYNC NOTE] %s", e)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Tier 2 Pure Full-Text Harvester via Marker 2.0.")
+    parser = argparse.ArgumentParser(description="Tier 2 Pure Full-Text Harvester via Marker 2.0 (with Distributed Sharding).")
     parser.add_argument("--test-limit", type=int, default=None, help="Run a quick validation batch of N papers.")
     parser.add_argument("--max-papers", type=int, default=50000, help="Target number of full-text papers to collect.")
     parser.add_argument("--batch-size", type=int, default=50, help="Flush to Parquet after every N papers.")
     parser.add_argument("--sync-r2", action="store_true", help="Sync to Cloudflare R2 bucket.")
+    parser.add_argument("--shard-index", type=int, default=None, help="Index of this machine shard (0-indexed, e.g., 0 or 1).")
+    parser.add_argument("--total-shards", type=int, default=1, help="Total number of parallel machine shards (e.g., 2).")
+    parser.add_argument("--merge-shards", action="store_true", help="Merge all local shard parquets into master fulltext_papers.parquet.")
     args = parser.parse_args()
 
+    silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier2"
+
+    if args.merge_shards:
+        merge_shards(silver_dir, sync_r2=args.sync_r2)
+        return
+
     target = args.test_limit if args.test_limit is not None else args.max_papers
-    harvester = Tier2FullTextHarvester(sync_r2=args.sync_r2)
+    harvester = Tier2FullTextHarvester(
+        sync_r2=args.sync_r2,
+        shard_index=args.shard_index,
+        total_shards=args.total_shards,
+    )
     harvester.run_harvest(max_papers=target, batch_size=args.batch_size if args.test_limit is None else 1)
 
 
