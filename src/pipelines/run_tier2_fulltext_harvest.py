@@ -310,6 +310,18 @@ class Tier2FullTextHarvester:
 
         logger.info("[CANDIDATES] Loading multi-source candidates from %s...", near_past_path.name)
         df = pd.read_parquet(near_past_path)
+        if "source" not in df.columns:
+            def _infer_source(r):
+                pid = str(r.get("paper_id", "")).lower()
+                if "openreview" in pid:
+                    return "openreview"
+                if "cvf" in pid:
+                    return "cvf"
+                if "doi" in pid or str(r.get("doi", "")).strip():
+                    return "doi"
+                return "arxiv"
+            df["source"] = df.apply(_infer_source, axis=1)
+
         valid_mask = (
             df["pdf_url"].notna()
             & df["pdf_url"].astype(str).str.startswith("http")
@@ -470,6 +482,9 @@ class Tier2FullTextHarvester:
                         pid = paper["paper_id"]
                         if pid in self.existing_ids:
                             continue
+                        if self.total_shards > 1 and self.shard_index is not None:
+                            if int(hashlib.md5(str(pid).encode("utf-8")).hexdigest(), 16) % self.total_shards != self.shard_index:
+                                continue
                         pdf_path = self.download_pdf(pid, paper["pdf_url"])
                         if not pdf_path:
                             continue
