@@ -18,21 +18,25 @@ export const MetricsBento: FC = () => {
   const backupData = storageStats?.backupStorage;
   const totalBucket = storageStats?.totalBucket;
 
-  const arxivCount = (activeData?.arxivHtmlCount ?? 11698) + sessionIngested;
-  const arxivGb = activeData?.arxivHtmlSizeGb ?? 3.763;
-  const openalexCount = activeData?.openalexCount ?? 24756;
-  const openalexGb = activeData?.openalexSizeGb ?? 4.066;
-  const conferenceCount = activeData?.conferenceCount ?? 2000;
-  const silverMb = activeData?.silverParquetSizeMb ?? 321.68;
-  const activeVectors = activeData?.activeLanceDbVectors ?? 164750;
-  const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 211.26;
-  const backupGb = backupData?.totalSizeGb ?? 4.107;
+  const sourceBreakdown = storageStats?.sourceBreakdown || activeData?.sourceBreakdown;
+  const doiCount = sourceBreakdown?.doi ?? 44969;
+  const arxivCount = (sourceBreakdown?.arxiv ?? 39189) + sessionIngested;
+  const cvfCount = sourceBreakdown?.cvf ?? 8418;
+  const openreviewCount = sourceBreakdown?.openreview ?? 5137;
+  const zenodoCount = sourceBreakdown?.zenodo ?? 2287;
+  const totalCorpusCount = sourceBreakdown?.tier2_near_past ?? (doiCount + arxivCount + cvfCount + openreviewCount + zenodoCount);
+  const arxivGb = activeData?.arxivHtmlSizeGb ?? 1.054;
+  const doiGb = 1.897;
+  const silverMb = activeData?.silverParquetSizeMb ?? 172.0;
+  const activeVectors = activeData?.activeLanceDbVectors ?? 40399;
+  const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 257.34;
+  const backupGb = backupData?.totalSizeGb ?? 0.001;
 
   // Active vs Total calculations linked directly to real-time storageUsedGb
-  const activeGb = activeData?.totalSizeGb ?? 8.073;
-  const activePct = activeData?.usedPercentage ?? 80.73;
-  const totalGb = totalBucket?.totalSizeGb ?? 12.18;
-  const totalPct = totalBucket?.usedPercentage ?? 121.8;
+  const activeGb = activeData?.totalSizeGb ?? 3.373;
+  const activePct = activeData?.usedPercentage ?? 33.73;
+  const totalGb = totalBucket?.totalSizeGb ?? 3.042;
+  const totalPct = totalBucket?.usedPercentage ?? 30.42;
 
   const displayGb = isTotalView ? totalGb : activeGb;
   const displayPct = isTotalView ? totalPct : activePct;
@@ -41,8 +45,8 @@ export const MetricsBento: FC = () => {
   const currentFormulas = 2220938;
 
   // Segment widths relative to 10GB Free Tier
+  const doiBarPct = Math.min(100, (doiGb / 10.0) * 100);
   const arxivBarPct = Math.min(100, (arxivGb / 10.0) * 100);
-  const openalexBarPct = Math.min(100, (openalexGb / 10.0) * 100);
   const silverBarPct = Math.min(100, ((silverMb / 1024) / 10.0) * 100);
   const backupBarPct = Math.min(100, (backupGb / 10.0) * 100);
 
@@ -56,13 +60,13 @@ export const MetricsBento: FC = () => {
       {/* 1. Corpus Scale Card */}
       <StatCard
         label="Corpus Scale"
-        badge="Medallion Lakehouse"
+        badge="Tier 2 Medallion"
         badgeColor="var(--accent-emerald)"
-        value={<AnimatedCounter value={arxivCount + openalexCount + conferenceCount} />}
+        value={<AnimatedCounter value={totalCorpusCount} />}
         unit="works"
-        description="4 Sources: arXiv preprints • OpenAlex • CVPR • OpenReview"
-        footerLeft={<>arXiv: <AnimatedCounter value={arxivCount} /></>}
-        footerRight={<>OpenAlex: <AnimatedCounter value={openalexCount} /></>}
+        description="5 Sources: DOI / Journals • arXiv • CVF • OpenReview • Zenodo"
+        footerLeft={<>DOI: <AnimatedCounter value={doiCount} /></>}
+        footerRight={<>arXiv: <AnimatedCounter value={arxivCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
       />
 
@@ -203,20 +207,20 @@ export const MetricsBento: FC = () => {
               display: 'flex',
               position: 'relative',
             }}>
-              {/* arXiv HTML5 Segment (Blue) */}
+              {/* DOI Publishers Segment (Blue) */}
+              <div
+                title={`DOI & Publishers: ${doiGb} GB`}
+                style={{
+                  width: `${doiBarPct}%`,
+                  height: '100%',
+                  background: '#2563eb',
+                }}
+              />
+              {/* arXiv HTML5 Segment (Purple) */}
               <div
                 title={`arXiv HTML5: ${arxivGb} GB`}
                 style={{
                   width: `${arxivBarPct}%`,
-                  height: '100%',
-                  background: '#3b82f6',
-                }}
-              />
-              {/* OpenAlex Segment (Purple) */}
-              <div
-                title={`OpenAlex Corpus: ${openalexGb} GB`}
-                style={{
-                  width: `${openalexBarPct}%`,
                   height: '100%',
                   background: '#8b5cf6',
                 }}
@@ -254,12 +258,12 @@ export const MetricsBento: FC = () => {
               color: 'var(--text-muted)',
             }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#3b82f6', display: 'inline-block' }} />
-                arXiv
+                <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#2563eb', display: 'inline-block' }} />
+                DOI
               </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#8b5cf6', display: 'inline-block' }} />
-                OpenAlex
+                arXiv
               </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#10b981', display: 'inline-block' }} />

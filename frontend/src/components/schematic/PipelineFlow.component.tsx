@@ -22,31 +22,31 @@ export interface PipelinePhase {
 export function PipelineFlow() {
   const [selectedPhase, setSelectedPhase] = useState<string>('phase-3');
   const {
-    totalCorpus,
     sessionIngested,
     storageUsedGb,
     storageStats,
   } = useLakehouseStreamStore();
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const currentArxivCount = (sourceBreakdown?.arxiv ?? 21717) + sessionIngested;
-  const currentOpenAlexCount = sourceBreakdown?.openalex ?? 19361;
-  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 6135;
-  const currentCvfCount = sourceBreakdown?.cvf ?? 4796;
-  const currentZenodoCount = sourceBreakdown?.zenodo ?? 97;
-  const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? totalCorpus ?? (currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
+  const currentArxivCount = (sourceBreakdown?.arxiv ?? 39189) + sessionIngested;
+  const currentDoiCount = sourceBreakdown?.doi ?? 44969;
+  const currentOpenAlexCount = sourceBreakdown?.openalex ?? 0;
+  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 5137;
+  const currentCvfCount = sourceBreakdown?.cvf ?? 8418;
+  const currentZenodoCount = sourceBreakdown?.zenodo ?? 2287;
+  const currentTotalCorpus = sourceBreakdown?.tier2_near_past ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
   const currentCorpus = currentTotalCorpus;
   const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 12;
   const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
     ?? storageStats?.zones?.goldChunkCount 
-    ?? 164750;
+    ?? 40399;
   const currentFormulas = 2220938;
   const currentEnriched = currentBronzeCount;
-  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
+  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
   const currentSilverMb = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.silverParquetSizeMb.toFixed(2)
-    : '316.06';
+    : '172.00';
 
   const phases = useMemo<PipelinePhase[]>(() => [
     {
@@ -57,26 +57,26 @@ export function PipelineFlow() {
       zoneColor: 'var(--accent-bronze)',
       status: 'COMPLETED',
       inputs: [
-        'arXiv OAI-PMH & ar5iv HTML5',
-        'OpenAlex REST API & Citation Graph',
-        'OpenReview ICLR & NeurIPS Discussions',
+        'DOI Publisher Feed (Nature, IEEE, ACM, Springer)',
+        'arXiv OAI-PMH & REST API',
         'CVF CVPR & ICCV Open Access',
+        'OpenReview ICLR & NeurIPS Discussions',
         'Zenodo Open Science (Marker PDF Engine)',
       ],
       outputs: [
+        `${currentDoiCount.toLocaleString()} DOI / Journal Publications`,
         `${currentArxivCount.toLocaleString()} arXiv Preprints`,
-        `${currentOpenAlexCount.toLocaleString()} OpenAlex Rich Metadata`,
-        `${currentOpenReviewCount.toLocaleString()} OpenReview Peer Reviews`,
         `${currentCvfCount.toLocaleString()} CVF Conference Proceedings`,
+        `${currentOpenReviewCount.toLocaleString()} OpenReview Peer Reviews`,
         `${currentZenodoCount.toLocaleString()} Zenodo Marker Manuscripts`,
       ],
       tools: ['HTTPX Async', 'Cloudflare R2 S3 API', 'SHA-256 Hasher', 'Marker PDF Engine'],
       metrics: {
         processed: `${currentTotalCorpus.toLocaleString()} Deduplicated Works`,
-        rate: `${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${currentZenodoCount} Zenodo`,
+        rate: `${(currentDoiCount / 1000).toFixed(1)}k DOI · ${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${currentZenodoCount.toLocaleString()} Zenodo`,
         latency: `${storageUsedGb.toFixed(3)} GB Transferred`,
       },
-      details: `Harvests metadata, peer reviews, and full-content preprints across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably catalogs ${currentTotalCorpus.toLocaleString()} deduplicated records across 5 primary scientific sources (33,150 active papers in Tier 1 & Tier 2 RAG Lakehouse).`,
+      details: `Harvests metadata, peer reviews, and full-content preprints across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably catalogs ${currentTotalCorpus.toLocaleString()} deduplicated records across 5 primary scientific sources (100,000 Tier 2 Near-Past papers in Lakehouse).`,
     },
     {
       id: 'phase-2',

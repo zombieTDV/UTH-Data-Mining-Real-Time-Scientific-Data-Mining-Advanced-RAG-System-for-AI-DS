@@ -40,32 +40,32 @@ export interface ToolDetail {
 export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
   'start-flow': {
     id: 'start-flow',
-    name: 'Source Ingest (arXiv + OpenAlex)',
+    name: 'Source Ingest (Multi-Source Provenance)',
     category: 'Source Data Ingestion Engine',
-    role: 'Harvests academic metadata, full-text HTML5 papers, and conference papers',
-    engineVersion: 'arXiv OAI-PMH XML + OpenAlex REST API + HTTPX Async',
+    role: 'Harvests academic metadata, full-text HTML5 papers, publisher records, and conference papers',
+    engineVersion: 'arXiv REST API + Publisher DOI + OpenReview + CVF + Zenodo',
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '52,106 Deduplicated Works',
-      secondaryMetric: '21.7k arXiv · 19.4k OpenAlex · 6.1k OpenReview · 4.8k CVF · 97 Zenodo',
+      primaryMetric: '100,000 Deduplicated Works',
+      secondaryMetric: '45.0k DOI · 39.2k arXiv · 8.4k CVF · 5.1k OpenReview · 2.3k Zenodo',
       latency: 'Adaptive Jitter Rate Limiter',
       throughput: '100% Cryptographic SHA-256 Verified',
     },
     features: [
-      'Multi-source ingestion across arXiv, OpenAlex, OpenReview (ICLR/NeurIPS), CVF (CVPR/ICCV), and Zenodo',
+      'Multi-source ingestion across DOI Publishers (Nature, IEEE, ACM, Springer), arXiv, CVF (CVPR/ICCV), OpenReview, and Zenodo',
       'Full-text HTML5 and Marker PDF LaTeX crawler extracting abstract, methods, formulas, and references',
-      'Dual-tier architectural harvest: Tier 1 Landmarks (3,000 papers) & Tier 2 Near-Past (30,100 papers)',
-      'Deduplication Shield with 52,106 unique papers and cross-source metadata fusion',
+      'Dual-tier architectural harvest: Tier 1 Landmarks (3,000 papers) & Tier 2 Near-Past (100,000 papers)',
+      'Deduplication Shield with 121,653 unique papers and cross-source metadata fusion',
     ],
     samplePreviewTitle: 'Multi-Source Federated Ingestion Spec',
-    sampleCodeOrSchema: `POST https://export.arxiv.org/oai2 (arXiv OAI-PMH)
-GET https://api.openalex.org/works (OpenAlex REST API)
+    sampleCodeOrSchema: `POST https://export.arxiv.org/api/query (arXiv REST API)
+GET https://doi.org/ (Crossref & Publisher DOI Resolvers)
 GET https://api.openreview.net/notes (OpenReview ICLR/NeurIPS)
-GET https://openaccess.thecvf.com (CVF CVPR/ICCV)
+GET https://openaccess.thecvf.com (CVF CVPR/ICCV Open Access)
 GET https://zenodo.org/api/records (Zenodo Open Science)
-Corpus Shield: 52,106 Unique Papers (33,150 Active in Lakehouse)
-Tiers: Tier 1 Landmark (3,000) · Tier 2 Near-Past (30,100) · Real-Time (SSE)`,
+Tier 2 Corpus: 100,000 Verified Papers (45.0% DOI · 39.2% arXiv · 8.4% CVF · 5.1% OpenReview · 2.3% Zenodo)
+Deduplication Shield: 121,653 Keys Vaulted to Cloudflare R2`,
   },
   'bronze-instance': {
     id: 'bronze-instance',
@@ -76,27 +76,28 @@ Tiers: Tier 1 Landmark (3,000) · Tier 2 Near-Past (30,100) · Real-Time (SSE)`,
     badgeColor: '#e11d48',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '12.18 GB Cloud Bucket (36,751 Objects)',
-      secondaryMetric: 'Active: 8.07 GB • Backup Replicas: 4.11 GB',
+      primaryMetric: '3.04 GB Cloud Bucket (10,574 Objects)',
+      secondaryMetric: 'Active: 3.37 GB • Free Tier Quota: 10.0 GB',
       latency: '< 45ms S3 HeadObject',
       throughput: 'Zero Egress Fees (Cloudflare Global Edge)',
     },
     features: [
       'Global low-latency S3-compatible cloud object store with 0 egress costs',
-      'Strict partitioning scheme: bronze/raw_html/year=2026/ and bronze/openalex/year=2026/',
-      'Stores 11,698 raw HTML5 files and 24,756 OpenAlex metadata records in Bronze',
+      'Strict partitioning scheme: bronze/raw_html/ and bronze/doi_publishers/',
+      'Stores 1,381 raw HTML5 files and 44,969 DOI persistent metadata records',
       'Dual automated MD5 and SHA-256 integrity verification on upload',
     ],
     samplePreviewTitle: 'Cloudflare R2 Bucket Key Hierarchy',
     sampleCodeOrSchema: `s3://uth-scientific-lakehouse/
 ├── bronze/
-│   ├── raw_html/year=2026/ (11,698 HTML5 preprints · 3.763 GB)
-│   ├── openalex/ (24,756 records · 4.066 GB)
+│   ├── raw_html/ (1,381 HTML5 preprints · 1.054 GB)
+│   ├── doi_publishers/ (44,969 records · 1.897 GB)
 │   └── oai_batches/ (12 batch checkpoints · 26.4 MB)
 ├── silver/
-│   └── papers/year=2026/ (9 Parquet partitions · 316.06 MB)
+│   ├── tier1/landmark_papers.parquet (3,000 landmark records)
+│   └── tier2/near_past_papers.parquet (100,000 rows · 172.0 MB)
 └── gold/
-    └── lancedb/ (164,750 vectors · 221.5 MB active / 85 physical R2 fragments · 3.31 GB)`,
+    └── lancedb/scientific_papers_gold.lance (40,399 vectors · 257.3 MB active)`,
   },
   'review-duckdb': {
     id: 'review-duckdb',
@@ -471,29 +472,30 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   } = useLakehouseStreamStore();
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const liveArxivCount = (sourceBreakdown?.arxiv ?? 21717) + streamSessionCount;
-  const liveOpenAlexCount = sourceBreakdown?.openalex ?? 19361;
-  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 6135;
-  const liveCvfCount = sourceBreakdown?.cvf ?? 4796;
-  const liveZenodoCount = sourceBreakdown?.zenodo ?? 97;
-  const liveTotalWorks = liveArxivCount + liveOpenAlexCount + liveOpenReviewCount + liveCvfCount + liveZenodoCount;
+  const liveArxivCount = (sourceBreakdown?.arxiv ?? 39189) + streamSessionCount;
+  const liveDoiCount = sourceBreakdown?.doi ?? 44969;
+  const liveOpenAlexCount = sourceBreakdown?.openalex ?? 0;
+  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 5137;
+  const liveCvfCount = sourceBreakdown?.cvf ?? 8418;
+  const liveZenodoCount = sourceBreakdown?.zenodo ?? 2287;
+  const liveTotalWorks = sourceBreakdown?.tier2_near_past ?? (liveDoiCount + liveArxivCount + liveOpenAlexCount + liveOpenReviewCount + liveCvfCount + liveZenodoCount);
   const liveBronzeCount = liveArxivCount;
 
   const liveBronzeGb = storageStats?.activeLakehouse
     ? (storageStats.activeLakehouse.arxivHtmlSizeGb + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3)
-    : (3.763 + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3);
+    : (1.054 + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3);
 
-  const liveSilverMb = (storageStats?.activeLakehouse?.silverParquetSizeMb ?? 316.06) + (streamSessionCount * 0.025);
-  const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 9;
+  const liveSilverMb = (storageStats?.activeLakehouse?.silverParquetSizeMb ?? 172.0) + (streamSessionCount * 0.025);
+  const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 22;
 
   const liveVectors = isPipelineRunning && simulationStage !== 'completed'
     ? vectorsIndexed
-    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702);
+    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 40399);
   const liveFormulas = (formulasExtracted || 2220938);
 
   const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
-  const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || liveTotalWorks);
+  const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || liveTotalWorks) : liveTotalWorks;
   const displayWorks = isPipelineRunning && simulationStage !== 'completed' ? papersHarvested : liveTotalWorks;
 
   const handleToggleStreaming = async () => {
@@ -766,18 +768,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       };
     }
     if (selectedNodeId === 'start-flow') {
-      const works = totalCorpus || 37103;
+      const works = liveTotalWorks;
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${works.toLocaleString()} Lakehouse Papers`,
-          secondaryMetric: `${(liveArxivCount / 1000).toFixed(1)}k arXiv · ${(liveOpenAlexCount / 1000).toFixed(1)}k OpenAlex · ${(liveOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${(liveCvfCount / 1000).toFixed(1)}k CVF · ${liveZenodoCount} Zenodo`,
+          primaryMetric: `${works.toLocaleString()} Deduplicated Works`,
+          secondaryMetric: `${(liveDoiCount / 1000).toFixed(1)}k DOI · ${(liveArxivCount / 1000).toFixed(1)}k arXiv · ${(liveCvfCount / 1000).toFixed(1)}k CVF · ${(liveOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${liveZenodoCount.toLocaleString()} Zenodo`,
         }
       };
     }
     return baseTool;
-  }, [baseTool, selectedNodeId, storageUsedGb, liveArxivCount, liveOpenAlexCount, liveOpenReviewCount, liveCvfCount, liveZenodoCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveSilverMb, liveSilverPartitions]);
+  }, [baseTool, selectedNodeId, storageUsedGb, liveDoiCount, liveArxivCount, liveOpenAlexCount, liveOpenReviewCount, liveCvfCount, liveZenodoCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveSilverMb, liveSilverPartitions]);
 
   return (
     <div
@@ -906,17 +908,34 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               {/* Segmented Distribution Bar */}
               <div
                 style={{ width: '100%', height: '5px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', display: 'flex', border: '1px solid var(--border-subtle)' }}
-                title={`Phân bổ 5 Nguồn: arXiv ${liveArxivCount.toLocaleString()} (${Math.round((liveArxivCount / liveTotalWorks) * 100)}%) • OpenAlex ${liveOpenAlexCount.toLocaleString()} (${Math.round((liveOpenAlexCount / liveTotalWorks) * 100)}%) • OpenReview ${liveOpenReviewCount.toLocaleString()} (${Math.round((liveOpenReviewCount / liveTotalWorks) * 100)}%) • CVF ${liveCvfCount.toLocaleString()} (${Math.round((liveCvfCount / liveTotalWorks) * 100)}%) • Zenodo ${liveZenodoCount.toLocaleString()} (<1%)`}
+                title={`Phân bổ 5 Nguồn: DOI/Journals ${liveDoiCount.toLocaleString()} (${Math.round((liveDoiCount / liveTotalWorks) * 100)}%) • arXiv ${liveArxivCount.toLocaleString()} (${Math.round((liveArxivCount / liveTotalWorks) * 100)}%) • CVF ${liveCvfCount.toLocaleString()} (${Math.round((liveCvfCount / liveTotalWorks) * 100)}%) • OpenReview ${liveOpenReviewCount.toLocaleString()} (${Math.round((liveOpenReviewCount / liveTotalWorks) * 100)}%) • Zenodo ${liveZenodoCount.toLocaleString()} (<2%)`}
               >
+                <div style={{ width: `${(liveDoiCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#2563eb', transition: 'width 0.3s' }} title={`DOI / Journals: ${liveDoiCount.toLocaleString()}`} />
                 <div style={{ width: `${(liveArxivCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#8b5cf6', transition: 'width 0.3s' }} title={`arXiv: ${liveArxivCount.toLocaleString()}`} />
-                <div style={{ width: `${(liveOpenAlexCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#6366f1', transition: 'width 0.3s' }} title={`OpenAlex: ${liveOpenAlexCount.toLocaleString()}`} />
-                <div style={{ width: `${(liveOpenReviewCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#f59e0b', transition: 'width 0.3s' }} title={`OpenReview: ${liveOpenReviewCount.toLocaleString()}`} />
                 <div style={{ width: `${(liveCvfCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.3s' }} title={`CVF: ${liveCvfCount.toLocaleString()}`} />
+                <div style={{ width: `${(liveOpenReviewCount / liveTotalWorks) * 100}%`, height: '100%', backgroundColor: '#f59e0b', transition: 'width 0.3s' }} title={`OpenReview: ${liveOpenReviewCount.toLocaleString()}`} />
                 <div style={{ width: `${Math.max(1, (liveZenodoCount / liveTotalWorks) * 100)}%`, height: '100%', backgroundColor: '#06b6d4', transition: 'width 0.3s' }} title={`Zenodo: ${liveZenodoCount.toLocaleString()}`} />
               </div>
 
               {/* High-Contrast Visual Source Chips */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.18)' : '#dbeafe',
+                  color: isDark ? '#60a5fa' : '#1d4ed8',
+                  border: '1px solid rgba(37, 99, 235, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
+                  DOI {liveDoiCount.toLocaleString()}
+                </span>
+
                 <span style={{
                   fontSize: '9.5px',
                   fontFamily: 'var(--font-mono)',
@@ -940,15 +959,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontWeight: 700,
                   padding: '2px 6px',
                   borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.18)' : '#e0e7ff',
-                  color: isDark ? '#818cf8' : '#4338ca',
-                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#d1fae5',
+                  color: isDark ? '#34d399' : '#059669',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
                 }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#6366f1' }} />
-                  OpenAlex {liveOpenAlexCount.toLocaleString()}
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                  CVF {liveCvfCount.toLocaleString()}
                 </span>
 
                 <span style={{
@@ -966,23 +985,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
                   OpenReview {liveOpenReviewCount.toLocaleString()}
-                </span>
-
-                <span style={{
-                  fontSize: '9.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#d1fae5',
-                  color: isDark ? '#34d399' : '#059669',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                  CVF {liveCvfCount.toLocaleString()}
                 </span>
 
                 <span style={{

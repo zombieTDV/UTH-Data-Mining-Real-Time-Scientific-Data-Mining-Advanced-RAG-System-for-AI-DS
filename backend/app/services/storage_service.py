@@ -141,24 +141,25 @@ class StorageService:
 
     def _get_source_breakdown(self) -> SourceBreakdownDto:
         """Returns verified per-source ingestion counts across the Lakehouse."""
-        arxiv_cnt = 39818
-        doi_cnt = 63975
+        arxiv_cnt = 39189
+        doi_cnt = 44969
         openalex_cnt = 0
-        openreview_cnt = 6136
-        cvf_cnt = 9437
+        openreview_cnt = 5137
+        cvf_cnt = 8418
         zenodo_cnt = 2287
         tier1_cnt = 3000
         tier2_cnt = 100000
-        active_rag_papers = 33150
+        total_dedup = 121653
+        active_rag_papers = 100000
         active_rag_vectors = getattr(self, "base_active_gold_vectors", 40399)
 
-        # Dynamically inspect openalex_dedup_hashes.parquet if present
-        hash_file = settings.DATA_DIR / "manifests" / "openalex_dedup_hashes.parquet"
-        if hash_file.exists():
+        # 1. Dynamically inspect Tier 2 near-past lakehouse for exact source breakdown
+        tier2_file = settings.DATA_DIR / "silver" / "tier2" / "near_past_papers.parquet"
+        if tier2_file.exists():
             try:
                 import duckdb
                 con = duckdb.connect()
-                df = con.execute(f"SELECT source, count(*) as cnt FROM '{hash_file.as_posix()}' GROUP BY source").df()
+                df = con.execute(f"SELECT source, count(*) as cnt FROM '{tier2_file.as_posix()}' GROUP BY source").df()
                 counts_dict = dict(zip(df["source"], df["cnt"]))
                 if "arxiv" in counts_dict:
                     arxiv_cnt = int(counts_dict["arxiv"])
@@ -172,20 +173,30 @@ class StorageService:
                     cvf_cnt = int(counts_dict["cvf"])
                 if "zenodo" in counts_dict:
                     zenodo_cnt = int(counts_dict["zenodo"])
+                tier2_cnt = arxiv_cnt + doi_cnt + openalex_cnt + openreview_cnt + cvf_cnt + zenodo_cnt
             except Exception as e:
-                logger.debug(f"[STORAGE] Could not read hash manifest counts: {e}")
+                logger.debug(f"[STORAGE] Could not read tier2 parquet counts: {e}")
 
-        # Dynamically inspect tier 2 lakehouse size
-        tier2_file = settings.DATA_DIR / "silver" / "tier2" / "near_past_papers.parquet"
-        if tier2_file.exists():
+        # 2. Dynamically inspect deduplication hash manifest for global shield count
+        hash_file = settings.DATA_DIR / "manifests" / "openalex_dedup_hashes.parquet"
+        if hash_file.exists():
             try:
                 import duckdb
                 con = duckdb.connect()
-                tier2_cnt = int(con.execute(f"SELECT count(*) FROM '{tier2_file.as_posix()}'").fetchone()[0])
+                total_dedup = int(con.execute(f"SELECT count(*) FROM '{hash_file.as_posix()}'").fetchone()[0])
             except Exception as e:
-                logger.debug(f"[STORAGE] Could not read tier2 parquet count: {e}")
+                logger.debug(f"[STORAGE] Could not read hash manifest count: {e}")
 
-        total_dedup = arxiv_cnt + doi_cnt + openalex_cnt + openreview_cnt + cvf_cnt + zenodo_cnt
+        # 3. Dynamically inspect Tier 1 landmark count
+        tier1_file = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
+        if tier1_file.exists():
+            try:
+                import duckdb
+                con = duckdb.connect()
+                tier1_cnt = int(con.execute(f"SELECT count(*) FROM '{tier1_file.as_posix()}'").fetchone()[0])
+            except Exception as e:
+                logger.debug(f"[STORAGE] Could not read tier1 parquet count: {e}")
+
         return SourceBreakdownDto(
             arxiv=arxiv_cnt,
             doi=doi_cnt,
@@ -196,7 +207,7 @@ class StorageService:
             total_deduplicated=total_dedup,
             tier1_landmark=tier1_cnt,
             tier2_near_past=tier2_cnt,
-            active_rag_papers=active_rag_papers,
+            active_rag_papers=tier2_cnt,
             active_rag_vectors=active_rag_vectors,
         )
 

@@ -230,6 +230,7 @@ export interface StorageZoneInfo {
 
 export interface SourceBreakdownInfo {
   arxiv: number;
+  doi?: number;
   openalex: number;
   openreview: number;
   cvf: number;

@@ -22,7 +22,6 @@ export function GeometricPipelineDiagram() {
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   const {
-    totalCorpus,
     sessionIngested,
     storageUsedGb,
     storageStats,
@@ -30,21 +29,22 @@ export function GeometricPipelineDiagram() {
   } = useLakehouseStreamStore();
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const currentArxivCount = (sourceBreakdown?.arxiv ?? 21717) + sessionIngested;
-  const currentOpenAlexCount = sourceBreakdown?.openalex ?? 19361;
-  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 6135;
-  const currentCvfCount = sourceBreakdown?.cvf ?? 4796;
-  const currentZenodoCount = sourceBreakdown?.zenodo ?? 97;
-  const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? totalCorpus ?? (currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
+  const currentArxivCount = (sourceBreakdown?.arxiv ?? 39189) + sessionIngested;
+  const currentDoiCount = sourceBreakdown?.doi ?? 44969;
+  const currentOpenAlexCount = sourceBreakdown?.openalex ?? 0;
+  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 5137;
+  const currentCvfCount = sourceBreakdown?.cvf ?? 8418;
+  const currentZenodoCount = sourceBreakdown?.zenodo ?? 2287;
+  const currentTotalCorpus = sourceBreakdown?.tier2_near_past ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
   const currentCorpus = currentTotalCorpus;
   const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 12;
   const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
     ?? storageStats?.zones?.goldChunkCount 
-    ?? 164702;
+    ?? 40399;
   const currentFormulas = 2220938;
   const currentEnriched = currentBronzeCount;
-  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
+  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
 
   const [statusText, setStatusText] = useState<string>(
     `PIPELINE READY · ${currentTotalCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`
@@ -64,18 +64,18 @@ export function GeometricPipelineDiagram() {
       zone: 'HARVEST',
       zoneColor: '#ef4444',
       toolName: 'Source Harvester',
-      toolCategory: 'arXiv + OpenAlex + OpenReview + CVF + Zenodo',
+      toolCategory: 'DOI + arXiv + CVF + OpenReview + Zenodo',
       metricLabel: 'TOTAL CORPUS',
       metricValue: `${currentTotalCorpus.toLocaleString()} Works`,
-      secondaryMetric: `${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${currentZenodoCount} Zenodo`,
+      secondaryMetric: `${(currentDoiCount / 1000).toFixed(1)}k DOI · ${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${currentZenodoCount.toLocaleString()} Zenodo`,
       status: isStreaming ? 'ACTIVE' : 'SYNCED',
       iconType: 'arxiv',
       specList: [
-        'arXiv OAI-PMH & ar5iv HTML5 (21.7k)',
-        'OpenAlex REST & Graph (19.4k)',
-        'OpenReview ICLR/NeurIPS (6.1k)',
-        'CVF CVPR/ICCV Open Access (4.8k)',
-        'Zenodo Marker PDF Engine (97)',
+        `DOI / Publishers (${(currentDoiCount / 1000).toFixed(1)}k)`,
+        `arXiv OAI-PMH & REST (${(currentArxivCount / 1000).toFixed(1)}k)`,
+        `CVF CVPR/ICCV Open Access (${(currentCvfCount / 1000).toFixed(1)}k)`,
+        `OpenReview ICLR/NeurIPS (${(currentOpenReviewCount / 1000).toFixed(1)}k)`,
+        `Zenodo Marker PDF Engine (${currentZenodoCount.toLocaleString()})`,
       ]
     },
     {
@@ -88,7 +88,7 @@ export function GeometricPipelineDiagram() {
       toolCategory: 'Multi-Tier Raw Lake',
       metricLabel: 'ACTIVE STORED',
       metricValue: `${storageUsedGb.toFixed(3)} GB`,
-      secondaryMetric: `${currentArxivCount.toLocaleString()} Preprints · ${currentOpenAlexCount.toLocaleString()} Meta · ${(currentOpenReviewCount + currentCvfCount + currentZenodoCount).toLocaleString()} Conf`,
+      secondaryMetric: `${currentDoiCount.toLocaleString()} DOI · ${currentArxivCount.toLocaleString()} Preprints · ${(currentCvfCount + currentOpenReviewCount + currentZenodoCount).toLocaleString()} Conf`,
       status: 'ONLINE',
       iconType: 'r2',
       specList: ['S3 Compatible Global Edge', 'Zero Egress Fees (100% Free)', 'SHA-256 Content Addressed']

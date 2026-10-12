@@ -64,9 +64,9 @@ export default function App() {
         .then((data) => {
           if (data?.activeLakehouse) {
             const works =
-              (data.activeLakehouse.arxivHtmlCount || 11660) +
-              (data.activeLakehouse.openalexCount || 24754) +
-              (data.activeLakehouse.conferenceCount || 0);
+              data.sourceBreakdown?.tier2_near_past ||
+              data.activeLakehouse.sourceBreakdown?.tier2_near_past ||
+              100000;
             setTotalPapers(works);
             if (data.activeLakehouse.activeLanceDbVectors) {
               setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
@@ -138,7 +138,7 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = (totalCorpus || totalPapers || 37103) + sessionIngested;
+  const effectiveTotalPapers = (storageStats?.sourceBreakdown?.tier2_near_past || totalCorpus || totalPapers || 100000) + sessionIngested;
   const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164750;
   const effectiveTotalFormulas = totalFormulas || 2220938;
   const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb || storageUsedGb || 12.18;

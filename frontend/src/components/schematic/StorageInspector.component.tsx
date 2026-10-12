@@ -70,19 +70,19 @@ export function StorageInspector() {
   const backupData = activeStats?.backupStorage;
   const totalBucket = activeStats?.totalBucket;
 
-  const arxivCount = (activeData?.arxivHtmlCount ?? 11698) + sessionIngested;
-  const arxivGb = (activeData?.arxivHtmlSizeGb ?? 3.763).toFixed(3);
-  const openalexCount = (activeData?.openalexCount ?? 24756).toLocaleString();
-  const openalexGb = (activeData?.openalexSizeGb ?? 4.066).toFixed(3);
-  const silverMb = (activeData?.silverParquetSizeMb ?? 321.68).toFixed(2);
-  const goldChunks = (activeData?.activeLanceDbVectors ?? 164750).toLocaleString();
-  const goldMb = (activeData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
-  const backupGb = (backupData?.totalSizeGb ?? 4.107).toFixed(3);
+  const arxivCount = (activeData?.arxivHtmlCount ?? 1381) + sessionIngested;
+  const arxivGb = (activeData?.arxivHtmlSizeGb ?? 1.054).toFixed(3);
+  const doiCount = (activeStats?.sourceBreakdown?.doi ?? 44969).toLocaleString();
+  const doiGb = '1.897';
+  const silverMb = (activeData?.silverParquetSizeMb ?? 172.0).toFixed(2);
+  const goldChunks = (activeData?.activeLanceDbVectors ?? 40399).toLocaleString();
+  const goldMb = (activeData?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
+  const backupGb = (backupData?.totalSizeGb ?? 0.001).toFixed(3);
 
-  const activeGb = (Number(activeData?.totalSizeGb ?? 8.073)).toFixed(3);
-  const activePct = (Number(activeData?.usedPercentage ?? 80.73)).toFixed(1);
-  const totalGb = (totalBucket?.totalSizeGb ?? 12.18).toFixed(3);
-  const totalPct = (totalBucket?.usedPercentage ?? 121.8).toFixed(1);
+  const activeGb = (Number(activeData?.totalSizeGb ?? 3.373)).toFixed(3);
+  const activePct = (Number(activeData?.usedPercentage ?? 33.73)).toFixed(1);
+  const totalGb = (totalBucket?.totalSizeGb ?? 3.042).toFixed(3);
+  const totalPct = (totalBucket?.usedPercentage ?? 30.42).toFixed(1);
 
   const layers: LakehouseLayer[] = [
     {
@@ -98,14 +98,14 @@ export function StorageInspector() {
     },
     {
       zone: 'BRONZE',
-      name: 'OpenAlex Scientific Extended Corpus',
+      name: 'DOI & Scientific Publisher Records',
       storageType: 'Cloudflare R2 Object Store',
-      format: 'JSON / Metadata Records',
-      itemsCount: `${openalexCount} works`,
-      sizeBytes: `${openalexGb} GB`,
-      r2Location: 's3://uth-scientific-lakehouse/bronze/openalex/',
-      color: '#8b5cf6',
-      description: 'Global scientific catalog records with citation graphs, author affiliations, and open-access PDF links.'
+      format: 'JSON / Persistent Identifiers',
+      itemsCount: `${doiCount} works`,
+      sizeBytes: `${doiGb} GB`,
+      r2Location: 's3://uth-scientific-lakehouse/silver/tier2/near_past_papers.parquet',
+      color: '#2563eb',
+      description: 'Cross-publisher academic records (Nature, IEEE, Springer, ACM) with direct DOI links, citation graphs, and author affiliations.'
     },
     {
       zone: 'BRONZE',
@@ -123,8 +123,8 @@ export function StorageInspector() {
       name: 'OpenReview & CVF Conference Proceedings',
       storageType: 'Cloudflare R2 Object Store & Disk',
       format: 'Parquet & Raw Markdown',
-      itemsCount: '10,931 proceedings (6.1k OpenRev + 4.8k CVF)',
-      sizeBytes: '24.2 MB',
+      itemsCount: '15,573 proceedings (6.1k OpenRev + 9.4k CVF)',
+      sizeBytes: '29.4 MB',
       r2Location: 's3://uth-scientific-lakehouse/silver/ (openreview, cvf)',
       color: '#f59e0b',
       description: 'Peer-reviewed conference manuscripts and rating threads from ICLR, NeurIPS, CVPR, and ICCV with extracted mathematical claims.'
@@ -134,7 +134,7 @@ export function StorageInspector() {
       name: 'Zenodo Open Science Publications',
       storageType: 'Marker PDF Engine & Lakehouse',
       format: 'Marker Extracted LaTeX Markdown',
-      itemsCount: '97 manuscripts',
+      itemsCount: '2,287 manuscripts',
       sizeBytes: '184.2 MB',
       r2Location: 's3://uth-scientific-lakehouse/bronze/zenodo/',
       color: '#06b6d4',
@@ -144,12 +144,12 @@ export function StorageInspector() {
       zone: 'SILVER',
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
-      format: 'Apache Parquet (Snappy)',
-      itemsCount: '11 Partitions (38,414 works)',
+      format: 'Apache Parquet (Snappy & Zstd)',
+      itemsCount: '103,000 works (100k Tier 2 + 3k Tier 1)',
       sizeBytes: `${silverMb} MB`,
-      r2Location: 's3://uth-scientific-lakehouse/silver/ (papers, cvf, openreview)',
+      r2Location: 's3://uth-scientific-lakehouse/silver/tier2/near_past_papers.parquet',
       color: '#10b981',
-      description: 'Deduplicated, schema-enforced columnar Parquet tables across arXiv, OpenAlex, CVPR 2024, and OpenReview.'
+      description: 'Deduplicated, schema-enforced columnar Parquet tables across DOI publishers, arXiv, CVF, and OpenReview.'
     },
     {
       zone: 'GOLD',

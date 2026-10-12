@@ -43,8 +43,8 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
     <div
       title={
         language === 'vi'
-          ? `Đồng bộ Lakehouse Thời gian thực:\n• Tổng bài báo: ${totalPapers.toLocaleString()} (11.6k arXiv + 24.7k OpenAlex)\n• Công thức toán học (DuckDB): ${totalFormulas.toLocaleString()}\n• LanceDB Vector Index: ${totalVectors.toLocaleString()} embeddings\n• Trạng thái: ${isRunning ? 'Đang chạy Ingestion/Embedding' : streamActive ? `Đang nhận CDC Stream (${streamSpeed} bài/phút)` : 'Sẵn sàng phục vụ RAG / Mining'}`
-          : `Real-Time Lakehouse Sync:\n• Total Works: ${totalPapers.toLocaleString()} (11.6k arXiv + 24.7k OpenAlex)\n• Math Formulas (DuckDB): ${totalFormulas.toLocaleString()}\n• LanceDB Vector Index: ${totalVectors.toLocaleString()} embeddings\n• Status: ${isRunning ? 'Running Ingestion/Embedding' : streamActive ? `Active CDC Stream (${streamSpeed} papers/min)` : 'Standby / Ready for RAG'}`
+          ? `Đồng bộ Lakehouse Thời gian thực:\n• Tổng bài báo: ${totalPapers.toLocaleString()} (45.0k DOI + 39.2k arXiv + 8.4k CVF + 5.1k OpenReview + 2.3k Zenodo)\n• Công thức toán học (DuckDB): ${totalFormulas.toLocaleString()}\n• LanceDB Vector Index: ${totalVectors.toLocaleString()} embeddings\n• Trạng thái: ${isRunning ? 'Đang chạy Ingestion/Embedding' : streamActive ? `Đang nhận CDC Stream (${streamSpeed} bài/phút)` : 'Sẵn sàng phục vụ RAG / Mining'}`
+          : `Real-Time Lakehouse Sync:\n• Total Works: ${totalPapers.toLocaleString()} (45.0k DOI + 39.2k arXiv + 8.4k CVF + 5.1k OpenReview + 2.3k Zenodo)\n• Math Formulas (DuckDB): ${totalFormulas.toLocaleString()}\n• LanceDB Vector Index: ${totalVectors.toLocaleString()} embeddings\n• Status: ${isRunning ? 'Running Ingestion/Embedding' : streamActive ? `Active CDC Stream (${streamSpeed} papers/min)` : 'Standby / Ready for RAG'}`
       }
       style={{
         display: 'inline-flex',

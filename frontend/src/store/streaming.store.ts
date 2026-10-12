@@ -69,7 +69,7 @@ const initialCachedStats = getStoredStorageStats();
 
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus: 37103,
+  totalCorpus: initialCachedStats?.sourceBreakdown?.tier2_near_past ?? 100000,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
@@ -244,7 +244,7 @@ export function initializeLakehouseStream(): () => void {
       if (st) {
         updateState({
           isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || 36414,
+          totalCorpus: st.total_corpus || 100000,
           sessionIngested: st.session_ingested || 0,
           streamSpeed: st.speed_ppm || 0,
           storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,

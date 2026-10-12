@@ -45,7 +45,7 @@ class ArxivBatchHarvester:
             headers={
                 "User-Agent": "UTH-Scientific-DataMining-OAIHarvester/2.0 (academic research; contact: data-mining@uth.edu.vn)"
             },
-            timeout=60.0,
+            timeout=90.0,
             follow_redirects=True,
         )
 
