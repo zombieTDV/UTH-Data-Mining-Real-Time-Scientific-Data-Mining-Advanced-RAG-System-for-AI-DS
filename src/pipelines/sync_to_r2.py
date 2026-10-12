@@ -64,7 +64,7 @@ def sync_multi_source_lakehouse_to_r2():
 
         missing_on_r2 = []
         for rel in local_files:
-            r2_key = f"gold/lancedb/{rel}"
+            r2_key = f"gold/lancedb/{rel.as_posix()}"
             if r2_key not in r2_keys:
                 missing_on_r2.append((local_gold.parent / rel, r2_key))
 

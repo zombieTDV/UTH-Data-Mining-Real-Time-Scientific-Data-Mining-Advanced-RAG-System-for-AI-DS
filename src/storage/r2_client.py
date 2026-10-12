@@ -1,6 +1,7 @@
 """Cloudflare R2 Object Storage client wrapper (S3-compatible)."""
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 import boto3
@@ -112,6 +113,11 @@ class R2Client:
             metadata=metadata,
         )
 
+    @staticmethod
+    def sanitize_key(key: str) -> str:
+        """Sanitizes S3 keys by converting Windows backslashes to forward slashes and stripping leading slashes."""
+        return key.replace("\\", "/").lstrip("/")
+
     def upload_file(
         self,
         file_path: Union[str, Path],
@@ -123,6 +129,7 @@ class R2Client:
         if not path.is_file():
             raise FileNotFoundError(f"File không tồn tại: {path}")
 
+        key = self.sanitize_key(key)
         extra_args = {}
         if content_type:
             extra_args["ContentType"] = content_type
@@ -142,9 +149,60 @@ class R2Client:
             "uri": f"s3://{self.bucket_name}/{key}",
         }
 
+    def delete_object(self, key: str) -> bool:
+        """Xóa một object duy nhất khỏi R2 bằng exact key."""
+        try:
+            self.s3.delete_object(Bucket=self.bucket_name, Key=key)
+            return True
+        except ClientError:
+            return False
+
+    def delete_objects_batch(self, keys: List[str]) -> int:
+        """Xóa danh sách objects theo batch tối đa 1,000 keys per call (S3 standard).
+        Uses exact raw keys so backslash duplicate keys can be deleted properly."""
+        if not keys:
+            return 0
+
+        raw_keys = list(keys)
+        deleted_count = 0
+        batch_size = 1000
+
+        for i in range(0, len(raw_keys), batch_size):
+            chunk = raw_keys[i : i + batch_size]
+            delete_payload = {"Objects": [{"Key": k} for k in chunk], "Quiet": True}
+            try:
+                resp = self.s3.delete_objects(Bucket=self.bucket_name, Delete=delete_payload)
+                errors = resp.get("Errors", [])
+                if errors:
+                    deleted_count += len(chunk) - len(errors)
+                else:
+                    deleted_count += len(chunk)
+            except ClientError as e:
+                # Fallback to single deletions if batch request fails
+                for k in chunk:
+                    try:
+                        self.s3.delete_object(Bucket=self.bucket_name, Key=k)
+                        deleted_count += 1
+                    except Exception:
+                        pass
+
+        return deleted_count
+
+    def download_file_safe(self, key: str, local_path: Union[str, Path]) -> Path:
+        """Tải file từ R2 về an toàn trên Windows với atomic replace."""
+        target = Path(local_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp_target = target.with_suffix(f"{target.suffix}.tmp_{os.getpid()}")
+
+        self.s3.download_file(self.bucket_name, self.sanitize_key(key), str(tmp_target))
+        if target.exists():
+            target.unlink()
+        tmp_target.rename(target)
+        return target
+
     def get_text(self, key: str) -> str:
         """Đọc nội dung văn bản từ R2 object."""
-        response = self.s3.get_object(Bucket=self.bucket_name, Key=key)
+        response = self.s3.get_object(Bucket=self.bucket_name, Key=self.sanitize_key(key))
         return response["Body"].read().decode("utf-8")
 
     def get_json(self, key: str) -> Any:
@@ -157,7 +215,7 @@ class R2Client:
         results = []
         for page in paginator.paginate(
             Bucket=self.bucket_name,
-            Prefix=prefix,
+            Prefix=self.sanitize_key(prefix),
             PaginationConfig={"MaxItems": max_keys},
         ):
             for item in page.get("Contents", []):
