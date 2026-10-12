@@ -80,17 +80,20 @@ class NomicEmbedder:
                 batch,
                 padding=True,
                 truncation=True,
-                max_length=1024,
+                max_length=512,
                 return_tensors="pt",
             ).to(self.device)
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 try:
                     model_output = self.model(**encoded_input)
                 except Exception as e:
-                    # Fallback sang CPU neu MPS bao loi bo nho
-                    if self.device.type == "mps":
-                        torch.mps.empty_cache()
+                    # Fallback sang CPU neu bao loi bo nho
+                    if self.device.type in ("mps", "cuda"):
+                        if self.device.type == "cuda":
+                            torch.cuda.empty_cache()
+                        else:
+                            torch.mps.empty_cache()
                         cpu_input = {k: v.to("cpu") for k, v in encoded_input.items()}
                         self.model.to("cpu")
                         model_output = self.model(**cpu_input)
@@ -103,7 +106,10 @@ class NomicEmbedder:
                 embeddings = F.normalize(embeddings, p=2, dim=1)
                 all_embeddings.extend(embeddings.cpu().tolist())
 
-            if self.device.type == "mps":
+            del encoded_input, model_output, embeddings
+            if self.device.type == "cuda" and (i // batch_size) % 10 == 0:
+                torch.cuda.empty_cache()
+            elif self.device.type == "mps":
                 torch.mps.empty_cache()
 
         return all_embeddings

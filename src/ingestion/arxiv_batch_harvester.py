@@ -287,11 +287,19 @@ class ArxivBatchHarvester:
                 if not p:
                     continue
 
-                # Loc theo chuyen muc AI/DS
+                # Loc theo chuyen muc AI/DS va thoi gian Near-Past (2023-2026)
                 paper_cats = set(p.get("categories", []))
                 if not paper_cats.intersection(target_cats):
                     continue
 
+                p_id = p.get("paper_id", "")
+                p_date = p.get("published_date", "")
+                if not ((p_id and p_id[:2] in ("23", "24", "25", "26")) or (p_date and p_date >= "2023-01-01")):
+                    continue
+
+                p["tier"] = "tier2"
+                p["source"] = "arxiv"
+                p["content_origin"] = "arxiv_oai_pmh"
                 parsed_papers.append(p)
 
             print(f"[FILTER] Giu lai {len(parsed_papers):,} bai bao thuoc mien AI/DS tu trang nay.")
@@ -356,8 +364,12 @@ class ArxivBatchHarvester:
                     "total_sections": 1,
                     "total_math_count": 0,
                     "total_words": len(p["abstract"].split()),
+                    "content_origin": "arxiv_oai_pmh",
                 }
                 silver_rec = writer.prepare_record(raw_meta=p, parsed_html=parsed_dummy)
+                silver_rec["tier"] = "tier2"
+                silver_rec["source"] = "arxiv"
+                silver_rec["content_origin"] = "arxiv_oai_pmh"
                 buffered_silver_records.append(silver_rec)
 
             # Luu Checkpoint
@@ -365,9 +377,19 @@ class ArxivBatchHarvester:
             pct = (total_ingested / total_target) * 100
             print(f"[TIEN DO] Da hoan thanh {total_ingested:,}/{total_target:,} bai ({pct:.1f}%)\n")
 
-            # Luu Silver Parquet dinh ky (cu moi >= 500 ban ghi hoac khi xong muc tieu)
+            # Luu Silver Parquet dinh ky
             if len(buffered_silver_records) >= 500 or total_ingested >= total_target:
                 print(f"[STORAGE] Luu {len(buffered_silver_records)} ban ghi vao Silver Parquet va dong bo R2...")
+                import pandas as pd
+                arxiv_silver_path = settings.ROOT_DIR / "data" / "silver" / "arxiv" / "arxiv_near_past.parquet"
+                arxiv_silver_path.parent.mkdir(parents=True, exist_ok=True)
+                new_df = pd.DataFrame(buffered_silver_records)
+                if arxiv_silver_path.exists():
+                    exist_df = pd.read_parquet(arxiv_silver_path)
+                    combined_df = pd.concat([exist_df, new_df], ignore_index=True).drop_duplicates(subset=["paper_id"])
+                else:
+                    combined_df = new_df
+                combined_df.to_parquet(arxiv_silver_path, engine="pyarrow", compression="zstd")
                 writer.save_and_upload_parquet(buffered_silver_records, year="2026")
                 buffered_silver_records = []
                 print("[STORAGE] Hoan tat dong bo Tang Silver Parquet.\n")
