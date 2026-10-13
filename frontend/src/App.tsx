@@ -32,10 +32,10 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 12,641 fulltext papers, 635,901 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(12641);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 23,767 fulltext papers, 913,205 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(23767);
   const [totalFormulas, setTotalFormulas] = useState<number>(2765395);
-  const [totalVectors, setTotalVectors] = useState<number>(635901);
+  const [totalVectors, setTotalVectors] = useState<number>(913205);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 
@@ -66,7 +66,7 @@ export default function App() {
             const works =
               data.sourceBreakdown?.total_deduplicated ||
               data.activeLakehouse.sourceBreakdown?.total_deduplicated ||
-              12641;
+              23767;
             setTotalPapers(works);
             if (data.activeLakehouse.activeLanceDbVectors) {
               setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
@@ -141,8 +141,8 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = (storageStats?.sourceBreakdown?.total_deduplicated || totalCorpus || totalPapers || 12641) + (isStreaming ? sessionIngested : 0);
-  const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 635901;
+  const effectiveTotalPapers = (storageStats?.sourceBreakdown?.total_deduplicated || totalCorpus || totalPapers || 23767) + (isStreaming ? sessionIngested : 0);
+  const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 913205;
   const effectiveTotalFormulas = totalFormulas || 2765395;
   const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb || storageUsedGb || 4.774;
   const effectiveStoragePct = storageStats?.totalBucket?.usedPercentage || storageUsedPct || 47.7;

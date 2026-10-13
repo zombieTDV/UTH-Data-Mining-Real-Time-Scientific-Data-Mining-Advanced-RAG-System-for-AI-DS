@@ -75,7 +75,7 @@ export function StorageInspector() {
   const doiCount = (activeStats?.sourceBreakdown?.doi ?? 8890).toLocaleString();
   const doiGb = (Number((activeStats?.activeLakehouse?.openalexSizeBytes ?? 1897363178) / (1024**3))).toFixed(3);
   const silverMb = (activeData?.silverParquetSizeMb ?? 103.8).toFixed(2);
-  const goldChunks = (activeData?.activeLanceDbVectors ?? 635901).toLocaleString();
+  const goldChunks = (activeData?.activeLanceDbVectors ?? 913205).toLocaleString();
   const goldMb = (activeData?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
   const backupGb = (backupData?.totalSizeGb ?? 1.344).toFixed(3);
 
@@ -145,7 +145,7 @@ export function StorageInspector() {
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy & Zstd)',
-      itemsCount: '12,641 works (3k Tier 1 + 9.6k Tier 2)',
+      itemsCount: '23,767 works (Tier 1 + Tier 2 HTML5 lakehouse)',
       sizeBytes: `${silverMb} MB`,
       r2Location: 's3://uth-scientific-lakehouse/silver/tier2/fulltext_papers.parquet',
       color: '#10b981',

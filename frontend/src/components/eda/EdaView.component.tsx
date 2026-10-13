@@ -490,48 +490,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
   const temporalAggregatedPoints = useMemo(() => {
     const rawDist = data?.temporal_distribution || [];
-    const total = data?.dataset_overview.total_papers || 13000;
+    const total = data?.dataset_overview.total_papers || 100000;
 
-    let cBefore2019 = 0;
-    let c2020 = 0;
-    let c2021 = 0;
-    let c2022 = 0;
-    let c2023 = 0;
-    let c202401 = 0;
-    let c202402 = 0;
-    let c2024Rest = 0;
-
+    const yearCounts: Record<string, number> = {};
     for (const item of rawDist) {
       const p = item.period;
       const c = item.count;
-      if (p < '2019') {
-        cBefore2019 += c;
-      } else if (p < '2021') {
-        c2020 += c;
-      } else if (p.startsWith('2021')) {
-        c2021 += c;
-      } else if (p.startsWith('2022')) {
-        c2022 += c;
-      } else if (p.startsWith('2023')) {
-        c2023 += c;
-      } else if (p === '2024-01') {
-        c202401 += c;
-      } else if (p === '2024-02') {
-        c202402 += c;
-      } else {
-        c2024Rest += c;
+      const year = p.slice(0, 4);
+      if (year >= '2022' && year <= '2026') {
+        yearCounts[year] = (yearCounts[year] || 0) + c;
       }
     }
 
     const rawPoints = [
-      { label: "'18", count: cBefore2019 },
-      { label: "'20", count: c2020 },
-      { label: "'21", count: c2021 },
-      { label: "'22", count: c2022 },
-      { label: "'23", count: c2023 },
-      { label: '01/24', count: c202401 },
-      { label: '02/24', count: c202402 },
-      { label: "'24+", count: c2024Rest },
+      { label: "'22", count: yearCounts['2022'] || 11246 },
+      { label: "'23", count: yearCounts['2023'] || 17739 },
+      { label: "'24", count: yearCounts['2024'] || 22965 },
+      { label: "'25", count: yearCounts['2025'] || 18302 },
+      { label: "'26", count: yearCounts['2026'] || 29727 },
     ];
 
     const effectivePoints = temporalSmoothing
@@ -549,7 +525,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       : rawPoints;
 
     const maxC = Math.max(...effectivePoints.map((p) => p.count), 1);
-    const yCeil = Math.max(5000, Math.ceil(maxC / 1000) * 1000);
+    const yCeil = Math.max(10000, Math.ceil(maxC / 5000) * 5000);
     const stepX = 360 / (effectivePoints.length - 1);
 
     const points = effectivePoints.map((p, idx) => ({
@@ -639,7 +615,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
   // Filtered Scatter dataset based on Slicers & Quadrant
   const filteredScatterPoints = useMemo(() => {
-    let pts = SCATTER_DATASET;
+    let pts = (data?.scatter_points && data.scatter_points.length > 0) ? data.scatter_points : SCATTER_DATASET;
     if (selectedCategory !== 'ALL') {
       pts = pts.filter((p) => p.category === selectedCategory);
     }
@@ -660,7 +636,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       pts = pts.filter((p) => p.words > 6000 && p.formulas <= 300);
     }
     return pts;
-  }, [selectedCategory, selectedMathFilter, selectedQuadrant]);
+  }, [selectedCategory, selectedMathFilter, selectedQuadrant, data?.scatter_points]);
 
   const handleResetFilters = () => {
     setSelectedCategory('ALL');
@@ -1073,7 +1049,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {filteredKpi.totalPapers.toLocaleString()}
             </div>
             <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {selectedCategory === 'ALL' ? '100% Curated Parquet' : `Chiếm ${filteredKpi.sharePercent}% Lakehouse`}
+              {selectedCategory === 'ALL' ? '100,000 Catalog Papers' : `Chiếm ${filteredKpi.sharePercent}% Lakehouse`}
             </div>
           </div>
 
@@ -1085,19 +1061,19 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {filteredKpi.totalMath.toLocaleString()}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-              Trung bình <strong>{filteredKpi.avgMath}</strong> eq / bài
+              Trung bình <strong>{filteredKpi.avgMath}</strong> eq / bài full-text
             </div>
           </div>
 
           <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #10b981', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              HTML5 FULL-TEXT ENRICHED
+              FULL-TEXT &amp; HTML5 ENRICHED
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#059669', marginTop: '2px', lineHeight: 1.1 }}>
               {dataset_overview.enriched_html_papers.toLocaleString()}
             </div>
             <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {filteredKpi.enrichedRatio}% có Section &amp; KaTeX
+              {dataset_overview.fulltext_papers_count ? `${dataset_overview.fulltext_papers_count.toLocaleString()} Full-Text (2.47M Eq)` : '25,611 Full-Text Papers'}
             </div>
           </div>
 
@@ -2913,7 +2889,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     TOP TÁC GIẢ NĂNG SUẤT CAO NHẤT (HORIZONTAL BARS)
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#2563eb' }}>
-                    CORE: TOP 10 AUTHORS n=142
+                    CORE: TOP {top_authors.length} AUTHORS n={data?.dataset_overview.total_papers?.toLocaleString() || '100,000'}
                   </span>
                 </div>
 
@@ -3049,7 +3025,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       PHÂN BỔ QUANTILES: TOÁN &amp; TỪ VỰNG
                     </h3>
                     <span className="telemetry-chip" style={{ color: '#ea580c' }}>
-                      MEDIAN: 18.0 eq · 4,920w
+                      MEDIAN: {math_and_content_stats.math_quantiles.median} eq · {math_and_content_stats.word_quantiles.median.toLocaleString()}w
                     </span>
                   </div>
 
@@ -3253,7 +3229,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
               {/* Subtitle */}
               <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '10px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                Kiểm định thực nghiệm trên n = 11,763 bài báo có cấu trúc HTML5 đầy đủ trong Lakehouse.
+                Kiểm định thực nghiệm trên n = {(data?.correlations?.sample_size || data?.dataset_overview?.fulltext_papers_count || 25611).toLocaleString()} bài báo có cấu trúc HTML5 &amp; LaTeX đầy đủ trong Lakehouse.
               </div>
 
               {/* 4x4 Heatmap Table */}
@@ -3265,60 +3241,62 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   { key: 'authors', label: 'Tác giả (Authors)', short: 'Authors' },
                 ];
 
-                const pearsonMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
+                const defaultPearsonMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
                   words: {
                     words: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    math: { r: 0.228, p: '< 1e-15', note: 'Tương quan dương yếu-vừa; tuyến tính bị làm loãng bởi đuôi dài' },
-                    sections: { r: 0.410, p: '< 1e-15', note: 'Tương quan dương vừa; bài viết dài có nhiều cấu trúc mục hơn' },
-                    authors: { r: 0.032, p: '0.0004', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
+                    math: { r: 0.357, p: '< 1e-15', note: 'Tương quan dương vừa: bài viết dài có xu hướng mang nhiều công thức hơn' },
+                    sections: { r: 0.564, p: '< 1e-15', note: 'Tương quan dương mạnh: bài viết dài cấu trúc qua nhiều mục' },
+                    authors: { r: 0.080, p: '< 1e-15', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
                   },
                   math: {
-                    words: { r: 0.228, p: '< 1e-15', note: 'Tương quan dương yếu-vừa; tuyến tính bị làm loãng bởi đuôi dài' },
+                    words: { r: 0.357, p: '< 1e-15', note: 'Tương quan dương vừa: bài viết dài có xu hướng mang nhiều công thức hơn' },
                     math: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    sections: { r: 0.221, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
-                    authors: { r: -0.104, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
+                    sections: { r: 0.417, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
+                    authors: { r: -0.047, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
                   },
                   sections: {
-                    words: { r: 0.410, p: '< 1e-15', note: 'Tương quan dương vừa; bài viết dài có nhiều cấu trúc mục hơn' },
-                    math: { r: 0.221, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
+                    words: { r: 0.564, p: '< 1e-15', note: 'Tương quan dương mạnh: bài viết dài cấu trúc qua nhiều mục' },
+                    math: { r: 0.417, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
                     sections: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    authors: { r: 0.052, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
+                    authors: { r: 0.074, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
                   },
                   authors: {
-                    words: { r: 0.032, p: '0.0004', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
-                    math: { r: -0.104, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
-                    sections: { r: 0.052, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
+                    words: { r: 0.080, p: '< 1e-15', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
+                    math: { r: -0.047, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
+                    sections: { r: 0.074, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
                     authors: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
                   },
                 };
 
-                const spearmanMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
+                const defaultSpearmanMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
                   words: {
                     words: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    math: { r: 0.483, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
-                    sections: { r: 0.459, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
-                    authors: { r: 0.033, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
+                    math: { r: 0.808, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
+                    sections: { r: 0.802, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
+                    authors: { r: 0.064, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
                   },
                   math: {
-                    words: { r: 0.483, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
+                    words: { r: 0.808, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
                     math: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    sections: { r: 0.224, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
-                    authors: { r: -0.074, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
+                    sections: { r: 0.738, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
+                    authors: { r: -0.002, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
                   },
                   sections: {
-                    words: { r: 0.459, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
-                    math: { r: 0.224, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
+                    words: { r: 0.802, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
+                    math: { r: 0.738, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
                     sections: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    authors: { r: 0.038, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
+                    authors: { r: 0.056, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
                   },
                   authors: {
-                    words: { r: 0.033, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
-                    math: { r: -0.074, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
-                    sections: { r: 0.038, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
+                    words: { r: 0.064, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
+                    math: { r: -0.002, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
+                    sections: { r: 0.056, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
                     authors: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
                   },
                 };
 
+                const pearsonMatrix = (data?.correlations?.pearson as Record<string, Record<string, { r: number; p: string; note: string }>>) || defaultPearsonMatrix;
+                const spearmanMatrix = (data?.correlations?.spearman as Record<string, Record<string, { r: number; p: string; note: string }>>) || defaultSpearmanMatrix;
                 const currentMatrix = correlationMetric === 'pearson' ? pearsonMatrix : spearmanMatrix;
 
                 const getCellColor = (val: number) => {
@@ -3557,7 +3535,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     RAG VECTOR LAKEHOUSE &amp; CONTEXT CHUNKING
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#7c3aed' }}>
-                    LANCEDB GOLD · 635,901 VECTORS (IVF-PQ)
+                    LANCEDB GOLD · {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()} VECTORS (IVF-PQ)
                   </span>
                 </div>
 
@@ -3621,18 +3599,26 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  635,901 vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; IVF-PQ (K=1024, M=192)
+                  {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'IVF-PQ (K=1024, M=192)'}
                 </div>
 
                 <ChartToolbar
                   theme={theme}
                   filename="rag-section-contribution-chunks"
-                  csvData={[
-                    { section: 'Methodology & Algorithms', chunks: 206032, percentage: 32.4 },
-                    { section: 'Experiments & Benchmarks', chunks: 179324, percentage: 28.2 },
-                    { section: 'Introduction & Problem Statement', chunks: 151344, percentage: 23.8 },
-                    { section: 'Discussion & Conclusion', chunks: 99201, percentage: 15.6 },
-                  ]}
+                  csvData={
+                    data?.rag_audit_metrics?.section_distribution
+                      ? data.rag_audit_metrics.section_distribution.map((s) => ({
+                          section: s.section,
+                          chunks: s.chunks,
+                          percentage: s.percentage,
+                        }))
+                      : [
+                          { section: 'Methodology & Algorithms', chunks: 295878, percentage: 32.4 },
+                          { section: 'Experiments & Benchmarks', chunks: 257525, percentage: 28.2 },
+                          { section: 'Introduction & Theory', chunks: 217344, percentage: 23.8 },
+                          { section: 'Discussion & Conclusion', chunks: 142458, percentage: 15.6 },
+                        ]
+                  }
                   onShowToast={(msg) => {
                     setFeedbackToast(msg);
                     setTimeout(() => setFeedbackToast(null), 2500);
@@ -3645,11 +3631,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>TỔNG CHUNKS</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>635,901</div>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>
+                      {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()}
+                    </div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>CHUNKS / BÀI</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>50.3x</div>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
+                      {((data?.rag_audit_metrics?.total_vectors || 913205) / Math.max(1, data?.dataset_overview.fulltext_papers_count || 25611)).toFixed(1)}x
+                    </div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>CONTEXT WIN</div>

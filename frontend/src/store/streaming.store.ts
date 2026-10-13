@@ -69,7 +69,7 @@ const initialCachedStats = getStoredStorageStats();
 
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus: initialCachedStats?.sourceBreakdown?.total_deduplicated ?? initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ?? 12641,
+  totalCorpus: initialCachedStats?.sourceBreakdown?.total_deduplicated ?? initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ?? 23767,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
@@ -244,7 +244,7 @@ export function initializeLakehouseStream(): () => void {
       if (st) {
         updateState({
           isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || 12641,
+          totalCorpus: st.total_corpus || 23767,
           sessionIngested: st.status === 'STREAMING' ? (st.session_ingested || 0) : 0,
           streamSpeed: st.speed_ppm || 0,
           storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,
@@ -286,7 +286,7 @@ export function initializeLakehouseStream(): () => void {
               ? {
                   ...prev.storageStats.activeLakehouse,
                   activeLanceDbVectors:
-                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) + vectorsDelta,
+                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 913205) + vectorsDelta,
                   totalSizeGb: updatedGb,
                   usedPercentage: updatedPct,
                 }
@@ -337,7 +337,7 @@ export function initializeLakehouseStream(): () => void {
               ? {
                   ...prev.storageStats.activeLakehouse,
                   activeLanceDbVectors:
-                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) + vectorsDelta,
+                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 913205) + vectorsDelta,
                 }
               : prev.storageStats?.activeLakehouse;
 

@@ -1,5 +1,6 @@
 export interface AnalyticsOverview {
   total_papers: number;
+  fulltext_papers_count?: number;
   enriched_html_papers: number;
   enrichment_ratio: number;
   total_math_formulas: number;
@@ -59,6 +60,33 @@ export interface EdaResponse {
   math_and_content_stats: MathAndContentStats;
   top_authors: TopAuthorItem[];
   category_cooccurrence: CategoryCooccurItem[];
+  correlations?: {
+    pearson: Record<string, Record<string, { r: number; p: string; note: string }>>;
+    spearman: Record<string, Record<string, { r: number; p: string; note: string }>>;
+    sample_size: number;
+  };
+  scatter_points?: Array<{
+    id: string;
+    title: string;
+    category: string;
+    words: number;
+    formulas: number;
+    author: string;
+    abstract?: string;
+    sampleFormula?: string;
+  }>;
+  rag_audit_metrics?: {
+    total_vectors: number;
+    vector_dimension: number;
+    embedding_model: string;
+    context_window_tokens: number;
+    index_type: string;
+    section_distribution: Array<{
+      section: string;
+      chunks: number;
+      percentage: number;
+    }>;
+  };
 }
 
 export interface AssociationRuleItem {

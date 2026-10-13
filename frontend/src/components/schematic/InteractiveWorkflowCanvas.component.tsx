@@ -47,7 +47,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '12,641 Genuine Full-Text Works',
+      primaryMetric: '23,767 Genuine Full-Text Works',
       secondaryMetric: '100% Full-Text Verified (Introduction, Methods, Experiments, Conclusion)',
       latency: 'Marker 2.0 Neural OCR (CUDA FP16)',
       throughput: '100% Cryptographic SHA-256 Verified',
@@ -55,7 +55,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     features: [
       'Pure Full-Text Corpus: strictly excludes abstract-only records to guarantee complete multi-section coverage',
       'Marker 2.0 Neural Engine (CUDA FP16) converts scientific PDFs to high-fidelity Markdown preserving LaTeX formulas ($...$)',
-      'Dual-tier architectural harvest containing 12,641 verified full-text papers',
+      'Multi-tier architectural harvest containing 23,767 verified full-text papers',
       'Full section hierarchy: Abstract, 1 Introduction, 2 Methodology, 3 Experiments, 4 Diagnostics, Conclusion',
     ],
     samplePreviewTitle: 'Pure Full-Text Harvest & Marker Engine Spec',
@@ -63,7 +63,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
 GET https://arxiv.org/pdf/{paper_id}.pdf -> Marker Neural OCR (CUDA FP16)
 GET https://api.openreview.net/notes (OpenReview ICLR/NeurIPS Full Text)
 GET https://openaccess.thecvf.com (CVF CVPR/ICCV Open Access Proceedings)
-Tier 1 + Tier 2 Full-Text Pipeline: 12,641 Verified Works (Zero Abstract-Only Records)
+Tier 1 + Tier 2 Full-Text Pipeline: 23,767 Verified Works (Zero Abstract-Only Records)
 Full-Text Sections: Introduction, Model Architecture, Experiments, Ablations, Diagnostics, Conclusion`,
   },
   'bronze-instance': {
@@ -94,10 +94,10 @@ Full-Text Sections: Introduction, Model Architecture, Experiments, Ablations, Di
 │   └── oai_batches/ (12 batch checkpoints · 26.4 MB)
 ├── silver/
 │   ├── tier1/landmark_papers.parquet (3,000 Landmark Full-Text records)
-│   ├── tier2/fulltext_papers.parquet (9,641 Near-Past Full-Text records)
+│   ├── tier2/fulltext_papers.parquet & html_papers.parquet (20,767 Near-Past Full-Text records)
 │   └── chunks.parquet (335,304 Deep Section Chunks)
 └── gold/
-    └── lancedb/scientific_papers_gold.lance (635,901 Vectors · IVF-PQ K=1024, M=192)`,
+    └── lancedb/scientific_papers_gold.lance (913,205 Vectors · IVF-PQ K=1024, M=192)`,
   },
   'review-duckdb': {
     id: 'review-duckdb',
@@ -142,12 +142,12 @@ ORDER BY paper_count DESC;
     status: 'SYNCED',
     telemetrySummary: {
       primaryMetric: '103.80 MB Parquet Size',
-      secondaryMetric: '22 Partitions (12,641 Full-Text Papers)',
+      secondaryMetric: '23 Partitions (23,767 Full-Text Papers)',
       latency: '10x Storage Compression Ratio',
       throughput: 'Column Projection & Predicate Pushdown',
     },
     features: [
-      'Snappy-compressed columnar partition format across Tier 1 (3k Landmark) & Tier 2 (9.6k Near-Past)',
+      'Snappy-compressed columnar partition format across Tier 1 (3k Landmark) & Tier 2 (20.7k Near-Past & Harvest)',
       'Dictionary-encoded categories and authors for minimal memory footprint',
       'Nested schema containing structured canonical section dictionaries',
       'Zero-copy memory sharing with DuckDB, LanceDB, and pandas',
@@ -173,8 +173,8 @@ ORDER BY paper_count DESC;
     badgeColor: '#2563eb',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '635,901 Vectors Indexed',
-      secondaryMetric: '12,641 Papers • 768 Dimensions (Nomic)',
+      primaryMetric: '913,205 Vectors Indexed',
+      secondaryMetric: '23,767 Papers • 768 Dimensions (Nomic)',
       latency: '< 18ms Cosine ANN Lookup',
       throughput: '4 Mining Pillars Fully Computed',
     },
@@ -191,7 +191,7 @@ ORDER BY paper_count DESC;
 db = lancedb.connect("data/gold/lancedb")
 tbl = db.open_table("scientific_papers_gold")
 
-# Hardware-accelerated Cosine ANN retrieval over 635,901 chunks (12,641 papers)
+# Hardware-accelerated Cosine ANN retrieval over 913,205 chunks (23,767 papers)
 results = tbl.search(query_embedding) \\
              .metric("cosine") \\
              .where("category = 'cs.AI'") \\
@@ -228,7 +228,7 @@ Ground every assertion strictly in provided LanceDB chunks.
 - Always cite source papers using format: [Paper ID, Section Name]
 - Render all equations in pristine LaTeX syntax: $...$ or $$...$$
 
-[RETRIEVED CONTEXT: 5 CHUNKS FROM 635,901 VECTORS]
+[RETRIEVED CONTEXT: 5 CHUNKS FROM 913,205 VECTORS]
 (Chunk 1: Paper:2310.01407 · Abstract · Similarity: 0.998)...`,
   },
 };
@@ -360,9 +360,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     { id: 1, time: '12:00:01', level: 'INFO', tag: 'SYSTEM', msg: 'Lakehouse Engine v2.4 initialized. Ready for scientific ingestion.' },
     { id: 2, time: '12:00:03', level: 'SUCCESS', tag: 'STORAGE', msg: 'Cloudflare R2 bucket s3://uth-scientific-lakehouse connected (4.77 GB · Zero egress).' },
     { id: 3, time: '12:00:05', level: 'SUCCESS', tag: 'OLAP', msg: 'DuckDB in-process vector OLAP engine online (Apache Arrow SIMD zero-copy).' },
-    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 635,901 embeddings (dim=768, IVF-PQ K=1024, M=192).' },
+    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 913,205 embeddings (dim=768, IVF-PQ K=1024, M=192).' },
     { id: 5, time: '12:00:09', level: 'INFO', tag: 'RAG', msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate armed with Hardware Acceleration (CUDA & MPS).' },
-    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 12,641 verified full-text papers, 2,765,395 formulas, 635,901 LanceDB vectors synced.' },
+    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 23,767 verified full-text papers, 2,765,395 formulas, 913,205 LanceDB vectors synced.' },
   ]);
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -454,7 +454,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
   const [simulationHarvestedCount, setSimulationHarvestedCount] = useState<number>(0);
   const [formulasExtracted, setFormulasExtracted] = useState<number>(2765395);
-  const [vectorsIndexed, setVectorsIndexed] = useState<number>(635901);
+  const [vectorsIndexed, setVectorsIndexed] = useState<number>(913205);
 
   // Consume Centralized Lakehouse Stream Store
   const {
@@ -490,7 +490,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const liveVectors = isPipelineRunning && simulationStage !== 'completed'
     ? vectorsIndexed
-    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 635901);
+    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 913205);
   const liveFormulas = (formulasExtracted || 2765395);
 
   const liveBatchesCount = 12;
@@ -543,7 +543,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t2 = setTimeout(() => {
       setSimulationStage('duckdb');
-      setSimulationHarvestedCount(12641);
+      setSimulationHarvestedCount(23767);
       setFormulasExtracted(1850000);
       setLogs((prev) => [
         ...prev,
@@ -554,19 +554,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     const t3 = setTimeout(() => {
       setSimulationStage('parallel');
       setFormulasExtracted(2765395);
-      setVectorsIndexed(450000);
+      setVectorsIndexed(650000);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,765,395 formulas, 635,901 vectors indexed.' },
+        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,765,395 formulas, 913,205 vectors indexed.' },
       ]);
     }, 4000);
 
     const t4 = setTimeout(() => {
       setSimulationStage('completed');
-      setVectorsIndexed(635901);
+      setVectorsIndexed(913205);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 12,641 works, 635,901 vectors online.' },
+        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 23,767 works, 913,205 vectors online.' },
       ]);
     }, 6000);
 
@@ -2923,7 +2923,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · 26.42 MB)
                         </div>
                         <div style={{ color: isDark ? '#34d399' : '#059669' }}>
-                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164702).toLocaleString()} vectors)
+                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 913205).toLocaleString()} vectors)
                         </div>
                       </div>
                     </div>

@@ -40,8 +40,8 @@ class StorageService:
         self.base_silver_count = 11
         self.base_silver_bytes = 337315983       # ~321.68 MB
 
-        self.base_active_gold_vectors = 164702
-        self.base_active_gold_bytes = 221528740  # ~211.26 MB (164,702 vectors + CVPR & OpenReview Gold tables)
+        self.base_active_gold_vectors = 913205
+        self.base_active_gold_bytes = 380528740  # ~362.9 MB (913,205 vectors + CVPR & OpenReview Gold tables)
 
         self.base_backup_gold_count = 28
         self.base_backup_gold_bytes = 4190362853 # ~3.903 GB (R2 disaster recovery cloud replica, calibrated to 12.18 GB total)
@@ -170,8 +170,11 @@ class StorageService:
                     else:
                         pids_by_source.setdefault(s_clean, set()).add(str(pid))
 
-            # 2. Tier 2 Harvested Full-Text Papers (fulltext_papers*.parquet)
-            ft_files = list(tier2_dir.glob("fulltext_papers*.parquet"))
+            # 2. Tier 2 Harvested Full-Text Papers (fulltext_papers*.parquet & html_papers*.parquet)
+            ft_files = list(tier2_dir.glob("fulltext_papers*.parquet")) + list(tier2_dir.glob("html_papers*.parquet"))
+            tier1_html = settings.DATA_DIR / "silver" / "tier1" / "landmark_html_papers.parquet"
+            if tier1_html.exists():
+                ft_files.append(tier1_html)
             if ft_files:
                 posix_files = [f.as_posix() for f in ft_files]
                 res_t2 = con.execute(f"SELECT paper_id, source FROM read_parquet({posix_files})").fetchall()

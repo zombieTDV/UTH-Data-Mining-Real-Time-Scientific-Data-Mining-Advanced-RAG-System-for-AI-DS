@@ -60,7 +60,7 @@ const RESEARCH_PROMPT_SUGGESTIONS = [
 ];
 
 const RAG_STREAMING_STATUSES = [
-  'Querying LanceDB Gold Lakehouse (635,901 vectors 768-D)...',
+  'Querying LanceDB Gold Lakehouse (913,205 vectors 768-D)...',
   'Verifying context & multi-source citations...',
   'Qwen2.5-7B synthesizing grounded academic response...',
 ];
@@ -69,7 +69,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
     sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **12,641 verified full-text papers**, **2.77M formulas** (2,765,395 LaTeX equations), and **635,901 LanceDB vector embeddings** (IVF-PQ $K=1024, M=192$, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?',
+    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **23,767 verified full-text papers**, **2.77M formulas** (2,765,395 LaTeX equations), and **913,205 LanceDB vector embeddings** (IVF-PQ $K=1024, M=192$, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?',
     timestamp: '12:00:00',
   },
 ];

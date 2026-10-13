@@ -115,11 +115,23 @@ class Tier3RealtimeStreamer:
                 if resp.status_code != 200:
                     continue
                 feed = feedparser.parse(resp.text)
-                for entry in feed.entries[:max_per_cat]:
+                entries = getattr(feed, "entries", [])[:max_per_cat]
+
+                # Graceful fallback: If RSS feed is empty (e.g. arXiv rollover window / weekend),
+                # query the official arXiv Atom API for the latest zero-day preprints sorted by submittedDate
+                if not entries:
+                    atom_url = f"https://export.arxiv.org/api/query?search_query=cat:{cat}&sortBy=submittedDate&sortOrder=descending&max_results={max_per_cat}"
+                    atom_resp = self.http_client.get(atom_url, timeout=15.0)
+                    if atom_resp.status_code == 200:
+                        atom_feed = feedparser.parse(atom_resp.text)
+                        entries = getattr(atom_feed, "entries", [])[:max_per_cat]
+
+                for entry in entries:
                     title = re.sub(r"\s+", " ", entry.title).strip()
                     title = re.sub(r"\(arXiv:[^)]+\)", "", title).strip()
                     link = entry.link
                     arxiv_id = link.split("/abs/")[-1] if "/abs/" in link else link.split("/")[-1]
+                    arxiv_id = re.sub(r"v\d+$", "", arxiv_id)
                     summary = getattr(entry, "summary", "") or ""
                     abstract = re.sub(r"<[^>]+>", " ", summary)
                     abstract = re.sub(r"\s+", " ", abstract).strip()
@@ -128,6 +140,10 @@ class Tier3RealtimeStreamer:
                     authors = [a.name for a in getattr(entry, "authors", [])] if hasattr(entry, "authors") else []
 
                     is_dup, abs_hash = self.dedup.is_duplicate(abstract, title)
+
+                    pub_date = getattr(entry, "published", "") or datetime.date.today().isoformat()
+                    if "T" in str(pub_date):
+                        pub_date = str(pub_date).split("T")[0]
 
                     papers.append({
                         "paper_id": arxiv_id,
@@ -139,7 +155,7 @@ class Tier3RealtimeStreamer:
                         "authors": authors,
                         "categories": [cat],
                         "primary_category": cat,
-                        "published_date": datetime.date.today().isoformat(),
+                        "published_date": pub_date,
                         "cite_count": 0,  # Zero-day preprints start with 0 citations
                         "pdf_url": pdf_url,
                         "html_url": link,

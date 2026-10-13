@@ -98,4 +98,5 @@ Desktop.ini
 
 # Scratch Scripts & Scratch Files
 scratch/
-
+.tmp/
+*.tmp

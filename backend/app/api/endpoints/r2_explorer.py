@@ -220,9 +220,9 @@ def build_default_inventory() -> Dict[str, Any]:
         {
             "key": "gold/lancedb/scientific_papers_gold.lance",
             "name": "scientific_papers_gold.lance",
-            "size_bytes": 3424108544,  # ~3.18 GB
-            "last_modified": "2026-10-07T23:25:00Z",
-            "row_count": 164702,
+            "size_bytes": 3724108544,  # ~3.47 GB
+            "last_modified": "2026-10-13T18:37:50Z",
+            "row_count": 913205,
         },
         # Bronze Raw Vault Highlights
         {
@@ -652,9 +652,9 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
             "vector_column": "vector",
             "vector_dimension": 768,
             "embedding_model": "nomic-ai/nomic-embed-text-v1.5 (Matryoshka 768-D)",
-            "total_chunks": 164702,
-            "openreview_chunks": 1985,
-            "cvpr_chunks": 1991,
+            "total_chunks": 913205,
+            "openreview_chunks": 26187,
+            "cvpr_chunks": 22790,
             "indices": [
                 {
                     "name": "text_idx",
@@ -667,13 +667,13 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
                     "name": "vector_idx",
                     "type": "IVF-PQ (Cosine)",
                     "column": "vector",
-                    "partitions": 256,
-                    "sub_vectors": 48,
-                    "status": "ONLINE (Sub-2s Querying)",
-                    "size_mb": 10.80,
+                    "partitions": 1024,
+                    "sub_vectors": 192,
+                    "status": "ONLINE (Sub-second Querying)",
+                    "size_mb": 132.32,
                 },
             ],
-            "version": 13,
+            "version": 18,
             "s3_storage_uri": f"s3://{settings.R2_BUCKET_NAME or 'uth-scientific-lakehouse'}/gold/lancedb/scientific_papers_gold.lance",
         }
 
@@ -723,7 +723,7 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
             extension="lance",
             size_bytes=3424108544,
             size_formatted="3.19 GB",
-            total_rows=164702,
+            total_rows=913205,
             column_count=len(schema_cols),
             schema_columns=schema_cols,
             sample_rows=sample_records,

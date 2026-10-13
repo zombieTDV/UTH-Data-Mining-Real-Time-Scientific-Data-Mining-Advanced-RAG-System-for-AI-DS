@@ -45,7 +45,7 @@ export const TOOLS_DATA: ToolItem[] = [
     name: 'LanceDB',
     category: 'Vector DB',
     role: 'Multi-Modal Vector Lakehouse (Gold)',
-    spec: '635,901 Embeddings · IVF-PQ Cosine ANN',
+    spec: '913,205 Embeddings · IVF-PQ Cosine ANN',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">

@@ -86,9 +86,9 @@ export const LanceDbInspector: FC<LanceDbInspectorProps> = ({
     vector_column: 'vector',
     vector_dimension: 768,
     embedding_model: 'nomic-ai/nomic-embed-text-v1.5 (Matryoshka 768-D)',
-    total_chunks: 164702,
-    openreview_chunks: 1985,
-    cvpr_chunks: 1991,
+    total_chunks: 913205,
+    openreview_chunks: 26187,
+    cvpr_chunks: 22790,
     indices: [
       {
         name: 'text_idx',
@@ -101,13 +101,13 @@ export const LanceDbInspector: FC<LanceDbInspectorProps> = ({
         name: 'vector_idx',
         type: 'IVF-PQ (Cosine)',
         column: 'vector',
-        partitions: 256,
-        sub_vectors: 48,
-        status: 'ONLINE (Sub-2s Querying)',
-        size_mb: 10.80,
+        partitions: 1024,
+        sub_vectors: 192,
+        status: 'ONLINE (Sub-second Querying)',
+        size_mb: 132.32,
       },
     ],
-    version: 13,
+    version: 18,
     s3_storage_uri: 's3://uth-scientific-lakehouse/gold/lancedb/scientific_papers_gold.lance',
   };
 
