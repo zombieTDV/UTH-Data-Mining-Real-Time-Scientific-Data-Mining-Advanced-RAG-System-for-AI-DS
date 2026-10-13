@@ -96,7 +96,7 @@ class AssociationRuleMiner:
             elif row.get("primary_category"):
                 basket.add(f"cat:{str(row['primary_category']).strip()}")
 
-            # 2. Add OpenAlex topics and keywords if present
+            # 2. Add Zenodo/OpenAlex topics and keywords if present
             raw_topics = row.get("topics")
             if raw_topics is not None and hasattr(raw_topics, "__iter__") and not isinstance(raw_topics, str):
                 for t in raw_topics:

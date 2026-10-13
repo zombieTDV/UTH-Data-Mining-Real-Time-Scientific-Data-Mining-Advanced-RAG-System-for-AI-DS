@@ -26,8 +26,9 @@ class LanceDBManager:
         self.r2 = r2_client
 
     def get_or_create_table(self, table_name: str = DEFAULT_TABLE_NAME, data_sample: Optional[List[Dict[str, Any]]] = None):
-        """Mở table đã có hoặc khởi tạo table mới nếu chưa tồn tại."""
-        existing_tables = self.db.table_names()
+        """Mở table đã có hoặc khởi tạo table mới nếu chưa tồn tại (tích lũy, không overwrite)."""
+        tbl_res = self.db.list_tables() if hasattr(self.db, "list_tables") else self.db.table_names()
+        existing_tables = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
         if table_name in existing_tables:
             return self.db.open_table(table_name)
 
@@ -37,7 +38,7 @@ class LanceDBManager:
             )
 
         df = pd.DataFrame(data_sample)
-        return self.db.create_table(table_name, data=df, mode="overwrite")
+        return self.db.create_table(table_name, data=df, mode="create")
 
     def insert_chunks(self, chunks: List[Dict[str, Any]], table_name: str = DEFAULT_TABLE_NAME) -> int:
         """Ghi hoặc cập nhật danh sách chunks kèm vector vào LanceDB."""
@@ -47,14 +48,28 @@ class LanceDBManager:
         df = pd.DataFrame(chunks)
         table = self.get_or_create_table(table_name, data_sample=chunks)
 
-        # Merge / Upsert theo chunk_id
+        # Filter df to match table schema to prevent schema mismatch errors
+        target_cols = [c for c in df.columns if c in table.schema.names]
+        df = df[target_cols]
+
+        # Merge / Upsert theo chunk_id (with retry backoff for multi-process concurrency safety)
         if "chunk_id" in df.columns:
-            (
-                table.merge_insert("chunk_id")
-                .when_matched_update_all()
-                .when_not_matched_insert_all()
-                .execute(df)
-            )
+            df = df.drop_duplicates(subset=["chunk_id"], keep="last")
+            import time
+            for attempt in range(5):
+                try:
+                    (
+                        table.merge_insert("chunk_id")
+                        .when_matched_update_all()
+                        .when_not_matched_insert_all()
+                        .execute(df)
+                    )
+                    break
+                except Exception as e:
+                    if attempt == 4:
+                        logger.error("[LANCEDB CONCURRENCY ERROR] Merge insert failed after 5 attempts: %s", e)
+                        raise
+                    time.sleep(1.0 + attempt * 0.5)
         else:
             table.add(df)
 
@@ -66,10 +81,19 @@ class LanceDBManager:
         limit: int = 5,
         filter_expr: Optional[str] = None,
         table_name: str = DEFAULT_TABLE_NAME,
+        refine_factor: int = 10,
+        nprobes: int = 32,
     ) -> pd.DataFrame:
-        """Tìm kiếm lân cận gần đúng (ANN) trên vector embeddings."""
+        """Tìm kiếm lân cận gần đúng (ANN) trên vector embeddings với Option 2 (exact re-ranking)."""
         table = self.db.open_table(table_name)
-        search_query = table.search(query_vector).metric("cosine").limit(limit)
+        search_query = table.search(query_vector).metric("cosine")
+
+        try:
+            search_query = search_query.nprobes(nprobes).refine_factor(refine_factor)
+        except Exception:
+            pass
+
+        search_query = search_query.limit(limit)
 
         if filter_expr:
             search_query = search_query.where(filter_expr, prefilter=True)

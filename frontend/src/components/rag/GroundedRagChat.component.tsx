@@ -71,23 +71,23 @@ const getResearchPromptSuggestions = (lang: 'en' | 'vi') => [
 const getStreamingStatuses = (lang: 'en' | 'vi') => {
   if (lang === 'vi') {
     return [
-      'Đang truy vấn LanceDB Gold Lakehouse (164,702 vectors 768-D)...',
-      'Đang đối chiếu ngữ cảnh & trích dẫn arXiv...',
+      'Đang truy vấn LanceDB Gold Lakehouse (913,205 vectors IVF-PQ 768-D)...',
+      'Đang đối chiếu ngữ cảnh & trích dẫn đa nguồn...',
       'Qwen2.5-7B đang tổng hợp câu trả lời học thuật...',
     ];
   }
   return [
-    'Querying LanceDB Gold Lakehouse (164,702 vectors 768-D)...',
-    'Verifying context & arXiv citations...',
-    'Qwen2.5-7B synthesizing academic response...',
+    'Querying LanceDB Gold Lakehouse (913,205 vectors IVF-PQ 768-D)...',
+    'Verifying context & multi-source citations...',
+    'Qwen2.5-7B synthesizing grounded academic response...',
   ];
 };
 
 const getInitialGreeting = (lang: 'en' | 'vi'): string => {
   if (lang === 'vi') {
-    return 'Xin chào! Tôi là **Trợ lý RAG Khoa học UTH**.\n\nĐược vận hành bởi mô hình **Qwen2.5-7B-Instruct** và kết nối trực tiếp theo thời gian thực với Lakehouse học thuật gồm **36,414 bài báo khoa học** (11,660 arXiv HTML5 preprints + 24,754 OpenAlex metadata records), **2.22M công thức toán học** (2,220,938 phương trình LaTeX), cùng **164,702 vector embeddings** trên LanceDB (Nomic Embed 768-D). Mọi phản hồi đều được đối chiếu và trích dẫn chuẩn xác từ toàn văn bài báo. Bạn có câu hỏi nghiên cứu nào cần giải đáp hôm nay?';
+    return 'Xin chào! Tôi là **Trợ lý RAG Khoa học UTH**.\n\nĐược vận hành bởi mô hình **Qwen2.5-7B-Instruct** và kết nối trực tiếp theo thời gian thực với Lakehouse học thuật gồm **23,767 bài báo toàn văn đã xác minh**, **2.77M công thức toán học** (2,765,395 phương trình LaTeX), cùng **913,205 vector embeddings** trên LanceDB (IVF-PQ K=1024, M=192, Nomic Embed 768-D). Mọi phản hồi đều được đối chiếu và trích dẫn chuẩn xác từ toàn văn bài báo. Bạn có câu hỏi nghiên cứu nào cần giải đáp hôm nay?';
   }
-  return 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **36,414 harvested works** (11,660 arXiv HTML5 preprints + 24,754 OpenAlex metadata records), **2.22M formulas** (2,220,938 LaTeX equations), and **164,702 LanceDB vector embeddings** (Nomic Embed 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?';
+  return 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **23,767 verified full-text papers**, **2.77M formulas** (2,765,395 LaTeX equations), and **913,205 LanceDB vector embeddings** (IVF-PQ K=1024, M=192, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?';
 };
 
 export const GroundedRagChat: FC<GroundedRagChatProps> = ({
@@ -203,7 +203,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           sectionTitle: displayChunk.section_title || sectionTitle || 'Main Methodology',
           score: displayChunk.score ? displayChunk.score.toFixed(4) : (first.score ? first.score.toFixed(4) : '0.8510'),
           chunkText: displayChunk.text ? (displayChunk.text.length > 350 ? displayChunk.text.slice(0, 350) + '...' : displayChunk.text) : '',
-          doi: first.doi || undefined,
+          doi: first.doi || (paperId.startsWith('doi_') ? `https://doi.org/${paperId.replace(/^doi_/, '').replace(/_/g, '/')}` : undefined),
         });
       }
     } catch (err) {
@@ -289,12 +289,12 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         onDone: () => {
           const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
           const citeMatches = Array.from(
-            accumulated.matchAll(/\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]/g)
+            accumulated.matchAll(/(?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*([^,\]|]+)(?:[|,]\s*(?:Section:\s*)?([^\]]+))?\](?:\*\*|`?)/gi)
           ).map((m) => m[2] ? `Paper: ${m[1].trim()}, Section: ${m[2].trim()}` : `Paper: ${m[1].trim()}`);
           updateAssistantMessage(assistantMsgId, {
             isStreaming: false,
             generation_time: `${elapsedSec}s`,
-            citations: citeMatches.length > 0 ? Array.from(new Set(citeMatches)) : ['Paper: 2310.01407, Section: 3 Methodology'],
+            citations: citeMatches.length > 0 ? Array.from(new Set(citeMatches)) : ['Paper: 2505.18877, Section: Methodology'],
           });
           setLoading(false);
           setTimeout(() => textareaRef.current?.focus(), 50);
@@ -406,24 +406,57 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     ]);
   };
 
+  const formatCitationBadgeLabel = (paperId: string, sectionTitle?: string): string => {
+    let cleanId = paperId.trim();
+    let prefix = 'Paper';
+
+    if (/^doi[_:]/i.test(cleanId) || /^10\.\d{4,9}\//i.test(cleanId)) {
+      prefix = 'DOI';
+      cleanId = cleanId.replace(/^doi[_:]/i, '').replace(/_/g, '/');
+    } else if (/^openalex:/i.test(cleanId) || /^W\d+$/i.test(cleanId)) {
+      prefix = 'DOI';
+      cleanId = cleanId.replace(/^openalex:/i, '');
+    } else if (/^cvf[_:]/i.test(cleanId)) {
+      prefix = 'CVF';
+      cleanId = cleanId.replace(/^cvf[_:]/i, '');
+    } else if (/^openreview[_:]/i.test(cleanId)) {
+      prefix = 'OpenReview';
+      cleanId = cleanId.replace(/^openreview[_:]/i, '');
+    } else if (/^zenodo[_:]/i.test(cleanId)) {
+      prefix = 'Zenodo';
+      cleanId = cleanId.replace(/^zenodo[_:]/i, '');
+    } else if (/^arxiv:/i.test(cleanId)) {
+      prefix = 'arXiv';
+      cleanId = cleanId.replace(/^arxiv:/i, '');
+    }
+
+    const displayId = cleanId.length > 24 ? cleanId.slice(0, 22) + '…' : cleanId;
+    const cleanSec = sectionTitle ? sectionTitle.replace(/^Section\s*\d+:?\s*/i, '').trim() : '';
+    const displaySec = cleanSec ? ` · ${cleanSec}` : '';
+
+    return `${prefix}:${displayId}${displaySec}`;
+  };
+
   const renderInlineContent = (rawText: string): React.ReactNode[] => {
-    const tokenRegex = /(\[Paper:\s*[^,\]]+(?:,\s*Section:\s*[^\]]+)?\]|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
+    const tokenRegex = /((?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*[^,\]|]+(?:[|,]\s*(?:Section:\s*)?[^\]]+)?\](?:\*\*|`?)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+`)/g;
     const parts = rawText.split(tokenRegex);
 
     return parts.map((part, idx) => {
       if (!part) return null;
 
-      const citeMatch = part.match(/^\[Paper:\s*([^,\]]+)(?:,\s*Section:\s*([^\]]+))?\]$/);
+      const cleanPart = part.replace(/^(\*\*|`)|(\*\*|`)$/g, '').trim();
+      const citeMatch = cleanPart.match(/^\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*([^,\]|]+)(?:[|,]\s*(?:Section:\s*)?([^\]]+))?\]$/i);
       if (citeMatch) {
         const paperId = citeMatch[1].trim();
-        const section = citeMatch[2]?.trim() || 'Methodology';
+        const section = citeMatch[2]?.trim() || '';
+        const badgeLabel = formatCitationBadgeLabel(paperId, section);
         return (
           <button
             key={`cite-${idx}`}
             type="button"
             onClick={() => handleInspectCitation(paperId, section)}
             className="citation-chip"
-            title={`Inspect Academic Dossier: ${paperId.startsWith('openalex:') ? paperId : `arXiv:${paperId}`} (${section})`}
+            title={`Inspect Academic Dossier: ${badgeLabel}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -444,7 +477,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             </svg>
-            <span>{paperId.startsWith('openalex:') ? paperId : `arXiv:${paperId}`} · {section.replace(/^Section\s*\d+:?\s*/i, '')}</span>
+            <span>{badgeLabel}</span>
           </button>
         );
       }

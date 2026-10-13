@@ -45,7 +45,7 @@ class ArxivBatchHarvester:
             headers={
                 "User-Agent": "UTH-Scientific-DataMining-OAIHarvester/2.0 (academic research; contact: data-mining@uth.edu.vn)"
             },
-            timeout=60.0,
+            timeout=90.0,
             follow_redirects=True,
         )
 
@@ -153,6 +153,7 @@ class ArxivBatchHarvester:
         resumption_token: Optional[str] = None,
         set_spec: str = "cs",
         from_date: str = "2024-01-01",
+        until_date: Optional[str] = None,
         max_retries: int = 5,
     ) -> Dict[str, Any]:
         """Gui request OAI-PMH voi co che retry va xu ly Retry-After tu dong."""
@@ -165,6 +166,8 @@ class ArxivBatchHarvester:
                 "set": set_spec,
                 "from": from_date,
             }
+            if until_date:
+                params["until"] = until_date
 
         for attempt in range(1, max_retries + 1):
             try:
@@ -216,7 +219,106 @@ class ArxivBatchHarvester:
                 print(f"[RETRY] Request loi ({e}). Thu lai lan {attempt}/{max_retries} sau {wait_sec}s...")
                 time.sleep(wait_sec)
 
-        raise RuntimeError(f"Khong the lay du lieu OAI-PMH sau {max_retries} lan thu.")
+    def harvest_day_by_day_backward(
+        self,
+        total_target: int = 4000,
+        start_date: str = "2026-10-09",
+        categories: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Harvests preprints day-by-day stepping backwards from start_date (present to past)."""
+        target_cats: Set[str] = set(categories or settings.ARXIV_CATEGORIES)
+        target_cats.update({"cs.AI", "cs.LG", "cs.CV", "cs.CL", "stat.ML", "cs.NE", "cs.IR", "cs.RO"})
+        writer = SilverLakehouseWriter(r2_client=self.r2)
+
+        curr_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+        collected_papers: List[Dict[str, Any]] = []
+        seen_ids: Set[str] = set()
+
+        print("-" * 80)
+        print(f"[ARXIV DAY-BY-DAY] Harvesting {total_target:,} preprints stepping backwards from {start_date}")
+        print(f"[ARXIV DAY-BY-DAY] Categories: {', '.join(sorted(target_cats))}")
+        print("-" * 80)
+
+        while len(collected_papers) < total_target:
+            date_str = curr_dt.isoformat()
+            if curr_dt.weekday() >= 5:  # Saturday or Sunday
+                curr_dt -= datetime.timedelta(days=1)
+                continue
+
+            print(f"\n[DAY] Querying arXiv OAI-PMH for {date_str} ({curr_dt.strftime('%A')})...")
+            try:
+                page_data = self.fetch_oai_page(
+                    resumption_token=None,
+                    set_spec="cs",
+                    from_date=date_str,
+                )
+            except Exception as e:
+                print(f"[ERROR] Failed fetching {date_str}: {e}")
+                curr_dt -= datetime.timedelta(days=1)
+                continue
+
+            records_raw = page_data.get("records_raw", [])
+            day_valid = 0
+            for r in records_raw:
+                if len(collected_papers) >= total_target:
+                    break
+                p = self.normalize_oai_record(r)
+                if not p:
+                    continue
+                p_id = p.get("paper_id")
+                if not p_id or p_id in seen_ids:
+                    continue
+
+                paper_cats = set(p.get("categories", []))
+                if not paper_cats.intersection(target_cats):
+                    continue
+
+                p["tier"] = "tier2"
+                p["source"] = "arxiv"
+                p["content_origin"] = "arxiv_oai_pmh"
+
+                parsed_dummy = {
+                    "parsed_title": p["title"],
+                    "parsed_abstract": p["abstract"],
+                    "sections": [
+                        {
+                            "section_id": "abstract",
+                            "section_title": "Abstract",
+                            "section_type": "abstract",
+                            "content": p["abstract"],
+                            "paragraphs": [p["abstract"]],
+                            "paragraph_count": 1,
+                            "math_count": 0,
+                            "word_count": len(p["abstract"].split()),
+                        }
+                    ],
+                    "total_sections": 1,
+                    "total_math_count": 0,
+                    "total_words": len(p["abstract"].split()),
+                    "content_origin": "arxiv_oai_pmh",
+                }
+                silver_rec = writer.prepare_record(raw_meta=p, parsed_html=parsed_dummy)
+                silver_rec["tier"] = "tier2"
+                silver_rec["source"] = "arxiv"
+                silver_rec["content_origin"] = "arxiv_oai_pmh"
+
+                seen_ids.add(p_id)
+                collected_papers.append(silver_rec)
+                day_valid += 1
+
+            print(f"[DAY] {date_str}: Harvested {day_valid} valid AI/ML papers (Total: {len(collected_papers):,}/{total_target:,})")
+            curr_dt -= datetime.timedelta(days=1)
+            time.sleep(1.0)
+
+        # Save to Silver Parquet partition
+        arxiv_silver_path = settings.ROOT_DIR / "data" / "silver" / "arxiv" / "arxiv_near_past.parquet"
+        arxiv_silver_path.parent.mkdir(parents=True, exist_ok=True)
+        import pandas as pd
+        df = pd.DataFrame(collected_papers)
+        df.to_parquet(arxiv_silver_path, engine="pyarrow", compression="zstd")
+        print(f"[SUCCESS] Saved {len(df)} day-by-day papers to {arxiv_silver_path}")
+
+        return collected_papers
 
     def harvest_large_corpus(
         self,
@@ -287,11 +389,19 @@ class ArxivBatchHarvester:
                 if not p:
                     continue
 
-                # Loc theo chuyen muc AI/DS
+                # Loc theo chuyen muc AI/DS va thoi gian Near-Past (2023-2026)
                 paper_cats = set(p.get("categories", []))
                 if not paper_cats.intersection(target_cats):
                     continue
 
+                p_id = p.get("paper_id", "")
+                p_date = p.get("published_date", "")
+                if not ((p_id and p_id[:2] in ("23", "24", "25", "26")) or (p_date and p_date >= "2023-01-01")):
+                    continue
+
+                p["tier"] = "tier2"
+                p["source"] = "arxiv"
+                p["content_origin"] = "arxiv_oai_pmh"
                 parsed_papers.append(p)
 
             print(f"[FILTER] Giu lai {len(parsed_papers):,} bai bao thuoc mien AI/DS tu trang nay.")
@@ -356,8 +466,12 @@ class ArxivBatchHarvester:
                     "total_sections": 1,
                     "total_math_count": 0,
                     "total_words": len(p["abstract"].split()),
+                    "content_origin": "arxiv_oai_pmh",
                 }
                 silver_rec = writer.prepare_record(raw_meta=p, parsed_html=parsed_dummy)
+                silver_rec["tier"] = "tier2"
+                silver_rec["source"] = "arxiv"
+                silver_rec["content_origin"] = "arxiv_oai_pmh"
                 buffered_silver_records.append(silver_rec)
 
             # Luu Checkpoint
@@ -365,9 +479,19 @@ class ArxivBatchHarvester:
             pct = (total_ingested / total_target) * 100
             print(f"[TIEN DO] Da hoan thanh {total_ingested:,}/{total_target:,} bai ({pct:.1f}%)\n")
 
-            # Luu Silver Parquet dinh ky (cu moi >= 500 ban ghi hoac khi xong muc tieu)
+            # Luu Silver Parquet dinh ky
             if len(buffered_silver_records) >= 500 or total_ingested >= total_target:
                 print(f"[STORAGE] Luu {len(buffered_silver_records)} ban ghi vao Silver Parquet va dong bo R2...")
+                import pandas as pd
+                arxiv_silver_path = settings.ROOT_DIR / "data" / "silver" / "arxiv" / "arxiv_near_past.parquet"
+                arxiv_silver_path.parent.mkdir(parents=True, exist_ok=True)
+                new_df = pd.DataFrame(buffered_silver_records)
+                if arxiv_silver_path.exists():
+                    exist_df = pd.read_parquet(arxiv_silver_path)
+                    combined_df = pd.concat([exist_df, new_df], ignore_index=True).drop_duplicates(subset=["paper_id"])
+                else:
+                    combined_df = new_df
+                combined_df.to_parquet(arxiv_silver_path, engine="pyarrow", compression="zstd")
                 writer.save_and_upload_parquet(buffered_silver_records, year="2026")
                 buffered_silver_records = []
                 print("[STORAGE] Hoan tat dong bo Tang Silver Parquet.\n")

@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 class EdaOverview(BaseModel):
     total_papers: int
+    fulltext_papers_count: Optional[int] = 0
     enriched_html_papers: int
     enrichment_ratio: float
     total_math_formulas: int
@@ -46,6 +47,9 @@ class EdaResponse(BaseModel):
     math_and_content_stats: Dict[str, Any]
     top_authors: List[TopAuthorItem]
     category_cooccurrence: List[CategoryCooccurItem]
+    correlations: Optional[Dict[str, Any]] = None
+    scatter_points: Optional[List[Dict[str, Any]]] = None
+    rag_audit_metrics: Optional[Dict[str, Any]] = None
 
 
 class AssociationRuleItem(BaseModel):

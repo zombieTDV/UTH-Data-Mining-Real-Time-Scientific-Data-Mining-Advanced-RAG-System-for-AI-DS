@@ -31,6 +31,16 @@ class DualOutputTee:
         self.original_stream.flush()
         self.file.flush()
 
+    def fileno(self):
+        if hasattr(self.original_stream, "fileno"):
+            return self.original_stream.fileno()
+        return 1
+
+    def isatty(self):
+        if hasattr(self.original_stream, "isatty"):
+            return self.original_stream.isatty()
+        return False
+
     def close(self):
         if not self.file.closed:
             self.file.close()

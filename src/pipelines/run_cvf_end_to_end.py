@@ -58,6 +58,9 @@ def build_chunks_from_cvf(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]
                 "text": abstract,
                 "context_text": f"Paper: {title}\nAbstract: {abstract}",
                 "word_count": len(abstract.split()),
+                "source": "cvf",
+                "tier": "tier2",
+                "content_origin": "cvf_html_dom",
             })
 
         # Chunk 2: BibTeX & Citation Details Chunk
@@ -79,6 +82,9 @@ def build_chunks_from_cvf(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]
                         "text": bib_text,
                         "context_text": f"Paper: {title}\nPublication Details & BibTeX:\n{bib_text}",
                         "word_count": len(bib_text.split()),
+                        "source": "cvf",
+                        "tier": "tier2",
+                        "content_origin": "cvf_html_dom",
                     })
         except Exception:
             pass

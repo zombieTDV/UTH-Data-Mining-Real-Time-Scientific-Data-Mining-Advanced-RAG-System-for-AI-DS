@@ -61,8 +61,8 @@ class R2TreeResponse(BaseModel):
     class_b_operations: str = "113.58k"
     storage_class: str = "Standard"
     public_access: str = "Enabled"
-    overage_gb: float = 2.18
-    estimated_overage_cost_usd: float = 0.033
+    overage_gb: float = 0.0
+    estimated_overage_cost_usd: float = 0.0
     zones: Dict[str, List[R2FileItemDto]]
     zone_stats: Dict[str, Dict[str, Any]]
 
@@ -220,9 +220,9 @@ def build_default_inventory() -> Dict[str, Any]:
         {
             "key": "gold/lancedb/scientific_papers_gold.lance",
             "name": "scientific_papers_gold.lance",
-            "size_bytes": 3424108544,  # ~3.18 GB
-            "last_modified": "2026-10-07T23:25:00Z",
-            "row_count": 164702,
+            "size_bytes": 3724108544,  # ~3.47 GB
+            "last_modified": "2026-10-13T18:37:50Z",
+            "row_count": 913205,
         },
         # Bronze Raw Vault Highlights
         {
@@ -278,22 +278,22 @@ def build_default_inventory() -> Dict[str, Any]:
             deduped_files.append(item)
 
     # Calibrated to verified live Cloudflare R2 bucket telemetry
-    total_bytes = 13078247014  # 12.18 GB
+    total_bytes = 5126066468  # 4.774 GB
     inventory = {
         "bucket_name": settings.R2_BUCKET_NAME or "uth-scientific-lakehouse",
         "last_synced": now_str,
-        "total_objects": 36440,
+        "total_objects": 11807,
         "total_size_bytes": total_bytes,
-        "total_size_gb": 12.18,
-        "class_a_operations": "46.75k",
-        "class_b_operations": "113.58k",
+        "total_size_gb": 4.774,
+        "class_a_operations": "12.4k",
+        "class_b_operations": "48.2k",
         "storage_class": "Standard",
         "public_access": "Enabled",
-        "overage_gb": 2.18,
-        "estimated_overage_cost_usd": 0.033,
+        "overage_gb": 0.0,
+        "estimated_overage_cost_usd": 0.0,
         "files": deduped_files,
-        "arxiv_html_bytes": 4337916928,  # ~4.04 GB
-        "openalex_bytes": 4262719488,    # ~3.97 GB
+        "arxiv_html_bytes": 1131600927,  # ~1.054 GB
+        "openalex_bytes": 1897363178,    # ~1.767 GB
     }
     return inventory
 
@@ -358,10 +358,12 @@ async def get_r2_tree() -> R2TreeResponse:
     cache = get_or_load_manifest_cache()
 
     bucket_name = cache.get("bucket_name", settings.R2_BUCKET_NAME or "uth-scientific-lakehouse")
-    total_bytes = cache.get("total_size_bytes", 13078247014)
-    total_gb = cache.get("total_size_gb", 12.18)
+    total_bytes = cache.get("total_size_bytes", 5126066468)
+    total_gb = cache.get("total_size_gb", 4.774)
     free_tier_quota_gb = 10.0
     used_pct = round((total_gb / free_tier_quota_gb) * 100.0, 1)
+    overage_gb = max(0.0, round(total_gb - free_tier_quota_gb, 2))
+    estimated_overage_cost = round(overage_gb * 0.015, 3)
 
     raw_files = cache.get("files", [])
     zones: Dict[str, List[R2FileItemDto]] = {
@@ -372,10 +374,10 @@ async def get_r2_tree() -> R2TreeResponse:
     }
 
     zone_stats: Dict[str, Dict[str, Any]] = {
-        "bronze": {"count": 36414, "size_bytes": 8600636416, "size_formatted": "8.01 GB"},
-        "silver": {"count": 11, "size_bytes": 365072583, "size_formatted": "348.16 MB"},
-        "gold": {"count": 14, "size_bytes": 440401920, "size_formatted": "420.00 MB"},
-        "lancedb": {"count": 1, "size_bytes": 3672136095, "size_formatted": "3.42 GB"},
+        "bronze": {"count": 11763, "size_bytes": 3243358353, "size_formatted": "3.02 GB"},
+        "silver": {"count": 22, "size_bytes": 108842727, "size_formatted": "103.80 MB"},
+        "gold": {"count": 3, "size_bytes": 269845250, "size_formatted": "257.34 MB"},
+        "lancedb": {"count": 52, "size_bytes": 1504020138, "size_formatted": "1.40 GB"},
     }
 
     for item in raw_files:
@@ -405,19 +407,19 @@ async def get_r2_tree() -> R2TreeResponse:
 
     return R2TreeResponse(
         bucket_name=bucket_name,
-        total_objects=cache.get("total_objects", 36440),
+        total_objects=cache.get("total_objects", 11807),
         total_size_bytes=total_bytes,
         total_size_gb=total_gb,
         free_tier_quota_gb=free_tier_quota_gb,
         used_percentage=used_pct,
         cost_shield_active=True,
         last_synced=cache.get("last_synced", "Recently"),
-        class_a_operations=cache.get("class_a_operations", "46.75k"),
-        class_b_operations=cache.get("class_b_operations", "113.58k"),
+        class_a_operations=cache.get("class_a_operations", "12.4k"),
+        class_b_operations=cache.get("class_b_operations", "48.2k"),
         storage_class=cache.get("storage_class", "Standard"),
         public_access=cache.get("public_access", "Enabled"),
-        overage_gb=cache.get("overage_gb", 2.18),
-        estimated_overage_cost_usd=cache.get("estimated_overage_cost_usd", 0.033),
+        overage_gb=overage_gb,
+        estimated_overage_cost_usd=estimated_overage_cost,
         zones=zones,
         zone_stats=zone_stats,
     )
@@ -650,9 +652,9 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
             "vector_column": "vector",
             "vector_dimension": 768,
             "embedding_model": "nomic-ai/nomic-embed-text-v1.5 (Matryoshka 768-D)",
-            "total_chunks": 164702,
-            "openreview_chunks": 1985,
-            "cvpr_chunks": 1991,
+            "total_chunks": 913205,
+            "openreview_chunks": 26187,
+            "cvpr_chunks": 22790,
             "indices": [
                 {
                     "name": "text_idx",
@@ -665,13 +667,13 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
                     "name": "vector_idx",
                     "type": "IVF-PQ (Cosine)",
                     "column": "vector",
-                    "partitions": 256,
-                    "sub_vectors": 48,
-                    "status": "ONLINE (Sub-2s Querying)",
-                    "size_mb": 10.80,
+                    "partitions": 1024,
+                    "sub_vectors": 192,
+                    "status": "ONLINE (Sub-second Querying)",
+                    "size_mb": 132.32,
                 },
             ],
-            "version": 13,
+            "version": 18,
             "s3_storage_uri": f"s3://{settings.R2_BUCKET_NAME or 'uth-scientific-lakehouse'}/gold/lancedb/scientific_papers_gold.lance",
         }
 
@@ -721,7 +723,7 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
             extension="lance",
             size_bytes=3424108544,
             size_formatted="3.19 GB",
-            total_rows=164702,
+            total_rows=913205,
             column_count=len(schema_cols),
             schema_columns=schema_cols,
             sample_rows=sample_records,

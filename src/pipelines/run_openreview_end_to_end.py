@@ -57,6 +57,9 @@ def build_chunks_from_silver(records: List[Dict[str, Any]]) -> List[Dict[str, An
                 "text": abstract,
                 "context_text": f"Paper: {title}\nAbstract: {abstract}",
                 "word_count": len(abstract.split()),
+                "source": "openreview",
+                "tier": "tier2",
+                "content_origin": "openreview_peer_review",
             })
 
         # Chunk 2: Peer Review & Critique Chunk
@@ -79,6 +82,9 @@ def build_chunks_from_silver(records: List[Dict[str, Any]]) -> List[Dict[str, An
                         "text": rev_text,
                         "context_text": f"Paper: {title}\nOpenReview Peer Reviews (Consensus Score: {consensus:.2f}):\n{rev_text}",
                         "word_count": len(rev_text.split()),
+                        "source": "openreview",
+                        "tier": "tier2",
+                        "content_origin": "openreview_peer_review",
                     })
         except Exception:
             pass

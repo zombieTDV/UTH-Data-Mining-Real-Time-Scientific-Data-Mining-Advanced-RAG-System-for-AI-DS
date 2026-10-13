@@ -27,12 +27,12 @@ export const R2StorageHud: FC<R2StorageHudProps> = ({
   lastSynced,
   isSyncing,
   onSync,
-  classAOperations = '46.75k',
-  classBOperations = '113.58k',
+  classAOperations = '12.4k',
+  classBOperations = '48.2k',
   storageClass = 'Standard',
   publicAccess = 'Enabled',
-  overageGb = 2.18,
-  estimatedOverageCostUsd = 0.033,
+  overageGb = 0.0,
+  estimatedOverageCostUsd = 0.0,
 }) => {
   const isOverage = totalSizeGb > freeTierQuotaGb;
   const meterColor = isOverage ? '#f59e0b' : usedPercentage > 85 ? '#ef4444' : '#06b6d4';
@@ -175,7 +175,7 @@ export const R2StorageHud: FC<R2StorageHudProps> = ({
             <span style={{ fontSize: '12px', fontWeight: 800, color: meterColor, fontFamily: 'var(--font-mono)' }}>
               {totalSizeGb.toFixed(2)} GB ({usedPercentage.toFixed(1)}%)
             </span>
-            {isOverage && (
+            {isOverage ? (
               <span
                 title={`Cloudflare R2 Free Tier: First 10 GB free. Overage: ${overageGb.toFixed(2)} GB @ $0.015/GB-mo = ~$${estimatedOverageCostUsd.toFixed(3)}/mo`}
                 style={{
@@ -189,7 +189,23 @@ export const R2StorageHud: FC<R2StorageHudProps> = ({
                   borderRadius: '3px',
                 }}
               >
-                +{overageGb.toFixed(2)} GB OVERAGE (~$0.03/MO)
+                +{overageGb.toFixed(2)} GB OVERAGE (~${estimatedOverageCostUsd.toFixed(3)}/MO)
+              </span>
+            ) : (
+              <span
+                title="Storage is completely within the 10.0 GB Cloudflare R2 Free Tier allowance"
+                style={{
+                  fontSize: '9.5px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                }}
+              >
+                100% FREE TIER ACTIVE
               </span>
             )}
           </div>

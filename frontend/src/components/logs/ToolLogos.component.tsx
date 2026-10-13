@@ -65,9 +65,9 @@ export const TOOLS_DATA: ToolItem[] = [
     category: 'Vector DB',
     roleVi: 'Hồ vector đa phương thức phục vụ tìm kiếm ngữ nghĩa',
     roleEn: 'Multi-Modal Vector Lakehouse (Gold Tier)',
-    spec: 'Không gian vector 768 chiều · Cosine ANN Indexing',
-    specVi: 'Không gian vector 768 chiều · Cosine ANN Indexing',
-    specEn: '768-D Vector Space · Cosine ANN Indexing',
+    spec: '913,205 Embeddings · IVF-PQ Cosine ANN',
+    specVi: '913,205 Embeddings · IVF-PQ Cosine ANN',
+    specEn: '913,205 Embeddings · IVF-PQ Cosine ANN',
     status: 'Operational',
     metricBadge: '164,702 Vectors',
     metricBadgeVi: '164,702 Vectors',
@@ -125,7 +125,30 @@ export const TOOLS_DATA: ToolItem[] = [
     )
   },
   {
-    id: 'nomic',
+    id: 'hardware-accel',
+    name: 'Hardware Accelerator',
+    category: 'Compute',
+    roleVi: 'Tăng tốc GPU và suy luận mô hình',
+    roleEn: 'GPU Acceleration & Inference',
+    spec: 'NVIDIA CUDA / Tensor Cores & Apple MPS Multi-Backend',
+    specVi: 'NVIDIA CUDA / Tensor Cores & Apple MPS Multi-Backend',
+    specEn: 'NVIDIA CUDA / Tensor Cores & Apple MPS Multi-Backend',
+    status: 'Operational',
+    metricBadge: 'CUDA / MPS',
+    metricBadgeVi: 'CUDA / MPS',
+    metricBadgeEn: 'CUDA / MPS',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="6" width="20" height="12" rx="2" stroke="#10b981" strokeWidth="1.8" />
+        <path d="M6 12h12M12 6v12" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="6" cy="6" r="1" fill="#10b981" />
+        <circle cx="18" cy="6" r="1" fill="#10b981" />
+        <circle cx="6" cy="18" r="1" fill="#10b981" />
+        <circle cx="18" cy="18" r="1" fill="#10b981" />
+      </svg>
+    )
+  },
+  {    id: 'nomic',
     name: 'Nomic Embed v1.5',
     category: 'Model & Engine',
     roleVi: 'Mô hình sinh Vector Embedding học thuật',

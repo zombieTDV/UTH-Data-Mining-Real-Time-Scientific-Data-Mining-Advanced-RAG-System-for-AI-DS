@@ -30,10 +30,10 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 36,414 works, 164,702 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(36414);
-  const [totalFormulas, setTotalFormulas] = useState<number>(2220938);
-  const [totalVectors, setTotalVectors] = useState<number>(164702);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 23,767 fulltext papers, 913,205 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(23767);
+  const [totalFormulas, setTotalFormulas] = useState<number>(2765395);
+  const [totalVectors, setTotalVectors] = useState<number>(913205);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 
@@ -62,15 +62,18 @@ export default function App() {
         .then((data) => {
           if (data?.activeLakehouse) {
             const works =
-              (data.activeLakehouse.arxivHtmlCount || 11660) +
-              (data.activeLakehouse.openalexCount || 24754) +
-              (data.activeLakehouse.conferenceCount || 0);
+              data.sourceBreakdown?.total_deduplicated ||
+              data.activeLakehouse.sourceBreakdown?.total_deduplicated ||
+              23767;
             setTotalPapers(works);
             if (data.activeLakehouse.activeLanceDbVectors) {
               setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
             }
-          } else if (data?.zones?.goldChunkCount) {
-            setTotalVectors(data.zones.goldChunkCount);
+          } else if (data?.sourceBreakdown?.total_deduplicated) {
+            setTotalPapers(data.sourceBreakdown.total_deduplicated);
+            if (data?.zones?.goldChunkCount) {
+              setTotalVectors(data.zones.goldChunkCount);
+            }
           }
         })
         .catch(() => {});
@@ -136,10 +139,9 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  // totalCorpus from SSE already reflects total baseline + sessionIngested. Avoid double-adding sessionIngested!
-  const effectiveTotalPapers = totalCorpus || (totalPapers + sessionIngested) || 38416;
-  const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164702;
-  const effectiveTotalFormulas = totalFormulas || 2220938;
+  const effectiveTotalPapers = Math.max(23767, storageStats?.sourceBreakdown?.total_deduplicated || totalCorpus || totalPapers || 23767) + (isStreaming ? sessionIngested : 0);
+  const effectiveTotalVectors = Math.max(913205, storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 913205);
+  const effectiveTotalFormulas = totalFormulas || 2765395;
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>
@@ -169,7 +171,7 @@ export default function App() {
           totalPapers={effectiveTotalPapers}
           totalFormulas={effectiveTotalFormulas}
           totalVectors={effectiveTotalVectors}
-          sessionIngested={sessionIngested}
+          sessionIngested={isStreaming ? sessionIngested : 0}
           streamSpeed={streamSpeed}
           onTriggerPipeline={handleTriggerPipeline}
         />

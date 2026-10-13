@@ -28,21 +28,22 @@ class MiningService:
         self._cache: Dict[str, Any] = {}
 
     def _load_json(self, filename: str) -> Dict[str, Any]:
-        if filename in self._cache:
-            return self._cache[filename]
-
         file_path = self.artifacts_dir / filename
         if not file_path.exists():
-            logger.warning("[MINING] Artifact %s not found at %s. Attempting fallback.", filename, file_path)
             # Try root relative fallback
             file_path = settings.PROJECT_ROOT_DIR / "data" / "gold" / "mining" / filename
 
         if not file_path.exists():
             raise FileNotFoundError(f"Mining artifact '{filename}' not found. Run Python mining engine first.")
 
+        mtime = file_path.stat().st_mtime
+        cache_entry = self._cache.get(filename)
+        if cache_entry and cache_entry.get("mtime") == mtime:
+            return cache_entry.get("data")
+
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            self._cache[filename] = data
+            self._cache[filename] = {"mtime": mtime, "data": data}
             return data
 
     def sync_from_r2(self) -> Dict[str, Any]:

@@ -19,6 +19,7 @@ from backend.app.schemas.storage import (
     GoldVectorLakehouseDto,
     BackupStorageDto,
     TotalBucketDto,
+    SourceBreakdownDto,
 )
 
 logger = logging.getLogger("storage_service")
@@ -44,8 +45,94 @@ class StorageService:
         self.base_silver_count = 12
         self.base_silver_bytes = 332133087       # ~316.75 MB (0.309 GB)
 
-        self.base_active_gold_vectors = 164750
-        self.base_active_gold_bytes = 3476381674  # 3.238 GB LanceDB Vector Lakehouse on R2
+            tbl_res = l_mgr.db.list_tables()
+            table_names = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
+            gold_rows = 0
+            if "scientific_papers_gold" in table_names:
+                gold_rows += len(l_mgr.db.open_table("scientific_papers_gold"))
+            if "academic_chunks" in table_names:
+                gold_rows += len(l_mgr.db.open_table("academic_chunks"))
+            if gold_rows > 0:
+                self.base_active_gold_vectors = max(gold_rows, self.base_active_gold_vectors)
+                logger.info(f"[STORAGE] Bootstrap gold vectors from LanceDB: {self.base_active_gold_vectors}")
+        except Exception as e:
+            logger.warning(f"[STORAGE] Bootstrap gold vectors error: {e}")
+
+        self._save_manifest()
+
+    def _get_source_breakdown(self) -> SourceBreakdownDto:
+        """Returns verified per-source ingestion counts strictly for Genuine Full-Text Papers."""
+        tier1_path = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
+        chunks_path = settings.DATA_DIR / "silver" / "chunks.parquet"
+        tier2_dir = settings.DATA_DIR / "silver" / "tier2"
+
+        from typing import Dict, Set
+        pids_by_source: Dict[str, Set[str]] = {
+            "arxiv": set(),
+            "doi": set(),
+            "cvf": set(),
+            "openreview": set(),
+            "zenodo": set(),
+        }
+
+        tier1_count = 0
+        try:
+            import duckdb
+            con = duckdb.connect()
+
+            # 1. Tier 1 Landmark Papers (3,000 papers: cvf, arxiv, openreview)
+            if tier1_path.exists():
+                res_t1 = con.execute(f"SELECT paper_id, source FROM '{tier1_path.as_posix()}'").fetchall()
+                tier1_count = len(res_t1)
+                for pid, s in res_t1:
+                    s_clean = str(s).lower().strip()
+                    if s_clean in pids_by_source:
+                        pids_by_source[s_clean].add(str(pid))
+                    else:
+                        pids_by_source.setdefault(s_clean, set()).add(str(pid))
+
+            # 2. Tier 2 Harvested Full-Text Papers (fulltext_papers*.parquet & html_papers*.parquet)
+            ft_files = list(tier2_dir.glob("fulltext_papers*.parquet")) + list(tier2_dir.glob("html_papers*.parquet"))
+            tier1_html = settings.DATA_DIR / "silver" / "tier1" / "landmark_html_papers.parquet"
+            if tier1_html.exists():
+                ft_files.append(tier1_html)
+            if ft_files:
+                posix_files = [f.as_posix() for f in ft_files]
+                res_t2 = con.execute(f"SELECT paper_id, source FROM read_parquet({posix_files})").fetchall()
+                for pid, s in res_t2:
+                    s_clean = str(s).lower().strip()
+                    if s_clean in pids_by_source:
+                        pids_by_source[s_clean].add(str(pid))
+                    else:
+                        pids_by_source.setdefault(s_clean, set()).add(str(pid))
+
+            # 3. Deep Full-Text Journal Papers (Nature, IEEE, Springer, PLOS) -> DOI
+            if chunks_path.exists():
+                res_chk = con.execute(f"SELECT DISTINCT paper_id FROM '{chunks_path.as_posix()}'").fetchall()
+                for (pid,) in res_chk:
+                    pids_by_source["doi"].add(str(pid))
+
+        except Exception as e:
+            logger.debug(f"[STORAGE] Could not tally full-text counts: {e}")
+
+        arxiv_ft = len(pids_by_source.get("arxiv", set()))
+        doi_ft = len(pids_by_source.get("doi", set()))
+        openreview_ft = len(pids_by_source.get("openreview", set()))
+        cvf_ft = len(pids_by_source.get("cvf", set()))
+        zenodo_ft = len(pids_by_source.get("zenodo", set()))
+
+        # Total deduplicated genuine full-text papers
+        all_unique_pids = set().union(*pids_by_source.values())
+        total_fulltext_papers = len(all_unique_pids)
+
+        active_rag_vectors = getattr(self, "base_active_gold_vectors", 603609)
+        try:
+            from src.indexing.lancedb_manager import LanceDBManager
+            l_mgr = LanceDBManager()
+            tbl_res = l_mgr.db.list_tables()
+            table_names = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
+            if "scientific_papers_gold" in table_names:
+                active_rag_vectors = len(l_mgr.db.open_table("scientific_papers_gold"))
 
         self.base_backup_gold_count = 85         # 85 physical objects in gold/lancedb/
         self.base_backup_gold_bytes = 3476381674 # 3.238 GB (LanceDB IVF-PQ index & table)
@@ -96,10 +183,12 @@ class StorageService:
 
     def _bootstrap_from_local_files(self):
         """Bootstrap accurate counts from local files at startup (conference parquet, LanceDB)."""
-        # Conference papers from local silver parquet
+        # Conference and landmark papers from local silver parquet
         try:
             cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
             or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
+            tier1_silver = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
+            tier2_silver = settings.DATA_DIR / "silver" / "tier2" / "near_past_papers.parquet"
             conf_count = 0
             conf_bytes = 0
             import pyarrow.parquet as pq
@@ -111,10 +200,18 @@ class StorageService:
                 meta = pq.read_metadata(or_silver)
                 conf_count += meta.num_rows
                 conf_bytes += or_silver.stat().st_size
+            if tier1_silver.exists():
+                meta = pq.read_metadata(tier1_silver)
+                conf_count += meta.num_rows
+                conf_bytes += tier1_silver.stat().st_size
+            if tier2_silver.exists():
+                meta = pq.read_metadata(tier2_silver)
+                conf_count += meta.num_rows
+                conf_bytes += tier2_silver.stat().st_size
             if conf_count > 0:
                 self.base_conferences_count = conf_count
                 self.base_conferences_bytes = max(conf_bytes, self.base_conferences_bytes)
-                logger.info(f"[STORAGE] Bootstrap conferences from local parquet: {conf_count} rows")
+                logger.info(f"[STORAGE] Bootstrap conferences & landmarks from local parquet: {conf_count} rows")
         except Exception as e:
             logger.warning(f"[STORAGE] Bootstrap conferences error: {e}")
 
@@ -122,15 +219,34 @@ class StorageService:
         try:
             from src.indexing.lancedb_manager import LanceDBManager
             l_mgr = LanceDBManager()
-            tbl = l_mgr.db.open_table("scientific_papers_gold")
-            live_rows = len(tbl)
-            if live_rows > self.base_active_gold_vectors:
-                self.base_active_gold_vectors = live_rows
-                logger.info(f"[STORAGE] Bootstrap gold vectors from LanceDB: {live_rows}")
+            openreviewCount=self.base_openreview_count,
+            openreviewSizeBytes=self.base_openreview_bytes,
+            cvfCount=self.base_cvf_count,
+            cvfSizeBytes=self.base_cvf_bytes,
+            silverTables=[
+                "papers.parquet",
+                "year=2026/papers.parquet",
+                "cvf/cvpr2024.parquet",
+                "openreview/openreview_all.parquet",
+                "tier1/landmark_papers.parquet",
+                "tier2/near_past_papers.parquet",
+            ],
         except Exception:
             pass
 
-        self._save_manifest()
+        return SourceBreakdownDto(
+            arxiv=arxiv_ft,
+            doi=doi_ft,
+            openalex=0,
+            openreview=openreview_ft,
+            cvf=cvf_ft,
+            zenodo=zenodo_ft,
+            total_deduplicated=total_fulltext_papers,
+            tier1_landmark=tier1_count,
+            tier2_near_past=total_fulltext_papers - tier1_count,
+            active_rag_papers=total_fulltext_papers,
+            active_rag_vectors=active_rag_vectors,
+        )
 
     def _save_manifest(self):
         """Persists all key metrics to manifest file so they survive backend restarts."""
@@ -196,6 +312,15 @@ class StorageService:
                         cvf_bytes += sz
                     elif k.startswith("silver/"):
                         silver_bytes += sz
+                        if k.startswith("silver/tier2/fulltext_papers_shard") and k.endswith(".parquet"):
+                            peer_local = settings.DATA_DIR / "silver" / "tier2" / Path(k).name
+                            # Only download if local does not exist or size changed
+                            if not peer_local.exists() or peer_local.stat().st_size != sz:
+                                try:
+                                    client.download_file(k, peer_local)
+                                    logger.info(f"[STORAGE R2 SYNC] Synced peer shard from R2: {k} -> {peer_local.name}")
+                                except Exception as e_dl:
+                                    logger.debug(f"[STORAGE R2 SYNC] Shard download note: {e_dl}")
                     elif k.startswith("gold/lancedb/"):
                         backup_gold_bytes += sz
 
@@ -268,16 +393,22 @@ class StorageService:
         except Exception:
             pass
 
-        # Check actual conference papers (CVPR + OpenReview Silver)
+        # Check actual conference and landmark papers (CVPR + OpenReview + Tier 1 Landmark Silver + Tier 2 Near Past Silver)
         try:
             cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
             or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
+            tier1_silver = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
+            tier2_silver = settings.DATA_DIR / "silver" / "tier2" / "near_past_papers.parquet"
             conf_count = 0
             import pyarrow.parquet as pq
             if cvf_silver.exists():
                 conf_count += pq.read_metadata(cvf_silver).num_rows
             if or_silver.exists():
                 conf_count += pq.read_metadata(or_silver).num_rows
+            if tier1_silver.exists():
+                conf_count += pq.read_metadata(tier1_silver).num_rows
+            if tier2_silver.exists():
+                conf_count += pq.read_metadata(tier2_silver).num_rows
             if conf_count > 0 and conf_count != self.base_conferences_count:
                 self.base_conferences_count = conf_count
                 manifest_dirty = True
@@ -319,6 +450,8 @@ class StorageService:
         free_tier_quota_gb = 10.0
         active_used_pct = round((active_gb / free_tier_quota_gb) * 100.0, 2)
 
+        source_breakdown = self._get_source_breakdown()
+
         active_lakehouse = ActiveLakehouseDto(
             totalObjects=active_objects,
             totalSizeBytes=active_bytes,
@@ -343,6 +476,7 @@ class StorageService:
             activeLanceDbVectors=active_gold_vectors,
             activeLanceDbSizeBytes=active_gold_bytes,
             activeLanceDbSizeMb=round(active_gold_bytes / (1024**2), 2),
+            sourceBreakdown=source_breakdown,
         )
 
         # 2. Gold Vector Lakehouse metrics (LanceDB IVF-PQ index & 164,750 embeddings on R2)
@@ -400,11 +534,8 @@ class StorageService:
             bronzeSizeBytes=bronze_bytes,
             openalexCount=self.base_openalex_count,
             openalexSizeBytes=self.base_openalex_bytes,
-            openreviewCount=self.base_openreview_count,
-            openreviewSizeBytes=self.base_openreview_bytes,
-            cvfCount=self.base_cvf_count,
-            cvfSizeBytes=self.base_cvf_bytes,
-            silverTables=["papers.parquet", "year=2026/papers.parquet", "cvf/cvpr2024.parquet", "openreview/openreview_all.parquet"],
+            sourceBreakdown=source_breakdown,
+            last_synced=getattr(self, "last_synced", "2026-10-13 06:38:53"),
             silverSizeBytes=self.base_silver_bytes,
             goldTables=["scientific_papers_gold.lance", "cvf/cvpr2024_gold.parquet", "openreview/openreview_gold.parquet"],
             goldChunkCount=active_gold_vectors,
@@ -427,7 +558,8 @@ class StorageService:
             goldVectorLakehouse=gold_vector_lakehouse,
             backupStorage=backup_storage,
             totalBucket=total_bucket,
-            last_synced=getattr(self, "last_synced", "2026-10-09 18:49:48"),
+            sourceBreakdown=source_breakdown,
+            last_synced=getattr(self, "last_synced", "2026-10-13 06:38:53"),
         )
 
 

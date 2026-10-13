@@ -9,7 +9,7 @@ export interface StatusBarProps {
 
 export const StatusBar: FC<StatusBarProps> = ({
   totalPapers,
-  totalVectors = 164702,
+  totalVectors = 913205,
   totalFormulas = 2220938,
 }) => {
   const { language } = useTranslation();

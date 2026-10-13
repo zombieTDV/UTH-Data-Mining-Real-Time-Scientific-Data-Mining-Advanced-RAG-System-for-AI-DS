@@ -3,14 +3,14 @@
 Entry point to execute end-to-end lakehouse harvesting across 4 sources:
 - arxiv:       arXiv OAI-PMH preprints -> Bronze -> Silver -> 768-D Gold LanceDB
 - openreview:  OpenReview peer-reviewed papers & reviews -> Silver -> Gold LanceDB
-- openalex:    OpenAlex citation graph & reconstructed abstracts -> Silver -> Gold LanceDB
+- zenodo:      Zenodo Open Science (Marker PDF Engine) -> Silver -> Gold LanceDB
 - cvf:         CVPR & ICCV conference proceedings -> Silver -> Gold LanceDB
 - all:         All 4 sources in sequence with combined telemetry pulses
 
 Usage:
     python -m src.pipelines.run_multi_source_harvest --source arxiv --limit 200
     python -m src.pipelines.run_multi_source_harvest --source openreview --limit 100 --sync-r2
-    python -m src.pipelines.run_multi_source_harvest --source openalex --limit 150 --sync-r2
+    python -m src.pipelines.run_multi_source_harvest --source zenodo --limit 50 --sync-r2
     python -m src.pipelines.run_multi_source_harvest --source cvf --limit 100 --sync-r2
     python -m src.pipelines.run_multi_source_harvest --source all --sync-r2
 """
@@ -33,7 +33,7 @@ def main():
         "--source",
         type=str,
         required=True,
-        choices=["arxiv", "openreview", "openalex", "cvf", "all"],
+        choices=["arxiv", "openreview", "zenodo", "cvf", "all"],
         help="Target academic data source to harvest.",
     )
     parser.add_argument(

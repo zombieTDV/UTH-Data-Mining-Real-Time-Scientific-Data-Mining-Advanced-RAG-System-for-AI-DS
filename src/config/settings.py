@@ -34,6 +34,10 @@ class Settings:
     ]
     ARXIV_REQUEST_DELAY_SECONDS: float = float(os.getenv("ARXIV_REQUEST_DELAY_SECONDS", "6.0"))
 
+    # Zenodo Configuration
+    ZENODO_ACCESS_TOKEN: str = os.getenv("ZENODO_ACCESS_TOKEN", "").strip()
+    ZENODO_DEFAULT_QUERY: str = os.getenv("ZENODO_DEFAULT_QUERY", "machine learning OR artificial intelligence").strip()
+
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
 

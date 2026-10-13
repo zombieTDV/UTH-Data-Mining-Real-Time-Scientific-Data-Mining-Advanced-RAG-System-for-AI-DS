@@ -44,3 +44,11 @@ async def broadcast_ingestion_event(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Allows external ingestion pipelines (e.g. OpenReview, CVF) to broadcast progress directly to connected Frontend clients."""
     await streaming_service.broadcast_event(payload)
     return {"status": "BROADCASTED"}
+
+
+@router.post("/reset")
+async def reset_streaming_session() -> Dict[str, Any]:
+    """Resets session ingested count and storage delta back to baseline."""
+    streaming_service.reset_session()
+    return {"status": "RESET", "session_ingested": 0}
+
