@@ -22,7 +22,7 @@ class StreamingService:
         self.status: str = "IDLE"  # IDLE | STREAMING | PAUSED | COMPLETED | ERROR
         self.target_papers: int = 3000
         self.session_ingested: int = 0
-        self.base_corpus_count: int = 23767  # 23,767 deduplicated full-text papers
+        self.base_corpus_count: int = 29911  # 29,911 deduplicated full-text papers embedded for RAG
         self.current_speed_ppm: float = 0.0
         self.start_time: Optional[float] = None
         self.stop_signal = asyncio.Event()

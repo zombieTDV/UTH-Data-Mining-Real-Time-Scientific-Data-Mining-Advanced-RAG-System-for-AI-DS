@@ -1066,7 +1066,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {dataset_overview.enriched_html_papers.toLocaleString()}
             </div>
             <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {dataset_overview.fulltext_papers_count ? `${dataset_overview.fulltext_papers_count.toLocaleString()} Full-Text (2.47M Eq)` : '25,611 Full-Text Papers'}
+              {dataset_overview.fulltext_papers_count ? `${dataset_overview.fulltext_papers_count.toLocaleString()} Full-Text (${(dataset_overview.total_math_formulas ? (dataset_overview.total_math_formulas / 1_000_000).toFixed(2) + 'M' : '6.92M')} Eq)` : '29,911 Full-Text Papers'}
             </div>
           </div>
 
@@ -3284,7 +3284,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>CHUNKS / BÀI</div>
                     <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
-                      {((data?.rag_audit_metrics?.total_vectors || 913205) / Math.max(1, data?.dataset_overview.fulltext_papers_count || 25611)).toFixed(1)}x
+                      {((data?.rag_audit_metrics?.total_vectors || 913205) / Math.max(1, data?.dataset_overview.fulltext_papers_count || 29911)).toFixed(1)}x
                     </div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>

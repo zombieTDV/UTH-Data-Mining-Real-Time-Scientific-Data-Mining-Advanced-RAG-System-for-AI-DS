@@ -47,7 +47,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '23,767 Genuine Full-Text Works',
+      primaryMetric: '29,911 Genuine Full-Text Works',
       secondaryMetric: '100% Full-Text Verified (Introduction, Methods, Experiments, Conclusion)',
       latency: 'Marker 2.0 Neural OCR (CUDA FP16)',
       throughput: '100% Cryptographic SHA-256 Verified',
@@ -55,7 +55,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     features: [
       'Pure Full-Text Corpus: strictly excludes abstract-only records to guarantee complete multi-section coverage',
       'Marker 2.0 Neural Engine (CUDA FP16) converts scientific PDFs to high-fidelity Markdown preserving LaTeX formulas ($...$)',
-      'Multi-tier architectural harvest containing 23,767 verified full-text papers',
+      'Multi-tier architectural harvest containing 29,911 verified full-text papers',
       'Full section hierarchy: Abstract, 1 Introduction, 2 Methodology, 3 Experiments, 4 Diagnostics, Conclusion',
     ],
     samplePreviewTitle: 'Pure Full-Text Harvest & Marker Engine Spec',
@@ -63,7 +63,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
 GET https://arxiv.org/pdf/{paper_id}.pdf -> Marker Neural OCR (CUDA FP16)
 GET https://api.openreview.net/notes (OpenReview ICLR/NeurIPS Full Text)
 GET https://openaccess.thecvf.com (CVF CVPR/ICCV Open Access Proceedings)
-Tier 1 + Tier 2 Full-Text Pipeline: 23,767 Verified Works (Zero Abstract-Only Records)
+Tier 1 + Tier 2 Full-Text Pipeline: 29,911 Verified Works (Zero Abstract-Only Records)
 Full-Text Sections: Introduction, Model Architecture, Experiments, Ablations, Diagnostics, Conclusion`,
   },
   'bronze-instance': {
@@ -142,7 +142,7 @@ ORDER BY paper_count DESC;
     status: 'SYNCED',
     telemetrySummary: {
       primaryMetric: '103.80 MB Parquet Size',
-      secondaryMetric: '23 Partitions (23,767 Full-Text Papers)',
+      secondaryMetric: '23 Partitions (29,911 Full-Text Papers)',
       latency: '10x Storage Compression Ratio',
       throughput: 'Column Projection & Predicate Pushdown',
     },
@@ -174,7 +174,7 @@ ORDER BY paper_count DESC;
     status: 'ONLINE',
     telemetrySummary: {
       primaryMetric: '913,205 Vectors Indexed',
-      secondaryMetric: '23,767 Papers • 768 Dimensions (Nomic)',
+      secondaryMetric: '29,911 Papers • 768 Dimensions (Nomic)',
       latency: '< 18ms Cosine ANN Lookup',
       throughput: '4 Mining Pillars Fully Computed',
     },
@@ -191,7 +191,7 @@ ORDER BY paper_count DESC;
 db = lancedb.connect("data/gold/lancedb")
 tbl = db.open_table("scientific_papers_gold")
 
-# Hardware-accelerated Cosine ANN retrieval over 913,205 chunks (23,767 papers)
+# Hardware-accelerated Cosine ANN retrieval over 913,205 chunks (29,911 papers)
 results = tbl.search(query_embedding) \\
              .metric("cosine") \\
              .where("category = 'cs.AI'") \\
@@ -362,7 +362,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     { id: 3, time: '12:00:05', level: 'SUCCESS', tag: 'OLAP', msg: 'DuckDB in-process vector OLAP engine online (Apache Arrow SIMD zero-copy).' },
     { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 913,205 embeddings (dim=768, IVF-PQ K=1024, M=192).' },
     { id: 5, time: '12:00:09', level: 'INFO', tag: 'RAG', msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate armed with Hardware Acceleration (CUDA & MPS).' },
-    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 23,767 verified full-text papers, 2,765,395 formulas, 913,205 LanceDB vectors synced.' },
+    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 29,911 verified full-text papers, 2,765,395 formulas, 913,205 LanceDB vectors synced.' },
   ]);
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -473,15 +473,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
   const streamOffset = isPipelineRunning ? streamSessionCount : 0;
-  const liveArxivCount = Math.max(12611, sourceBreakdown?.arxiv ?? 12611) + streamOffset;
+  const liveArxivCount = Math.max(11630, sourceBreakdown?.arxiv ?? 11630) + streamOffset;
   const liveDoiCount = sourceBreakdown?.doi ?? 8890;
-  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 999;
-  const liveCvfCount = sourceBreakdown?.cvf ?? 1267;
-  const liveZenodoCount = sourceBreakdown?.zenodo ?? 0;
+  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 0;
+  const liveCvfCount = sourceBreakdown?.cvf ?? 9389;
+  const liveZenodoCount = sourceBreakdown?.zenodo ?? 2;
   const liveTotalWorks = Math.max(
-    23767,
+    29911,
     sourceBreakdown?.total_deduplicated ??
-      (liveDoiCount + (sourceBreakdown?.arxiv ?? 12611) + liveOpenReviewCount + liveCvfCount + liveZenodoCount)
+      (liveDoiCount + (sourceBreakdown?.arxiv ?? 11630) + liveOpenReviewCount + liveCvfCount + liveZenodoCount)
   ) + streamOffset;
   const liveBronzeCount = liveArxivCount;
 
@@ -547,7 +547,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t2 = setTimeout(() => {
       setSimulationStage('duckdb');
-      setSimulationHarvestedCount(23767);
+      setSimulationHarvestedCount(29911);
       setFormulasExtracted(1850000);
       setLogs((prev) => [
         ...prev,
@@ -570,7 +570,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       setVectorsIndexed(913205);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 23,767 works, 913,205 vectors online.' },
+        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 29,911 works, 913,205 vectors online.' },
       ]);
     }, 6000);
 

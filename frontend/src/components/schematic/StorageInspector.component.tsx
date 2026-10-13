@@ -145,7 +145,7 @@ export function StorageInspector() {
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy & Zstd)',
-      itemsCount: '23,767 works (Tier 1 + Tier 2 HTML5 lakehouse)',
+      itemsCount: '29,911 works (Tier 1 + Tier 2 HTML5 lakehouse)',
       sizeBytes: `${silverMb} MB`,
       r2Location: 's3://uth-scientific-lakehouse/silver/tier2/fulltext_papers.parquet',
       color: '#10b981',

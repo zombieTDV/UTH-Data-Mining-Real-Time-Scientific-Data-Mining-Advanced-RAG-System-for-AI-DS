@@ -61,10 +61,10 @@ const getStoredStorageStats = (): StorageStatsResponse | null => {
       const saved = localStorage.getItem('uth_lakehouse_storage_stats_cache');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Automatically invalidate stale caches from previous sessions (< 23,767 papers or < 913,205 vectors)
+        // Automatically invalidate stale caches from previous sessions (< 29,911 papers or < 913,205 vectors)
         const dedup = parsed?.sourceBreakdown?.total_deduplicated || parsed?.activeLakehouse?.sourceBreakdown?.total_deduplicated || 0;
         const vecs = parsed?.activeLakehouse?.activeLanceDbVectors || 0;
-        if (dedup < 23767 || vecs < 913205) {
+        if (dedup < 29911 || vecs < 913205) {
           localStorage.removeItem('uth_lakehouse_storage_stats_cache');
           return null;
         }
@@ -80,10 +80,10 @@ const initialCachedStats = getStoredStorageStats();
 let state: LakehouseStreamState = {
   isStreaming: false,
   totalCorpus: Math.max(
-    23767,
+    29911,
     initialCachedStats?.sourceBreakdown?.total_deduplicated ??
       initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ??
-      23767
+      29911
   ),
   sessionIngested: 0,
   streamSpeed: 0,
@@ -154,10 +154,10 @@ export async function refreshStorageStats(): Promise<void> {
         : data.activeLakehouse;
 
       const updatedTotalWorks = Math.max(
-        23767,
+        29911,
         data.sourceBreakdown?.total_deduplicated ||
         data.activeLakehouse?.sourceBreakdown?.total_deduplicated ||
-        23767
+        29911
       );
 
       updateState({
@@ -267,7 +267,7 @@ export function initializeLakehouseStream(): () => void {
       if (st) {
         updateState({
           isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || 23767,
+          totalCorpus: st.total_corpus || 29911,
           sessionIngested: st.status === 'STREAMING' ? (st.session_ingested || 0) : 0,
           streamSpeed: st.speed_ppm || 0,
           storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,

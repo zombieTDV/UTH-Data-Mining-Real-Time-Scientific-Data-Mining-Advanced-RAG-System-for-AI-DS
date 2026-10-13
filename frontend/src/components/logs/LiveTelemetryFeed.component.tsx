@@ -51,7 +51,7 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-13 07:40:48',
     level: 'SUCCESS',
     tag: 'GOLD/INDEX',
-    message: '23,767 fulltext papers indexed into LanceDB table scientific_papers_gold (913,205 chunks, IVF-PQ K=1024, M=192)'
+    message: '29,911 fulltext papers indexed into LanceDB table scientific_papers_gold (913,205 chunks, IVF-PQ K=1024, M=192)'
   },
   {
     id: 'l-07',
@@ -86,7 +86,7 @@ export const PIPELINE_LOGS: LogLine[] = [
     time: '2026-10-13 09:14:20',
     level: 'SUCCESS',
     tag: 'SILVER/WRITE',
-    message: '23,767 papers enriched with full sections and 7.2M+ LaTeX formulas written to Silver Lakehouse Parquet'
+    message: '29,911 papers enriched with full sections and 7.2M+ LaTeX formulas written to Silver Lakehouse Parquet'
   },
   {
     id: 'l-12',
