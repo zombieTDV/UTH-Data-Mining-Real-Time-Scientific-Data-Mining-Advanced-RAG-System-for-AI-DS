@@ -264,6 +264,9 @@ export interface GraphLinkItem {
 export interface NetworkSummary {
   total_authors: number;
   total_collaborations: number;
+  total_nodes?: number;
+  total_edges?: number;
+  total_papers_indexed?: number;
   network_density: number;
   connected_components: number;
   total_communities_detected: number;

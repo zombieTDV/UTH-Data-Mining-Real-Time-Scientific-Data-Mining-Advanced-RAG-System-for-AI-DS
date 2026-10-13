@@ -34,7 +34,7 @@ class SemanticClusterAnalyzer:
     def __init__(
         self,
         lancedb_uri: str = "data/gold/lancedb",
-        table_name: str = "academic_chunks",
+        table_name: str = "scientific_papers_gold",
         storage_options: Optional[Dict[str, Any]] = None,
     ):
         self.lancedb_uri = lancedb_uri
@@ -69,10 +69,10 @@ class SemanticClusterAnalyzer:
 
         if self.table_name in tbl_names:
             target_table = self.table_name
-        elif "academic_chunks" in tbl_names:
-            target_table = "academic_chunks"
         elif "scientific_papers_gold" in tbl_names:
             target_table = "scientific_papers_gold"
+        elif "academic_chunks" in tbl_names:
+            target_table = "academic_chunks"
         elif tbl_names:
             target_table = tbl_names[0]
         else:

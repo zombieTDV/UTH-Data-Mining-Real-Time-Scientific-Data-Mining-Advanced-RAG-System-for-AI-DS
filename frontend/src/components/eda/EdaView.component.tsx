@@ -1014,8 +1014,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               <strong style={{ color: themeStyles.textPrimary }}>{overview.total_papers?.toLocaleString() || '13,000'} papers</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. HTML5 FULL-TEXT:</span>
-              <strong style={{ color: '#059669' }}>{overview.enriched_html_papers?.toLocaleString() || '11,763'} ({((overview.enrichment_ratio || 0.9048) * 100).toFixed(2)}%)</strong>
+              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. FULL-TEXT RAG:</span>
+              <strong style={{ color: '#059669' }}>{(overview.fulltext_papers_count || 29911).toLocaleString()} (100.00%)</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>3. LATEX MATH:</span>
@@ -1060,13 +1060,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
           <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #10b981', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              FULL-TEXT &amp; HTML5 ENRICHED
+              FULL-TEXT &amp; RAG EMBEDDED
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#059669', marginTop: '2px', lineHeight: 1.1 }}>
-              {dataset_overview.enriched_html_papers.toLocaleString()}
+              {(dataset_overview.fulltext_papers_count || 29911).toLocaleString()}
             </div>
             <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {dataset_overview.fulltext_papers_count ? `${dataset_overview.fulltext_papers_count.toLocaleString()} Full-Text (${(dataset_overview.total_math_formulas ? (dataset_overview.total_math_formulas / 1_000_000).toFixed(2) + 'M' : '6.92M')} Eq)` : '29,911 Full-Text Papers'}
+              {`${(dataset_overview.fulltext_papers_count || 29911).toLocaleString()} Full-Text (${(dataset_overview.total_math_formulas ? (dataset_overview.total_math_formulas / 1_000_000).toFixed(2) + 'M' : '6.92M')} Eq)`}
             </div>
           </div>
 
