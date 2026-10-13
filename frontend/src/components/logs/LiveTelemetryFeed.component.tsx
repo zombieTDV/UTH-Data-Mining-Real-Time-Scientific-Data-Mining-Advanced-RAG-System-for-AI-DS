@@ -41,52 +41,52 @@ export const PIPELINE_LOGS: LogLine[] = [
   },
   {
     id: 'l-05',
-    time: '2026-10-11 19:35:14',
+    time: '2026-10-13 06:35:14',
     level: 'STORAGE',
     tag: 'R2/SYNC',
-    message: 'Cloudflare R2 lakehouse synchronized: 12.18 GB total across Bronze (7.73 GB), Silver (321.68 MB), Gold (221.5 MB)'
+    message: 'Cloudflare R2 lakehouse synchronized: 4.77 GB total across Bronze (3.02 GB), Silver (103.8 MB), Gold (257.3 MB) · Zero Egress'
   },
   {
     id: 'l-06',
-    time: '2026-10-11 19:40:48',
+    time: '2026-10-13 07:40:48',
     level: 'SUCCESS',
     tag: 'GOLD/INDEX',
-    message: 'Landmark chunks indexed into LanceDB table scientific_papers_gold (768-dim embeddings, Cosine ANN)'
+    message: '12,641 fulltext papers indexed into LanceDB table scientific_papers_gold (635,901 chunks, IVF-PQ K=1024, M=192)'
   },
   {
     id: 'l-07',
-    time: '2026-10-11 20:25:10',
+    time: '2026-10-13 08:25:10',
     level: 'INFO',
     tag: 'GOLD/EMBED',
-    message: 'Nomic Embed 768-D dense embeddings accelerated on NVIDIA GeForce RTX 4060 Laptop GPU (torch-2.6.0+cu124)'
+    message: 'Nomic Embed 768-D dense embeddings accelerated on Hardware Accelerator (CUDA & MPS Multi-Backend)'
   },
   {
     id: 'l-08',
-    time: '2026-10-11 20:30:22',
+    time: '2026-10-13 08:30:22',
     level: 'INFO',
     tag: 'GOLD/EMBED',
-    message: 'CUDA memory cache managed between batches (torch.cuda.empty_cache applied, zero tensor fragmentation)'
+    message: 'GPU memory cache managed between batches (torch empty_cache applied, zero tensor fragmentation)'
   },
   {
     id: 'l-09',
-    time: '2026-10-03 05:55:40',
+    time: '2026-10-13 08:55:40',
     level: 'INFO',
     tag: 'GOLD/EMBED',
-    message: 'Batch 12,000/17,940 embedded on MPS Metal GPU (batch_size=8, torch.mps.empty_cache applied)'
+    message: 'All 635,901 chunks vectorized and indexed into Gold LanceDB (0 unindexed rows remaining)'
   },
   {
     id: 'l-10',
-    time: '2026-10-03 05:30:15',
+    time: '2026-10-13 09:10:15',
     level: 'INFO',
     tag: 'GOLD/EMBED',
-    message: 'Batch 06,000/17,940 embedded on MPS Metal GPU (batch_size=8, torch.mps.empty_cache applied)'
+    message: 'IVF-PQ index training completed in 158.24s (K=1024 centroids, M=192 sub-vectors, metric=cosine)'
   },
   {
     id: 'l-11',
-    time: '2026-10-03 05:14:20',
+    time: '2026-10-13 09:14:20',
     level: 'SUCCESS',
     tag: 'SILVER/WRITE',
-    message: '9,015 HTML5 papers enriched with full sections and 2,220,938 LaTeX formulas written to data/silver/year=2026/papers.parquet'
+    message: '12,641 papers enriched with full sections and 2,765,395 LaTeX formulas written to Silver Lakehouse Parquet'
   },
   {
     id: 'l-12',

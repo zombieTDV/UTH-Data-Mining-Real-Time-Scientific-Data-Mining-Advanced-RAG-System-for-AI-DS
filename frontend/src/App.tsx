@@ -32,10 +32,10 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 38,414 works, 164,702 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(38414);
-  const [totalFormulas, setTotalFormulas] = useState<number>(2220938);
-  const [totalVectors, setTotalVectors] = useState<number>(164702);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 12,641 fulltext papers, 635,901 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(12641);
+  const [totalFormulas, setTotalFormulas] = useState<number>(2765395);
+  const [totalVectors, setTotalVectors] = useState<number>(635901);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 
@@ -64,15 +64,18 @@ export default function App() {
         .then((data) => {
           if (data?.activeLakehouse) {
             const works =
-              data.sourceBreakdown?.tier2_near_past ||
-              data.activeLakehouse.sourceBreakdown?.tier2_near_past ||
-              100000;
+              data.sourceBreakdown?.total_deduplicated ||
+              data.activeLakehouse.sourceBreakdown?.total_deduplicated ||
+              12641;
             setTotalPapers(works);
             if (data.activeLakehouse.activeLanceDbVectors) {
               setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
             }
-          } else if (data?.zones?.goldChunkCount) {
-            setTotalVectors(data.zones.goldChunkCount);
+          } else if (data?.sourceBreakdown?.total_deduplicated) {
+            setTotalPapers(data.sourceBreakdown.total_deduplicated);
+            if (data?.zones?.goldChunkCount) {
+              setTotalVectors(data.zones.goldChunkCount);
+            }
           }
         })
         .catch(() => {});

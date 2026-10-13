@@ -72,17 +72,17 @@ export function StorageInspector() {
 
   const arxivCount = (activeData?.arxivHtmlCount ?? 1381) + sessionIngested;
   const arxivGb = (activeData?.arxivHtmlSizeGb ?? 1.054).toFixed(3);
-  const doiCount = (activeStats?.sourceBreakdown?.doi ?? 44969).toLocaleString();
-  const doiGb = '1.897';
-  const silverMb = (activeData?.silverParquetSizeMb ?? 172.0).toFixed(2);
-  const goldChunks = (activeData?.activeLanceDbVectors ?? 40399).toLocaleString();
+  const doiCount = (activeStats?.sourceBreakdown?.doi ?? 8890).toLocaleString();
+  const doiGb = (Number((activeStats?.activeLakehouse?.openalexSizeBytes ?? 1897363178) / (1024**3))).toFixed(3);
+  const silverMb = (activeData?.silverParquetSizeMb ?? 103.8).toFixed(2);
+  const goldChunks = (activeData?.activeLanceDbVectors ?? 635901).toLocaleString();
   const goldMb = (activeData?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
-  const backupGb = (backupData?.totalSizeGb ?? 0.001).toFixed(3);
+  const backupGb = (backupData?.totalSizeGb ?? 1.344).toFixed(3);
 
   const activeGb = (Number(activeData?.totalSizeGb ?? 3.373)).toFixed(3);
   const activePct = (Number(activeData?.usedPercentage ?? 33.73)).toFixed(1);
-  const totalGb = (totalBucket?.totalSizeGb ?? 3.042).toFixed(3);
-  const totalPct = (totalBucket?.usedPercentage ?? 30.42).toFixed(1);
+  const totalGb = (totalBucket?.totalSizeGb ?? 4.774).toFixed(3);
+  const totalPct = (totalBucket?.usedPercentage ?? 47.74).toFixed(1);
 
   const layers: LakehouseLayer[] = [
     {
@@ -123,7 +123,7 @@ export function StorageInspector() {
       name: 'OpenReview & CVF Conference Proceedings',
       storageType: 'Cloudflare R2 Object Store & Disk',
       format: 'Parquet & Raw Markdown',
-      itemsCount: '15,573 proceedings (6.1k OpenRev + 9.4k CVF)',
+      itemsCount: '2,266 proceedings (1.0k OpenRev + 1.3k CVF)',
       sizeBytes: '29.4 MB',
       r2Location: 's3://uth-scientific-lakehouse/silver/ (openreview, cvf)',
       color: '#f59e0b',
@@ -145,9 +145,9 @@ export function StorageInspector() {
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy & Zstd)',
-      itemsCount: '103,000 works (100k Tier 2 + 3k Tier 1)',
+      itemsCount: '12,641 works (3k Tier 1 + 9.6k Tier 2)',
       sizeBytes: `${silverMb} MB`,
-      r2Location: 's3://uth-scientific-lakehouse/silver/tier2/near_past_papers.parquet',
+      r2Location: 's3://uth-scientific-lakehouse/silver/tier2/fulltext_papers.parquet',
       color: '#10b981',
       description: 'Deduplicated, schema-enforced columnar Parquet tables across DOI publishers, arXiv, CVF, and OpenReview.'
     },

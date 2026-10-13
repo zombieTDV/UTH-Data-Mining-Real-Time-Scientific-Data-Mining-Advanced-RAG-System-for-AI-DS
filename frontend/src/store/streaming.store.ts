@@ -69,13 +69,13 @@ const initialCachedStats = getStoredStorageStats();
 
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus: initialCachedStats?.sourceBreakdown?.tier2_near_past ?? 100000,
+  totalCorpus: initialCachedStats?.sourceBreakdown?.total_deduplicated ?? initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ?? 12641,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
-  storageUsedGb: initialCachedStats?.totalBucket?.totalSizeGb ?? initialCachedStats?.total_size_gb ?? 12.18,
-  storageUsedPct: initialCachedStats?.totalBucket?.usedPercentage ?? initialCachedStats?.used_percentage ?? 121.8,
-  storageTotalBytes: initialCachedStats?.totalBucket?.totalSizeBytes ?? initialCachedStats?.total_size_bytes ?? 12176206555,
+  storageUsedGb: initialCachedStats?.totalBucket?.totalSizeGb ?? initialCachedStats?.total_size_gb ?? 4.774,
+  storageUsedPct: initialCachedStats?.totalBucket?.usedPercentage ?? initialCachedStats?.used_percentage ?? 47.74,
+  storageTotalBytes: initialCachedStats?.totalBucket?.totalSizeBytes ?? initialCachedStats?.total_size_bytes ?? 5126066468,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
   storageStats: initialCachedStats,
@@ -84,7 +84,7 @@ let state: LakehouseStreamState = {
   viewMode: getStoredViewMode(),
   logs: getStoredLogs(),
   isSyncingR2: false,
-  lastSyncedR2: initialCachedStats?.last_synced ?? '2026-10-09 12:15:19',
+  lastSyncedR2: initialCachedStats?.last_synced ?? '2026-10-13 06:38:53',
 };
 
 const listeners = new Set<() => void>();
@@ -111,9 +111,9 @@ export async function refreshStorageStats(): Promise<void> {
     const data = await fetchStorageStats();
     if (data) {
       const mode = state.viewMode;
-      const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 8.073);
-      const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 80.73);
-      const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 8668472480);
+      const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 3.373);
+      const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 33.73);
+      const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 3622046330);
 
       // Merge storageStats but never let polling overwrite HIGHER numbers already pushed via SSE.
       // This prevents the "numbers jump up then reset" bug caused by stale API responses.

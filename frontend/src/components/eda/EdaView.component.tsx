@@ -490,7 +490,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
   const temporalAggregatedPoints = useMemo(() => {
     const rawDist = data?.temporal_distribution || [];
-    const total = data?.dataset_overview.total_papers || 10000;
+    const total = data?.dataset_overview.total_papers || 13000;
 
     let cBefore2019 = 0;
     let c2020 = 0;
