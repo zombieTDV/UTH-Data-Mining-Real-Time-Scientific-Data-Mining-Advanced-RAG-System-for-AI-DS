@@ -49,6 +49,7 @@ class EdaResponse(BaseModel):
     category_cooccurrence: List[CategoryCooccurItem]
     correlations: Optional[Dict[str, Any]] = None
     scatter_points: Optional[List[Dict[str, Any]]] = None
+    diagnostic_3lenses: Optional[Dict[str, Any]] = None
     rag_audit_metrics: Optional[Dict[str, Any]] = None
 
 
