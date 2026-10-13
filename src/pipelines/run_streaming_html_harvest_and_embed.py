@@ -91,12 +91,14 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         self,
         target_papers: int = 1000,
         batch_embed_size: int = 64,
+        crawl_workers: int = 4,
         sync_r2: bool = False,
         shard_index: Optional[int] = None,
         total_shards: int = 1,
     ):
         self.target_papers = target_papers
         self.batch_embed_size = batch_embed_size
+        self.crawl_workers = max(crawl_workers, 1)
         self.sync_r2 = sync_r2
         self.shard_index = shard_index
         self.total_shards = max(total_shards, 1)
@@ -293,86 +295,97 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         logger.info("[CANDIDATE READY] Prepared %d candidate papers for streaming HTML harvest.", len(candidates))
         return candidates
 
+    def _fetch_single_candidate(self, paper: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Worker task: Attempts to fetch and parse HTML5 for one candidate."""
+        pid = str(paper["paper_id"]).strip()
+        clean_id = pid.replace("arxiv_", "").strip()
+        html_url = f"https://arxiv.org/html/{clean_id}"
+
+        # Fast-Path: If paper already has sections_json from previous harvest, directly return it!
+        if paper.get("pre_harvested") and paper.get("sections_json"):
+            try:
+                sections = json.loads(str(paper["sections_json"]))
+                full_record = dict(paper)
+                full_record["total_sections"] = len(sections)
+                full_record["total_words"] = sum(s.get("word_count", len(s.get("content", "").split())) for s in sections)
+                return full_record
+            except Exception:
+                pass
+
+        try:
+            resp = self.http_client.get(html_url)
+            if resp.status_code != 200 or len(resp.text) < 1500:
+                return None  # Paper doesn't have arXiv HTML5 build yet
+
+            parsed = self.html_parser.parse(resp.text)
+            sections = parsed.get("sections", [])
+            total_words = parsed.get("total_words", 0)
+
+            if len(sections) < 2 or total_words < 300:
+                return None
+
+            abs_text = str(paper.get("abstract", "")).strip() or parsed.get("parsed_abstract", "")
+            has_abs = any(s.get("section_id") == "abstract" or "abstract" in str(s.get("section_title", "")).lower() for s in sections)
+            if abs_text and not has_abs:
+                sections.insert(0, {
+                    "section_id": "abstract",
+                    "section_title": "Abstract",
+                    "section_type": "abstract",
+                    "content": abs_text,
+                    "paragraphs": [abs_text],
+                    "paragraph_count": 1,
+                    "math_count": 0,
+                    "word_count": len(abs_text.split()),
+                })
+
+            return {
+                "paper_id": pid,
+                "abstract_hash": compute_abstract_hash(abs_text),
+                "doi": paper.get("doi"),
+                "journal_ref": paper.get("journal_ref"),
+                "title": paper.get("title", "") or parsed.get("parsed_title", ""),
+                "abstract": abs_text,
+                "authors": paper.get("authors", []),
+                "categories": paper.get("categories", [paper.get("primary_category", "cs.AI")]),
+                "primary_category": paper.get("primary_category", "cs.AI"),
+                "published_date": str(paper.get("published_date", "")),
+                "crawled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "pdf_url": paper.get("pdf_url", f"https://arxiv.org/pdf/{clean_id}.pdf"),
+                "html_url": html_url,
+                "total_sections": len(sections),
+                "total_math_count": parsed.get("total_math_count", 0),
+                "total_words": total_words,
+                "sections_json": json.dumps(sections),
+                "clean_full_text": parsed.get("markdown_content", ""),
+                "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "cite_count": float(paper.get("cite_count", 0.0) or 0.0),
+                "source": "arxiv",
+                "tier": "tier2",
+                "content_origin": "arxiv_html5_stream",
+            }
+        except Exception:
+            return None
+
     def run_producer(self, candidates: List[Dict[str, Any]]):
-        """Worker thread: Crawls arXiv HTML5, extracts sections, and pushes to queue."""
-        logger.info("[PRODUCER STARTED] Crawling arXiv HTML5 documents...")
+        """Dispatches N concurrent network crawler workers that push into the single GPU queue."""
+        logger.info("[PRODUCER STARTED] Crawling arXiv HTML5 using %d concurrent network workers...", self.crawl_workers)
+        import concurrent.futures
         t0 = time.time()
 
-        for paper in candidates:
-            if self.papers_harvested >= self.target_papers:
-                break
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.crawl_workers) as executor:
+            future_to_cand = {executor.submit(self._fetch_single_candidate, c): c for c in candidates}
+            for future in concurrent.futures.as_completed(future_to_cand):
+                if self.papers_harvested >= self.target_papers:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    break
 
-            pid = str(paper["paper_id"]).strip()
-            clean_id = pid.replace("arxiv_", "").strip()
-            html_url = f"https://arxiv.org/html/{clean_id}"
-
-            # Fast-Path: If paper already has sections_json from previous harvest, directly enqueue it!
-            if paper.get("pre_harvested") and paper.get("sections_json"):
-                try:
-                    sections = json.loads(str(paper["sections_json"]))
-                    full_record = dict(paper)
-                    full_record["total_sections"] = len(sections)
-                    full_record["total_words"] = sum(s.get("word_count", len(s.get("content", "").split())) for s in sections)
-                    self.paper_queue.put(full_record)
-                    self.existing_paper_ids.add(pid)
-                    self.papers_harvested += 1
-                    logger.info("[SILVER RE-EMBED QUEUED] #%d | %s | %d sections | %s",
-                                self.papers_harvested, pid, len(sections), full_record.get("title", "")[:50])
-                    continue
-                except Exception:
-                    pass
-
-            try:
-                resp = self.http_client.get(html_url)
-                if resp.status_code != 200 or len(resp.text) < 1500:
-                    continue  # Paper doesn't have arXiv HTML5 build yet
-
-                parsed = self.html_parser.parse(resp.text)
-                sections = parsed.get("sections", [])
-                total_words = parsed.get("total_words", 0)
-
-                if len(sections) < 2 or total_words < 300:
+                full_record = future.result()
+                if not full_record:
                     continue
 
-                abs_text = str(paper.get("abstract", "")).strip() or parsed.get("parsed_abstract", "")
-                has_abs = any(s.get("section_id") == "abstract" or "abstract" in str(s.get("section_title", "")).lower() for s in sections)
-                if abs_text and not has_abs:
-                    sections.insert(0, {
-                        "section_id": "abstract",
-                        "section_title": "Abstract",
-                        "section_type": "abstract",
-                        "content": abs_text,
-                        "paragraphs": [abs_text],
-                        "paragraph_count": 1,
-                        "math_count": 0,
-                        "word_count": len(abs_text.split()),
-                    })
-
-                full_record = {
-                    "paper_id": pid,
-                    "abstract_hash": compute_abstract_hash(abs_text),
-                    "doi": paper.get("doi"),
-                    "journal_ref": paper.get("journal_ref"),
-                    "title": paper.get("title", "") or parsed.get("parsed_title", ""),
-                    "abstract": abs_text,
-                    "authors": paper.get("authors", []),
-                    "categories": paper.get("categories", [paper.get("primary_category", "cs.AI")]),
-                    "primary_category": paper.get("primary_category", "cs.AI"),
-                    "published_date": str(paper.get("published_date", "")),
-                    "crawled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    "pdf_url": paper.get("pdf_url", f"https://arxiv.org/pdf/{clean_id}.pdf"),
-                    "html_url": html_url,
-                    "total_sections": len(sections),
-                    "total_math_count": parsed.get("total_math_count", 0),
-                    "total_words": total_words,
-                    "sections_json": json.dumps(sections),
-                    "clean_full_text": parsed.get("markdown_content", ""),
-                    "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    "cite_count": float(paper.get("cite_count", 0.0) or 0.0),
-                    "source": "arxiv",
-                    "tier": "tier2",
-                    "content_origin": "arxiv_html5_stream",
-                }
+                pid = full_record["paper_id"]
+                if pid in self.existing_paper_ids:
+                    continue
 
                 self.paper_queue.put(full_record)
                 self.existing_paper_ids.add(pid)
@@ -380,7 +393,8 @@ class StreamingHTMLHarvestAndEmbedPipeline:
 
                 logger.info(
                     "[HTML ACCEPTED] #%d | %s | %d sections | %d words | %d math | Speed: %.1f p/s | %s",
-                    self.papers_harvested, pid, len(sections), total_words, parsed.get("total_math_count", 0),
+                    self.papers_harvested, pid, full_record["total_sections"], full_record["total_words"],
+                    full_record.get("total_math_count", 0),
                     self.papers_harvested / max(time.time() - t0, 0.1),
                     full_record["title"][:50]
                 )
@@ -389,20 +403,15 @@ class StreamingHTMLHarvestAndEmbedPipeline:
                     "stage": "STREAMING_HARVEST",
                     "paper_id": pid,
                     "title": full_record["title"],
-                    "total_sections": len(sections),
-                    "total_words": total_words,
+                    "total_sections": full_record["total_sections"],
+                    "total_words": full_record["total_words"],
                     "papers_harvested": self.papers_harvested,
                     "target_papers": self.target_papers,
                 })
 
-            except Exception as e:
-                logger.debug("[FETCH ERROR] %s: %s", pid, e)
-
-            # Politely throttle requests
-            time.sleep(0.35)
-
         self.producer_done.set()
-        logger.info("[PRODUCER FINISHED] Gathered %d HTML papers in %.1fs.", self.papers_harvested, time.time() - t0)
+        logger.info("[PRODUCER FINISHED] Gathered %d HTML papers in %.1fs using %d workers.",
+                    self.papers_harvested, time.time() - t0, self.crawl_workers)
 
     def run_consumer(self):
         """Worker thread: Chunks papers from queue, runs GPU Nomic embedding, and syncs LanceDB + R2."""
@@ -548,6 +557,7 @@ def main():
     parser = argparse.ArgumentParser(description="Streaming arXiv HTML5 Harvester & Concurrent GPU LanceDB Embedder.")
     parser.add_argument("--target-papers", type=int, default=500, help="Target number of HTML papers to crawl and embed.")
     parser.add_argument("--batch-embed-size", type=int, default=64, help="Batch size for Nomic GPU forward passes.")
+    parser.add_argument("--crawl-workers", type=int, default=4, help="Number of concurrent network workers fetching HTML.")
     parser.add_argument("--sync-r2", action="store_true", help="Synchronize Silver and Gold layers to Cloudflare R2.")
     parser.add_argument("--shard-index", type=int, default=None, help="Shard index for distributed multi-machine execution.")
     parser.add_argument("--total-shards", type=int, default=1, help="Total shards across peer machines.")
@@ -556,6 +566,7 @@ def main():
     pipeline = StreamingHTMLHarvestAndEmbedPipeline(
         target_papers=args.target_papers,
         batch_embed_size=args.batch_embed_size,
+        crawl_workers=args.crawl_workers,
         sync_r2=args.sync_r2,
         shard_index=args.shard_index,
         total_shards=args.total_shards,
