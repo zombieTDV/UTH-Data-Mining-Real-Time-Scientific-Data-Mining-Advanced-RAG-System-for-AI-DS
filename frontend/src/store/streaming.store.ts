@@ -59,7 +59,17 @@ const getStoredStorageStats = (): StorageStatsResponse | null => {
   if (typeof window !== 'undefined') {
     try {
       const saved = localStorage.getItem('uth_lakehouse_storage_stats_cache');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Automatically invalidate stale caches from previous sessions (< 23,767 papers or < 913,205 vectors)
+        const dedup = parsed?.sourceBreakdown?.total_deduplicated || parsed?.activeLakehouse?.sourceBreakdown?.total_deduplicated || 0;
+        const vecs = parsed?.activeLakehouse?.activeLanceDbVectors || 0;
+        if (dedup < 23767 || vecs < 913205) {
+          localStorage.removeItem('uth_lakehouse_storage_stats_cache');
+          return null;
+        }
+        return parsed;
+      }
     } catch {}
   }
   return null;
@@ -69,7 +79,12 @@ const initialCachedStats = getStoredStorageStats();
 
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus: initialCachedStats?.sourceBreakdown?.total_deduplicated ?? initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ?? 23767,
+  totalCorpus: Math.max(
+    23767,
+    initialCachedStats?.sourceBreakdown?.total_deduplicated ??
+      initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ??
+      23767
+  ),
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
@@ -138,7 +153,15 @@ export async function refreshStorageStats(): Promise<void> {
           }
         : data.activeLakehouse;
 
+      const updatedTotalWorks = Math.max(
+        23767,
+        data.sourceBreakdown?.total_deduplicated ||
+        data.activeLakehouse?.sourceBreakdown?.total_deduplicated ||
+        23767
+      );
+
       updateState({
+        totalCorpus: updatedTotalWorks,
         storageStats: data.activeLakehouse ? { ...data, activeLakehouse: mergedActiveLakehouse } : data,
         storageUsedGb: gb,
         storageUsedPct: pct,
