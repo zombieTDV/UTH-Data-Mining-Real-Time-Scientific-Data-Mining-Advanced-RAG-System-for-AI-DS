@@ -3317,7 +3317,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginTop: '4px',
                           }}
                         >
-                          {language === 'vi' ? 'Bậc liên kết' : 'Degree'}: {selectedGraphNode.degree} {language === 'vi' ? 'đồng tác giả' : 'co-authors'} &bull; {language === 'vi' ? 'Đã công bố' : 'Published'}: {selectedGraphNode.paper_count} {language === 'vi' ? 'bài báo' : 'papers'}
+                          {language === 'vi' ? 'Bậc liên kết (Degree)' : 'Degree'}: {selectedGraphNode.degree} {language === 'vi' ? 'trích dẫn / liên kết' : 'citations / links'} &bull; {language === 'vi' ? 'Công trình / Trọng số' : 'Volume / Citations'}: {selectedGraphNode.paper_count}
                         </div>
                       </div>
 
