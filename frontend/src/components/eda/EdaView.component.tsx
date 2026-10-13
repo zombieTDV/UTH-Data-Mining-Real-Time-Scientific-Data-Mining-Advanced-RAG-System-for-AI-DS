@@ -965,7 +965,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               cursor: 'pointer',
             }}
           >
-            TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'})
+            TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
           </button>
 
           {categoryList.slice(0, 8).map((cat) => {
@@ -1042,19 +1042,19 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>1. RAW INGEST:</span>
-              <strong style={{ color: themeStyles.textPrimary }}>{overview.total_papers?.toLocaleString() || '10,000'} papers</strong>
+              <strong style={{ color: themeStyles.textPrimary }}>{overview.total_papers?.toLocaleString() || '13,000'} papers</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. HTML5 FULL-TEXT:</span>
-              <strong style={{ color: '#059669' }}>{overview.enriched_html_papers?.toLocaleString() || '9,015'} ({((overview.enrichment_ratio || 0.9015) * 100).toFixed(2)}%)</strong>
+              <strong style={{ color: '#059669' }}>{overview.enriched_html_papers?.toLocaleString() || '11,763'} ({((overview.enrichment_ratio || 0.9048) * 100).toFixed(2)}%)</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>3. LATEX MATH:</span>
-              <strong style={{ color: '#ea580c' }}>{overview.total_math_formulas ? `${(overview.total_math_formulas / 1000000).toFixed(2)}M` : '2.22M'} formulas</strong>
+              <strong style={{ color: '#ea580c' }}>{overview.total_math_formulas ? `${(overview.total_math_formulas / 1000000).toFixed(2)}M` : '2.77M'} formulas</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>4. DEEP CORPUS:</span>
-              <strong style={{ color: '#2563eb' }}>{overview.total_words ? `${(overview.total_words / 1000000).toFixed(2)}M` : '47.78M'} words</strong>
+              <strong style={{ color: '#2563eb' }}>{overview.total_words ? `${(overview.total_words / 1000000).toFixed(2)}M` : '60.98M'} words</strong>
             </div>
           </div>
         )}
@@ -2507,7 +2507,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       [EDA-04] CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
                     </h3>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                      Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'} bài báo
+                      Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'} bài báo
                     </div>
                   </div>
 
@@ -2547,7 +2547,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       ))}
 
                       <text x="50" y="48" textAnchor="middle" fontSize="12" fontFamily="var(--font-mono)" fontWeight="800" fill={themeStyles.textPrimary}>
-                        {overview.total_papers ? overview.total_papers.toLocaleString() : '10,000'}
+                        {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'}
                       </text>
                       <text x="50" y="60" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textMuted}>
                         PAPERS
@@ -3253,7 +3253,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
               {/* Subtitle */}
               <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '10px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                Kiểm định thực nghiệm trên n = 9,015 bài báo có cấu trúc HTML5 đầy đủ trong Lakehouse.
+                Kiểm định thực nghiệm trên n = 11,763 bài báo có cấu trúc HTML5 đầy đủ trong Lakehouse.
               </div>
 
               {/* 4x4 Heatmap Table */}
@@ -3557,7 +3557,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     RAG VECTOR LAKEHOUSE &amp; CONTEXT CHUNKING
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#7c3aed' }}>
-                    LANCEDB GOLD · 143,523 VECTORS
+                    LANCEDB GOLD · 635,901 VECTORS (IVF-PQ)
                   </span>
                 </div>
 
@@ -3621,17 +3621,17 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  164,702 vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; Cấu trúc Section
+                  635,901 vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; IVF-PQ (K=1024, M=192)
                 </div>
 
                 <ChartToolbar
                   theme={theme}
                   filename="rag-section-contribution-chunks"
                   csvData={[
-                    { section: 'Methodology & Algorithms', chunks: 46501, percentage: 32.4 },
-                    { section: 'Experiments & Benchmarks', chunks: 40473, percentage: 28.2 },
-                    { section: 'Introduction & Problem Statement', chunks: 34158, percentage: 23.8 },
-                    { section: 'Discussion & Conclusion', chunks: 22391, percentage: 15.6 },
+                    { section: 'Methodology & Algorithms', chunks: 206032, percentage: 32.4 },
+                    { section: 'Experiments & Benchmarks', chunks: 179324, percentage: 28.2 },
+                    { section: 'Introduction & Problem Statement', chunks: 151344, percentage: 23.8 },
+                    { section: 'Discussion & Conclusion', chunks: 99201, percentage: 15.6 },
                   ]}
                   onShowToast={(msg) => {
                     setFeedbackToast(msg);
@@ -3645,11 +3645,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>TỔNG CHUNKS</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>143,523</div>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>635,901</div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>CHUNKS / BÀI</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>14.35x</div>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>50.3x</div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>CONTEXT WIN</div>
@@ -3669,10 +3669,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {[
-                      { name: 'Methodology & Algorithms', pct: 32.4, count: 46501, color: '#2563eb' },
-                      { name: 'Experiments & Benchmarks', pct: 28.2, count: 40473, color: '#7c3aed' },
-                      { name: 'Introduction & Problem Statement', pct: 23.8, count: 34158, color: '#059669' },
-                      { name: 'Discussion & Conclusion', pct: 15.6, count: 22391, color: '#f59e0b' },
+                      { name: 'Methodology & Algorithms', pct: 32.4, count: 206032, color: '#2563eb' },
+                      { name: 'Experiments & Benchmarks', pct: 28.2, count: 179324, color: '#7c3aed' },
+                      { name: 'Introduction & Problem Statement', pct: 23.8, count: 151344, color: '#059669' },
+                      { name: 'Discussion & Conclusion', pct: 15.6, count: 99201, color: '#f59e0b' },
                     ].map((sec) => (
                       <div key={sec.name}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>

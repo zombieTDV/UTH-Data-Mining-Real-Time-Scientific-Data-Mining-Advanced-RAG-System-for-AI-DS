@@ -244,8 +244,8 @@ export function initializeLakehouseStream(): () => void {
       if (st) {
         updateState({
           isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || 100000,
-          sessionIngested: st.session_ingested || 0,
+          totalCorpus: st.total_corpus || 12641,
+          sessionIngested: st.status === 'STREAMING' ? (st.session_ingested || 0) : 0,
           streamSpeed: st.speed_ppm || 0,
           storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,
           storageUsedPct: st.storage_used_pct ?? state.storageUsedPct,

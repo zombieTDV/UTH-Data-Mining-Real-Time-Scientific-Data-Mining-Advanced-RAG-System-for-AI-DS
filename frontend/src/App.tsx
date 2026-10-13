@@ -141,11 +141,11 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = (storageStats?.sourceBreakdown?.tier2_near_past || totalCorpus || totalPapers || 100000) + sessionIngested;
-  const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164750;
-  const effectiveTotalFormulas = totalFormulas || 2220938;
-  const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb || storageUsedGb || 12.18;
-  const effectiveStoragePct = storageStats?.totalBucket?.usedPercentage || storageUsedPct || 121.8;
+  const effectiveTotalPapers = (storageStats?.sourceBreakdown?.total_deduplicated || totalCorpus || totalPapers || 12641) + (isStreaming ? sessionIngested : 0);
+  const effectiveTotalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 635901;
+  const effectiveTotalFormulas = totalFormulas || 2765395;
+  const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb || storageUsedGb || 4.774;
+  const effectiveStoragePct = storageStats?.totalBucket?.usedPercentage || storageUsedPct || 47.7;
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>
@@ -175,7 +175,7 @@ export default function App() {
           totalPapers={effectiveTotalPapers}
           totalFormulas={effectiveTotalFormulas}
           totalVectors={effectiveTotalVectors}
-          sessionIngested={sessionIngested}
+          sessionIngested={isStreaming ? sessionIngested : 0}
           streamSpeed={streamSpeed}
           storageUsedGb={effectiveStorageGb}
           storageUsedPct={effectiveStoragePct}

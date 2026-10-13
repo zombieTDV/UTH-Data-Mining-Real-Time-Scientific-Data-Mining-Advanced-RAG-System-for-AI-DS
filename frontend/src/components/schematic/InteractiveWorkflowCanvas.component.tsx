@@ -472,19 +472,20 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   } = useLakehouseStreamStore();
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const liveArxivCount = (sourceBreakdown?.arxiv ?? 0) + streamSessionCount;
+  const streamOffset = isPipelineRunning ? streamSessionCount : 0;
+  const liveArxivCount = (sourceBreakdown?.arxiv ?? 0) + streamOffset;
   const liveDoiCount = sourceBreakdown?.doi ?? 0;
   const liveOpenReviewCount = sourceBreakdown?.openreview ?? 0;
   const liveCvfCount = sourceBreakdown?.cvf ?? 0;
   const liveZenodoCount = sourceBreakdown?.zenodo ?? 0;
-  const liveTotalWorks = liveDoiCount + liveArxivCount + liveOpenReviewCount + liveCvfCount + liveZenodoCount;
+  const liveTotalWorks = (sourceBreakdown?.total_deduplicated ?? (liveDoiCount + (sourceBreakdown?.arxiv ?? 0) + liveOpenReviewCount + liveCvfCount + liveZenodoCount)) + streamOffset;
   const liveBronzeCount = liveArxivCount;
 
   const liveBronzeGb = storageStats?.activeLakehouse
-    ? (storageStats.activeLakehouse.arxivHtmlSizeGb + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3)
-    : (1.054 + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3);
+    ? (storageStats.activeLakehouse.arxivHtmlSizeGb + (streamOffset * 380000) / (1024 ** 3)).toFixed(3)
+    : (1.054 + (streamOffset * 380000) / (1024 ** 3)).toFixed(3);
 
-  const liveSilverMb = (storageStats?.activeLakehouse?.silverParquetSizeMb ?? 103.8) + (streamSessionCount * 0.025);
+  const liveSilverMb = (storageStats?.activeLakehouse?.silverParquetSizeMb ?? 103.8) + (streamOffset * 0.025);
   const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 22;
 
   const liveVectors = isPipelineRunning && simulationStage !== 'completed'
