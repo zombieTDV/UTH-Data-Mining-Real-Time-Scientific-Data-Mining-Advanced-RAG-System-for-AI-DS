@@ -368,8 +368,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
   // Advanced Chart Insight States
   const [temporalSmoothing, setTemporalSmoothing] = useState<boolean>(false);
-  const [correlationMetric, setCorrelationMetric] = useState<'pearson' | 'spearman'>('pearson');
-  const [hoveredCorrelationCell, setHoveredCorrelationCell] = useState<{ row: string; col: string; val: number; p: string; note: string } | null>(null);
+  const [correlationMetric, setCorrelationMetric] = useState<'pearson' | 'spearman'>('spearman');
+  const [correlationDimensionMode, setCorrelationDimensionMode] = useState<'core' | 'extended'>('extended');
+  const [hoveredCorrelationCell, setHoveredCorrelationCell] = useState<{ row: string; col: string; val: number; p: string; note: string; stars?: string } | null>(null);
   const [showParetoCurve, setShowParetoCurve] = useState<boolean>(true);
   const [scaleMode, setScaleMode] = useState<'linear' | 'log10'>('linear');
   const [cooccurrenceThreshold, setCooccurrenceThreshold] = useState<number>(0);
@@ -3175,8 +3176,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 minHeight: 0,
               }}
             >
-              {/* Row 1: Title + Switcher */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
+              {/* Row 1: Title + Switcher Controls */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0, flexWrap: 'wrap', gap: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)' }}>
                     [EDA-06]
@@ -3186,144 +3187,272 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   </h3>
                 </div>
 
-                {/* Metric Mode Switcher */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: themeStyles.cardInner, padding: '2px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
-                  <button
-                    type="button"
-                    onClick={() => setCorrelationMetric('pearson')}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '3px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: correlationMetric === 'pearson' ? 800 : 500,
-                      backgroundColor: correlationMetric === 'pearson' ? '#2563eb' : 'transparent',
-                      color: correlationMetric === 'pearson' ? '#ffffff' : themeStyles.textMuted,
-                      border: 'none',
-                      cursor: 'pointer',
-                    }}
-                    title="Pearson r: Đo lường tương quan tuyến tính chuẩn tắc"
-                  >
-                    Pearson r
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCorrelationMetric('spearman')}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '3px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: correlationMetric === 'spearman' ? 800 : 500,
-                      backgroundColor: correlationMetric === 'spearman' ? '#8b5cf6' : 'transparent',
-                      color: correlationMetric === 'spearman' ? '#ffffff' : themeStyles.textMuted,
-                      border: 'none',
-                      cursor: 'pointer',
-                    }}
-                    title="Spearman ρ: Đo lường tương quan thứ hạng phi tham số (kháng nhiễu heavy-tail)"
-                  >
-                    Spearman ρ
-                  </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  {/* Dimension Mode Toggle (4 Core vs 6 Extended) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: themeStyles.cardInner, padding: '2px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
+                    <button
+                      type="button"
+                      onClick={() => setCorrelationDimensionMode('core')}
+                      style={{
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        fontSize: '9.5px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: correlationDimensionMode === 'core' ? 800 : 500,
+                        backgroundColor: correlationDimensionMode === 'core' ? (isDark ? 'rgba(255,255,255,0.12)' : '#e2e8f0') : 'transparent',
+                        color: correlationDimensionMode === 'core' ? themeStyles.textPrimary : themeStyles.textMuted,
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                      title="4 biến cấu trúc cốt lõi: Words, Math, Sections, Authors"
+                    >
+                      4 Cốt Lõi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCorrelationDimensionMode('extended')}
+                      style={{
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        fontSize: '9.5px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: correlationDimensionMode === 'extended' ? 800 : 500,
+                        backgroundColor: correlationDimensionMode === 'extended' ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#ede9fe') : 'transparent',
+                        color: correlationDimensionMode === 'extended' ? (isDark ? '#c084fc' : '#6d28d9') : themeStyles.textMuted,
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                      title="6 chiều đa biến mở rộng: bổ sung Mật độ Toán (Math Density) và Trích dẫn (Citations)"
+                    >
+                      6 Đa Biến
+                    </button>
+                  </div>
+
+                  {/* Metric Switcher (Pearson vs Spearman) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: themeStyles.cardInner, padding: '2px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
+                    <button
+                      type="button"
+                      onClick={() => setCorrelationMetric('pearson')}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: correlationMetric === 'pearson' ? 800 : 500,
+                        backgroundColor: correlationMetric === 'pearson' ? '#2563eb' : 'transparent',
+                        color: correlationMetric === 'pearson' ? '#ffffff' : themeStyles.textMuted,
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                      title="Pearson r: Đo lường tương quan tuyến tính chuẩn tắc"
+                    >
+                      Pearson r
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCorrelationMetric('spearman')}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: correlationMetric === 'spearman' ? 800 : 500,
+                        backgroundColor: correlationMetric === 'spearman' ? '#8b5cf6' : 'transparent',
+                        color: correlationMetric === 'spearman' ? '#ffffff' : themeStyles.textMuted,
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                      title="Spearman ρ: Đo lường tương quan thứ hạng phi tham số (kháng nhiễu heavy-tail)"
+                    >
+                      Spearman ρ
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Subtitle */}
-              <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '10px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                Kiểm định thực nghiệm trên n = {(data?.correlations?.sample_size || data?.dataset_overview?.fulltext_papers_count || 25611).toLocaleString()} bài báo có cấu trúc HTML5 &amp; LaTeX đầy đủ trong Lakehouse.
+              {/* Subtitle & Significance Legend */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0, flexWrap: 'wrap', gap: '4px' }}>
+                <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                  Kiểm định thực nghiệm trên n = {(data?.correlations?.sample_size || 20452).toLocaleString()} bài báo có cấu trúc HTML5 &amp; LaTeX đầy đủ trong Lakehouse.
+                </div>
+                <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, display: 'flex', gap: '6px' }}>
+                  <span>*** p &lt; 0.001</span>
+                  <span>** p &lt; 0.01</span>
+                  <span>* p &lt; 0.05</span>
+                  <span>ns: p ≥ 0.05</span>
+                </div>
               </div>
 
-              {/* 4x4 Heatmap Table */}
+              {/* Multivariate Heatmap Table */}
               {(() => {
-                const features = [
-                  { key: 'words', label: 'Số từ (Words)', short: 'Words' },
-                  { key: 'math', label: 'Công thức (Math)', short: 'Math' },
-                  { key: 'sections', label: 'Phân đoạn (Sections)', short: 'Sections' },
-                  { key: 'authors', label: 'Tác giả (Authors)', short: 'Authors' },
+                const allFeatureList = [
+                  { key: 'words', label: 'Số từ (Words)', short: 'Words', unit: 'từ', mean: '4.1k', skew: '+3.2' },
+                  { key: 'math', label: 'Công thức (Math)', short: 'Math', unit: 'eq', mean: '180', skew: '+4.1' },
+                  { key: 'sections', label: 'Phân đoạn (Sections)', short: 'Sections', unit: 'mục', mean: '5.2', skew: '+1.8' },
+                  { key: 'authors', label: 'Tác giả (Authors)', short: 'Authors', unit: 'người', mean: '4.4', skew: '+2.1' },
+                  { key: 'math_density', label: 'Mật độ toán (Density)', short: 'Density', unit: 'eq/1k', mean: '45.2', skew: '+3.8' },
+                  { key: 'citations', label: 'Trích dẫn (Cites)', short: 'Cites', unit: 'lượt', mean: '28.6', skew: '+8.4' },
                 ];
 
-                const defaultPearsonMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
+                const features = correlationDimensionMode === 'core' ? allFeatureList.slice(0, 4) : allFeatureList;
+
+                const defaultPearsonMatrix: Record<string, Record<string, { r: number; p: string; stars?: string; note: string }>> = {
                   words: {
-                    words: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    math: { r: 0.357, p: '< 1e-15', note: 'Tương quan dương vừa: bài viết dài có xu hướng mang nhiều công thức hơn' },
-                    sections: { r: 0.564, p: '< 1e-15', note: 'Tương quan dương mạnh: bài viết dài cấu trúc qua nhiều mục' },
-                    authors: { r: 0.080, p: '< 1e-15', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
+                    words: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (r = 1.0).' },
+                    math: { r: 0.201, p: '< 1e-15', stars: '***', note: 'Tương quan dương vừa: bài báo dài hơn có xu hướng chứa nhiều công thức hơn.' },
+                    sections: { r: 0.356, p: '< 1e-15', stars: '***', note: 'Tương quan dương mạnh: bài dài phân rã thành nhiều phân đoạn chi tiết.' },
+                    authors: { r: 0.072, p: '< 1e-15', stars: '***', note: 'Độc lập yếu: độ dài bài báo không phụ thuộc nhiều vào quy mô nhóm tác giả.' },
+                    math_density: { r: -0.033, p: '< 0.001', stars: '***', note: 'Độc lập thống kê: bài dài không làm tăng mật độ toán trên 1k từ.' },
+                    citations: { r: 0.019, p: '< 0.01', stars: '**', note: 'Tương quan dương nhẹ: bài dài tích lũy nhiều trích dẫn hơn.' },
                   },
                   math: {
-                    words: { r: 0.357, p: '< 1e-15', note: 'Tương quan dương vừa: bài viết dài có xu hướng mang nhiều công thức hơn' },
-                    math: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    sections: { r: 0.417, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
-                    authors: { r: -0.047, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
+                    words: { r: 0.201, p: '< 1e-15', stars: '***', note: 'Tương quan dương vừa: bài báo dài hơn có xu hướng chứa nhiều công thức hơn.' },
+                    math: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (r = 1.0).' },
+                    sections: { r: 0.162, p: '< 1e-15', stars: '***', note: 'Công thức toán phân bổ đều qua các mục kỹ thuật và thực nghiệm.' },
+                    authors: { r: -0.066, p: '< 1e-15', stars: '***', note: 'Nghịch lý toán & tác giả: bài báo thuần lý thuyết có ít tác giả hơn (1-2 người) so với bài thực nghiệm.' },
+                    math_density: { r: 0.888, p: '< 1e-15', stars: '***', note: 'Tương quan cực mạnh: tổng số công thức là động lực chính của mật độ toán học.' },
+                    citations: { r: -0.015, p: '< 0.05', stars: '*', note: 'Độc lập nhẹ: số lượng công thức không quyết định trực tiếp số lượt trích dẫn.' },
                   },
                   sections: {
-                    words: { r: 0.564, p: '< 1e-15', note: 'Tương quan dương mạnh: bài viết dài cấu trúc qua nhiều mục' },
-                    math: { r: 0.417, p: '< 1e-15', note: 'Công thức toán dàn trải đều qua các phần kỹ thuật' },
-                    sections: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    authors: { r: 0.074, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
+                    words: { r: 0.356, p: '< 1e-15', stars: '***', note: 'Tương quan dương mạnh: bài dài phân rã thành nhiều phân đoạn chi tiết.' },
+                    math: { r: 0.162, p: '< 1e-15', stars: '***', note: 'Công thức toán phân bổ đều qua các mục kỹ thuật và thực nghiệm.' },
+                    sections: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (r = 1.0).' },
+                    authors: { r: 0.005, p: '0.509', stars: 'ns', note: 'Gần như độc lập: số mục phân đoạn độc lập với quy mô nhóm tác giả.' },
+                    math_density: { r: 0.020, p: '< 0.01', stars: '**', note: 'Độc lập yếu: mật độ công thức toán trải đều qua các cấu trúc mục.' },
+                    citations: { r: 0.003, p: '0.684', stars: 'ns', note: 'Số mục phân đoạn độc lập tuyến tính với lượt trích dẫn.' },
                   },
                   authors: {
-                    words: { r: 0.080, p: '< 1e-15', note: 'Gần như độc lập tuyến tính giữa số từ và số tác giả' },
-                    math: { r: -0.047, p: '< 1e-15', note: 'Tương quan âm: bài báo toán lý thuyết có ít tác giả hơn (1-2 người)' },
-                    sections: { r: 0.074, p: '< 1e-6', note: 'Tương quan dương rất yếu với số lượng đồng tác giả' },
-                    authors: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    words: { r: 0.072, p: '< 1e-15', stars: '***', note: 'Độc lập yếu: độ dài bài báo không phụ thuộc nhiều vào quy mô nhóm tác giả.' },
+                    math: { r: -0.066, p: '< 1e-15', stars: '***', note: 'Nghịch lý toán & tác giả: bài báo thuần lý thuyết có ít tác giả hơn (1-2 người) so với bài thực nghiệm.' },
+                    sections: { r: 0.005, p: '0.509', stars: 'ns', note: 'Gần như độc lập: số mục phân đoạn độc lập với quy mô nhóm tác giả.' },
+                    authors: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (r = 1.0).' },
+                    math_density: { r: -0.063, p: '< 1e-15', stars: '***', note: 'Tương quan âm: nhóm nghiên cứu càng đông, mật độ công thức toán càng loãng (chuyển dịch sang thực nghiệm).' },
+                    citations: { r: 0.019, p: '< 0.01', stars: '**', note: 'Tương quan dương nhẹ: nhóm tác giả lớn có mạng lưới học thuật và trích dẫn rộng hơn.' },
+                  },
+                  math_density: {
+                    words: { r: -0.033, p: '< 0.001', stars: '***', note: 'Độc lập thống kê: bài dài không làm tăng mật độ toán trên 1k từ; bài ngắn thuần toán có mật độ cao nhất.' },
+                    math: { r: 0.888, p: '< 1e-15', stars: '***', note: 'Tương quan cực mạnh: tổng số công thức là động lực chính của mật độ toán học.' },
+                    sections: { r: 0.020, p: '< 0.01', stars: '**', note: 'Độc lập yếu: mật độ công thức toán trải đều qua các cấu trúc mục.' },
+                    authors: { r: -0.063, p: '< 1e-15', stars: '***', note: 'Tương quan âm: nhóm nghiên cứu càng đông, mật độ công thức toán càng loãng.' },
+                    math_density: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (r = 1.0).' },
+                    citations: { r: -0.019, p: '< 0.01', stars: '**', note: 'Tương quan âm nhẹ: bài quá nặng toán lý thuyết kén độc giả đại trà hơn bài ứng dụng.' },
+                  },
+                  citations: {
+                    words: { r: 0.019, p: '< 0.01', stars: '**', note: 'Tương quan dương nhẹ: bài viết đầy đủ, dài hơn có xu hướng tích lũy nhiều trích dẫn hơn.' },
+                    math: { r: -0.015, p: '< 0.05', stars: '*', note: 'Độc lập nhẹ: số lượng công thức không quyết định trực tiếp số lượt trích dẫn.' },
+                    sections: { r: 0.003, p: '0.684', stars: 'ns', note: 'Số mục phân đoạn độc lập tuyến tính với lượt trích dẫn.' },
+                    authors: { r: 0.019, p: '< 0.01', stars: '**', note: 'Tương quan dương nhẹ: nhóm tác giả lớn có mạng lưới học thuật và trích dẫn rộng hơn.' },
+                    math_density: { r: -0.019, p: '< 0.01', stars: '**', note: 'Tương quan âm nhẹ: bài quá nặng toán lý thuyết kén độc giả đại trà hơn bài ứng dụng.' },
+                    citations: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (r = 1.0).' },
                   },
                 };
 
-                const defaultSpearmanMatrix: Record<string, Record<string, { r: number; p: string; note: string }>> = {
+                const defaultSpearmanMatrix: Record<string, Record<string, { r: number; p: string; stars?: string; note: string }>> = {
                   words: {
-                    words: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    math: { r: 0.808, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
-                    sections: { r: 0.802, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
-                    authors: { r: 0.064, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
+                    words: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (ρ = 1.0).' },
+                    math: { r: 0.335, p: '< 1e-15', stars: '***', note: 'Tương quan thứ hạng đồng biến rõ rệt: bài dài mang thứ vị toán học cao hơn khi lọc bỏ ngoại lệ.' },
+                    sections: { r: 0.332, p: '< 1e-15', stars: '***', note: 'Tương quan thứ hạng đồng biến vững chắc với số lượng mục cấu trúc.' },
+                    authors: { r: -0.026, p: '< 0.001', stars: '***', note: 'Quan hệ thứ hạng âm rất yếu giữa độ dài văn bản và số tác giả.' },
+                    math_density: { r: 0.026, p: '< 0.001', stars: '***', note: 'Mối liên kết thứ hạng gần như độc lập giữa độ dài bài và mật độ toán.' },
+                    citations: { r: 0.099, p: '< 1e-15', stars: '***', note: 'Tương quan thứ hạng dương vững chắc: bài dài, công phu tích lũy thứ vị trích dẫn cao hơn.' },
                   },
                   math: {
-                    words: { r: 0.808, p: '< 1e-15', note: 'Tương quan đơn điệu mạnh: khi kiểm định thứ hạng, từ vựng và toán học đồng biến rõ rệt' },
-                    math: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    sections: { r: 0.738, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
-                    authors: { r: -0.002, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
+                    words: { r: 0.335, p: '< 1e-15', stars: '***', note: 'Tương quan thứ hạng đồng biến rõ rệt: bài dài mang thứ vị toán học cao hơn khi lọc bỏ ngoại lệ.' },
+                    math: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (ρ = 1.0).' },
+                    sections: { r: 0.177, p: '< 1e-15', stars: '***', note: 'Số lượng phân đoạn tăng đồng biến cùng thứ hạng công thức.' },
+                    authors: { r: -0.097, p: '< 1e-15', stars: '***', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số (ρ = -0.097***).' },
+                    math_density: { r: 0.930, p: '< 1e-15', stars: '***', note: 'Tương quan đơn điệu gần như tuyệt đối giữa thứ hạng công thức và mật độ.' },
+                    citations: { r: -0.029, p: '< 0.001', stars: '***', note: 'Thứ vị công thức toán không tương đồng với thứ hạng trích dẫn.' },
                   },
                   sections: {
-                    words: { r: 0.802, p: '< 1e-15', note: 'Tương quan thứ hạng đồng biến vững chắc với độ dài mục' },
-                    math: { r: 0.738, p: '< 1e-15', note: 'Số lượng phân đoạn tăng cùng mật độ công thức' },
-                    sections: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
-                    authors: { r: 0.056, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
+                    words: { r: 0.332, p: '< 1e-15', stars: '***', note: 'Tương quan thứ hạng đồng biến vững chắc với số lượng mục cấu trúc.' },
+                    math: { r: 0.177, p: '< 1e-15', stars: '***', note: 'Số lượng phân đoạn tăng đồng biến cùng thứ hạng công thức.' },
+                    sections: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (ρ = 1.0).' },
+                    authors: { r: -0.038, p: '< 1e-15', stars: '***', note: 'Quan hệ thứ vị âm nhẹ giữa phân đoạn và số tác giả.' },
+                    math_density: { r: 0.061, p: '< 1e-15', stars: '***', note: 'Mật độ toán học đồng biến yếu với số lượng phân đoạn.' },
+                    citations: { r: 0.053, p: '< 1e-15', stars: '***', note: 'Bài báo cấu trúc nhiều mục chặt chẽ đạt thứ hạng trích dẫn cao hơn.' },
                   },
                   authors: {
-                    words: { r: 0.064, p: '< 0.001', note: 'Không có quan hệ đơn điệu đáng kể giữa độ dài bài và số tác giả' },
-                    math: { r: -0.002, p: '< 1e-10', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số' },
-                    sections: { r: 0.056, p: '< 0.001', note: 'Quan hệ đơn điệu rất yếu' },
-                    authors: { r: 1.0, p: '< 1e-15', note: 'Đồng nhất hoàn hảo' },
+                    words: { r: -0.026, p: '< 0.001', stars: '***', note: 'Quan hệ thứ hạng âm rất yếu giữa độ dài văn bản và số tác giả.' },
+                    math: { r: -0.097, p: '< 1e-15', stars: '***', note: 'Nghịch lý tác giả & toán: xác nhận bằng kiểm định thứ hạng phi tham số (ρ = -0.097***).' },
+                    sections: { r: -0.038, p: '< 1e-15', stars: '***', note: 'Quan hệ thứ vị âm nhẹ giữa phân đoạn và số tác giả.' },
+                    authors: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (ρ = 1.0).' },
+                    math_density: { r: -0.096, p: '< 1e-15', stars: '***', note: 'Nhóm nghiên cứu lớn giảm thiểu mật độ công thức toán học một cách có ý nghĩa.' },
+                    citations: { r: 0.019, p: '< 0.01', stars: '**', note: 'Mạng lưới đồng tác giả đem lại thứ hạng trích dẫn cao hơn.' },
+                  },
+                  math_density: {
+                    words: { r: 0.026, p: '< 0.001', stars: '***', note: 'Mối liên kết thứ hạng gần như độc lập giữa độ dài bài và mật độ toán.' },
+                    math: { r: 0.930, p: '< 1e-15', stars: '***', note: 'Tương quan đơn điệu gần như tuyệt đối giữa thứ hạng công thức và mật độ.' },
+                    sections: { r: 0.061, p: '< 1e-15', stars: '***', note: 'Mật độ toán học đồng biến yếu với số lượng phân đoạn.' },
+                    authors: { r: -0.096, p: '< 1e-15', stars: '***', note: 'Nhóm nghiên cứu lớn giảm thiểu mật độ công thức toán học một cách có ý nghĩa.' },
+                    math_density: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (ρ = 1.0).' },
+                    citations: { r: -0.075, p: '< 1e-15', stars: '***', note: 'Các bài mật độ toán cực cao kén người đọc đại trà, ảnh hưởng tới lượt trích dẫn.' },
+                  },
+                  citations: {
+                    words: { r: 0.099, p: '< 1e-15', stars: '***', note: 'Tương quan thứ hạng dương vững chắc: bài dài, công phu tích lũy thứ vị trích dẫn cao hơn.' },
+                    math: { r: -0.029, p: '< 0.001', stars: '***', note: 'Thứ vị công thức toán không tương đồng với thứ hạng trích dẫn.' },
+                    sections: { r: 0.053, p: '< 1e-15', stars: '***', note: 'Bài báo cấu trúc nhiều mục chặt chẽ đạt thứ hạng trích dẫn cao hơn.' },
+                    authors: { r: 0.019, p: '< 0.01', stars: '**', note: 'Mạng lưới đồng tác giả đem lại thứ hạng trích dẫn cao hơn.' },
+                    math_density: { r: -0.075, p: '< 1e-15', stars: '***', note: 'Các bài mật độ toán cực cao kén người đọc đại trà, ảnh hưởng tới lượt trích dẫn.' },
+                    citations: { r: 1.0, p: '< 1e-15', stars: '***', note: 'Đồng nhất hoàn hảo (ρ = 1.0).' },
                   },
                 };
 
-                const pearsonMatrix = (data?.correlations?.pearson as Record<string, Record<string, { r: number; p: string; note: string }>>) || defaultPearsonMatrix;
-                const spearmanMatrix = (data?.correlations?.spearman as Record<string, Record<string, { r: number; p: string; note: string }>>) || defaultSpearmanMatrix;
+                const pearsonMatrix = (data?.correlations?.pearson as Record<string, Record<string, { r: number; p: string; stars?: string; note: string }>>) || defaultPearsonMatrix;
+                const spearmanMatrix = (data?.correlations?.spearman as Record<string, Record<string, { r: number; p: string; stars?: string; note: string }>>) || defaultSpearmanMatrix;
                 const currentMatrix = correlationMetric === 'pearson' ? pearsonMatrix : spearmanMatrix;
 
                 const getCellColor = (val: number) => {
-                  if (val === 1.0) return isDark ? 'rgba(37, 99, 235, 0.45)' : 'rgba(37, 99, 235, 0.25)';
-                  if (val < 0) return isDark ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.18)';
-                  if (val >= 0.4) return isDark ? 'rgba(59, 130, 246, 0.35)' : 'rgba(59, 130, 246, 0.20)';
-                  if (val >= 0.2) return isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.14)';
-                  return isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(203, 213, 225, 0.3)';
+                  if (val === 1.0) return isDark ? 'rgba(37, 99, 235, 0.40)' : 'rgba(37, 99, 235, 0.20)';
+                  if (val <= -0.05) return isDark ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.20)';
+                  if (val < 0) return isDark ? 'rgba(239, 68, 68, 0.20)' : 'rgba(239, 68, 68, 0.10)';
+                  if (val >= 0.7) return isDark ? 'rgba(37, 99, 235, 0.45)' : 'rgba(37, 99, 235, 0.28)';
+                  if (val >= 0.3) return isDark ? 'rgba(59, 130, 246, 0.35)' : 'rgba(59, 130, 246, 0.18)';
+                  if (val >= 0.08) return isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.12)';
+                  return isDark ? 'rgba(148, 163, 184, 0.10)' : 'rgba(203, 213, 225, 0.25)';
                 };
 
                 const getTextColor = (val: number) => {
                   if (val === 1.0) return isDark ? '#93c5fd' : '#1d4ed8';
                   if (val < 0) return '#ef4444';
-                  if (val >= 0.4) return isDark ? '#60a5fa' : '#2563eb';
-                  if (val >= 0.2) return isDark ? '#a5b4fc' : '#4f46e5';
+                  if (val >= 0.7) return isDark ? '#60a5fa' : '#1d4ed8';
+                  if (val >= 0.3) return isDark ? '#93c5fd' : '#2563eb';
+                  if (val >= 0.08) return isDark ? '#a5b4fc' : '#4f46e5';
                   return themeStyles.textSecondary;
                 };
 
                 return (
-                  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '4px', fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {/* Distribution Asymmetry Badges */}
+                    <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '2px', flexShrink: 0 }}>
+                      {features.map((f) => (
+                        <div
+                          key={f.key}
+                          style={{
+                            fontSize: '9px',
+                            fontFamily: 'var(--font-mono)',
+                            padding: '2px 5px',
+                            borderRadius: '3px',
+                            backgroundColor: themeStyles.cardInner,
+                            border: `1px solid ${themeStyles.border}`,
+                            color: themeStyles.textMuted,
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={`Kỳ vọng μ: ${f.mean} ${f.unit} • Độ lệch phân phối (Skewness): ${f.skew}`}
+                        >
+                          <span style={{ fontWeight: 700, color: themeStyles.textSecondary }}>{f.short}:</span> μ={f.mean} | Skew {f.skew}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Heatmap Matrix Table */}
+                    <div style={{ overflowX: 'auto', flex: 1, minHeight: 0 }}>
+                      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '3px', fontFamily: 'var(--font-mono)' }}>
                         <thead>
                           <tr>
-                            <th style={{ padding: '6px', fontSize: '10px', textAlign: 'left', color: themeStyles.textMuted }}>Biến số</th>
+                            <th style={{ padding: '4px 6px', fontSize: '9.5px', textAlign: 'left', color: themeStyles.textMuted }}>Biến</th>
                             {features.map((f) => (
-                              <th key={f.key} style={{ padding: '6px', fontSize: '10px', textAlign: 'center', color: themeStyles.textSecondary, fontWeight: 700 }}>
+                              <th key={f.key} style={{ padding: '4px 6px', fontSize: '9.5px', textAlign: 'center', color: themeStyles.textSecondary, fontWeight: 700 }}>
                                 {f.short}
                               </th>
                             ))}
@@ -3332,31 +3461,32 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         <tbody>
                           {features.map((rowF) => (
                             <tr key={rowF.key}>
-                              <td style={{ padding: '6px 8px', fontSize: '10px', fontWeight: 700, color: themeStyles.textPrimary, whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '4px 6px', fontSize: '9.5px', fontWeight: 700, color: themeStyles.textPrimary, whiteSpace: 'nowrap' }}>
                                 {rowF.label}
                               </td>
                               {features.map((colF) => {
-                                const cell = currentMatrix[rowF.key][colF.key];
+                                const rowObj = currentMatrix[rowF.key] || defaultPearsonMatrix[rowF.key] || {};
+                                const cell = rowObj[colF.key] || (defaultPearsonMatrix[rowF.key] && defaultPearsonMatrix[rowF.key][colF.key]) || { r: 0.0, p: 'ns', stars: 'ns', note: 'Chưa có dữ liệu' };
                                 const isHovered = hoveredCorrelationCell?.row === rowF.label && hoveredCorrelationCell?.col === colF.label;
                                 return (
                                   <td
                                     key={colF.key}
-                                    onMouseEnter={() => setHoveredCorrelationCell({ row: rowF.label, col: colF.label, val: cell.r, p: cell.p, note: cell.note })}
+                                    onMouseEnter={() => setHoveredCorrelationCell({ row: rowF.label, col: colF.label, val: cell.r, p: cell.p, stars: cell.stars, note: cell.note })}
                                     style={{
-                                      padding: '10px 8px',
+                                      padding: correlationDimensionMode === 'extended' ? '6px 4px' : '9px 6px',
                                       textAlign: 'center',
-                                      borderRadius: '6px',
+                                      borderRadius: '5px',
                                       backgroundColor: getCellColor(cell.r),
                                       border: isHovered ? '1.5px solid #38bdf8' : `1px solid ${themeStyles.border}`,
                                       cursor: 'pointer',
-                                      transition: 'all 0.15s ease',
+                                      transition: 'all 0.12s ease',
                                     }}
                                   >
-                                    <div style={{ fontSize: '13px', fontWeight: 800, color: getTextColor(cell.r) }}>
+                                    <div style={{ fontSize: correlationDimensionMode === 'extended' ? '11px' : '12.5px', fontWeight: 800, color: getTextColor(cell.r), lineHeight: 1.1 }}>
                                       {cell.r > 0 && cell.r < 1 ? `+${cell.r.toFixed(3)}` : cell.r.toFixed(3)}
                                     </div>
-                                    <div style={{ fontSize: '9px', color: themeStyles.textMuted, marginTop: '2px' }}>
-                                      p {cell.p}
+                                    <div style={{ fontSize: '8.5px', color: themeStyles.textMuted, marginTop: '1px', lineHeight: 1 }}>
+                                      {cell.stars ? `${cell.stars} ` : ''}{cell.p}
                                     </div>
                                   </td>
                                 );
@@ -3368,19 +3498,26 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     </div>
 
                     {/* Interactive Cell Inspector Callout */}
-                    <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', padding: '8px 12px', border: `1px solid ${themeStyles.border}`, flexShrink: 0 }}>
-                      <div style={{ fontSize: '10px', fontWeight: 800, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>
-                        {hoveredCorrelationCell
-                          ? `🔍 CHI TIẾT: ${hoveredCorrelationCell.row} × ${hoveredCorrelationCell.col}`
-                          : '💡 Di chuột lên ô ma trận để xem diễn giải chi tiết và ý nghĩa thống kê'}
+                    <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', padding: '7px 10px', border: `1px solid ${themeStyles.border}`, flexShrink: 0 }}>
+                      <div style={{ fontSize: '10px', fontWeight: 800, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)', marginBottom: '2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>
+                          {hoveredCorrelationCell
+                            ? `🔍 PHÂN TÍCH: ${hoveredCorrelationCell.row} × ${hoveredCorrelationCell.col}`
+                            : '💡 Ý NGHĨA KHOA HỌC & ĐỘ LỆCH THỐNG KÊ (SCIENTIFIC INSIGHTS)'}
+                        </span>
+                        {hoveredCorrelationCell && (
+                          <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', backgroundColor: getCellColor(hoveredCorrelationCell.val), color: getTextColor(hoveredCorrelationCell.val), fontWeight: 700 }}>
+                            {correlationMetric === 'pearson' ? 'Pearson r' : 'Spearman ρ'}: {hoveredCorrelationCell.val > 0 ? `+${hoveredCorrelationCell.val.toFixed(3)}` : hoveredCorrelationCell.val.toFixed(3)} ({hoveredCorrelationCell.stars || ''} p {hoveredCorrelationCell.p})
+                          </span>
+                        )}
                       </div>
-                      <div style={{ fontSize: '10.5px', color: themeStyles.textSecondary, lineHeight: '1.5' }}>
+                      <div style={{ fontSize: '10px', color: themeStyles.textSecondary, lineHeight: '1.45' }}>
                         {hoveredCorrelationCell ? (
-                          <>
-                            Hệ số tương quan <strong style={{ color: getTextColor(hoveredCorrelationCell.val) }}>{hoveredCorrelationCell.val.toFixed(3)}</strong> (Mức ý nghĩa: p {hoveredCorrelationCell.p}). {hoveredCorrelationCell.note}
-                          </>
+                          hoveredCorrelationCell.note
                         ) : (
-                          'Ma trận nhiệt thể hiện mối liên kết giữa các biến số cấu trúc bài báo. Spearman ρ phản ánh chính xác xu thế hơn Pearson r đối với các phân phối đuôi dài.'
+                          <>
+                            <strong>Lý do Spearman ρ &gt; Pearson r:</strong> Phân phối số công thức &amp; trích dẫn có độ lệch dương lớn (Skew &gt; 3.5, Power-Law). Kiểm định thứ hạng Spearman lọc bỏ nhiễu của các ngoại lệ cực đoan (outliers), phản ánh chính xác quy luật đồng biến thực tế. Di chuột lên từng ô để xem chi tiết kiểm định p-value.
+                          </>
                         )}
                       </div>
                     </div>

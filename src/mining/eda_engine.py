@@ -50,6 +50,7 @@ class EdaEngine:
         # Resolve Full-Text Parquets (for LaTeX & Math EDA)
         self.year2026_path = "data/silver/year=2026/papers.parquet"
         self.landmark_path = "data/silver/tier1/landmark_html_papers.parquet"
+        self.html_tier2_path = "data/silver/tier2/html_papers.parquet"
         self.fulltext_path = fulltext_path or self.year2026_path
 
         # Resolve Gold LanceDB directory
@@ -60,14 +61,14 @@ class EdaEngine:
         self._init_duckdb_views()
 
     def _init_duckdb_views(self):
-        """Initializes catalog_view (100k papers) and fulltext_view (15k papers) in DuckDB."""
+        """Initializes catalog_view (100k papers) and fulltext_view (all full-text papers) in DuckDB."""
         norm_cat = self.catalog_path.replace("\\", "/")
         self.con.execute(
             f"CREATE OR REPLACE VIEW catalog_view AS SELECT * FROM read_parquet('{norm_cat}')"
         )
         logger.info("[EDA] Registered catalog_view from %s", norm_cat)
 
-        # Fulltext view: union year=2026 and tier1 landmark HTML papers
+        # Fulltext view: union year=2026, tier1 landmark HTML papers, and tier2 HTML papers
         queries = []
         if os.path.exists(self.year2026_path):
             norm_y26 = self.year2026_path.replace("\\", "/")
@@ -87,6 +88,16 @@ class EdaEngine:
                     published_date, total_sections, total_math_count, total_words, 
                     clean_full_text, cite_count
                 FROM read_parquet('{norm_lm}')
+            """)
+
+        if os.path.exists(self.html_tier2_path):
+            norm_h2 = self.html_tier2_path.replace("\\", "/")
+            queries.append(f"""
+                SELECT 
+                    paper_id, title, abstract, authors, primary_category, 
+                    published_date, total_sections, total_math_count, total_words, 
+                    clean_full_text, cite_count
+                FROM read_parquet('{norm_h2}')
             """)
 
         if queries:
@@ -304,58 +315,123 @@ class EdaEngine:
         ]
 
     def _get_correlation_matrix(self) -> Dict[str, Any]:
-        """Calculates multivariate Pearson & Spearman correlation matrices across fulltext papers."""
+        """Calculates multivariate Pearson & Spearman correlation matrices across 6 structural features of fulltext papers."""
         try:
+            from scipy import stats
+
             df = self.con.execute("""
                 SELECT 
                     total_words AS words,
                     total_math_count AS math,
                     total_sections AS sections,
-                    len(authors) AS authors
+                    len(authors) AS authors,
+                    ROUND(total_math_count / (GREATEST(total_words, 100) / 1000.0), 2) AS math_density,
+                    COALESCE(cite_count, 0) AS citations
                 FROM fulltext_view
-                WHERE total_words IS NOT NULL AND total_words > 100
+                WHERE total_words IS NOT NULL AND total_words >= 300
             """).df()
 
-            p_corr = df.corr(method="pearson").round(3).to_dict()
-            s_corr = df.corr(method="spearman").round(3).to_dict()
+            features = [
+                {"key": "words", "label": "Độ dài từ (Words)", "short": "Words", "unit": "từ", "desc": "Tổng số từ vựng toàn văn"},
+                {"key": "math", "label": "Công thức (Math)", "short": "Math", "unit": "công thức", "desc": "Tổng số phương trình LaTeX"},
+                {"key": "sections", "label": "Phân đoạn (Sections)", "short": "Sections", "unit": "mục", "desc": "Số mục cấu trúc chuẩn hóa"},
+                {"key": "authors", "label": "Tác giả (Authors)", "short": "Authors", "unit": "người", "desc": "Quy mô nhóm nghiên cứu"},
+                {"key": "math_density", "label": "Mật độ toán (Density)", "short": "Density", "unit": "eq/1k", "desc": "Mật độ công thức trên 1,000 từ"},
+                {"key": "citations", "label": "Trích dẫn (Citations)", "short": "Cites", "unit": "lượt", "desc": "Lượt trích dẫn khoa học"},
+            ]
+            feature_keys = [f["key"] for f in features]
 
-            # Format into nested dictionaries with notes
-            features = ["words", "math", "sections", "authors"]
+            notes = {
+                ("words", "words"): "Đồng nhất hoàn hảo (r = 1.0).",
+                ("words", "math"): "Tương quan dương vừa: bài báo dài hơn có xu hướng chứa nhiều công thức hơn.",
+                ("words", "sections"): "Tương quan dương mạnh: bài dài phân rã thành nhiều phân đoạn chi tiết.",
+                ("words", "authors"): "Độc lập yếu: độ dài bài báo không phụ thuộc nhiều vào quy mô nhóm.",
+                ("words", "math_density"): "Độc lập thống kê: bài dài không làm tăng mật độ công thức / 1k từ.",
+                ("words", "citations"): "Tương quan dương: bài viết đầy đủ, dài hơn có xu hướng tích lũy nhiều trích dẫn hơn.",
+
+                ("math", "math"): "Đồng nhất hoàn hảo (r = 1.0).",
+                ("math", "sections"): "Tương quan dương: công thức toán phân bổ đều qua các mục kỹ thuật và thực nghiệm.",
+                ("math", "authors"): "Nghịch lý toán & tác giả: bài báo thuần lý thuyết có ít tác giả hơn (1-2 người) so với bài thực nghiệm.",
+                ("math", "math_density"): "Tương quan cực mạnh: tổng số công thức là động lực chính của mật độ toán.",
+                ("math", "citations"): "Độc lập nhẹ: số lượng công thức toán không quyết định trực tiếp số lượt trích dẫn.",
+
+                ("sections", "sections"): "Đồng nhất hoàn hảo (r = 1.0).",
+                ("sections", "authors"): "Gần như độc lập: số mục phân đoạn độc lập với quy mô nhóm tác giả.",
+                ("sections", "math_density"): "Độc lập yếu: mật độ công thức toán trải đều qua các cấu trúc mục.",
+                ("sections", "citations"): "Tương quan dương nhẹ: bài báo cấu trúc chặt chẽ có uy tín trích dẫn cao hơn.",
+
+                ("authors", "authors"): "Đồng nhất hoàn hảo (r = 1.0).",
+                ("authors", "math_density"): "Tương quan âm: nhóm nghiên cứu càng đông, mật độ công thức toán càng giảm (chuyển dịch sang thực nghiệm).",
+                ("authors", "citations"): "Tương quan dương nhẹ: nhóm tác giả lớn có mạng lưới học thuật và trích dẫn rộng hơn.",
+
+                ("math_density", "math_density"): "Đồng nhất hoàn hảo (r = 1.0).",
+                ("math_density", "citations"): "Tương quan âm nhẹ: bài quá nặng toán lý thuyết kén độc giả đại trà hơn bài ứng dụng.",
+
+                ("citations", "citations"): "Đồng nhất hoàn hảo (r = 1.0).",
+            }
+
+            def fmt_sig(p: float) -> str:
+                if p < 0.001: return "< 1e-15" if p < 1e-15 else "< 0.001"
+                if p < 0.01: return "< 0.01"
+                if p < 0.05: return "< 0.05"
+                return f"{p:.3f}"
+
+            def stars(p: float) -> str:
+                if p < 0.001: return "***"
+                if p < 0.01: return "**"
+                if p < 0.05: return "*"
+                return "ns"
+
             pearson_matrix = {}
             spearman_matrix = {}
 
-            notes = {
-                ("words", "words"): "Đồng nhất hoàn hảo",
-                ("words", "math"): "Tương quan dương vừa: bài viết dài có xu hướng mang nhiều công thức hơn",
-                ("words", "sections"): "Tương quan dương mạnh: bài viết dài cấu trúc qua nhiều mục",
-                ("words", "authors"): "Gần như độc lập tuyến tính",
-                ("math", "math"): "Đồng nhất hoàn hảo",
-                ("math", "sections"): "Tương quan dương vừa với các mục kỹ thuật",
-                ("math", "authors"): "Tương quan âm nhẹ: bài báo lý thuyết có ít tác giả hơn",
-                ("sections", "sections"): "Đồng nhất hoàn hảo",
-                ("sections", "authors"): "Tương quan dương rất yếu",
-                ("authors", "authors"): "Đồng nhất hoàn hảo",
-            }
-
-            for f1 in features:
+            for f1 in feature_keys:
                 pearson_matrix[f1] = {}
                 spearman_matrix[f1] = {}
-                for f2 in features:
+                for f2 in feature_keys:
                     key = (f1, f2) if (f1, f2) in notes else (f2, f1)
-                    note = notes.get(key, "Hệ số tương quan thực nghiệm")
-                    p_val = float(p_corr.get(f1, {}).get(f2, 1.0))
-                    s_val = float(s_corr.get(f1, {}).get(f2, 1.0))
-                    pearson_matrix[f1][f2] = {"r": p_val, "p": "< 1e-15" if abs(p_val) > 0.05 else "< 0.05", "note": note}
-                    spearman_matrix[f1][f2] = {"r": s_val, "p": "< 1e-15" if abs(s_val) > 0.05 else "< 0.05", "note": note}
+                    note = notes.get(key, "Mối tương quan thực nghiệm trên Lakehouse.")
+                    if f1 == f2:
+                        p_val, p_p = 1.0, 0.0
+                        s_val, s_p = 1.0, 0.0
+                    else:
+                        p_val, p_p = stats.pearsonr(df[f1], df[f2])
+                        s_val, s_p = stats.spearmanr(df[f1], df[f2])
+
+                    pearson_matrix[f1][f2] = {
+                        "r": round(float(p_val), 3),
+                        "p": fmt_sig(p_p),
+                        "stars": stars(p_p),
+                        "note": note,
+                    }
+                    spearman_matrix[f1][f2] = {
+                        "r": round(float(s_val), 3),
+                        "p": fmt_sig(s_p),
+                        "stars": stars(s_p),
+                        "note": note,
+                    }
+
+            summary_stats = {}
+            for f in features:
+                k = f["key"]
+                col = df[k]
+                summary_stats[k] = {
+                    "mean": round(float(col.mean()), 1),
+                    "median": round(float(col.median()), 1),
+                    "std": round(float(col.std()), 1),
+                    "skew": round(float(col.skew()), 2),
+                }
 
             return {
                 "pearson": pearson_matrix,
                 "spearman": spearman_matrix,
+                "features": features,
+                "summary_stats": summary_stats,
                 "sample_size": len(df),
             }
         except Exception as e:
             logger.warning("[EDA] Error computing correlation matrix: %s", e)
-            return {"pearson": {}, "spearman": {}, "sample_size": 0}
+            return {"pearson": {}, "spearman": {}, "features": [], "summary_stats": {}, "sample_size": 0}
 
     def _get_scatter_samples(self, sample_limit: int = 120) -> List[Dict[str, Any]]:
         """Extracts stratified real paper samples with actual titles, word counts, and LaTeX formulas."""
