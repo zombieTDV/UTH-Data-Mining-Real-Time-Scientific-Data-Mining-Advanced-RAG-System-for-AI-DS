@@ -200,48 +200,56 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         # Fallback to direct arXiv Atom API query if local pool is empty
         if not candidates:
             logger.info("[CANDIDATE STREAM] Fetching recent candidates from arXiv API...")
-            categories = ["cs.AI", "cs.LG", "cs.CV", "cs.CL", "stat.ML"]
+            categories = ["cs.AI", "cs.LG", "cs.CV", "cs.CL", "stat.ML", "cs.RO", "cs.NE", "cs.IR"]
             for cat in categories:
-                if len(candidates) >= self.target_papers * 3:
+                if len(candidates) >= self.target_papers * 2:
                     break
-                try:
-                    resp = self.http_client.get(
-                        "http://export.arxiv.org/api/query",
-                        params={
-                            "search_query": f"cat:{cat}",
-                            "start": 0,
-                            "max_results": 100,
-                            "sortBy": "submittedDate",
-                            "sortOrder": "descending",
-                        }
-                    )
-                    if resp.status_code == 200:
-                        import xml.etree.ElementTree as ET
-                        root = ET.fromstring(resp.text)
-                        ns = {"atom": "http://www.w3.org/2005/Atom"}
-                        for entry in root.findall("atom:entry", ns):
-                            id_url = entry.find("atom:id", ns)
-                            if id_url is None:
-                                continue
-                            raw_id = id_url.text.strip().split("/abs/")[-1]
-                            clean_id = re.sub(r"v\d+$", "", raw_id)
-                            if clean_id in self.existing_paper_ids:
-                                continue
-                            if self.total_shards > 1 and self.shard_index is not None:
-                                if int(hashlib.md5(clean_id.encode("utf-8")).hexdigest(), 16) % self.total_shards != self.shard_index:
+                for start_offset in range(0, 10000, 100):
+                    if len(candidates) >= self.target_papers * 2:
+                        break
+                    try:
+                        resp = self.http_client.get(
+                            "http://export.arxiv.org/api/query",
+                            params={
+                                "search_query": f"cat:{cat}",
+                                "start": start_offset,
+                                "max_results": 100,
+                                "sortBy": "submittedDate",
+                                "sortOrder": "descending",
+                            }
+                        )
+                        if resp.status_code == 200:
+                            import xml.etree.ElementTree as ET
+                            root = ET.fromstring(resp.text)
+                            ns = {"atom": "http://www.w3.org/2005/Atom"}
+                            entries = root.findall("atom:entry", ns)
+                            if not entries:
+                                break
+                            for entry in entries:
+                                id_url = entry.find("atom:id", ns)
+                                if id_url is None:
                                     continue
-                            title_elem = entry.find("atom:title", ns)
-                            summary_elem = entry.find("atom:summary", ns)
-                            candidates.append({
-                                "paper_id": clean_id,
-                                "title": re.sub(r"\s+", " ", title_elem.text).strip() if title_elem is not None else "",
-                                "abstract": re.sub(r"\s+", " ", summary_elem.text).strip() if summary_elem is not None else "",
-                                "primary_category": cat,
-                                "categories": [cat],
-                                "source": "arxiv",
-                            })
-                except Exception as ex:
-                    logger.warning("[ARXIV API NOTE] %s: %s", cat, ex)
+                                raw_id = id_url.text.strip().split("/abs/")[-1]
+                                clean_id = re.sub(r"v\d+$", "", raw_id)
+                                if clean_id in self.existing_paper_ids:
+                                    continue
+                                if self.total_shards > 1 and self.shard_index is not None:
+                                    if int(hashlib.md5(clean_id.encode("utf-8")).hexdigest(), 16) % self.total_shards != self.shard_index:
+                                        continue
+                                title_elem = entry.find("atom:title", ns)
+                                summary_elem = entry.find("atom:summary", ns)
+                                candidates.append({
+                                    "paper_id": clean_id,
+                                    "title": re.sub(r"\s+", " ", title_elem.text).strip() if title_elem is not None else "",
+                                    "abstract": re.sub(r"\s+", " ", summary_elem.text).strip() if summary_elem is not None else "",
+                                    "primary_category": cat,
+                                    "categories": [cat],
+                                    "source": "arxiv",
+                                })
+                        time.sleep(0.5)
+                    except Exception as ex:
+                        logger.warning("[ARXIV API NOTE] %s offset %d: %s", cat, start_offset, ex)
+                        break
 
         logger.info("[CANDIDATE READY] Prepared %d candidate papers for streaming HTML harvest.", len(candidates))
         return candidates
