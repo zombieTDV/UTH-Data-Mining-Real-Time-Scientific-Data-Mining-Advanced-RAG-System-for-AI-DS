@@ -85,9 +85,9 @@ const getStreamingStatuses = (lang: 'en' | 'vi') => {
 
 const getInitialGreeting = (lang: 'en' | 'vi'): string => {
   if (lang === 'vi') {
-    return 'Xin chào! Tôi là **Trợ lý RAG Khoa học UTH**.\n\nĐược vận hành bởi mô hình **Qwen2.5-7B-Instruct** và kết nối trực tiếp theo thời gian thực với Lakehouse học thuật gồm **23,767 bài báo toàn văn đã xác minh**, **2.77M công thức toán học** (2,765,395 phương trình LaTeX), cùng **913,205 vector embeddings** trên LanceDB (IVF-PQ K=1024, M=192, Nomic Embed 768-D). Mọi phản hồi đều được đối chiếu và trích dẫn chuẩn xác từ toàn văn bài báo. Bạn có câu hỏi nghiên cứu nào cần giải đáp hôm nay?';
+    return 'Xin chào! Tôi là **Trợ lý RAG Khoa học UTH**.\n\nĐược vận hành bởi mô hình **Qwen2.5-7B-Instruct** và kết nối trực tiếp theo thời gian thực với Lakehouse học thuật gồm **29,911 bài báo toàn văn đã xác minh**, **2.77M công thức toán học** (2,765,395 phương trình LaTeX), cùng **913,205 vector embeddings** trên LanceDB (IVF-PQ K=1024, M=192, Nomic Embed 768-D). Mọi phản hồi đều được đối chiếu và trích dẫn chuẩn xác từ toàn văn bài báo. Bạn có câu hỏi nghiên cứu nào cần giải đáp hôm nay?';
   }
-  return 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **23,767 verified full-text papers**, **2.77M formulas** (2,765,395 LaTeX equations), and **913,205 LanceDB vector embeddings** (IVF-PQ K=1024, M=192, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?';
+  return 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **29,911 verified full-text papers**, **2.77M formulas** (2,765,395 LaTeX equations), and **913,205 LanceDB vector embeddings** (IVF-PQ K=1024, M=192, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?';
 };
 
 export const GroundedRagChat: FC<GroundedRagChatProps> = ({

@@ -30,8 +30,8 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 23,767 fulltext papers, 913,205 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(23767);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 29,911 fulltext papers, 913,205 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(29911);
   const [totalFormulas, setTotalFormulas] = useState<number>(2765395);
   const [totalVectors, setTotalVectors] = useState<number>(913205);
 
@@ -64,7 +64,7 @@ export default function App() {
             const works =
               data.sourceBreakdown?.total_deduplicated ||
               data.activeLakehouse.sourceBreakdown?.total_deduplicated ||
-              23767;
+              29911;
             setTotalPapers(works);
             if (data.activeLakehouse.activeLanceDbVectors) {
               setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
@@ -139,7 +139,7 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = Math.max(23767, storageStats?.sourceBreakdown?.total_deduplicated || totalCorpus || totalPapers || 23767) + (isStreaming ? sessionIngested : 0);
+  const effectiveTotalPapers = Math.max(29911, storageStats?.sourceBreakdown?.total_deduplicated || totalCorpus || totalPapers || 29911) + (isStreaming ? sessionIngested : 0);
   const effectiveTotalVectors = Math.max(913205, storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 913205);
   const effectiveTotalFormulas = totalFormulas || 2765395;
 

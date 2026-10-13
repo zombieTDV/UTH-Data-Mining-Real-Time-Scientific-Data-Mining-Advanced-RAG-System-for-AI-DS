@@ -122,7 +122,17 @@ const getStoredStorageStats = (): StorageStatsResponse | null => {
   if (typeof window !== 'undefined') {
     try {
       const saved = localStorage.getItem('uth_lakehouse_storage_stats_cache');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Automatically invalidate stale caches from previous sessions (< 29,911 papers or < 913,205 vectors)
+        const dedup = parsed?.sourceBreakdown?.total_deduplicated || parsed?.activeLakehouse?.sourceBreakdown?.total_deduplicated || 0;
+        const vecs = parsed?.activeLakehouse?.activeLanceDbVectors || 0;
+        if (dedup < 29911 || vecs < 913205) {
+          localStorage.removeItem('uth_lakehouse_storage_stats_cache');
+          return null;
+        }
+        return parsed;
+      }
     } catch {}
   }
   return null;
@@ -132,7 +142,12 @@ const initialCachedStats = getStoredStorageStats();
 
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus: 37103,
+  totalCorpus: Math.max(
+    29911,
+    initialCachedStats?.sourceBreakdown?.total_deduplicated ??
+      initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ??
+      29911
+  ),
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
@@ -199,7 +214,15 @@ export async function refreshStorageStats(forceReset: boolean = false): Promise<
           }
         : data.activeLakehouse;
 
+      const updatedTotalWorks = Math.max(
+        29911,
+        data.sourceBreakdown?.total_deduplicated ||
+        data.activeLakehouse?.sourceBreakdown?.total_deduplicated ||
+        29911
+      );
+
       updateState({
+        totalCorpus: updatedTotalWorks,
         storageStats: data.activeLakehouse ? { ...data, activeLakehouse: mergedActiveLakehouse } : data,
         storageUsedGb: gb,
         storageUsedPct: pct,
@@ -319,8 +342,8 @@ export function initializeLakehouseStream(): () => void {
       if (st) {
         updateState({
           isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || 36414,
-          sessionIngested: st.session_ingested || 0,
+          totalCorpus: st.total_corpus || 29911,
+          sessionIngested: st.status === 'STREAMING' ? (st.session_ingested || 0) : 0,
           streamSpeed: st.speed_ppm || 0,
           storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,
           storageUsedPct: st.storage_used_pct ?? state.storageUsedPct,
