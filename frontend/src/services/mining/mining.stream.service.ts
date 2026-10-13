@@ -51,6 +51,17 @@ export async function stopStreamingIngestion(): Promise<IngestionControlResponse
   return res.json();
 }
 
+export async function fetchPipelineLogs(limit: number = 100): Promise<Array<{ id: string | number; time: string; level: string; tag: string; msg: string }>> {
+  try {
+    const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.ingestionLogs}?limit=${limit}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.logs || [];
+  } catch {
+    return [];
+  }
+}
+
 export function subscribeIngestionStream(
   onEvent: (event: IngestionEvent) => void,
   onError?: (err: unknown) => void,

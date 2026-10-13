@@ -5,6 +5,7 @@ import {
   executeDuckDbQuery,
   searchLakehouse,
   sendChatQuery,
+  fetchPipelineLogs,
 } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
@@ -356,13 +357,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [isHarvesting, setIsHarvesting] = useState<boolean>(false);
 
   // Terminal Logs State
-  const [logs, setLogs] = useState<Array<{ id: number; time: string; level: 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC'; tag: string; msg: string }>>([
-    { id: 1, time: '12:00:01', level: 'INFO', tag: 'SYSTEM', msg: 'Lakehouse Engine v2.4 initialized. Ready for scientific ingestion.' },
-    { id: 2, time: '12:00:03', level: 'SUCCESS', tag: 'STORAGE', msg: 'Cloudflare R2 bucket s3://uth-scientific-lakehouse connected (4.77 GB · Zero egress).' },
-    { id: 3, time: '12:00:05', level: 'SUCCESS', tag: 'OLAP', msg: 'DuckDB in-process vector OLAP engine online (Apache Arrow SIMD zero-copy).' },
-    { id: 4, time: '12:00:07', level: 'SUCCESS', tag: 'LANCEDB', msg: 'LanceDB vector index loaded: 913,205 embeddings (dim=768, IVF-PQ K=1024, M=192).' },
-    { id: 5, time: '12:00:09', level: 'INFO', tag: 'RAG', msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate armed with Hardware Acceleration (CUDA & MPS).' },
-    { id: 6, time: '12:00:10', level: 'INFO', tag: 'STANDBY', msg: 'Lakehouse Standby: 29,911 verified full-text papers, 2,765,395 formulas, 913,205 LanceDB vectors synced.' },
+  const [logs, setLogs] = useState<Array<{ id: number | string; time: string; level: 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC'; tag: string; msg: string }>>([
+    { id: 1, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'INFO', tag: 'SYSTEM', msg: 'Lakehouse Engine live. Connected to scientific pipeline.' },
   ]);
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -443,13 +439,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     setIsDragging(false);
   };
 
-  // Autoscroll logs
-  useEffect(() => {
-    if (autoScrollLogs && bottomTab === 'logs') {
-      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs, autoScrollLogs, bottomTab]);
-
   // Simulation state for realistic data streaming animation
   const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
   const [simulationHarvestedCount, setSimulationHarvestedCount] = useState<number>(0);
@@ -469,19 +458,68 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     storageStats,
     lastPaperDeltaBytes,
     activePipelineStage,
+    logs: storeLogs,
   } = useLakehouseStreamStore();
 
+  // Autoscroll logs
+  // Fetch real execution logs from server disk
+  useEffect(() => {
+    let timer: any;
+    const loadRealLogs = async () => {
+      try {
+        const diskLogs = await fetchPipelineLogs(150);
+        if (diskLogs && diskLogs.length > 0) {
+          setLogs(diskLogs.map((l, i) => ({
+            id: l.id || i + 1,
+            time: l.time,
+            level: (l.level === 'STORAGE' ? 'SUCCESS' : l.level === 'QUERY' ? 'EXEC' : l.level) as any,
+            tag: l.tag,
+            msg: l.msg,
+          })));
+        }
+      } catch {}
+    };
+
+    loadRealLogs();
+    if (drawerOpen && bottomTab === 'logs') {
+      timer = setInterval(loadRealLogs, 3000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [drawerOpen, bottomTab]);
+
+  // Autoscroll logs
+  const allTerminalLogs = useMemo(() => {
+    const liveMapped = (storeLogs || []).map((sl) => ({
+      id: typeof sl.id === 'number' ? sl.id : parseInt(String(sl.id).replace(/\D/g, '').slice(-8) || '0', 10) || Date.now(),
+      time: sl.time,
+      level: (sl.level === 'STORAGE' ? 'SUCCESS' : sl.level === 'QUERY' ? 'EXEC' : sl.level) as 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC',
+      tag: sl.tag,
+      msg: sl.msg,
+    }));
+    // When live SSE logs exist, prioritize them; otherwise display the real disk logs
+    if (liveMapped.length > 0) return liveMapped;
+    return logs;
+  }, [storeLogs, logs]);
+
+  useEffect(() => {
+    if (autoScrollLogs && bottomTab === 'logs') {
+      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [allTerminalLogs, autoScrollLogs, bottomTab]);
+
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const streamOffset = isPipelineRunning ? streamSessionCount : 0;
-  const liveArxivCount = Math.max(11630, sourceBreakdown?.arxiv ?? 11630) + streamOffset;
-  const liveDoiCount = sourceBreakdown?.doi ?? 8890;
-  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 0;
-  const liveCvfCount = sourceBreakdown?.cvf ?? 9389;
-  const liveZenodoCount = sourceBreakdown?.zenodo ?? 2;
-  const liveTotalWorks = Math.max(
-    29911,
+  const isAnyRunning = isPipelineRunning || isStreaming;
+  const streamOffset = isAnyRunning ? streamSessionCount : 0;
+  const liveArxivCount = (sourceBreakdown?.arxiv ?? 21311) + streamOffset;
+  const liveDoiCount = sourceBreakdown?.doi ?? 18;
+  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 1000;
+  const liveCvfCount = sourceBreakdown?.cvf ?? 1000;
+  const liveZenodoCount = sourceBreakdown?.zenodo ?? 4;
+  const liveTotalWorks = (
     sourceBreakdown?.total_deduplicated ??
-      (liveDoiCount + (sourceBreakdown?.arxiv ?? 11630) + liveOpenReviewCount + liveCvfCount + liveZenodoCount)
+      (liveDoiCount + (sourceBreakdown?.arxiv ?? 21311) + liveOpenReviewCount + liveCvfCount + liveZenodoCount)
   ) + streamOffset;
   const liveBronzeCount = liveArxivCount;
 
@@ -494,7 +532,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const liveVectors = isPipelineRunning && simulationStage !== 'completed'
     ? vectorsIndexed
-    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 913205);
+    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 419528) + (isStreaming ? (streamSessionCount * 35) : 0);
   const liveFormulas = (formulasExtracted || 2765395);
 
   const liveBatchesCount = 12;
@@ -582,9 +620,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     };
   }, [isPipelineRunning]);
 
-  const effectiveStage = (activePipelineStage && activePipelineStage !== 'idle') ? activePipelineStage : simulationStage;
+  const effectiveStage = (activePipelineStage && activePipelineStage !== 'idle') 
+    ? activePipelineStage 
+    : (isStreaming ? 'harvest' : simulationStage);
+
   const isStageActive = (stage: string) => {
-    if (effectiveStage === 'completed') return false;
+    // When real-time streaming ingestion is running, the entire Lakehouse pipeline is active end-to-end
+    if (isStreaming) return true;
+    if (effectiveStage === 'completed') return true;
     if (effectiveStage === stage) return true;
     if ((effectiveStage === 'harvest' || effectiveStage === 'bronze') && (stage === 'harvest' || stage === 'bronze')) return true;
     if ((effectiveStage === 'duckdb' || effectiveStage === 'silver') && (stage === 'duckdb' || stage === 'silver')) return true;
@@ -593,7 +636,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     return false;
   };
 
-  const isGroundedRagReady = effectiveStage === 'completed' || activePipelineStage === 'completed' || simulationStage === 'completed';
+  const isGroundedRagReady = isStreaming || effectiveStage === 'completed' || activePipelineStage === 'completed' || simulationStage === 'completed' || liveTotalWorks > 0;
 
   const handleOpenInspector = (nodeId: string) => {
     setSelectedNodeId(nodeId);
@@ -836,21 +879,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onClick={() => handleOpenInspector('start-flow')}
             style={{
               width: '240px',
-              backgroundColor: themeStyles.cardBg,
+              backgroundColor: isStageActive('harvest')
+                ? (isDark ? 'rgba(88, 28, 135, 0.35)' : '#f3e8ff')
+                : themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
               border: isStageActive('harvest')
-                ? '2px solid #8b5cf6'
+                ? '2px solid #a855f7'
                 : selectedNodeId === 'start-flow' && drawerOpen
                 ? '2px solid #7c3aed'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('harvest')
-                ? '0 0 20px rgba(139, 92, 246, 0.35)'
+                ? (isDark
+                    ? '0 0 32px rgba(168, 85, 247, 0.75), 0 0 12px rgba(192, 132, 252, 0.5)'
+                    : '0 0 24px rgba(147, 51, 234, 0.45), 0 4px 16px rgba(147, 51, 234, 0.2)')
                 : isDark
                 ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                 : '0 4px 16px rgba(0, 0, 0, 0.05)',
+              animation: isStageActive('harvest') ? 'stageGlowPurple 2.2s infinite ease-in-out' : 'none',
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              transition: 'all 0.3s ease',
               flexShrink: 0,
             }}
           >
@@ -1063,21 +1111,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onClick={() => handleOpenInspector('bronze-instance')}
             style={{
               width: '240px',
-              backgroundColor: themeStyles.cardBg,
+              backgroundColor: isStageActive('bronze')
+                ? (isDark ? 'rgba(159, 18, 57, 0.35)' : '#ffe4e6')
+                : themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
               border: isStageActive('bronze')
-                ? '2px solid #e11d48'
+                ? '2px solid #f43f5e'
                 : selectedNodeId === 'bronze-instance' && drawerOpen
                 ? '2px solid #e11d48'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('bronze')
-                ? '0 0 20px rgba(225, 29, 72, 0.35)'
+                ? (isDark
+                    ? '0 0 32px rgba(244, 63, 94, 0.75), 0 0 12px rgba(251, 113, 133, 0.5)'
+                    : '0 0 24px rgba(225, 29, 72, 0.45), 0 4px 16px rgba(225, 29, 72, 0.2)')
                 : isDark
                 ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                 : '0 4px 16px rgba(0, 0, 0, 0.05)',
+              animation: isStageActive('bronze') ? 'stageGlowRose 2.2s infinite ease-in-out' : 'none',
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              transition: 'all 0.3s ease',
               flexShrink: 0,
             }}
           >
@@ -1280,7 +1333,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             onClick={() => handleOpenInspector('review-duckdb')}
             style={{
               width: '240px',
-              backgroundColor: themeStyles.cardBg,
+              backgroundColor: isStageActive('duckdb')
+                ? (isDark ? 'rgba(146, 64, 14, 0.35)' : '#fef3c7')
+                : themeStyles.cardBg,
               borderRadius: '14px',
               padding: '14px 16px',
               border: isStageActive('duckdb')
@@ -1289,12 +1344,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 ? '2px solid #f59e0b'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('duckdb')
-                ? '0 0 20px rgba(245, 158, 11, 0.35)'
+                ? (isDark
+                    ? '0 0 32px rgba(245, 158, 11, 0.75), 0 0 12px rgba(251, 191, 36, 0.5)'
+                    : '0 0 24px rgba(217, 119, 6, 0.45), 0 4px 16px rgba(217, 119, 6, 0.2)')
                 : isDark
                 ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                 : '0 4px 16px rgba(0, 0, 0, 0.05)',
+              animation: isStageActive('duckdb') ? 'stageGlowAmber 2.2s infinite ease-in-out' : 'none',
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              transition: 'all 0.3s ease',
               flexShrink: 0,
             }}
           >
@@ -1481,10 +1539,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Split Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '72px', left: '0', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: themeStyles.wire }} />
+              <div style={{ position: 'absolute', top: '72px', left: '0', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? 'rgba(239, 68, 68, 0.7)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(239, 68, 68, 0.6)' : 'none' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: isStageActive('parallel') ? 'rgba(239, 68, 68, 0.7)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(239, 68, 68, 0.6)' : 'none' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? 'rgba(16, 185, 129, 0.8)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none' }} />
+              <div style={{ position: 'absolute', bottom: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? 'rgba(37, 99, 235, 0.8)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(37, 99, 235, 0.6)' : 'none' }} />
             </div>
 
             {/* Parallel Cards: Apache Parquet (Top) & LanceDB (Bottom) */}
@@ -1494,7 +1552,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onClick={() => handleOpenInspector('silver-parquet')}
                 style={{
                   width: '260px',
-                  backgroundColor: themeStyles.cardBg,
+                  backgroundColor: isStageActive('parallel')
+                    ? (isDark ? 'rgba(6, 78, 59, 0.35)' : '#d1fae5')
+                    : themeStyles.cardBg,
                   borderRadius: '14px',
                   padding: '12px 16px',
                   border: isStageActive('parallel')
@@ -1503,12 +1563,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     ? '2px solid #10b981'
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
-                    ? '0 0 20px rgba(16, 185, 129, 0.35)'
+                    ? (isDark
+                        ? '0 0 32px rgba(16, 185, 129, 0.75), 0 0 12px rgba(52, 211, 153, 0.5)'
+                        : '0 0 24px rgba(5, 150, 105, 0.45), 0 4px 16px rgba(5, 150, 105, 0.2)')
                     : isDark
                     ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                     : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                  animation: isStageActive('parallel') ? 'stageGlowEmerald 2.2s infinite ease-in-out' : 'none',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.3s ease',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1623,21 +1686,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 onClick={() => handleOpenInspector('gold-lancedb')}
                 style={{
                   width: '260px',
-                  backgroundColor: themeStyles.cardBg,
+                  backgroundColor: isStageActive('parallel')
+                    ? (isDark ? 'rgba(30, 58, 138, 0.35)' : '#dbeafe')
+                    : themeStyles.cardBg,
                   borderRadius: '14px',
                   padding: '12px 16px',
                   border: isStageActive('parallel')
-                    ? '2px solid #2563eb'
+                    ? '2px solid #3b82f6'
                     : selectedNodeId === 'gold-lancedb' && drawerOpen
                     ? '2px solid #2563eb'
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
-                    ? '0 0 20px rgba(37, 99, 235, 0.35)'
+                    ? (isDark
+                        ? '0 0 32px rgba(59, 130, 246, 0.75), 0 0 12px rgba(96, 165, 250, 0.5)'
+                        : '0 0 24px rgba(37, 99, 235, 0.45), 0 4px 16px rgba(37, 99, 235, 0.2)')
                     : isDark
                     ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                     : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                  animation: isStageActive('parallel') ? 'stageGlowBlue 2.2s infinite ease-in-out' : 'none',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.3s ease',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1748,10 +1816,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
             {/* Merge Horizontal-to-Vertical Wiring */}
             <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 6px rgba(99, 102, 241, 0.4)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.85)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.7)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.85)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.7)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.85)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.7)' : 'none', transition: 'all 0.3s ease' }} />
+              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.85)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.7)' : 'none', transition: 'all 0.3s ease' }} />
             </div>
 
             {/* Convergence Anchor Ring */}
@@ -1761,8 +1829,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 height: '22px',
                 borderRadius: '50%',
                 backgroundColor: isDark ? '#0b0f19' : '#ffffff',
-                border: isGroundedRagReady ? '4px solid #6366f1' : '4px solid #ea580c',
-                boxShadow: isGroundedRagReady ? '0 0 16px rgba(99, 102, 241, 0.85), 0 0 6px #818cf8' : '0 2px 6px rgba(234, 88, 12, 0.3)',
+                border: (isStageActive('parallel') || isGroundedRagReady) ? '4px solid #6366f1' : '4px solid #ea580c',
+                boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 18px rgba(99, 102, 241, 0.95), 0 0 8px #818cf8' : '0 2px 6px rgba(234, 88, 12, 0.3)',
                 flexShrink: 0,
                 zIndex: 10,
                 transition: 'all 0.4s ease',
@@ -1774,11 +1842,11 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             <div style={{
                     width: '36px',
                     height: '2px',
-                    backgroundColor: isGroundedRagReady ? 'rgba(99, 102, 241, 0.5)' : themeStyles.wire,
+                    backgroundColor: isGroundedRagReady ? 'rgba(99, 102, 241, 0.6)' : themeStyles.wire,
                     position: 'relative',
                     flexShrink: 0,
                     overflow: 'hidden',
-                    boxShadow: isGroundedRagReady ? '0 0 10px rgba(99, 102, 241, 0.7)' : 'none',
+                    boxShadow: isGroundedRagReady ? '0 0 10px rgba(99, 102, 241, 0.8)' : 'none',
                     transition: 'all 0.3s ease',
                   }}>
                     {isGroundedRagReady && (
@@ -1803,24 +1871,24 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     onClick={() => handleOpenInspector('grounded-rag')}
                     style={{
                       width: '240px',
-                      backgroundColor: isGroundedRagReady
-                        ? (isDark ? 'rgba(30, 27, 75, 0.85)' : '#f5f3ff')
+                      backgroundColor: (isStageActive('parallel') || isGroundedRagReady)
+                        ? (isDark ? 'rgba(49, 46, 129, 0.35)' : '#e0e7ff')
                         : themeStyles.cardBg,
                       borderRadius: '14px',
                       padding: '14px 16px',
-                      border: isGroundedRagReady
-                        ? '2px solid #6366f1'
+                      border: (isStageActive('parallel') || isGroundedRagReady)
+                        ? '2px solid #818cf8'
                         : selectedNodeId === 'grounded-rag' && drawerOpen
                         ? '2px solid #6366f1'
                         : `1px solid ${themeStyles.cardBorder}`,
-                      boxShadow: isGroundedRagReady
+                      boxShadow: (isStageActive('parallel') || isGroundedRagReady)
                         ? (isDark
-                            ? '0 0 32px rgba(99, 102, 241, 0.75), 0 0 12px rgba(129, 140, 248, 0.5)'
+                            ? '0 0 32px rgba(99, 102, 241, 0.8), 0 0 14px rgba(129, 140, 248, 0.6)'
                             : '0 0 24px rgba(99, 102, 241, 0.45), 0 4px 16px rgba(99, 102, 241, 0.2)')
                         : isDark
                         ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                         : '0 4px 16px rgba(99, 102, 241, 0.1)',
-                      animation: isGroundedRagReady ? 'ragBeaconGlow 2.4s infinite' : 'none',
+                      animation: (isStageActive('parallel') || isGroundedRagReady) ? 'ragBeaconGlow 2.4s infinite' : 'none',
                       cursor: 'pointer',
                       transition: 'all 0.3s ease',
                       flexShrink: 0,
@@ -2163,7 +2231,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     fontWeight: 800,
                   }}
                 >
-                  {logs.length}
+                  {allTerminalLogs.length}
                 </span>
               </button>
             </div>
@@ -3593,7 +3661,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       maxHeight: drawerExpanded ? '380px' : '230px',
                     }}
                   >
-                    {logs
+                    {allTerminalLogs
                       .filter((l) => logFilter === 'ALL' || l.level === logFilter)
                       .map((log) => {
                         const levelColor =

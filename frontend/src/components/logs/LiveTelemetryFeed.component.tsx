@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { subscribeTelemetry } from '../../services';
+import { subscribeTelemetry, fetchPipelineLogs } from '../../services';
 import { useLakehouseStreamStore, type StreamingLogEntry } from '../../store';
 
 export interface LogLine {
@@ -161,7 +161,7 @@ export const PIPELINE_LOGS: LogLine[] = [
 ];
 
 export function LiveTelemetryFeed() {
-  const [logs, setLogs] = useState<LogLine[]>(PIPELINE_LOGS);
+  const [logs, setLogs] = useState<LogLine[]>([]);
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -169,6 +169,25 @@ export function LiveTelemetryFeed() {
   const { logs: storeLogs } = useLakehouseStreamStore();
 
   useEffect(() => {
+    // Load real execution logs from disk
+    const loadRealLogs = async () => {
+      try {
+        const diskLogs = await fetchPipelineLogs(150);
+        if (diskLogs && diskLogs.length > 0) {
+          setLogs(diskLogs.map((l, i) => ({
+            id: String(l.id || `disk-${i}`),
+            time: l.time,
+            level: (l.level === 'STORAGE' ? 'SUCCESS' : l.level === 'QUERY' ? 'INFO' : l.level) as any,
+            tag: l.tag,
+            message: l.msg,
+          })));
+        }
+      } catch {}
+    };
+
+    loadRealLogs();
+    const interval = setInterval(loadRealLogs, 3000);
+
     const unsub = subscribeTelemetry((data: any) => {
       if (data && (data.event || data.message || data.status)) {
         const newLog: LogLine = {
@@ -183,21 +202,23 @@ export function LiveTelemetryFeed() {
     });
 
     return () => {
+      clearInterval(interval);
       unsub();
     };
   }, []);
 
-  // Merge store live logs with static/telemetry logs
-  const allLogs = [
-    ...storeLogs.map((sl: StreamingLogEntry) => ({
-      id: sl.id,
-      time: sl.time,
-      level: sl.level as LogLine['level'],
-      tag: sl.tag,
-      message: sl.msg,
-    })),
-    ...logs,
-  ];
+  // Merge store live logs with disk logs
+  const mappedStoreLogs = storeLogs.map((sl: StreamingLogEntry) => ({
+    id: sl.id,
+    time: sl.time,
+    level: sl.level as LogLine['level'],
+    tag: sl.tag,
+    message: sl.msg,
+  }));
+
+  const allLogs = mappedStoreLogs.length > 0
+    ? [...mappedStoreLogs, ...logs.filter(l => !mappedStoreLogs.some(m => m.message === l.message))]
+    : logs.length > 0 ? logs : PIPELINE_LOGS;
 
   const filteredLogs = allLogs.filter((l) => {
     if (filterLevel !== 'ALL' && l.level !== filterLevel) return false;

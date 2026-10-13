@@ -534,47 +534,57 @@ class StreamingHTMLHarvestAndEmbedPipeline:
             return None
 
     def run_producer(self, candidates: List[Dict[str, Any]]):
-        """Dispatches N concurrent network crawler workers that push into the single GPU queue."""
+        """Dispatches N concurrent network crawler workers that push into the single GPU queue in controlled batches."""
         logger.info("[PRODUCER STARTED] Crawling arXiv HTML5 using %d concurrent network workers...", self.crawl_workers)
         import concurrent.futures
         t0 = time.time()
 
+        # Submit in sliding windows matching queue capacity so consumer can process chunks concurrently
+        batch_size = max(self.crawl_workers * 4, 20)
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.crawl_workers) as executor:
-            future_to_cand = {executor.submit(self._fetch_single_candidate, c): c for c in candidates}
-            for future in concurrent.futures.as_completed(future_to_cand):
-                if self.papers_harvested >= self.target_papers:
-                    executor.shutdown(wait=False, cancel_futures=True)
-                    break
+            cand_idx = 0
+            while cand_idx < len(candidates) and self.papers_harvested < self.target_papers:
+                chunk_cands = candidates[cand_idx : cand_idx + batch_size]
+                cand_idx += batch_size
 
-                full_record = future.result()
-                if not full_record:
-                    continue
+                futures = [executor.submit(self._fetch_single_candidate, c) for c in chunk_cands]
+                for future in concurrent.futures.as_completed(futures):
+                    if self.papers_harvested >= self.target_papers:
+                        break
 
-                pid = full_record["paper_id"]
-                if pid in self.existing_paper_ids:
-                    continue
+                    try:
+                        full_record = future.result()
+                    except Exception:
+                        continue
 
-                self.paper_queue.put(full_record)
-                self.existing_paper_ids.add(pid)
-                self.papers_harvested += 1
+                    if not full_record:
+                        continue
 
-                logger.info(
-                    "[HTML ACCEPTED] #%d | %s | %d sections | %d words | %d math | Speed: %.1f p/s | %s",
-                    self.papers_harvested, pid, full_record["total_sections"], full_record["total_words"],
-                    full_record.get("total_math_count", 0),
-                    self.papers_harvested / max(time.time() - t0, 0.1),
-                    full_record["title"][:50]
-                )
+                    pid = full_record["paper_id"]
+                    if pid in self.existing_paper_ids:
+                        continue
 
-                broadcast_telemetry({
-                    "stage": "STREAMING_HARVEST",
-                    "paper_id": pid,
-                    "title": full_record["title"],
-                    "total_sections": full_record["total_sections"],
-                    "total_words": full_record["total_words"],
-                    "papers_harvested": self.papers_harvested,
-                    "target_papers": self.target_papers,
-                })
+                    self.paper_queue.put(full_record)
+                    self.existing_paper_ids.add(pid)
+                    self.papers_harvested += 1
+
+                    logger.info(
+                        "[HTML ACCEPTED] #%d | %s | %d sections | %d words | %d math | Speed: %.1f p/s | %s",
+                        self.papers_harvested, pid, full_record["total_sections"], full_record["total_words"],
+                        full_record.get("total_math_count", 0),
+                        self.papers_harvested / max(time.time() - t0, 0.1),
+                        full_record["title"][:50]
+                    )
+
+                    broadcast_telemetry({
+                        "stage": "STREAMING_HARVEST",
+                        "paper_id": pid,
+                        "title": full_record["title"],
+                        "total_sections": full_record["total_sections"],
+                        "total_words": full_record["total_words"],
+                        "papers_harvested": self.papers_harvested,
+                        "target_papers": self.target_papers,
+                    })
 
         self.producer_done.set()
         logger.info("[PRODUCER FINISHED] Gathered %d HTML papers in %.1fs using %d workers.",
@@ -589,39 +599,48 @@ class StreamingHTMLHarvestAndEmbedPipeline:
 
         while not (self.producer_done.is_set() and self.paper_queue.empty()):
             try:
-                paper = self.paper_queue.get(timeout=2.0)
-            except queue.Empty:
-                continue
+                try:
+                    paper = self.paper_queue.get(timeout=2.0)
+                except queue.Empty:
+                    continue
 
-            pending_silver_records.append(paper)
-            chunks = self.chunker.chunk_paper(paper)
-            for c in chunks:
-                c["source"] = "arxiv_html5"
-                c["tier"] = "tier1_landmark" if self.landmark_mode else "tier2"
-                c["content_origin"] = "streaming_html_landmark_chunker" if self.landmark_mode else "streaming_html_chunker"
-                if paper.get("openalex_id"):
-                    c["openalex_id"] = paper["openalex_id"]
-                pending_chunks.append(c)
+                pending_silver_records.append(paper)
+                chunks = self.chunker.chunk_paper(paper)
+                for c in chunks:
+                    c["source"] = "arxiv_html5"
+                    c["tier"] = "tier1_landmark" if self.landmark_mode else "tier2"
+                    c["content_origin"] = "streaming_html_landmark_chunker" if self.landmark_mode else "streaming_html_chunker"
+                    if paper.get("openalex_id"):
+                        c["openalex_id"] = paper["openalex_id"]
+                    pending_chunks.append(c)
 
-            self.papers_embedded += 1
+                self.papers_embedded += 1
 
-            # Embed and insert once we have at least 10 papers or 64 chunks
-            if len(pending_chunks) >= self.batch_embed_size:
-                self._flush_chunks_to_lancedb(pending_chunks)
-                pending_chunks = []
+                # Embed and insert once we have at least 64 chunks
+                if len(pending_chunks) >= self.batch_embed_size:
+                    self._flush_chunks_to_lancedb(pending_chunks)
+                    pending_chunks = []
 
-            # Flush to Silver Parquet and R2 every 10 papers
-            if len(pending_silver_records) >= 10:
-                self._flush_to_silver_and_r2(pending_silver_records)
-                pending_silver_records = []
+                # Flush to Silver Parquet every 50 papers
+                if len(pending_silver_records) >= 50:
+                    self._flush_to_silver_and_r2(pending_silver_records)
+                    pending_silver_records = []
 
-            self.paper_queue.task_done()
+                self.paper_queue.task_done()
+            except Exception as e:
+                logger.exception("[CONSUMER ERROR] Unexpected failure in paper consumption: %s", e)
 
         # Flush any trailing records
         if pending_chunks:
-            self._flush_chunks_to_lancedb(pending_chunks)
+            try:
+                self._flush_chunks_to_lancedb(pending_chunks)
+            except Exception as e:
+                logger.exception("[CONSUMER ERROR] Trailing chunks flush failure: %s", e)
         if pending_silver_records:
-            self._flush_to_silver_and_r2(pending_silver_records)
+            try:
+                self._flush_to_silver_and_r2(pending_silver_records)
+            except Exception as e:
+                logger.exception("[CONSUMER ERROR] Trailing silver flush failure: %s", e)
 
         duration = time.time() - t0
         logger.info(
@@ -666,9 +685,6 @@ class StreamingHTMLHarvestAndEmbedPipeline:
                 "text": str(c.get("text", "")),
                 "context_text": str(c.get("context_text", "")),
                 "word_count": int(c.get("word_count", len(c.get("text", "").split()))),
-                "source": str(c.get("source", "arxiv_html5")),
-                "tier": str(c.get("tier", "tier1_landmark" if self.landmark_mode else "tier2")),
-                "content_origin": str(c.get("content_origin", "streaming_html_chunker")),
                 "vector": vec.tolist() if hasattr(vec, "tolist") else list(vec),
             }
             insert_payload.append(rec)
@@ -689,7 +705,7 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         })
 
     def _flush_to_silver_and_r2(self, records: List[Dict[str, Any]]):
-        """Saves batch to Silver Parquet table and synchronizes to Cloudflare R2."""
+        """Saves batch to Silver Parquet table and synchronizes to Cloudflare R2 asynchronously."""
         sanitized = [sanitize_surrogates(r) for r in records]
         df_new = pd.DataFrame(sanitized)
 
@@ -702,16 +718,18 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         df_comb.to_parquet(self.silver_parquet_path, compression="zstd", index=False)
         logger.info("[SILVER SAVED] Vaulted %d papers to %s (Total: %d)", len(records), self.silver_parquet_path.name, len(df_comb))
 
-        if self.sync_r2 and self.r2:
-            try:
-                self.r2.upload_file(
-                    self.silver_parquet_path,
-                    self.r2_silver_key,
-                    content_type="application/vnd.apache.parquet"
-                )
-                logger.info("[R2 SYNC] Successfully synced %s to Cloudflare R2 (%s).", self.silver_parquet_path.name, self.r2_silver_key)
-            except Exception as e:
-                logger.warning("[R2 SYNC NOTE] %s", e)
+        if self.sync_r2 and self.r2 and self.papers_embedded % 250 == 0:
+            def _async_r2_upload():
+                try:
+                    self.r2.upload_file(
+                        self.silver_parquet_path,
+                        self.r2_silver_key,
+                        content_type="application/vnd.apache.parquet"
+                    )
+                    logger.info("[R2 SYNC] Successfully synced %s to Cloudflare R2.", self.silver_parquet_path.name)
+                except Exception as e:
+                    logger.warning("[R2 SYNC NOTE] %s", e)
+            threading.Thread(target=_async_r2_upload, daemon=True).start()
 
     def execute(self):
         """Launches producer and consumer threads concurrently."""

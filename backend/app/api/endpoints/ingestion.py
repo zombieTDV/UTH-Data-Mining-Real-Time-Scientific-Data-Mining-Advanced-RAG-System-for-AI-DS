@@ -52,3 +52,11 @@ async def reset_streaming_session() -> Dict[str, Any]:
     streaming_service.reset_session()
     return {"status": "RESET", "session_ingested": 0}
 
+
+@router.get("/pipeline-logs")
+async def get_real_pipeline_logs(limit: int = 150) -> Dict[str, Any]:
+    """Fetches real structured pipeline execution logs directly from disk."""
+    logs = streaming_service.get_latest_pipeline_logs(limit=limit)
+    return {"status": "SUCCESS", "count": len(logs), "logs": logs}
+
+
