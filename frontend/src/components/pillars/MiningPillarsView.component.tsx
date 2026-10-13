@@ -996,7 +996,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               {language === 'vi' ? 'ĐỒ THỊ KHOA HỌC (GRAPH)' : 'SCIENTIFIC NETWORK'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              {graphData?.graph_export?.nodes?.length || 120} Nodes &bull; {graphData?.graph_export?.links?.length || 243} Edges (Live)
+              {graphData?.graph_export?.nodes?.length || 120} Nodes &bull; {graphData?.graph_export?.links?.length || 293} Edges &bull; Ego-net
             </div>
           </button>
 
@@ -1040,7 +1040,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               {language === 'vi' ? 'XU HƯỚNG & DỊ BIỆT' : 'TRENDS & ANOMALIES'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              {trendsData?.anomalies?.length || 30} {language === 'vi' ? 'Dị biệt' : 'Anomalies'} &bull; {topSurging?.category || 'Surge'} (+{topSurging?.growth_rate_pct || 5940}%)
+              {topSurging ? `+${Math.round(topSurging.growth_rate_pct)}% Surge` : '+123% Surge'} &bull; {trendsData?.anomalies?.length || 260} {language === 'vi' ? 'Dị biệt' : 'Outliers'}
             </div>
           </button>
 
@@ -1245,7 +1245,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               {/* Telemetry Chip & Action Buttons */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="telemetry-chip" style={{ color: '#ea580c' }}>
-                  FP-GROWTH: {filteredRules.length}/{rulesData.rules.length} RULES · MAX LIFT: 3.36x
+                  FP-GROWTH: {filteredRules.length}/{rulesData.rules.length} RULES · MAX LIFT: {maxLiftInCorpus.toFixed(2)}x
                 </span>
 
                 <button
@@ -2074,7 +2074,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  36,414 {language === 'vi' ? 'công trình' : 'papers'} &bull; 768-D Embeddings
+                  29,911 {language === 'vi' ? 'công trình' : 'papers'} &bull; 768-D Embeddings (913,205 Chunks)
                 </div>
               </div>
             </div>
@@ -2859,7 +2859,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       [MINING-03] {language === 'vi' ? 'ĐỒ THỊ MẠNG LƯỚI ĐỒNG TÁC GIẢ (CO-AUTHORSHIP EGO-NETWORK)' : 'CO-AUTHORSHIP EGO-NETWORK GRAPH'}
                     </h3>
                     <span className="telemetry-chip">
-                      [LOUVAIN: 120 NODES &bull; 243 EDGES &bull; 6 COMMUNITIES]
+                      [LOUVAIN: {graphData.graph_export.nodes.length} NODES &bull; {graphData.graph_export.links.length} EDGES &bull; {graphData.communities?.length || 6} COMMUNITIES | NETWORK: {(graphData.network_summary?.total_authors || graphData.network_summary?.total_nodes || 8892).toLocaleString()} PAPERS &bull; {(graphData.network_summary?.total_collaborations || graphData.network_summary?.total_edges || 86295).toLocaleString()} CITATIONS]
                     </span>
                   </div>
 
@@ -3633,7 +3633,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       [MINING-04] {language === 'vi' ? 'TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)' : 'QUARTERLY TREND VELOCITY'}
                     </h3>
                     <span className="telemetry-chip">
-                      [VELOCITY SURGE: {topSurging ? `${topSurging.category} (+${Math.round(topSurging.growth_rate_pct)}%)` : 'cs.AI (+199%)'} &bull; ISOLATION FOREST: {trendsData.anomalies.length} OUTLIERS]
+                      [VELOCITY SURGE: {topSurging ? `${topSurging.category} (+${Math.round(topSurging.growth_rate_pct)}%)` : 'cs.CV (+123%)'} &bull; ISOLATION FOREST: {trendsData.anomalies.length} OUTLIERS ({((trendsData.summary?.total_papers_analyzed || 29911)).toLocaleString()} PAPERS ANALYZED)]
                     </span>
                   </div>
 
@@ -4172,7 +4172,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             fontWeight: 800,
                           }}
                         >
-                          Score: 0.985
+                          Score: {(inspectedAnomaly as any).anomaly_score !== undefined ? (inspectedAnomaly as any).anomaly_score.toFixed(3) : '0.985'}
                         </span>
                       </div>
 

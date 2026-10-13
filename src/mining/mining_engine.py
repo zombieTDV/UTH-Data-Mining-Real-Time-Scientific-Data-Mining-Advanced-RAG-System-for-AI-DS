@@ -138,7 +138,7 @@ class MiningEngine:
         t0 = time.time()
         logger.info("[CHECKPOINT 3/5] Executing Pillar 2: Semantic Topic Clustering...")
         cluster_analyzer = SemanticClusterAnalyzer(self.lancedb_uri, table_name="scientific_papers_gold")
-        cluster_results = cluster_analyzer.run_clustering_benchmarks(sample_size=1500, n_clusters=6)
+        cluster_results = cluster_analyzer.run_clustering_benchmarks(sample_size=3000, n_clusters=6)
         clusters_file = os.path.join(self.output_dir, "clusters.json")
         with open(clusters_file, "w", encoding="utf-8") as f:
             json.dump(cluster_results, f, indent=2, ensure_ascii=False)
