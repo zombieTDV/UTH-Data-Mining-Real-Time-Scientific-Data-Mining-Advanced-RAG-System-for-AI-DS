@@ -41,6 +41,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.storage.r2_client import R2Client
+from src.transformation.html_parser import AcademicHTMLParser
 from src.transformation.marker_extractor import MarkerPdfExtractor
 from src.utils.hasher import compute_abstract_hash
 from src.utils.logger import setup_pipeline_logging
@@ -89,6 +90,9 @@ class Tier2FullTextHarvester:
             self.r2_key = "silver/tier2/fulltext_papers.parquet"
 
         self.marker_extractor = MarkerPdfExtractor(use_marker=True)
+        self.html_parser = AcademicHTMLParser()
+        self.bronze_html_dir = settings.ROOT_DIR / "data" / "bronze" / "arxiv" / "html_raw"
+        self.bronze_html_dir.mkdir(parents=True, exist_ok=True)
         self.existing_ids: Set[str] = self._load_existing_ids()
 
         self.http_client = httpx.Client(
@@ -241,6 +245,56 @@ class Tier2FullTextHarvester:
         except Exception as e:
             logger.error("[MARKER ERROR] Failed to process %s: %s", pdf_path.name, e)
             return None
+
+    def extract_arxiv_html(self, paper_id: str, paper_record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Attempts to fetch and parse academic HTML5 directly from arXiv.
+
+        Returns structured section dictionary if HTML5 exists and passes quality gates, else None.
+        """
+        clean_id = str(paper_id).replace("arxiv_", "").strip()
+        html_url = f"https://arxiv.org/html/{clean_id}"
+        try:
+            resp = self.http_client.get(html_url)
+            if resp.status_code == 200 and len(resp.text) > 1000:
+                html_text = resp.text
+                safe_id = "".join([c if c.isalnum() or c in "-_." else "_" for c in str(clean_id)])
+                local_html_path = self.bronze_html_dir / f"{safe_id}.html"
+                try:
+                    local_html_path.write_text(html_text, encoding="utf-8")
+                except Exception:
+                    pass
+
+                parsed = self.html_parser.parse(html_text)
+                sections = parsed.get("sections", [])
+                total_words = parsed.get("total_words", 0)
+
+                # Quality gate: at least 2 structured sections and at least 300 words
+                if len(sections) >= 2 and total_words >= 300:
+                    abs_text = str(paper_record.get("abstract", "")).strip() or parsed.get("parsed_abstract", "")
+                    has_abs = any(s.get("section_id") == "abstract" or "abstract" in str(s.get("section_title", "")).lower() for s in sections)
+                    if abs_text and not has_abs:
+                        sections.insert(0, {
+                            "section_id": "abstract",
+                            "section_title": "Abstract",
+                            "section_type": "abstract",
+                            "content": abs_text,
+                            "paragraphs": [abs_text],
+                            "paragraph_count": 1,
+                            "math_count": 0,
+                            "word_count": len(abs_text.split()),
+                        })
+
+                    return {
+                        "clean_full_text": parsed.get("markdown_content", ""),
+                        "sections_json": json.dumps(sections),
+                        "total_sections": len(sections),
+                        "total_words": total_words,
+                        "total_math_count": parsed.get("total_math_count", 0),
+                        "method": "HTML5",
+                    }
+        except Exception as e:
+            logger.debug("[HTML FETCH NOTE] %s HTML5 fetch exception: %s", clean_id, e)
+        return None
 
     def _parse_markdown_into_sections(self, markdown_text: str, abstract: str) -> List[Dict[str, Any]]:
         """Extracts structured sections respecting numbered headings (# 1 Introduction, ## 2 Method...)."""
@@ -399,16 +453,28 @@ class Tier2FullTextHarvester:
             if not pdf_url.startswith("http"):
                 continue
 
-            # Download PDF to Bronze
-            pdf_path = self.download_pdf(pid, pdf_url)
-            if not pdf_path:
-                continue
-
-            # Neural Marker Conversion on GPU/CPU
             t0_ext = time.time()
-            extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+            extracted = None
+            method = "Marker"
+            content_origin = f"{src}_marker_fulltext"
+
+            # Priority 1: Instant arXiv HTML5 extraction (zero GPU load, ~0.2s)
+            if src == "arxiv":
+                extracted = self.extract_arxiv_html(pid, paper)
+                if extracted:
+                    method = "HTML5"
+                    content_origin = "arxiv_html_fulltext"
+
+            # Priority 2: Fallback to PDF download + Neural Marker extraction
             if not extracted:
-                continue
+                pdf_path = self.download_pdf(pid, pdf_url)
+                if not pdf_path:
+                    continue
+                extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+                if not extracted:
+                    continue
+                method = "Marker"
+                content_origin = f"{src}_marker_fulltext"
 
             ext_duration = time.time() - t0_ext
             abs_text = str(paper.get("abstract", "")).strip()
@@ -437,7 +503,7 @@ class Tier2FullTextHarvester:
                 "cite_count": float(paper.get("cite_count", 0.0) or 0.0),
                 "source": src,
                 "tier": "tier2",
-                "content_origin": f"{src}_marker_fulltext",
+                "content_origin": content_origin,
             }
 
             batch_records.append(full_record)
@@ -446,8 +512,8 @@ class Tier2FullTextHarvester:
             source_counts[src] = source_counts.get(src, 0) + 1
 
             logger.info(
-                "[FULLTEXT ACCEPTED] #%d [%s] | %s | %d sections | %d words | %.2fs Marker | Pool: [OR=%d, CVF=%d, DOI=%d, arXiv=%d] | Title: %s",
-                collected_this_run, src.upper(), pid, extracted["total_sections"], extracted["total_words"], ext_duration,
+                "[FULLTEXT ACCEPTED] #%d [%s %s] | %s | %d sections | %d words | %.2fs %s | Pool: [OR=%d, CVF=%d, DOI=%d, arXiv=%d] | Title: %s",
+                collected_this_run, src.upper(), method, pid, extracted["total_sections"], extracted["total_words"], ext_duration, method,
                 source_counts.get("openreview", 0), source_counts.get("cvf", 0), source_counts.get("doi", 0), source_counts.get("arxiv", 0),
                 paper.get("title", "")[:50]
             )
@@ -488,13 +554,19 @@ class Tier2FullTextHarvester:
                         if self.total_shards > 1 and self.shard_index is not None:
                             if int(hashlib.md5(str(pid).encode("utf-8")).hexdigest(), 16) % self.total_shards != self.shard_index:
                                 continue
-                        pdf_path = self.download_pdf(pid, paper["pdf_url"])
-                        if not pdf_path:
-                            continue
                         t0_ext = time.time()
-                        extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+                        extracted = self.extract_arxiv_html(pid, paper)
+                        method = "HTML5"
+                        content_origin = "arxiv_html_fulltext"
                         if not extracted:
-                            continue
+                            pdf_path = self.download_pdf(pid, paper["pdf_url"])
+                            if not pdf_path:
+                                continue
+                            extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+                            if not extracted:
+                                continue
+                            method = "Marker"
+                            content_origin = "arxiv_marker_fulltext"
                         ext_duration = time.time() - t0_ext
                         abs_hash = compute_abstract_hash(paper["abstract"])
                         full_record = {
@@ -520,7 +592,7 @@ class Tier2FullTextHarvester:
                             "cite_count": 0.0,
                             "source": "arxiv",
                             "tier": "tier2",
-                            "content_origin": "arxiv_marker_fulltext",
+                            "content_origin": content_origin,
                         }
                         batch_records.append(full_record)
                         self.existing_ids.add(pid)
@@ -528,8 +600,8 @@ class Tier2FullTextHarvester:
                         source_counts["arxiv"] = source_counts.get("arxiv", 0) + 1
 
                         logger.info(
-                            "[FULLTEXT ACCEPTED] #%d [ARXIV LIVE] | %s | %d sections | %d words | %.2fs Marker",
-                            collected_this_run, pid, extracted["total_sections"], extracted["total_words"], ext_duration
+                            "[FULLTEXT ACCEPTED] #%d [ARXIV LIVE %s] | %s | %d sections | %d words | %.2fs %s",
+                            collected_this_run, method, pid, extracted["total_sections"], extracted["total_words"], ext_duration, method
                         )
                         broadcast_telemetry({
                             "stage": "BATCH_PROGRESS",
