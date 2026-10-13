@@ -167,7 +167,40 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         candidates = []
         near_past_path = settings.ROOT_DIR / "data" / "silver" / "tier2" / "near_past_papers.parquet"
 
-        # Download from R2 if local copy is stub
+        # 0. High-Priority: Check already harvested Full-Text papers in Silver that are not yet in Gold LanceDB
+        logger.info("[SILVER AUDIT] Checking un-embedded full-text papers in local Silver...")
+        for ft_file in [
+            self.silver_dir / "fulltext_papers.parquet",
+            self.silver_dir / "fulltext_papers_shard0.parquet",
+            self.silver_dir / "fulltext_papers_shard1.parquet",
+            settings.ROOT_DIR / "data" / "silver" / "tier1" / "landmark_papers.parquet",
+            self.silver_dir / "html_papers.parquet",
+        ]:
+            if ft_file.exists():
+                try:
+                    df_ft = pd.read_parquet(ft_file)
+                    for _, r in df_ft.iterrows():
+                        pid = str(r["paper_id"]).strip()
+                        if pid not in self.existing_paper_ids:
+                            candidates.append({
+                                "paper_id": pid,
+                                "title": r.get("title", ""),
+                                "abstract": r.get("abstract", ""),
+                                "authors": r.get("authors", []),
+                                "primary_category": r.get("primary_category", "cs.AI"),
+                                "categories": r.get("categories", ["cs.AI"]),
+                                "source": r.get("source", "arxiv"),
+                                "sections_json": r.get("sections_json"),
+                                "clean_full_text": r.get("clean_full_text"),
+                                "pre_harvested": True,
+                            })
+                except Exception as ex:
+                    logger.warning("[SILVER READ NOTE] %s: %s", ft_file.name, ex)
+
+        if candidates:
+            logger.info("[HIGH PRIORITY] Found %d pre-harvested full-text papers ready to chunk & embed immediately!", len(candidates))
+
+        # Download near_past from R2 if needed
         if self.r2 and (not near_past_path.exists() or near_past_path.stat().st_size < 1000000):
             try:
                 logger.info("[R2 SYNC] Pulling full near_past_papers.parquet from Cloudflare R2...")
@@ -272,6 +305,22 @@ class StreamingHTMLHarvestAndEmbedPipeline:
             pid = str(paper["paper_id"]).strip()
             clean_id = pid.replace("arxiv_", "").strip()
             html_url = f"https://arxiv.org/html/{clean_id}"
+
+            # Fast-Path: If paper already has sections_json from previous harvest, directly enqueue it!
+            if paper.get("pre_harvested") and paper.get("sections_json"):
+                try:
+                    sections = json.loads(str(paper["sections_json"]))
+                    full_record = dict(paper)
+                    full_record["total_sections"] = len(sections)
+                    full_record["total_words"] = sum(s.get("word_count", len(s.get("content", "").split())) for s in sections)
+                    self.paper_queue.put(full_record)
+                    self.existing_paper_ids.add(pid)
+                    self.papers_harvested += 1
+                    logger.info("[SILVER RE-EMBED QUEUED] #%d | %s | %d sections | %s",
+                                self.papers_harvested, pid, len(sections), full_record.get("title", "")[:50])
+                    continue
+                except Exception:
+                    pass
 
             try:
                 resp = self.http_client.get(html_url)
