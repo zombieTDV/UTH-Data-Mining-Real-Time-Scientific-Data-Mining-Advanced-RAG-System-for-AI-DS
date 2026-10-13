@@ -28,13 +28,13 @@ export function PipelineFlow() {
   } = useLakehouseStreamStore();
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const currentArxivCount = (sourceBreakdown?.arxiv ?? 39189) + sessionIngested;
-  const currentDoiCount = sourceBreakdown?.doi ?? 44969;
+  const currentArxivCount = (sourceBreakdown?.arxiv ?? 1485) + sessionIngested;
+  const currentDoiCount = sourceBreakdown?.doi ?? 8890;
   const currentOpenAlexCount = sourceBreakdown?.openalex ?? 0;
-  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 5137;
-  const currentCvfCount = sourceBreakdown?.cvf ?? 8418;
-  const currentZenodoCount = sourceBreakdown?.zenodo ?? 2287;
-  const currentTotalCorpus = sourceBreakdown?.tier2_near_past ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
+  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 999;
+  const currentCvfCount = sourceBreakdown?.cvf ?? 1267;
+  const currentZenodoCount = sourceBreakdown?.zenodo ?? 0;
+  const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
   const currentCorpus = currentTotalCorpus;
   const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 12;
@@ -76,7 +76,7 @@ export function PipelineFlow() {
         rate: `${(currentDoiCount / 1000).toFixed(1)}k DOI · ${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${currentZenodoCount.toLocaleString()} Zenodo`,
         latency: `${storageUsedGb.toFixed(3)} GB Transferred`,
       },
-      details: `Harvests metadata, peer reviews, and full-content preprints across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably catalogs ${currentTotalCorpus.toLocaleString()} deduplicated records across 5 primary scientific sources (100,000 Tier 2 Near-Past papers in Lakehouse).`,
+      details: `Harvests full-content preprints and conference publications across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably catalogs ${currentTotalCorpus.toLocaleString()} deduplicated genuine full-text papers across 5 primary scientific sources.`,
     },
     {
       id: 'phase-2',

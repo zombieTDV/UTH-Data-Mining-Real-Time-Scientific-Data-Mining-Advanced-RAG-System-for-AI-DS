@@ -40,6 +40,17 @@ from src.utils.logger import setup_pipeline_logging
 logger, log_file = setup_pipeline_logging("embed_all_fulltext")
 
 
+def sanitize_str(val: Any) -> Any:
+    """Strips UTF-16 lone surrogates that cause PyArrow and Rust tokenizer crashes."""
+    if isinstance(val, str):
+        return val.encode("utf-8", "ignore").decode("utf-8", "ignore")
+    elif isinstance(val, list):
+        return [sanitize_str(x) for x in val]
+    elif isinstance(val, dict):
+        return {k: sanitize_str(v) for k, v in val.items()}
+    return val
+
+
 def broadcast_telemetry(payload: dict):
     """Broadcasts live ingestion/embedding telemetry to local FastAPI SSE bridge."""
     try:
@@ -200,7 +211,7 @@ class FullTextLakehouseEmbedder:
             vectors = self.embedder.embed_batch(texts, batch_size=self.batch_size)
 
             for c, vec in zip(batch, vectors):
-                rec = dict(c)
+                rec = {k: sanitize_str(v) for k, v in c.items()}
                 rec["vector"] = vec.tolist() if hasattr(vec, "tolist") else list(vec)
                 buffer.append(rec)
 

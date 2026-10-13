@@ -29,13 +29,13 @@ export function GeometricPipelineDiagram() {
   } = useLakehouseStreamStore();
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const currentArxivCount = (sourceBreakdown?.arxiv ?? 39189) + sessionIngested;
-  const currentDoiCount = sourceBreakdown?.doi ?? 44969;
+  const currentArxivCount = (sourceBreakdown?.arxiv ?? 1485) + sessionIngested;
+  const currentDoiCount = sourceBreakdown?.doi ?? 8890;
   const currentOpenAlexCount = sourceBreakdown?.openalex ?? 0;
-  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 5137;
-  const currentCvfCount = sourceBreakdown?.cvf ?? 8418;
-  const currentZenodoCount = sourceBreakdown?.zenodo ?? 2287;
-  const currentTotalCorpus = sourceBreakdown?.tier2_near_past ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
+  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 999;
+  const currentCvfCount = sourceBreakdown?.cvf ?? 1267;
+  const currentZenodoCount = sourceBreakdown?.zenodo ?? 0;
+  const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
   const currentCorpus = currentTotalCorpus;
   const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 12;
@@ -65,8 +65,8 @@ export function GeometricPipelineDiagram() {
       zoneColor: '#ef4444',
       toolName: 'Source Harvester',
       toolCategory: 'DOI + arXiv + CVF + OpenReview + Zenodo',
-      metricLabel: 'TOTAL CORPUS',
-      metricValue: `${currentTotalCorpus.toLocaleString()} Works`,
+      metricLabel: 'GENUINE FULL-TEXT',
+      metricValue: `${currentTotalCorpus.toLocaleString()} Papers`,
       secondaryMetric: `${(currentDoiCount / 1000).toFixed(1)}k DOI · ${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${currentZenodoCount.toLocaleString()} Zenodo`,
       status: isStreaming ? 'ACTIVE' : 'SYNCED',
       iconType: 'arxiv',

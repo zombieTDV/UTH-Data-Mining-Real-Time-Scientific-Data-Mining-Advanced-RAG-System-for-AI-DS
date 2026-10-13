@@ -75,8 +75,11 @@ class NomicEmbedder:
         """Sinh vector nhúng cho danh sách tài liệu/chunks (tự động gắn tiền tố search_document:)."""
         all_embeddings = []
 
-        # Chuẩn bị văn bản theo chuẩn của Nomic
-        formatted_texts = [f"search_document: {t}" for t in texts]
+        # Chuẩn bị văn bản theo chuẩn của Nomic, loại bỏ surrogate characters chống lỗi PyO3 Rust
+        formatted_texts = [
+            f"search_document: {t.encode('utf-8', 'ignore').decode('utf-8', 'ignore') if isinstance(t, str) else ''}"
+            for t in texts
+        ]
 
         for i in range(0, len(formatted_texts), batch_size):
             batch = formatted_texts[i : i + batch_size]
@@ -122,7 +125,8 @@ class NomicEmbedder:
 
     def embed_query(self, query: str) -> List[float]:
         """Sinh vector nhúng cho câu truy vấn tìm kiếm của người dùng (tự động gắn tiền tố search_query:)."""
-        formatted_query = f"search_query: {query}"
+        clean_q = query.encode("utf-8", "ignore").decode("utf-8", "ignore") if isinstance(query, str) else ""
+        formatted_query = f"search_query: {clean_q}"
         encoded_input = self.tokenizer(
             [formatted_query],
             padding=True,
