@@ -18,6 +18,7 @@
   --bg-surface: #0e1422;
   --bg-surface-elevated: #162035;
   --bg-surface-hover: #1e2b47;
+  --bg-card: #0e1422;
   
   --border-subtle: rgba(255, 255, 255, 0.12);
   --border-muted: rgba(255, 255, 255, 0.22);
@@ -66,6 +67,7 @@
   --bg-surface: #ffffff;
   --bg-surface-elevated: #f1f5f9;
   --bg-surface-hover: #e2e8f0;
+  --bg-card: #ffffff;
 
   --border-subtle: rgba(0, 0, 0, 0.08);
   --border-muted: rgba(0, 0, 0, 0.16);

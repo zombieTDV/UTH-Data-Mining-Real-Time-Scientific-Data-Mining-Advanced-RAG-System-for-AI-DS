@@ -165,23 +165,25 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            backgroundColor: 'var(--rail-active-text)',
-            color: 'var(--bg-card)',
+            background: 'linear-gradient(135deg, #025052 0%, #088486 100%)',
+            color: '#ffffff',
             fontSize: '11px',
             fontWeight: 800,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+            boxShadow: '0 2px 8px rgba(8, 132, 134, 0.35)',
             cursor: 'pointer',
-            transition: 'transform 0.15s ease',
-            border: '2px solid var(--border-subtle)',
+            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            border: '1.5px solid rgba(255, 255, 255, 0.25)',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'scale(1.08)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(8, 132, 134, 0.55)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(8, 132, 134, 0.35)';
           }}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
