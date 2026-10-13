@@ -75,6 +75,7 @@ export interface EdaResponse {
     abstract?: string;
     sampleFormula?: string;
   }>;
+  diagnostic_3lenses?: Diagnostic3Lenses;
   rag_audit_metrics?: {
     total_vectors: number;
     vector_dimension: number;
@@ -87,6 +88,94 @@ export interface EdaResponse {
       percentage: number;
     }>;
   };
+}
+
+export interface Diagnostic3Lenses {
+  lens1_topology: {
+    matrix_shape: [number, number];
+    total_papers_evaluated: number;
+    total_lakehouse_papers: number;
+    memory_footprint_mb: number;
+    null_counts: Record<string, number>;
+    dtypes: Record<string, string>;
+  };
+  lens2_univariate: Record<string, {
+    key: string;
+    label: string;
+    short: string;
+    unit: string;
+    desc: string;
+    mean: number;
+    median: number;
+    std: number;
+    min: number;
+    max: number;
+    p25: number;
+    p50: number;
+    p75: number;
+    p95: number;
+    skewness: number;
+    skew_category: string;
+    skew_interpretation: string;
+    kurtosis: number;
+    kurtosis_category: string;
+    kurtosis_interpretation: string;
+    dagostino_k2: number;
+    dagostino_p: string;
+    is_normal: boolean;
+    normality_verdict: string;
+    histogram_bins: Array<{ x0: number; x1: number; count: number }>;
+    kde_points: Array<{ x: number; y: number }>;
+    qq_points: Array<{ theoretical: number; empirical: number; quantile: number }>;
+  }>;
+  lens3_multivariate: {
+    pairs: Record<string, {
+      pair_id: string;
+      title: string;
+      x_key: string;
+      y_key: string;
+      x_label: string;
+      x_unit: string;
+      y_label: string;
+      y_unit: string;
+      pearson_r: number;
+      pearson_p: string;
+      spearman_rho: number;
+      spearman_p: string;
+      mutual_information: number;
+      linear_fit: {
+        slope: number;
+        intercept: number;
+        r_squared: number;
+      };
+      spline_points: Array<{ x: number; y: number }>;
+      warning: {
+        badge: string;
+        title: string;
+        text: string;
+      };
+      scatter_samples: Array<{
+        id: string;
+        title: string;
+        category: string;
+        x: number;
+        y: number;
+        author: string;
+        abstract?: string;
+        sampleFormula?: string;
+      }>;
+    }>;
+    active_pair_default: string;
+  };
+  downstream_governance: Array<{
+    rule_id: string;
+    observed_geometry: string;
+    empirical_evidence: string;
+    pipeline_requirement: string;
+    applied_in_lakehouse: string;
+    tag: string;
+    badge_color: string;
+  }>;
 }
 
 export interface AssociationRuleItem {
