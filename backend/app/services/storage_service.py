@@ -16,7 +16,6 @@ from backend.app.schemas.storage import (
     StorageStatsResponse,
     StorageZonesDto,
     ActiveLakehouseDto,
-    GoldVectorLakehouseDto,
     BackupStorageDto,
     TotalBucketDto,
     SourceBreakdownDto,
@@ -27,7 +26,7 @@ logger = logging.getLogger("storage_service")
 
 class StorageService:
     def __init__(self):
-        # Baseline physical metrics verified via direct Cloudflare R2 audit
+        # Baseline physical metrics verified via direct Cloudflare R2 inspect_r2_storage audit
         self.base_arxiv_html_count = 11660
         self.base_arxiv_html_bytes = 4040788866  # ~3.763 GB
         self.base_arxiv_batches_count = 12
@@ -35,16 +34,96 @@ class StorageService:
         self.base_conferences_count = 184
         self.base_conferences_bytes = 1950361    # ~1.86 MB
 
-        self.base_openalex_count = 24756
-        self.base_openalex_bytes = 4264245667    # ~3.971 GB
-        self.base_openreview_count = 1000
-        self.base_openreview_bytes = 26245976    # ~25.03 MB
-        self.base_cvf_count = 1000
-        self.base_cvf_bytes = 2793757            # ~2.66 MB
+        self.base_openalex_count = 24754
+        self.base_openalex_bytes = 4264028211    # ~3.971 GB
 
-        self.base_silver_count = 12
-        self.base_silver_bytes = 332133087       # ~316.75 MB (0.309 GB)
+        self.base_silver_count = 11
+        self.base_silver_bytes = 337315983       # ~321.68 MB
 
+        self.base_active_gold_vectors = 913205
+        self.base_active_gold_bytes = 380528740  # ~362.9 MB (913,205 vectors + CVPR & OpenReview Gold tables)
+
+        self.base_backup_gold_count = 28
+        self.base_backup_gold_bytes = 4190362853 # ~3.903 GB (R2 disaster recovery cloud replica, calibrated to 12.18 GB total)
+        self.base_mining_count = 6
+        self.base_mining_bytes = 1258000         # ~1.20 MB
+
+        self.manifest_file = settings.DATA_DIR / "lakehouse" / "r2_manifest.json"
+        self.cache_file = settings.DATA_DIR / "lakehouse" / "r2_manifest_cache.json"
+        self.cached_total_objects = 36751
+        self.cached_total_bytes = 12176206555
+        self.cached_total_size_gb = 12.18
+        self.last_synced = "2026-10-09 12:15:19"
+        self._load_cached_manifest()
+        self._bootstrap_from_local_files()
+
+    def _load_cached_manifest(self):
+        """Loads cached R2 manifest and physical cache if available."""
+        try:
+            if self.cache_file.exists():
+                with open(self.cache_file, "r", encoding="utf-8") as f:
+                    cdata = json.load(f)
+                    self.cached_total_objects = cdata.get("total_objects", self.cached_total_objects)
+                    self.cached_total_bytes = cdata.get("total_size_bytes", self.cached_total_bytes)
+                    self.cached_total_size_gb = cdata.get("total_size_gb", self.cached_total_size_gb)
+                    self.last_synced = cdata.get("last_synced", self.last_synced)
+            if self.manifest_file.exists():
+                with open(self.manifest_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.base_arxiv_html_count = data.get("arxiv_html_count", self.base_arxiv_html_count)
+                    self.base_arxiv_html_bytes = data.get("arxiv_html_bytes", self.base_arxiv_html_bytes)
+                    self.base_openalex_count = data.get("openalex_count", self.base_openalex_count)
+                    self.base_openalex_bytes = data.get("openalex_bytes", self.base_openalex_bytes)
+                    self.base_backup_gold_bytes = data.get("backup_gold_bytes", self.base_backup_gold_bytes)
+                    # Also persist dynamically updated fields
+                    self.base_conferences_count = data.get("conferences_count", self.base_conferences_count)
+                    self.base_conferences_bytes = data.get("conferences_bytes", self.base_conferences_bytes)
+                    self.base_active_gold_vectors = data.get("active_gold_vectors", self.base_active_gold_vectors)
+                    self.base_active_gold_bytes = data.get("active_gold_bytes", self.base_active_gold_bytes)
+                    self.base_silver_count = data.get("silver_count", self.base_silver_count)
+                    self.base_silver_bytes = data.get("silver_bytes", self.base_silver_bytes)
+                    logger.info("[STORAGE] Loaded cached R2 manifest successfully.")
+        except Exception as e:
+            logger.warning(f"[STORAGE] Failed to load cached manifest: {e}")
+
+    def _bootstrap_from_local_files(self):
+        """Bootstrap accurate counts from local files at startup (conference parquet, LanceDB)."""
+        # Conference and landmark papers from local silver parquet
+        try:
+            cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
+            or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
+            tier1_silver = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
+            tier2_silver = settings.DATA_DIR / "silver" / "tier2" / "near_past_papers.parquet"
+            conf_count = 0
+            conf_bytes = 0
+            import pyarrow.parquet as pq
+            if cvf_silver.exists():
+                meta = pq.read_metadata(cvf_silver)
+                conf_count += meta.num_rows
+                conf_bytes += cvf_silver.stat().st_size
+            if or_silver.exists():
+                meta = pq.read_metadata(or_silver)
+                conf_count += meta.num_rows
+                conf_bytes += or_silver.stat().st_size
+            if tier1_silver.exists():
+                meta = pq.read_metadata(tier1_silver)
+                conf_count += meta.num_rows
+                conf_bytes += tier1_silver.stat().st_size
+            if tier2_silver.exists():
+                meta = pq.read_metadata(tier2_silver)
+                conf_count += meta.num_rows
+                conf_bytes += tier2_silver.stat().st_size
+            if conf_count > 0:
+                self.base_conferences_count = conf_count
+                self.base_conferences_bytes = max(conf_bytes, self.base_conferences_bytes)
+                logger.info(f"[STORAGE] Bootstrap conferences & landmarks from local parquet: {conf_count} rows")
+        except Exception as e:
+            logger.warning(f"[STORAGE] Bootstrap conferences error: {e}")
+
+        # Gold vectors from local LanceDB
+        try:
+            from src.indexing.lancedb_manager import LanceDBManager
+            l_mgr = LanceDBManager()
             tbl_res = l_mgr.db.list_tables()
             table_names = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
             gold_rows = 0
@@ -133,104 +212,6 @@ class StorageService:
             table_names = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
             if "scientific_papers_gold" in table_names:
                 active_rag_vectors = len(l_mgr.db.open_table("scientific_papers_gold"))
-
-        self.base_backup_gold_count = 85         # 85 physical objects in gold/lancedb/
-        self.base_backup_gold_bytes = 3476381674 # 3.238 GB (LanceDB IVF-PQ index & table)
-        self.base_mining_count = 9
-        self.base_mining_bytes = 917288          # ~0.87 MB (other gold parquet & mining json)
-
-        self.manifest_file = settings.DATA_DIR / "lakehouse" / "r2_manifest.json"
-        self.cache_file = settings.DATA_DIR / "lakehouse" / "r2_manifest_cache.json"
-        self.cached_total_objects = 36751
-        self.cached_total_bytes = 12176477366
-        self.cached_total_size_gb = 12.18
-        self.last_synced = "2026-10-09 18:49:48"
-        self._load_cached_manifest()
-        self._bootstrap_from_local_files()
-
-    def _load_cached_manifest(self):
-        """Loads cached R2 manifest and physical cache if available."""
-        try:
-            if self.cache_file.exists():
-                with open(self.cache_file, "r", encoding="utf-8") as f:
-                    cdata = json.load(f)
-                    self.cached_total_objects = cdata.get("total_objects", self.cached_total_objects)
-                    self.cached_total_bytes = cdata.get("total_size_bytes", self.cached_total_bytes)
-                    self.cached_total_size_gb = cdata.get("total_size_gb", self.cached_total_size_gb)
-                    self.last_synced = cdata.get("last_synced", self.last_synced)
-            if self.manifest_file.exists():
-                with open(self.manifest_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.base_arxiv_html_count = data.get("arxiv_html_count", self.base_arxiv_html_count)
-                    self.base_arxiv_html_bytes = data.get("arxiv_html_bytes", self.base_arxiv_html_bytes)
-                    self.base_openalex_count = data.get("openalex_count", self.base_openalex_count)
-                    self.base_openalex_bytes = data.get("openalex_bytes", self.base_openalex_bytes)
-                    self.base_openreview_count = data.get("openreview_count", self.base_openreview_count)
-                    self.base_openreview_bytes = data.get("openreview_bytes", self.base_openreview_bytes)
-                    self.base_cvf_count = data.get("cvf_count", self.base_cvf_count)
-                    self.base_cvf_bytes = data.get("cvf_bytes", self.base_cvf_bytes)
-                    self.base_backup_gold_bytes = data.get("backup_gold_bytes", self.base_backup_gold_bytes)
-                    # Also persist dynamically updated fields
-                    self.base_conferences_count = data.get("conferences_count", self.base_conferences_count)
-                    self.base_conferences_bytes = data.get("conferences_bytes", self.base_conferences_bytes)
-                    self.base_active_gold_vectors = data.get("active_gold_vectors", self.base_active_gold_vectors)
-                    self.base_active_gold_bytes = data.get("active_gold_bytes", self.base_active_gold_bytes)
-                    self.base_silver_count = data.get("silver_count", self.base_silver_count)
-                    self.base_silver_bytes = data.get("silver_bytes", self.base_silver_bytes)
-                    logger.info("[STORAGE] Loaded cached R2 manifest successfully.")
-        except Exception as e:
-            logger.warning(f"[STORAGE] Failed to load cached manifest: {e}")
-
-    def _bootstrap_from_local_files(self):
-        """Bootstrap accurate counts from local files at startup (conference parquet, LanceDB)."""
-        # Conference and landmark papers from local silver parquet
-        try:
-            cvf_silver = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
-            or_silver = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
-            tier1_silver = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
-            tier2_silver = settings.DATA_DIR / "silver" / "tier2" / "near_past_papers.parquet"
-            conf_count = 0
-            conf_bytes = 0
-            import pyarrow.parquet as pq
-            if cvf_silver.exists():
-                meta = pq.read_metadata(cvf_silver)
-                conf_count += meta.num_rows
-                conf_bytes += cvf_silver.stat().st_size
-            if or_silver.exists():
-                meta = pq.read_metadata(or_silver)
-                conf_count += meta.num_rows
-                conf_bytes += or_silver.stat().st_size
-            if tier1_silver.exists():
-                meta = pq.read_metadata(tier1_silver)
-                conf_count += meta.num_rows
-                conf_bytes += tier1_silver.stat().st_size
-            if tier2_silver.exists():
-                meta = pq.read_metadata(tier2_silver)
-                conf_count += meta.num_rows
-                conf_bytes += tier2_silver.stat().st_size
-            if conf_count > 0:
-                self.base_conferences_count = conf_count
-                self.base_conferences_bytes = max(conf_bytes, self.base_conferences_bytes)
-                logger.info(f"[STORAGE] Bootstrap conferences & landmarks from local parquet: {conf_count} rows")
-        except Exception as e:
-            logger.warning(f"[STORAGE] Bootstrap conferences error: {e}")
-
-        # Gold vectors from local LanceDB (only update if production table has more than calibrated baseline)
-        try:
-            from src.indexing.lancedb_manager import LanceDBManager
-            l_mgr = LanceDBManager()
-            openreviewCount=self.base_openreview_count,
-            openreviewSizeBytes=self.base_openreview_bytes,
-            cvfCount=self.base_cvf_count,
-            cvfSizeBytes=self.base_cvf_bytes,
-            silverTables=[
-                "papers.parquet",
-                "year=2026/papers.parquet",
-                "cvf/cvpr2024.parquet",
-                "openreview/openreview_all.parquet",
-                "tier1/landmark_papers.parquet",
-                "tier2/near_past_papers.parquet",
-            ],
         except Exception:
             pass
 
@@ -258,10 +239,6 @@ class StorageService:
                     "arxiv_html_bytes": self.base_arxiv_html_bytes,
                     "openalex_count": self.base_openalex_count,
                     "openalex_bytes": self.base_openalex_bytes,
-                    "openreview_count": self.base_openreview_count,
-                    "openreview_bytes": self.base_openreview_bytes,
-                    "cvf_count": self.base_cvf_count,
-                    "cvf_bytes": self.base_cvf_bytes,
                     "backup_gold_bytes": self.base_backup_gold_bytes,
                     "conferences_count": self.base_conferences_count,
                     "conferences_bytes": self.base_conferences_bytes,
@@ -286,8 +263,6 @@ class StorageService:
             arxiv_bytes = 0
             openalex_count = 0
             openalex_bytes = 0
-            openreview_bytes = 0
-            cvf_bytes = 0
             silver_bytes = 0
             backup_gold_bytes = 0
 
@@ -306,10 +281,6 @@ class StorageService:
                     elif k.startswith("bronze/openalex/"):
                         openalex_count += 1
                         openalex_bytes += sz
-                    elif k.startswith("bronze/openreview/"):
-                        openreview_bytes += sz
-                    elif k.startswith("bronze/cvf/"):
-                        cvf_bytes += sz
                     elif k.startswith("silver/"):
                         silver_bytes += sz
                         if k.startswith("silver/tier2/fulltext_papers_shard") and k.endswith(".parquet"):
@@ -353,10 +324,6 @@ class StorageService:
             if openalex_count > 0:
                 self.base_openalex_count = openalex_count
                 self.base_openalex_bytes = openalex_bytes
-            if openreview_bytes > 0:
-                self.base_openreview_bytes = openreview_bytes
-            if cvf_bytes > 0:
-                self.base_cvf_bytes = cvf_bytes
             if backup_gold_bytes > 0:
                 self.base_backup_gold_bytes = backup_gold_bytes
 
@@ -380,14 +347,14 @@ class StorageService:
         delta_ingested = streaming_service.session_ingested
         delta_bytes = streaming_service.accumulated_bytes_delta
 
-        # Check actual live LanceDB vector count if available (only if larger than calibrated baseline)
+        # Check actual live LanceDB vector count if available
         manifest_dirty = False
         try:
             from src.indexing.lancedb_manager import LanceDBManager
             l_mgr = LanceDBManager()
             tbl = l_mgr.db.open_table("scientific_papers_gold")
             live_rows = len(tbl)
-            if live_rows > self.base_active_gold_vectors:
+            if live_rows > 0 and live_rows != self.base_active_gold_vectors:
                 self.base_active_gold_vectors = live_rows
                 manifest_dirty = True
         except Exception:
@@ -432,8 +399,6 @@ class StorageService:
             + self.base_arxiv_batches_count
             + self.base_conferences_count
             + self.base_openalex_count
-            + self.base_openreview_count
-            + self.base_cvf_count
             + self.base_silver_count
         )
         active_bytes = (
@@ -441,8 +406,6 @@ class StorageService:
             + self.base_arxiv_batches_bytes
             + self.base_conferences_bytes
             + self.base_openalex_bytes
-            + self.base_openreview_bytes
-            + self.base_cvf_bytes
             + self.base_silver_bytes
             + active_gold_bytes
         )
@@ -463,12 +426,6 @@ class StorageService:
             openalexCount=self.base_openalex_count,
             openalexSizeBytes=self.base_openalex_bytes,
             openalexSizeGb=round(self.base_openalex_bytes / (1024**3), 3),
-            openreviewCount=self.base_openreview_count,
-            openreviewSizeBytes=self.base_openreview_bytes,
-            openreviewSizeMb=round(self.base_openreview_bytes / (1024**2), 2),
-            cvfCount=self.base_cvf_count,
-            cvfSizeBytes=self.base_cvf_bytes,
-            cvfSizeMb=round(self.base_cvf_bytes / (1024**2), 2),
             silverParquetCount=self.base_silver_count,
             silverParquetSizeBytes=self.base_silver_bytes,
             silverParquetSizeMb=round(self.base_silver_bytes / (1024**2), 2),
@@ -479,23 +436,21 @@ class StorageService:
             sourceBreakdown=source_breakdown,
         )
 
-        # 2. Gold Vector Lakehouse metrics (LanceDB IVF-PQ index & 164,750 embeddings on R2)
-        gold_vector_objects = self.base_backup_gold_count  # 85 objects
-        gold_vector_bytes = self.base_backup_gold_bytes    # 3,476,381,674 bytes
-        gold_vector_gb = round(gold_vector_bytes / (1024**3), 3)
+        # 2. Disaster Recovery Backups metrics (Cold replica on R2)
+        backup_objects = self.base_backup_gold_count + self.base_mining_count
+        backup_bytes = self.base_backup_gold_bytes + self.base_mining_bytes
+        backup_gb = round(backup_bytes / (1024**3), 3)
 
-        gold_vector_lakehouse = GoldVectorLakehouseDto(
-            totalObjects=gold_vector_objects,
-            totalSizeBytes=gold_vector_bytes,
-            totalSizeGb=gold_vector_gb,
-            vectorCount=self.base_active_gold_vectors,
-            description="Gold Layer Vector Lakehouse (LanceDB IVF-PQ Index & 164,750 Embeddings)",
+        backup_storage = BackupStorageDto(
+            totalObjects=self.base_backup_gold_count,
+            totalSizeBytes=self.base_backup_gold_bytes,
+            totalSizeGb=backup_gb,
+            description="Cloud Disaster Recovery LanceDB Snapshots & Vector Backups on R2",
         )
-        backup_storage = gold_vector_lakehouse
 
         # 3. Total Physical Bucket metrics (calibrated to verified R2 physical cache)
-        total_objects = active_objects + gold_vector_objects
-        total_bytes = active_bytes + gold_vector_bytes
+        total_objects = active_objects + backup_objects
+        total_bytes = active_bytes + backup_bytes
         phys_total_objects = getattr(self, "cached_total_objects", total_objects)
         phys_total_bytes = getattr(self, "cached_total_bytes", total_bytes)
         phys_total_gb = getattr(self, "cached_total_size_gb", 12.18)
@@ -514,28 +469,22 @@ class StorageService:
         )
 
         # 4. Detailed Zones DTO
-        bronze_count = (
-            arxiv_html_count
-            + self.base_arxiv_batches_count
-            + self.base_conferences_count
-            + self.base_openreview_count
-            + self.base_cvf_count
-        )
-        bronze_bytes = (
-            arxiv_html_bytes
-            + self.base_arxiv_batches_bytes
-            + self.base_conferences_bytes
-            + self.base_openreview_bytes
-            + self.base_cvf_bytes
-        )
+        bronze_count = arxiv_html_count + self.base_arxiv_batches_count + self.base_conferences_count
+        bronze_bytes = arxiv_html_bytes + self.base_arxiv_batches_bytes + self.base_conferences_bytes
 
         zones = StorageZonesDto(
             bronzeCount=bronze_count,
             bronzeSizeBytes=bronze_bytes,
             openalexCount=self.base_openalex_count,
             openalexSizeBytes=self.base_openalex_bytes,
-            sourceBreakdown=source_breakdown,
-            last_synced=getattr(self, "last_synced", "2026-10-13 06:38:53"),
+            silverTables=[
+                "papers.parquet",
+                "year=2026/papers.parquet",
+                "cvf/cvpr2024.parquet",
+                "openreview/openreview_all.parquet",
+                "tier1/landmark_papers.parquet",
+                "tier2/near_past_papers.parquet",
+            ],
             silverSizeBytes=self.base_silver_bytes,
             goldTables=["scientific_papers_gold.lance", "cvf/cvpr2024_gold.parquet", "openreview/openreview_gold.parquet"],
             goldChunkCount=active_gold_vectors,
@@ -555,11 +504,10 @@ class StorageService:
             zones=zones,
             remoteIndicesReady=True,
             activeLakehouse=active_lakehouse,
-            goldVectorLakehouse=gold_vector_lakehouse,
             backupStorage=backup_storage,
             totalBucket=total_bucket,
             sourceBreakdown=source_breakdown,
-            last_synced=getattr(self, "last_synced", "2026-10-13 06:38:53"),
+            last_synced=getattr(self, "last_synced", "2026-10-09 12:15:19"),
         )
 
 

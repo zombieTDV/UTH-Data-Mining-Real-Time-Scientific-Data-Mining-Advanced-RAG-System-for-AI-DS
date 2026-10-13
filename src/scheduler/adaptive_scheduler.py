@@ -76,8 +76,7 @@ SCHEDULE_CONFIGS = {
         "cron_hour": 0,
         "cron_minute": 10,
         "default_limit": 150,
-        "description": "Harvests global metadata and citation graph with reconstructed abstracts",
-    }    },
+    },
     "cvf": {
         "name": "CVF Open Access (CVPR / ICCV)",
         "frequency": "Daily at 00:10 VN (17:10 UTC)",
