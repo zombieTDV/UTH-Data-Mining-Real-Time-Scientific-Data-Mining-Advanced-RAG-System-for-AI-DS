@@ -95,6 +95,8 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         sync_r2: bool = False,
         shard_index: Optional[int] = None,
         total_shards: int = 1,
+        landmark_mode: bool = False,
+        landmark_metadata_dir: Optional[str] = None,
     ):
         self.target_papers = target_papers
         self.batch_embed_size = batch_embed_size
@@ -102,13 +104,22 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         self.sync_r2 = sync_r2
         self.shard_index = shard_index
         self.total_shards = max(total_shards, 1)
+        self.landmark_mode = landmark_mode
+        self.landmark_metadata_dir = Path(landmark_metadata_dir) if landmark_metadata_dir else None
 
         # Storage paths
-        self.silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier2"
+        if self.landmark_mode:
+            self.silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier1"
+            shard_suffix = f"_shard{self.shard_index}" if self.shard_index is not None else ""
+            self.silver_parquet_path = self.silver_dir / f"landmark_html_papers{shard_suffix}.parquet"
+            self.r2_silver_key = f"silver/tier1/landmark_html_papers{shard_suffix}.parquet"
+        else:
+            self.silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier2"
+            shard_suffix = f"_shard{self.shard_index}" if self.shard_index is not None else ""
+            self.silver_parquet_path = self.silver_dir / f"html_papers{shard_suffix}.parquet"
+            self.r2_silver_key = f"silver/tier2/html_papers{shard_suffix}.parquet"
+
         self.silver_dir.mkdir(parents=True, exist_ok=True)
-        shard_suffix = f"_shard{self.shard_index}" if self.shard_index is not None else ""
-        self.silver_parquet_path = self.silver_dir / f"html_papers{shard_suffix}.parquet"
-        self.r2_silver_key = f"silver/tier2/html_papers{shard_suffix}.parquet"
 
         self.db_path = settings.ROOT_DIR / "data" / "gold" / "lancedb"
         self.db_path.mkdir(parents=True, exist_ok=True)
@@ -142,6 +153,17 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         """Scans local Silver parquets and LanceDB to avoid re-crawling existing papers."""
         seen: Set[str] = set()
 
+        if self.landmark_mode:
+            # In landmark mode, check if already harvested into landmark_html_papers parquet
+            for p in self.silver_dir.glob("landmark_html_papers*.parquet"):
+                try:
+                    df = pd.read_parquet(p, columns=["paper_id"])
+                    seen.update(df["paper_id"].astype(str))
+                except Exception:
+                    pass
+            logger.info("[FILTER CACHE] Landmark mode: loaded %d pre-existing landmark HTML IDs.", len(seen))
+            return seen
+
         # 1. From Silver Fulltext Parquets (excluding metadata pools like near_past_papers)
         for p in self.silver_dir.glob("*.parquet"):
             if "near_past" in p.name:
@@ -164,8 +186,152 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         logger.info("[FILTER CACHE] Loaded %d pre-existing paper IDs across Silver & Gold.", len(seen))
         return seen
 
+    def _load_landmark_candidates(self) -> List[Dict[str, Any]]:
+        """Curates iconic AI Hall of Fame papers and extracts arXiv papers from Strategy B raw metadata."""
+        logger.info("[LANDMARK MODE] Curating iconic landmark papers and extracting arXiv links from Strategy B...")
+
+        # 1. Iconic Core AI Hall of Fame papers with arXiv IDs
+        CORE_HALL_OF_FAME = [
+            {"paper_id": "1706.03762", "title": "Attention Is All You Need", "primary_category": "cs.CL", "cite_count": 26917},
+            {"paper_id": "1512.03385", "title": "Deep Residual Learning for Image Recognition", "primary_category": "cs.CV", "cite_count": 180000},
+            {"paper_id": "1810.04805", "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding", "primary_category": "cs.CL", "cite_count": 33900},
+            {"paper_id": "1406.2661", "title": "Generative Adversarial Networks", "primary_category": "stat.ML", "cite_count": 65000},
+            {"paper_id": "2006.11239", "title": "Denoising Diffusion Probabilistic Models", "primary_category": "cs.LG", "cite_count": 15000},
+            {"paper_id": "2112.10752", "title": "High-Resolution Image Synthesis with Latent Diffusion Models", "primary_category": "cs.CV", "cite_count": 12000},
+            {"paper_id": "2106.09685", "title": "LoRA: Low-Rank Adaptation of Large Language Models", "primary_category": "cs.CL", "cite_count": 9500},
+            {"paper_id": "2205.14135", "title": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness", "primary_category": "cs.LG", "cite_count": 3200},
+            {"paper_id": "2005.14165", "title": "Language Models are Few-Shot Learners", "primary_category": "cs.CL", "cite_count": 25000},
+            {"paper_id": "2103.00020", "title": "Learning Transferable Visual Models From Natural Language Supervision", "primary_category": "cs.CV", "cite_count": 22000},
+            {"paper_id": "1608.06993", "title": "Densely Connected Convolutional Networks", "primary_category": "cs.CV", "cite_count": 45600},
+            {"paper_id": "2103.14030", "title": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows", "primary_category": "cs.CV", "cite_count": 32900},
+            {"paper_id": "1703.06870", "title": "Mask R-CNN", "primary_category": "cs.CV", "cite_count": 29700},
+            {"paper_id": "1612.03144", "title": "Feature Pyramid Networks for Object Detection", "primary_category": "cs.CV", "cite_count": 29800},
+            {"paper_id": "1708.02002", "title": "Focal Loss for Dense Object Detection", "primary_category": "cs.CV", "cite_count": 27600},
+            {"paper_id": "1409.0473", "title": "Neural Machine Translation by Jointly Learning to Align and Translate", "primary_category": "cs.CL", "cite_count": 30000},
+            {"paper_id": "1409.1556", "title": "Very Deep Convolutional Networks for Large-Scale Image Recognition", "primary_category": "cs.CV", "cite_count": 100000},
+            {"paper_id": "1506.01497", "title": "Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks", "primary_category": "cs.CV", "cite_count": 60000},
+            {"paper_id": "1704.04861", "title": "MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications", "primary_category": "cs.CV", "cite_count": 25000},
+            {"paper_id": "1910.10683", "title": "Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer", "primary_category": "cs.CL", "cite_count": 18000},
+            {"paper_id": "2302.13971", "title": "LLaMA: Open and Efficient Foundation Language Models", "primary_category": "cs.CL", "cite_count": 14000},
+            {"paper_id": "2307.09288", "title": "Llama 2: Open Foundation and Fine-Tuned Chat Models", "primary_category": "cs.CL", "cite_count": 12000},
+            {"paper_id": "2001.08361", "title": "Scaling Laws for Neural Language Models", "primary_category": "cs.LG", "cite_count": 6000},
+            {"paper_id": "2203.15556", "title": "Training Compute-Optimal Large Language Models", "primary_category": "cs.CL", "cite_count": 4500},
+            {"paper_id": "1706.03741", "title": "Deep Complex Networks", "primary_category": "cs.LG", "cite_count": 1200},
+            {"paper_id": "1905.11946", "title": "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks", "primary_category": "cs.CV", "cite_count": 17000},
+            {"paper_id": "2010.11929", "title": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale", "primary_category": "cs.CV", "cite_count": 30000},
+            {"paper_id": "1707.06347", "title": "Proximal Policy Optimization Algorithms", "primary_category": "cs.LG", "cite_count": 16000},
+            {"paper_id": "1801.06146", "title": "Universal Language Model Fine-tuning for Text Classification", "primary_category": "cs.CL", "cite_count": 7000},
+            {"paper_id": "1609.02907", "title": "Semi-Supervised Classification with Graph Convolutionn Networks", "primary_category": "cs.LG", "cite_count": 28000},
+            {"paper_id": "1710.10903", "title": "Graph Attention Networks", "primary_category": "cs.LG", "cite_count": 19000},
+            {"paper_id": "1802.05365", "title": "Deep contextualized word representations", "primary_category": "cs.CL", "cite_count": 13000},
+            {"paper_id": "1706.02413", "title": "Self-Normalizing Neural Networks", "primary_category": "cs.LG", "cite_count": 3500},
+            {"paper_id": "1606.08415", "title": "Gaussian Error Linear Units (GELUs)", "primary_category": "cs.LG", "cite_count": 6500},
+            {"paper_id": "1607.06450", "title": "Layer Normalization", "primary_category": "stat.ML", "cite_count": 8000},
+            {"paper_id": "1502.03167", "title": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift", "primary_category": "cs.LG", "cite_count": 55000},
+            {"paper_id": "1412.6980", "title": "Adam: A Method for Stochastic Optimization", "primary_category": "cs.LG", "cite_count": 165000},
+        ]
+
+        candidates_map: Dict[str, Dict[str, Any]] = {}
+
+        # 2. Add Hall of Fame items
+        for p in CORE_HALL_OF_FAME:
+            aid = p["paper_id"]
+            if aid not in self.existing_paper_ids:
+                candidates_map[aid] = {
+                    "paper_id": aid,
+                    "title": p["title"],
+                    "primary_category": p.get("primary_category", "cs.AI"),
+                    "categories": [p.get("primary_category", "cs.AI")],
+                    "source": "arxiv",
+                    "cite_count": float(p.get("cite_count", 0)),
+                }
+
+        # 3. Extract arXiv links and rich metadata from Strategy B raw_metadata JSON files
+        raw_dir = self.landmark_metadata_dir or Path(r"C:\Users\TDV\Downloads\Telegram Desktop\strategy_b\strategy_b\raw_metadata")
+        if raw_dir.exists():
+            json_files = sorted(raw_dir.glob("*.json"))
+            logger.info("[METADATA SCAN] Scanning %d JSON files in %s...", len(json_files), raw_dir)
+            for jf in json_files:
+                try:
+                    with open(jf, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        records = data if isinstance(data, list) else data.get("results", [])
+                        for r in records:
+                            all_urls = [str(r.get("id", ""))]
+                            locs = r.get("locations", []) or []
+                            for loc in locs:
+                                if loc.get("pdf_url"):
+                                    all_urls.append(loc["pdf_url"])
+                                if loc.get("landing_page_url"):
+                                    all_urls.append(loc["landing_page_url"])
+                            ids_dict = r.get("ids", {}) or {}
+                            for k, v in ids_dict.items():
+                                if isinstance(v, str):
+                                    all_urls.append(v)
+
+                            for u in all_urls:
+                                m = re.search(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})", str(u))
+                                if m:
+                                    aid = m.group(1)
+                                    if aid in self.existing_paper_ids:
+                                        break
+
+                                    authors = []
+                                    for a in r.get("authorships", []):
+                                        auth = a.get("author", {})
+                                        name = auth.get("display_name")
+                                        if name:
+                                            authors.append(name)
+
+                                    cats = ["cs.AI"]
+                                    for c in r.get("concepts", []):
+                                        cname = c.get("display_name")
+                                        if cname:
+                                            cats.append(cname)
+
+                                    cand_record = {
+                                        "paper_id": aid,
+                                        "title": r.get("title", "") or candidates_map.get(aid, {}).get("title", ""),
+                                        "authors": authors or candidates_map.get(aid, {}).get("authors", []),
+                                        "primary_category": "cs.AI",
+                                        "categories": cats[:5],
+                                        "doi": r.get("doi") or f"https://doi.org/{r.get('id', '')}",
+                                        "published_date": str(r.get("publication_year", "")),
+                                        "cite_count": float(r.get("cited_by_count", 0.0)),
+                                        "source": "arxiv",
+                                        "openalex_id": str(r.get("id", "")),
+                                    }
+                                    candidates_map[aid] = cand_record
+                                    break
+                except Exception as ex:
+                    logger.warning("[METADATA PARSE NOTE] %s: %s", jf.name, ex)
+
+        # Sort: Core Hall of Fame first, then remaining sorted by cite_count descending
+        core_ids = set(p["paper_id"] for p in CORE_HALL_OF_FAME)
+        core_list = [candidates_map[aid] for aid in [p["paper_id"] for p in CORE_HALL_OF_FAME] if aid in candidates_map]
+        remaining = [v for k, v in candidates_map.items() if k not in core_ids]
+        remaining.sort(key=lambda x: x.get("cite_count", 0.0), reverse=True)
+
+        final_candidates = core_list + remaining
+
+        # Sharding support
+        if self.total_shards > 1 and self.shard_index is not None:
+            final_candidates = [
+                c for c in final_candidates
+                if int(hashlib.md5(c["paper_id"].encode("utf-8")).hexdigest(), 16) % self.total_shards == self.shard_index
+            ]
+
+        logger.info(
+            "[LANDMARK CANDIDATES READY] Prepared %d landmark candidate papers (Top Core: %d, OpenAlex Landmarks: %d).",
+            len(final_candidates), len(core_list), len(remaining)
+        )
+        return final_candidates
+
     def load_candidate_pool(self) -> List[Dict[str, Any]]:
-        """Extracts high-priority candidates from near_past_papers or arXiv API."""
+        """Extracts high-priority candidates from near_past_papers, landmark metadata, or arXiv API."""
+        if self.landmark_mode:
+            return self._load_landmark_candidates()
+
         candidates = []
         near_past_path = settings.ROOT_DIR / "data" / "silver" / "tier2" / "near_past_papers.parquet"
 
@@ -360,8 +526,9 @@ class StreamingHTMLHarvestAndEmbedPipeline:
                 "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "cite_count": float(paper.get("cite_count", 0.0) or 0.0),
                 "source": "arxiv",
-                "tier": "tier2",
-                "content_origin": "arxiv_html5_stream",
+                "tier": "tier1_landmark" if self.landmark_mode else "tier2",
+                "content_origin": "arxiv_html5_landmark" if self.landmark_mode else "arxiv_html5_stream",
+                "openalex_id": paper.get("openalex_id"),
             }
         except Exception:
             return None
@@ -430,8 +597,10 @@ class StreamingHTMLHarvestAndEmbedPipeline:
             chunks = self.chunker.chunk_paper(paper)
             for c in chunks:
                 c["source"] = "arxiv_html5"
-                c["tier"] = "tier2"
-                c["content_origin"] = "streaming_html_chunker"
+                c["tier"] = "tier1_landmark" if self.landmark_mode else "tier2"
+                c["content_origin"] = "streaming_html_landmark_chunker" if self.landmark_mode else "streaming_html_chunker"
+                if paper.get("openalex_id"):
+                    c["openalex_id"] = paper["openalex_id"]
                 pending_chunks.append(c)
 
             self.papers_embedded += 1
@@ -465,6 +634,22 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         if not chunks:
             return
 
+        # In landmark mode, delete any stale abstract-only chunks for these papers first
+        if self.landmark_mode:
+            pids = set(str(c["paper_id"]) for c in chunks)
+            for pid in pids:
+                try:
+                    self.table.delete(f"paper_id = '{pid}'")
+                except Exception:
+                    pass
+            oa_ids = set(str(c.get("openalex_id", "")).split("/")[-1] for c in chunks if c.get("openalex_id"))
+            for oa_id in oa_ids:
+                if oa_id:
+                    try:
+                        self.table.delete(f"paper_id = 'oa_{oa_id}'")
+                    except Exception:
+                        pass
+
         texts = [c.get("context_text") or c.get("text", "") for c in chunks]
         vectors = self.embedder.embed_batch(texts, batch_size=self.batch_embed_size)
 
@@ -481,6 +666,9 @@ class StreamingHTMLHarvestAndEmbedPipeline:
                 "text": str(c.get("text", "")),
                 "context_text": str(c.get("context_text", "")),
                 "word_count": int(c.get("word_count", len(c.get("text", "").split()))),
+                "source": str(c.get("source", "arxiv_html5")),
+                "tier": str(c.get("tier", "tier1_landmark" if self.landmark_mode else "tier2")),
+                "content_origin": str(c.get("content_origin", "streaming_html_chunker")),
                 "vector": vec.tolist() if hasattr(vec, "tolist") else list(vec),
             }
             insert_payload.append(rec)
@@ -529,7 +717,9 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         """Launches producer and consumer threads concurrently."""
         logger.info("=" * 80)
         logger.info("STARTING STREAMING HTML HARVEST & GPU EMBED PIPELINE")
-        logger.info("Target: %d papers | Hardware: %s", self.target_papers, self.embedder.device)
+        logger.info("Mode: %s | Target: %d papers | Hardware: %s",
+                    "LANDMARK (Tier 1 Full-Text)" if self.landmark_mode else "STREAMING (Tier 2)",
+                    self.target_papers, self.embedder.device)
         logger.info("=" * 80)
 
         candidates = self.load_candidate_pool()
@@ -546,6 +736,16 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         producer_thread.join()
         consumer_thread.join()
 
+        if self.sync_r2 and self.r2:
+            try:
+                logger.info("[R2 SYNC] Synchronizing Gold LanceDB lakehouse to Cloudflare R2...")
+                from src.indexing.lancedb_manager import LanceDBManager
+                mgr = LanceDBManager(db_path=self.db_path, r2_client=self.r2)
+                sync_res = mgr.sync_to_r2()
+                logger.info("[R2 SYNC] Gold LanceDB sync result: %s", sync_res)
+            except Exception as e:
+                logger.warning("[R2 SYNC NOTE] Gold LanceDB sync note: %s", e)
+
         logger.info("=" * 80)
         logger.info("PIPELINE COMPLETED: %d papers harvested, %d papers embedded (%d vectors created).",
                     self.papers_harvested, self.papers_embedded, self.chunks_embedded)
@@ -561,6 +761,13 @@ def main():
     parser.add_argument("--sync-r2", action="store_true", help="Synchronize Silver and Gold layers to Cloudflare R2.")
     parser.add_argument("--shard-index", type=int, default=None, help="Shard index for distributed multi-machine execution.")
     parser.add_argument("--total-shards", type=int, default=1, help="Total shards across peer machines.")
+    parser.add_argument("--landmark-mode", action="store_true", help="Harvest and vectorize seminal Tier 1 AI landmark papers with HTML5 LaTeX math.")
+    parser.add_argument(
+        "--landmark-metadata-dir",
+        type=str,
+        default=r"C:\Users\TDV\Downloads\Telegram Desktop\strategy_b\strategy_b\raw_metadata",
+        help="Path to directory containing Strategy B raw OpenAlex JSON metadata.",
+    )
     args = parser.parse_args()
 
     pipeline = StreamingHTMLHarvestAndEmbedPipeline(
@@ -570,6 +777,8 @@ def main():
         sync_r2=args.sync_r2,
         shard_index=args.shard_index,
         total_shards=args.total_shards,
+        landmark_mode=args.landmark_mode,
+        landmark_metadata_dir=args.landmark_metadata_dir,
     )
     pipeline.execute()
 
