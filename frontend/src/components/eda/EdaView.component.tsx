@@ -6,6 +6,7 @@ import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom, useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { MiningTelemetryStepper } from '../common';
+import { ThreeLensesDiagnosticView } from './ThreeLensesDiagnosticView.component';
 
 export type DeckType = 'explorer' | 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
 
@@ -402,14 +403,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
   // Hover Tooltip States for Charts
-  const [hoveredScatterPoint, setHoveredScatterPoint] = useState<{ point: ScatterPaperPoint; x: number; y: number } | null>(null);
   const [hoveredBar, setHoveredBar] = useState<{ category: string; count: number; math: number; x: number; y: number } | null>(null);
   const [hoveredTimelineYear, setHoveredTimelineYear] = useState<{ year: string; count: number; pct: string; x: number; y: number } | null>(null);
 
   // SVG Chart Refs for Vector Export
   const comboSvgRef = useRef<SVGSVGElement | null>(null);
   const timelineSvgRef = useRef<SVGSVGElement | null>(null);
-  const scatterSvgRef = useRef<SVGSVGElement | null>(null);
   const donutSvgRef = useRef<SVGSVGElement | null>(null);
 
   // Advanced Chart Insight States
@@ -429,8 +428,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   // Ergonomic Visual & Viewport Expansion States
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
-  const [isLensActive, setIsLensActive] = useState<boolean>(false);
-  const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
 
   // Pan & Zoom Controllers for Interactive SVG Charts
   const comboPanZoom = useSvgPanZoom({
@@ -441,11 +438,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   const timelinePanZoom = useSvgPanZoom({
     nominalWidth: 460,
     nominalHeight: 230,
-  });
-
-  const scatterPanZoom = useSvgPanZoom({
-    nominalWidth: 940,
-    nominalHeight: 330,
   });
 
 
@@ -1283,7 +1275,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           {[
             { id: 'explorer' as DeckType, label: language === 'vi' ? 'TRA CỨU BÀI BÁO & DUCKDB' : 'PAPER EXPLORER & DUCKDB', keyNum: '1' },
             { id: 'combo' as DeckType, label: language === 'vi' ? 'COMBO & TIẾN TRÌNH' : 'COMBO & TIMELINE', keyNum: '2' },
-            { id: 'scatter' as DeckType, label: language === 'vi' ? 'BIỂU ĐỒ PHÂN TÁN 2D' : '2D SCATTER PLOT', keyNum: '3' },
+            { id: 'scatter' as DeckType, label: language === 'vi' ? 'CHẨN ĐOÁN 3 THẤU KÍNH' : '3-LENS DIAGNOSTIC', keyNum: '3' },
             { id: 'taxonomy' as DeckType, label: language === 'vi' ? 'PHÂN LOẠI & HEATMAP' : 'TAXONOMY & HEATMAP', keyNum: '4' },
             { id: 'authors' as DeckType, label: language === 'vi' ? 'TÁC GIẢ & PHÂN VỊ' : 'TOP AUTHORS & QUANTILES', keyNum: '5' },
             { id: 'correlations' as DeckType, label: language === 'vi' ? 'TƯƠNG QUAN & ANOVA' : 'CORRELATIONS & ANOVA', keyNum: '6' },
@@ -2340,509 +2332,19 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         {/* SUB-DECK 2: 2D INTERACTIVE SCATTER PLOT                      */}
         {/* ------------------------------------------------------------ */}
         {activeDeck === 'scatter' && (
-          <div
-            style={{
-              backgroundColor: themeStyles.cardBg,
-              borderRadius: '8px',
-              border: `1px solid ${themeStyles.border}`,
-              padding: '10px 14px',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              height: '100%',
-              minHeight: 0,
-              ...(isTheaterMode
-                ? {
-                    position: 'fixed',
-                    top: '52px',
-                    left: '58px',
-                    right: 0,
-                    bottom: '32px',
-                    zIndex: 45,
-                    backgroundColor: themeStyles.cardBg,
-                    padding: '16px 20px',
-                  }
-                : {}),
+          <ThreeLensesDiagnosticView
+            theme={theme}
+            isTheaterMode={isTheaterMode}
+            onToggleTheater={() => setIsTheaterMode((prev) => !prev)}
+            diagnosticData={data?.diagnostic_3lenses}
+            fallbackPoints={filteredScatterPoints}
+            onSelectPaper={(pt) => setSelectedPaperForDrawer(pt)}
+            selectedPaperId={selectedPaperForDrawer?.id}
+            onShowToast={(msg) => {
+              setFeedbackToast(msg);
+              setTimeout(() => setFeedbackToast(null), 2500);
             }}
-          >
-            {/* Row 1: Title + Viewport Controls (Two-Tier Swiss Architecture) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '6px', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-bronze)', flexShrink: 0 }}>
-                  [EDA-03]
-                </span>
-                <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {language === 'vi' ? 'MẬT ĐỘ TOÁN vs. ĐỘ DÀI TỪ VỰNG (2D SCATTER)' : 'MATH DENSITY vs. WORD COUNT (2D SCATTER)'}
-                </h3>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                <button
-                  type="button"
-                  onClick={() => setIsTheaterMode((prev) => !prev)}
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    backgroundColor: isTheaterMode ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : (isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'),
-                    color: isTheaterMode ? '#f59e0b' : themeStyles.textSecondary,
-                    border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
-                    cursor: 'pointer',
-                  }}
-                  title={language === 'vi' ? 'Phóng đại toàn màn hình 100% (Theater Mode)' : 'Fullscreen 100% (Theater Mode)'}
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    {isTheaterMode ? (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="4 14 10 14 10 20" />
-                        <polyline points="20 10 14 10 14 4" />
-                        <line x1="14" y1="10" x2="21" y2="3" />
-                        <line x1="3" y1="21" x2="10" y2="14" />
-                      </svg>
-                    ) : (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="15 3 21 3 21 9" />
-                        <polyline points="9 21 3 21 3 15" />
-                        <line x1="21" y1="3" x2="14" y2="10" />
-                        <line x1="3" y1="21" x2="10" y2="14" />
-                      </svg>
-                    )}
-                    <span>
-                      {isTheaterMode
-                        ? (language === 'vi' ? 'Thu Nhỏ' : 'Minimize')
-                        : (language === 'vi' ? 'Rạp Hát' : 'Theater')}
-                    </span>
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Row 2: Metadata & Interactive Control Deck */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '4px 8px',
-              borderRadius: '5px',
-              backgroundColor: 'var(--bg-canvas)',
-              border: '1px solid var(--border-subtle)',
-              marginBottom: '8px',
-              flexShrink: 0,
-              flexWrap: 'wrap',
-              gap: '8px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span className="telemetry-chip" style={{ color: '#ea580c' }}>
-                  {filteredScatterPoints.length} {language === 'vi' ? 'BÀI KHẢO SÁT' : 'SAMPLED PAPERS'} &bull; Q1: 745 eq/p
-                </span>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>{language === 'vi' ? 'Phân vị:' : 'Quadrant:'}</span>
-                {[
-                  { id: 'ALL' as const, label: language === 'vi' ? 'Tất cả' : 'All' },
-                  { id: 'Q1' as const, label: language === 'vi' ? 'Q1 Lý thuyết (>300 eq)' : 'Q1 Theory (>300 eq)' },
-                  { id: 'Q2' as const, label: language === 'vi' ? 'Q2 Khảo luận (>6k w)' : 'Q2 Comprehensive (>6k w)' },
-                  { id: 'Q3' as const, label: language === 'vi' ? 'Q3 Ngắn' : 'Q3 Short' },
-                  { id: 'Q4' as const, label: language === 'vi' ? 'Q4 Thực nghiệm LLMs' : 'Q4 Empirical LLMs' },
-                ].map((q) => {
-                  const isQActive = selectedQuadrant === q.id;
-                  return (
-                    <button
-                      key={q.id}
-                      type="button"
-                      onClick={() => setSelectedQuadrant(isQActive && q.id !== 'ALL' ? 'ALL' : q.id)}
-                      style={{
-                        padding: '2px 7px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: isQActive ? 700 : 500,
-                        backgroundColor: isQActive ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#dbeafe') : 'transparent',
-                        color: isQActive ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textMuted,
-                        border: `1px solid ${isQActive ? '#3b82f6' : themeStyles.border}`,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {q.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
-                  {[
-                    { cat: 'cs.LG', color: '#2563eb' },
-                    { cat: 'stat.ML', color: '#ea580c' },
-                    { cat: 'cs.CV', color: '#0284c7' },
-                    { cat: 'cs.AI', color: '#7c3aed' },
-                    { cat: 'cs.CL', color: '#0d9488' },
-                    { cat: 'cs.RO', color: '#f59e0b' },
-                  ].map((item) => (
-                    <span key={item.cat} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: item.color }} />
-                      <span style={{ color: themeStyles.textSecondary }}>{item.cat}</span>
-                    </span>
-                  ))}
-                </div>
-
-                <ChartToolbar
-                  theme={theme}
-                  language={language}
-                  svgRef={scatterSvgRef}
-                  filename="eda-content-depth-math-rigor-scatter"
-                  zoomLevel={scatterPanZoom.zoom}
-                  hasPannedOrZoomed={scatterPanZoom.hasPannedOrZoomed}
-                  onZoomIn={() => scatterPanZoom.zoomIn(0.25)}
-                  onZoomOut={() => scatterPanZoom.zoomOut(0.25)}
-                  onResetZoom={scatterPanZoom.resetView}
-                  isLensActive={isLensActive}
-                  onToggleLens={() => setIsLensActive((v) => !v)}
-                  isTheater={isTheaterMode}
-                  onToggleTheater={() => setIsTheaterMode((v) => !v)}
-                  csvData={filteredScatterPoints.map((p) => ({
-                    id: p.id,
-                    title: p.title,
-                    category: p.category,
-                    word_count: p.words,
-                    math_formulas: p.formulas,
-                    author: p.author,
-                  }))}
-                  onShowToast={(msg) => {
-                    setFeedbackToast(msg);
-                    setTimeout(() => setFeedbackToast(null), 2500);
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* SVG SCATTER PLOT */}
-            <div
-              {...(isLensActive ? {} : scatterPanZoom.containerProps)}
-              style={{
-                ...(isLensActive ? {} : scatterPanZoom.containerProps.style),
-                flex: 1,
-                minHeight: 0,
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              <svg
-                ref={scatterSvgRef}
-                viewBox={scatterPanZoom.viewBox}
-                preserveAspectRatio="xMidYMid meet"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  overflow: 'visible',
-                  cursor: isLensActive ? 'crosshair' : (scatterPanZoom.containerProps.style.cursor || 'default'),
-                }}
-                    onMouseMove={(e: MouseEvent<SVGSVGElement>) => {
-                      if (!isLensActive) return;
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const scaleX = 940 / rect.width;
-                      const scaleY = 330 / rect.height;
-                      setLensPos({
-                        x: (e.clientX - rect.left) * scaleX,
-                        y: (e.clientY - rect.top) * scaleY,
-                      });
-                    }}
-                    onMouseLeave={() => {
-                      setLensPos(null);
-                      setHoveredScatterPoint(null);
-                    }}
-                  >
-                    {/* Quadrant I: Heavy Math Theoretical */}
-                    <rect
-                      x="60"
-                      y="20"
-                      width="425"
-                      height="202.5"
-                      fill={selectedQuadrant === 'Q1' ? (isDark ? 'rgba(245, 158, 11, 0.22)' : 'rgba(254, 243, 199, 0.7)') : (isDark ? 'rgba(245, 158, 11, 0.08)' : 'rgba(254, 243, 199, 0.35)')}
-                      stroke={selectedQuadrant === 'Q1' ? '#f59e0b' : 'transparent'}
-                      strokeWidth="1.5"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        if (!scatterPanZoom.didDrag()) {
-                          setSelectedQuadrant(selectedQuadrant === 'Q1' ? 'ALL' : 'Q1');
-                        }
-                      }}
-                    />
-                    {/* Background Typography Watermarks for Quadrants (Zero Clashing) */}
-                    <text x="75" y="65" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#f59e0b' : '#d97706'} opacity="0.10" style={{ pointerEvents: 'none' }}>
-                      Q1
-                    </text>
-
-                    {/* Quadrant II: Foundational Monographs */}
-                    <rect
-                      x="485"
-                      y="20"
-                      width="425"
-                      height="202.5"
-                      fill={selectedQuadrant === 'Q2' ? (isDark ? 'rgba(37, 99, 235, 0.22)' : 'rgba(219, 234, 254, 0.7)') : (isDark ? 'rgba(37, 99, 235, 0.08)' : 'rgba(219, 234, 254, 0.35)')}
-                      stroke={selectedQuadrant === 'Q2' ? '#3b82f6' : 'transparent'}
-                      strokeWidth="1.5"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        if (!scatterPanZoom.didDrag()) {
-                          setSelectedQuadrant(selectedQuadrant === 'Q2' ? 'ALL' : 'Q2');
-                        }
-                      }}
-                    />
-                    <text x="880" y="65" textAnchor="end" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#60a5fa' : '#2563eb'} opacity="0.10" style={{ pointerEvents: 'none' }}>
-                      Q2
-                    </text>
-
-                    {/* Quadrant III: Short Communications */}
-                    <rect
-                      x="60"
-                      y="222.5"
-                      width="425"
-                      height="67.5"
-                      fill={selectedQuadrant === 'Q3' ? (isDark ? 'rgba(100, 116, 139, 0.25)' : 'rgba(203, 213, 225, 0.7)') : (isDark ? 'rgba(100, 116, 139, 0.08)' : 'rgba(241, 245, 249, 0.45)')}
-                      stroke={selectedQuadrant === 'Q3' ? '#94a3b8' : 'transparent'}
-                      strokeWidth="1.5"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        if (!scatterPanZoom.didDrag()) {
-                          setSelectedQuadrant(selectedQuadrant === 'Q3' ? 'ALL' : 'Q3');
-                        }
-                      }}
-                    />
-                    <text x="75" y="265" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#94a3b8' : '#64748b'} opacity="0.10" style={{ pointerEvents: 'none' }}>
-                      Q3
-                    </text>
-
-                    {/* Quadrant IV: Empirical Systems & LLMs */}
-                    <rect
-                      x="485"
-                      y="222.5"
-                      width="425"
-                      height="67.5"
-                      fill={selectedQuadrant === 'Q4' ? (isDark ? 'rgba(16, 185, 129, 0.22)' : 'rgba(209, 250, 229, 0.7)') : (isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(236, 253, 245, 0.45)')}
-                      stroke={selectedQuadrant === 'Q4' ? '#10b981' : 'transparent'}
-                      strokeWidth="1.5"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        if (!scatterPanZoom.didDrag()) {
-                          setSelectedQuadrant(selectedQuadrant === 'Q4' ? 'ALL' : 'Q4');
-                        }
-                      }}
-                    />
-                    <text x="880" y="265" textAnchor="end" fontSize="36" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#34d399' : '#059669'} opacity="0.10" style={{ pointerEvents: 'none' }}>
-                      Q4
-                    </text>
-
-                {/* Quadrant Divider Lines */}
-                <line x1="485" y1="20" x2="485" y2="290" stroke={themeStyles.axisLine} strokeDasharray="4 3" strokeWidth="1.5" />
-                <line x1="60" y1="222.5" x2="910" y2="222.5" stroke={themeStyles.axisLine} strokeDasharray="4 3" strokeWidth="1.5" />
-
-                {/* Y-Axis Grid Lines & Labels */}
-                {[0, 300, 600, 900, 1200].map((val) => {
-                  const y = 290 - (val / 1200) * 270;
-                  return (
-                    <g key={val}>
-                      <line x1="55" y1={y} x2="910" y2={y} stroke={themeStyles.gridLine} strokeWidth="1" />
-                      <text x="50" y={y + 3} textAnchor="end" fontSize="10" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                        {val} eq
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* X-Axis Grid Lines & Labels */}
-                {[0, 2000, 4000, 6000, 8000, 10000, 12000].map((val) => {
-                  const x = 60 + (val / 12000) * 850;
-                  return (
-                    <g key={val}>
-                      <line x1={x} y1="20" x2={x} y2="295" stroke={themeStyles.gridLine} strokeWidth="1" />
-                      <text x={x} y="308" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                        {val > 0 ? `${val / 1000}k` : '0'} words
-                      </text>
-                    </g>
-                  );
-                })}
-
-                <line x1="60" y1="20" x2="60" y2="290" stroke={themeStyles.axisLine} strokeWidth="1.5" />
-                <line x1="60" y1="290" x2="910" y2="290" stroke={themeStyles.axisLine} strokeWidth="1.5" />
-
-                {/* Scatter Points Circles */}
-                {filteredScatterPoints.map((pt) => {
-                  const cx = 60 + Math.min(850, (pt.words / 12000) * 850);
-                  const cy = 290 - Math.min(270, (pt.formulas / 1200) * 270);
-                  const color = getCategoryColor(pt.category);
-                  const isHovered = hoveredScatterPoint?.point.id === pt.id;
-                  const isSelectedForDrawer = selectedPaperForDrawer?.id === pt.id;
-
-                  return (
-                    <circle
-                      key={pt.id}
-                      cx={cx}
-                      cy={cy}
-                      r={isSelectedForDrawer ? '9' : isHovered ? '8' : pt.formulas > 600 ? '6.5' : '5'}
-                      fill={color}
-                      stroke={isSelectedForDrawer ? '#f59e0b' : isDark ? '#0f172a' : '#ffffff'}
-                      strokeWidth={isSelectedForDrawer ? '3' : isHovered ? '2.5' : '1.2'}
-                      opacity={isSelectedForDrawer ? 1 : isHovered ? 1 : 0.88}
-                      style={{
-                        cursor: 'pointer',
-                        transition: 'r 0.15s ease, opacity 0.15s ease',
-                      }}
-                      onClick={() => {
-                        if (!scatterPanZoom.didDrag()) {
-                          setSelectedPaperForDrawer(pt);
-                        }
-                      }}
-                      onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                        const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                        setHoveredScatterPoint({
-                          point: pt,
-                          x: rect.left + rect.width / 2,
-                          y: rect.top - 10,
-                        });
-                      }}
-                      onMouseLeave={() => setHoveredScatterPoint(null)}
-                    />
-                  );
-                })}
-
-                {/* Crosshairs Snapping & Telemetry Projections */}
-                {hoveredScatterPoint && (() => {
-                  const pt = hoveredScatterPoint.point;
-                  const cx = 60 + Math.min(850, (pt.words / 12000) * 850);
-                  const cy = 290 - Math.min(270, (pt.formulas / 1200) * 270);
-                  return (
-                    <g style={{ pointerEvents: 'none' }}>
-                      {/* Horizontal Crosshair Line to Y-Axis */}
-                      <line
-                        x1="60"
-                        y1={cy}
-                        x2={cx}
-                        y2={cy}
-                        stroke="#ea580c"
-                        strokeWidth="1.2"
-                        strokeDasharray="3 2"
-                      />
-                      {/* Formula label badge on Y axis */}
-                      <rect x="8" y={cy - 9} width="50" height="18" rx="3" fill="#ea580c" />
-                      <text x="33" y={cy + 4} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
-                        {pt.formulas} eq
-                      </text>
-
-                      {/* Vertical Crosshair Line to X-Axis */}
-                      <line
-                        x1={cx}
-                        y1={cy}
-                        x2={cx}
-                        y2="290"
-                        stroke="#2563eb"
-                        strokeWidth="1.2"
-                        strokeDasharray="3 2"
-                      />
-                      {/* Word count label badge on X axis */}
-                      <rect x={cx - 28} y="293" width="56" height="18" rx="3" fill="#2563eb" />
-                      <text x={cx} y={306} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
-                        {pt.words.toLocaleString()} w
-                      </text>
-                    </g>
-                  );
-                })()}
-
-                {/* Magnifier Lens 2.5x Tool */}
-                {isLensActive && lensPos && (
-                  <g style={{ pointerEvents: 'none' }}>
-                    <circle
-                      cx={lensPos.x}
-                      cy={lensPos.y}
-                      r="75"
-                      fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
-                      stroke="#38bdf8"
-                      strokeWidth="2.5"
-                    />
-                    <circle
-                      cx={lensPos.x}
-                      cy={lensPos.y}
-                      r="75"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.2)"
-                      strokeWidth="1"
-                    />
-                    <text
-                      x={lensPos.x}
-                      y={lensPos.y - 58}
-                      textAnchor="middle"
-                      fontSize="10"
-                      fontFamily="var(--font-mono)"
-                      fontWeight="800"
-                      fill="#38bdf8"
-                    >
-                      LENS 2.5X
-                    </text>
-                    {filteredScatterPoints.map((pt) => {
-                      const origX = 60 + Math.min(850, (pt.words / 12000) * 850);
-                      const origY = 290 - Math.min(270, (pt.formulas / 1200) * 270);
-                      const dist = Math.hypot(origX - lensPos.x, origY - lensPos.y);
-                      if (dist > 70) return null;
-                      const magX = lensPos.x + (origX - lensPos.x) * 2.2;
-                      const magY = lensPos.y + (origY - lensPos.y) * 2.2;
-                      if (Math.hypot(magX - lensPos.x, magY - lensPos.y) > 70) return null;
-                      return (
-                        <g key={`lens-${pt.id}`}>
-                          <circle
-                            cx={magX}
-                            cy={magY}
-                            r="6.5"
-                            fill={getCategoryColor(pt.category)}
-                            stroke="#ffffff"
-                            strokeWidth="2"
-                          />
-                          <text
-                            x={magX}
-                            y={magY - 8}
-                            textAnchor="middle"
-                            fontSize="10"
-                            fontFamily="var(--font-mono)"
-                            fontWeight="800"
-                            fill={themeStyles.textPrimary}
-                          >
-                            {pt.id.replace('arXiv:', '')}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </g>
-                )}
-              </svg>
-              {scatterPanZoom.hasPannedOrZoomed && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '8px',
-                    right: '8px',
-                    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
-                    border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
-                    borderRadius: '4px',
-                    padding: '2px 7px',
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    color: isDark ? '#38bdf8' : '#0284c7',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    pointerEvents: 'none',
-                    backdropFilter: 'blur(4px)',
-                    zIndex: 10,
-                  }}
-                >
-                  <span>✥</span>
-                  <span>{Math.round(scatterPanZoom.zoom * 100)}%</span>
-                  <span style={{ color: themeStyles.textMuted }}>
-                    • {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+          />
         )}
 
         {/* ------------------------------------------------------------ */}
@@ -4626,42 +4128,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       {/* ============================================================== */}
       {/* FLOATING HOVER TOOLTIPS                                        */}
       {/* ============================================================== */}
-      {hoveredScatterPoint && (
-        <div
-          style={{
-            position: 'fixed',
-            left: `${hoveredScatterPoint.x}px`,
-            top: `${hoveredScatterPoint.y}px`,
-            transform: 'translate(-50%, -100%)',
-            backgroundColor: 'var(--tooltip-bg)',
-            color: 'var(--tooltip-text)',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            boxShadow: 'var(--card-shadow)',
-            zIndex: 90,
-            pointerEvents: 'none',
-            maxWidth: '300px',
-            border: '1px solid var(--tooltip-border)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: getCategoryColor(hoveredScatterPoint.point.category) }}>
-              {hoveredScatterPoint.point.id} &bull; {hoveredScatterPoint.point.category}
-            </span>
-            <span style={{ fontSize: '10px', color: 'var(--accent-silver)' }}>
-              {language === 'vi' ? 'Click để xem chi tiết' : 'Click for details'}
-            </span>
-          </div>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '3px', lineHeight: 1.3 }}>
-            {hoveredScatterPoint.point.title}
-          </div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-            <span>{language === 'vi' ? 'Toán:' : 'Math:'} <strong style={{ color: '#ea580c' }}>{hoveredScatterPoint.point.formulas} eq</strong></span>
-            <span>{language === 'vi' ? 'Độ dài:' : 'Length:'} <strong style={{ color: 'var(--accent-silver)' }}>{hoveredScatterPoint.point.words.toLocaleString()} words</strong></span>
-          </div>
-        </div>
-      )}
-
       {hoveredBar && (
         <div
           style={{
