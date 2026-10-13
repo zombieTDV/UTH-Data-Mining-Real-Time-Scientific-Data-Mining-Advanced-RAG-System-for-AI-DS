@@ -382,13 +382,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
     const displayId = cleanId.length > 24 ? cleanId.slice(0, 22) + '…' : cleanId;
     const cleanSec = sectionTitle ? sectionTitle.replace(/^Section\s*\d+:?\s*/i, '').trim() : '';
-    const displaySec = cleanSec ? ` · ${cleanSec}` : ' · Methodology';
+    const displaySec = cleanSec ? ` · ${cleanSec}` : '';
 
     return `${prefix}:${displayId}${displaySec}`;
   };
 
   const renderInlineContent = (rawText: string): React.ReactNode[] => {
-    const tokenRegex = /((?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*[^,\]|]+(?:[|,]\s*(?:Section:\s*)?[^\]]+)?\](?:\*\*|`?)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+?`)/g;
+    const tokenRegex = /((?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*[^,\]|]+(?:[|,]\s*(?:Section:\s*)?[^\]]+)?\](?:\*\*|`?)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+`)/g;
     const parts = rawText.split(tokenRegex);
 
     return parts.map((part, idx) => {
@@ -398,7 +398,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       const citeMatch = cleanPart.match(/^\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*([^,\]|]+)(?:[|,]\s*(?:Section:\s*)?([^\]]+))?\]$/i);
       if (citeMatch) {
         const paperId = citeMatch[1].trim();
-        const section = citeMatch[2]?.trim() || 'Methodology';
+        const section = citeMatch[2]?.trim() || '';
         const badgeLabel = formatCitationBadgeLabel(paperId, section);
         return (
           <button
