@@ -56,7 +56,11 @@ from src.transformation.html_parser import AcademicHTMLParser
 from src.utils.hasher import compute_abstract_hash
 from src.utils.logger import setup_pipeline_logging
 
-logger, log_file = setup_pipeline_logging("streaming_html_embed")
+logger, log_file = setup_pipeline_logging("streaming_html_embed", capture_stdout=False)
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+logger.addHandler(console_handler)
 
 
 def sanitize_surrogates(val: Any) -> Any:
@@ -136,8 +140,10 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         """Scans local Silver parquets and LanceDB to avoid re-crawling existing papers."""
         seen: Set[str] = set()
 
-        # 1. From Silver Parquets
+        # 1. From Silver Fulltext Parquets (excluding metadata pools like near_past_papers)
         for p in self.silver_dir.glob("*.parquet"):
+            if "near_past" in p.name:
+                continue
             try:
                 df = pd.read_parquet(p, columns=["paper_id"])
                 seen.update(df["paper_id"].astype(str))
@@ -165,7 +171,7 @@ class StreamingHTMLHarvestAndEmbedPipeline:
         if self.r2 and (not near_past_path.exists() or near_past_path.stat().st_size < 1000000):
             try:
                 logger.info("[R2 SYNC] Pulling full near_past_papers.parquet from Cloudflare R2...")
-                self.r2.download_file("silver/tier2/near_past_papers.parquet", near_past_path)
+                self.r2.download_file_safe("silver/tier2/near_past_papers.parquet", near_past_path)
             except Exception as e:
                 logger.warning("[R2 NOTE] Could not fetch near_past_papers: %s", e)
 
