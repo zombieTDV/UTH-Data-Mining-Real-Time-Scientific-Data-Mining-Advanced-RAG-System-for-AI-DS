@@ -474,17 +474,28 @@ class Tier2FullTextHarvester:
                 continue
 
             t0_ext = time.time()
-            extracted = self.extract_fulltext_and_sections(pdf_path, paper)
-            if self.clean_pdf and pdf_path and pdf_path.exists():
-                try:
-                    pdf_path.unlink()
-                except Exception:
-                    pass
+            extracted = None
+            method = "Marker"
+            content_origin = f"{src}_marker_fulltext"
+
+            # Priority 1: Instant arXiv HTML5 extraction (zero GPU load, ~0.2s)
+            if src == "arxiv":
+                extracted = self.extract_arxiv_html(pid, paper)
+                if extracted:
+                    method = "HTML5"
+                    content_origin = "arxiv_html_fulltext"
+
+            # Priority 2: Fallback to PDF download + Neural Marker extraction
             if not extracted:
                 pdf_path = self.download_pdf(pid, pdf_url)
                 if not pdf_path:
                     continue
                 extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+                if self.clean_pdf and pdf_path and pdf_path.exists():
+                    try:
+                        pdf_path.unlink()
+                    except Exception:
+                        pass
                 if not extracted:
                     continue
                 method = "Marker"
@@ -569,17 +580,19 @@ class Tier2FullTextHarvester:
                             if int(hashlib.md5(str(pid).encode("utf-8")).hexdigest(), 16) % self.total_shards != self.shard_index:
                                 continue
                         t0_ext = time.time()
-                        extracted = self.extract_fulltext_and_sections(pdf_path, paper)
-                        if self.clean_pdf and pdf_path and pdf_path.exists():
-                            try:
-                                pdf_path.unlink()
-                            except Exception:
-                                pass
+                        extracted = self.extract_arxiv_html(pid, paper)
+                        method = "HTML5"
+                        content_origin = "arxiv_html_fulltext"
                         if not extracted:
                             pdf_path = self.download_pdf(pid, paper["pdf_url"])
                             if not pdf_path:
                                 continue
                             extracted = self.extract_fulltext_and_sections(pdf_path, paper)
+                            if self.clean_pdf and pdf_path and pdf_path.exists():
+                                try:
+                                    pdf_path.unlink()
+                                except Exception:
+                                    pass
                             if not extracted:
                                 continue
                             method = "Marker"
