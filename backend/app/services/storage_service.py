@@ -140,63 +140,68 @@ class StorageService:
         self._save_manifest()
 
     def _get_source_breakdown(self) -> SourceBreakdownDto:
-        """Returns verified per-source ingestion counts across the Pure Full-Text Lakehouse."""
-        # 1. Tally verified full-text papers (strictly excluding abstract-only metadata)
-        fulltext_path = settings.DATA_DIR / "silver" / "tier2" / "fulltext_papers.parquet"
+        """Returns verified per-source ingestion counts strictly for Genuine Full-Text Papers."""
         tier1_path = settings.DATA_DIR / "silver" / "tier1" / "landmark_papers.parquet"
-        cvf_path = settings.DATA_DIR / "silver" / "cvf" / "cvpr2024.parquet"
-        or_path = settings.DATA_DIR / "silver" / "openreview" / "openreview_all.parquet"
         chunks_path = settings.DATA_DIR / "silver" / "chunks.parquet"
+        tier2_dir = settings.DATA_DIR / "silver" / "tier2"
 
-        arxiv_ft = 0
-        doi_ft = 0
-        openalex_ft = 0
-        openreview_ft = 5137
-        cvf_ft = 8418
-        zenodo_ft = 0
-        tier1_ft = 3000
+        from typing import Dict, Set
+        pids_by_source: Dict[str, Set[str]] = {
+            "arxiv": set(),
+            "doi": set(),
+            "cvf": set(),
+            "openreview": set(),
+            "zenodo": set(),
+        }
 
+        tier1_count = 0
         try:
             import duckdb
             con = duckdb.connect()
-            # Tally across all local fulltext_papers parquets (master + all peer shards)
-            tier2_dir = settings.DATA_DIR / "silver" / "tier2"
+
+            # 1. Tier 1 Landmark Papers (3,000 papers: cvf, arxiv, openreview)
+            if tier1_path.exists():
+                res_t1 = con.execute(f"SELECT paper_id, source FROM '{tier1_path.as_posix()}'").fetchall()
+                tier1_count = len(res_t1)
+                for pid, s in res_t1:
+                    s_clean = str(s).lower().strip()
+                    if s_clean in pids_by_source:
+                        pids_by_source[s_clean].add(str(pid))
+                    else:
+                        pids_by_source.setdefault(s_clean, set()).add(str(pid))
+
+            # 2. Tier 2 Harvested Full-Text Papers (fulltext_papers*.parquet)
             ft_files = list(tier2_dir.glob("fulltext_papers*.parquet"))
             if ft_files:
                 posix_files = [f.as_posix() for f in ft_files]
-                res = con.execute(f"""
-                    SELECT source, count(distinct paper_id)
-                    FROM read_parquet({posix_files})
-                    GROUP BY source
-                """).fetchall()
-                for src, cnt in res:
-                    s = str(src).lower()
-                    if "arxiv" in s:
-                        arxiv_ft += cnt
-                    elif "doi" in s:
-                        doi_ft += cnt
-                    elif "cvf" in s:
-                        cvf_ft += cnt
-                    elif "openreview" in s:
-                        openreview_ft += cnt
+                res_t2 = con.execute(f"SELECT paper_id, source FROM read_parquet({posix_files})").fetchall()
+                for pid, s in res_t2:
+                    s_clean = str(s).lower().strip()
+                    if s_clean in pids_by_source:
+                        pids_by_source[s_clean].add(str(pid))
+                    else:
+                        pids_by_source.setdefault(s_clean, set()).add(str(pid))
 
-            if cvf_path.exists() and cvf_ft == 0:
-                cvf_ft = int(con.execute(f"SELECT count(*) FROM '{cvf_path.as_posix()}'").fetchone()[0])
-            if or_path.exists() and openreview_ft == 0:
-                openreview_ft = int(con.execute(f"SELECT count(*) FROM '{or_path.as_posix()}'").fetchone()[0])
-            if tier1_path.exists():
-                tier1_ft = int(con.execute(f"SELECT count(*) FROM '{tier1_path.as_posix()}'").fetchone()[0])
+            # 3. Deep Full-Text Journal Papers (Nature, IEEE, Springer, PLOS) -> DOI
             if chunks_path.exists():
-                # Published journal papers with DOIs (Nature, IEEE, Springer, PLOS)
-                doi_ft += int(con.execute(f"SELECT count(distinct paper_id) FROM '{chunks_path.as_posix()}'").fetchone()[0])
+                res_chk = con.execute(f"SELECT DISTINCT paper_id FROM '{chunks_path.as_posix()}'").fetchall()
+                for (pid,) in res_chk:
+                    pids_by_source["doi"].add(str(pid))
+
         except Exception as e:
             logger.debug(f"[STORAGE] Could not tally full-text counts: {e}")
 
-        # Total is strictly and transparently the mathematical sum of all verified sources
-        total_fulltext_papers = arxiv_ft + doi_ft + openreview_ft + cvf_ft + zenodo_ft
-        active_rag_vectors = getattr(self, "base_active_gold_vectors", 268233)
+        arxiv_ft = len(pids_by_source.get("arxiv", set()))
+        doi_ft = len(pids_by_source.get("doi", set()))
+        openreview_ft = len(pids_by_source.get("openreview", set()))
+        cvf_ft = len(pids_by_source.get("cvf", set()))
+        zenodo_ft = len(pids_by_source.get("zenodo", set()))
 
-        # Inspect LanceDB directly for live vector count if available
+        # Total deduplicated genuine full-text papers
+        all_unique_pids = set().union(*pids_by_source.values())
+        total_fulltext_papers = len(all_unique_pids)
+
+        active_rag_vectors = getattr(self, "base_active_gold_vectors", 603609)
         try:
             from src.indexing.lancedb_manager import LanceDBManager
             l_mgr = LanceDBManager()
@@ -215,8 +220,8 @@ class StorageService:
             cvf=cvf_ft,
             zenodo=zenodo_ft,
             total_deduplicated=total_fulltext_papers,
-            tier1_landmark=tier1_ft,
-            tier2_near_past=total_fulltext_papers,
+            tier1_landmark=tier1_count,
+            tier2_near_past=total_fulltext_papers - tier1_count,
             active_rag_papers=total_fulltext_papers,
             active_rag_vectors=active_rag_vectors,
         )
