@@ -37,6 +37,7 @@ class OpenReviewHarvester:
     """Harvests peer-reviewed papers and rich review threads from OpenReview."""
 
     HF_OPENREVIEW_MIRROR = "https://datasets-server.huggingface.co/rows"
+    PARQUET_MIRROR_URL = "https://huggingface.co/datasets/AlgorithmicResearchGroup/openreview-papers-with-reviews/resolve/refs%2Fconvert%2Fparquet/default/train/0001.parquet"
     DATASET_NAME = "AlgorithmicResearchGroup/openreview-papers-with-reviews"
 
     # 4 Canonical Conference Groups on OpenReview
@@ -194,10 +195,80 @@ class OpenReviewHarvester:
                     pass
                 curr_offset += len(rows)
             except Exception as e:
+                if "429" in str(e):
+                    logger.warning("[OPENREVIEW] Rate limit (429) hit at offset %d. Backing off for 6s...", curr_offset)
+                    time.sleep(6.0)
+                    empty_count += 1
+                    if empty_count >= 5:
+                        break
+                    continue
                 logger.error("[OPENREVIEW] Error at offset %d: %s", curr_offset, str(e))
                 break
 
         return list(papers_map.values())[:limit]
+
+    def fetch_near_past_from_mirror(self, limit: int = 3500) -> List[Dict[str, Any]]:
+        """Harvests recent 2023-2024 peer-reviewed papers with full critiques via DuckDB."""
+        logger.info("[OPENREVIEW] Querying near-past peer-reviewed papers via parquet stream (limit=%d)...", limit)
+        import duckdb
+        con = duckdb.connect()
+        query = f"""
+        SELECT paper_id, year, venue, paper_title, paper_authors, paper_abstract, forum_url, pdf_url,
+               list(struct_pack(
+                   review_id := review_id,
+                   rating := structured_review.review_rating,
+                   rating_int := structured_review.review_rating_integer,
+                   confidence := structured_review.review_confidence,
+                   title := structured_review.review_title,
+                   body := structured_review.review_body
+               )) as reviews
+        FROM read_parquet('{self.PARQUET_MIRROR_URL}')
+        WHERE year in ('2023', '2024')
+        GROUP BY paper_id, year, venue, paper_title, paper_authors, paper_abstract, forum_url, pdf_url
+        LIMIT {limit}
+        """
+        rows = con.execute(query).fetchall()
+        logger.info("[OPENREVIEW] Retrieved %d near-past papers with review threads.", len(rows))
+
+        results = []
+        for r in rows:
+            p_id, yr, ven, title, raw_auth, abstract, forum, pdf, revs = r
+            authors = []
+            if raw_auth:
+                authors = [a.strip() for a in str(raw_auth).split(",") if a.strip()]
+
+            parsed_reviews = []
+            if revs:
+                for rev in revs:
+                    r_id = rev.get("review_id", "")
+                    r_rating = str(rev.get("rating") or "")
+                    r_conf = str(rev.get("confidence") or "")
+                    r_title = str(rev.get("title") or "")
+                    r_body = str(rev.get("body") or "")
+                    norm_score = self._normalize_rating_score(r_rating)
+                    parsed_reviews.append({
+                        "review_id": str(r_id),
+                        "title": r_title,
+                        "rating": r_rating,
+                        "normalized_rating": norm_score,
+                        "confidence": r_conf,
+                        "review_body": r_body,
+                    })
+
+            results.append({
+                "paper_id": str(p_id),
+                "title": str(title) if title else "Peer-Reviewed Academic Paper",
+                "abstract": str(abstract) if abstract else "",
+                "authors": authors,
+                "venue": str(ven) if ven else "ICLR",
+                "year": int(yr) if str(yr).isdigit() else 2023,
+                "pdf_url": str(pdf) if pdf else f"https://openreview.net/pdf?id={p_id}",
+                "forum_url": str(forum) if forum else f"https://openreview.net/forum?id={p_id}",
+                "reviews": parsed_reviews,
+                "crawled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            })
+
+        return results
 
     def harvest_and_vault(
         self,
@@ -210,14 +281,22 @@ class OpenReviewHarvester:
         logger.info("[OPENREVIEW HARVESTER] Target Venue: %s | Target Papers: %d", venue, total_limit)
         logger.info("================================================================================")
 
-        # Resolve venue filter against the 4 canonical conference groups
-        venue_query = venue
-        if venue.lower() in self.CONFERENCE_GROUPS:
-            group_venues = self.CONFERENCE_GROUPS[venue.lower()]
-            venue_query = group_venues[0]
-            logger.info("[OPENREVIEW] Resolved group '%s' to primary venue '%s'", venue, venue_query)
+        papers: List[Dict[str, Any]] = []
+        if venue.upper() in ("ALL", "NEAR_PAST"):
+            try:
+                papers = self.fetch_near_past_from_mirror(limit=total_limit)
+            except Exception as e:
+                logger.warning("[OPENREVIEW] DuckDB parquet query failed (%s), falling back to REST mirror...", e)
 
-        papers = self.fetch_via_academic_mirror(limit=total_limit, venue_filter=venue_query)
+        if not papers:
+            # Resolve venue filter against the 4 canonical conference groups
+            venue_query = venue
+            if venue.lower() in self.CONFERENCE_GROUPS:
+                group_venues = self.CONFERENCE_GROUPS[venue.lower()]
+                venue_query = group_venues[0]
+                logger.info("[OPENREVIEW] Resolved group '%s' to primary venue '%s'", venue, venue_query)
+
+            papers = self.fetch_via_academic_mirror(limit=total_limit, venue_filter=venue_query)
 
         if not papers:
             logger.warning("[OPENREVIEW] No papers collected for venue: %s. Fetching global OpenReview papers...", venue)
@@ -276,6 +355,9 @@ class OpenReviewHarvester:
                 "crawled_at": p["crawled_at"],
                 "pdf_url": p["pdf_url"],
                 "html_url": p["forum_url"],
+                "tier": "tier2",
+                "source": "openreview",
+                "content_origin": "openreview_peer_review",
             }
             parsed_content = {
                 "parsed_title": p["title"],
@@ -283,9 +365,15 @@ class OpenReviewHarvester:
                 "sections": sections,
                 "total_sections": len(sections),
                 "total_math_count": 5,
+                "content_origin": "openreview_peer_review",
             }
             rec = self.silver_writer.prepare_record(raw_meta, parsed_content)
-            # Inject custom peer-review metrics into record
+            # Inject custom peer-review metrics and tier attributes into record
+            rec["source"] = "openreview"
+            rec["tier"] = "tier2"
+            rec["content_origin"] = "openreview_peer_review"
+            rec["venue"] = str(p.get("venue", venue))
+            rec["year"] = int(p.get("year", 2023))
             rec["consensus_score"] = float(consensus_score)
             rec["controversy_variance"] = float(variance_score)
             rec["review_count"] = int(len(p.get("reviews", [])))

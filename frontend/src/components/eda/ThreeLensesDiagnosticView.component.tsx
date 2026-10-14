@@ -1,0 +1,1322 @@
+import { useState, useMemo, useRef, type FC, type MouseEvent } from 'react';
+import type { Diagnostic3Lenses } from '../../types';
+import { ChartToolbar } from '../charts/ChartToolbar.component';
+import { useSvgPanZoom } from '../../hooks';
+import { ScientificMath } from '../common/ScientificMath.component';
+
+export interface ScatterPaperPoint {
+  id: string;
+  title: string;
+  category: string;
+  words: number;
+  formulas: number;
+  author: string;
+  abstract?: string;
+  sampleFormula?: string;
+}
+
+interface ThreeLensesDiagnosticViewProps {
+  theme?: 'dark' | 'light';
+  isTheaterMode: boolean;
+  onToggleTheater: () => void;
+  diagnosticData?: Diagnostic3Lenses;
+  fallbackPoints?: ScatterPaperPoint[];
+  onSelectPaper: (paper: ScatterPaperPoint) => void;
+  selectedPaperId?: string;
+  onShowToast: (msg: string) => void;
+}
+
+export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
+  theme = 'dark',
+  isTheaterMode,
+  onToggleTheater,
+  diagnosticData,
+  fallbackPoints = [],
+  onSelectPaper,
+  selectedPaperId,
+  onShowToast,
+}) => {
+  const isDark = theme === 'dark';
+
+  // Sub-tab switcher across the Three Lenses (§6.1 - §6.4)
+  const [activeTab, setActiveTab] = useState<'lens3_bivariate' | 'lens2_univariate' | 'governance'>('lens3_bivariate');
+
+  // Pair selection in Lens 3 (default: words_x_math_density from lecture case study)
+  const [selectedPairKey, setSelectedPairKey] = useState<string>('words_x_math_density');
+
+  // Feature selection in Lens 2
+  const [selectedUnivariateKey, setSelectedUnivariateKey] = useState<string>('math_density');
+
+  // Quadrant filter in 2D scatter
+  const [selectedQuadrant, setSelectedQuadrant] = useState<'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4'>('ALL');
+
+  // Category filter in 2D scatter
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+
+  // Hover states
+  const [hoveredPoint, setHoveredPoint] = useState<{
+    id: string;
+    title: string;
+    category: string;
+    x: number;
+    y: number;
+    author: string;
+    abstract?: string;
+    sampleFormula?: string;
+    screenX: number;
+    screenY: number;
+  } | null>(null);
+
+  // Magnifier Lens tool
+  const [isLensActive, setIsLensActive] = useState<boolean>(false);
+  const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
+
+  // SVG Refs
+  // SVG Refs
+  const scatterSvgRef = useRef<SVGSVGElement | null>(null);
+  const histSvgRef = useRef<SVGSVGElement | null>(null);
+  const qqSvgRef = useRef<SVGSVGElement | null>(null);
+
+  // Pan Zoom hook for bivariate scatter
+  const scatterPanZoom = useSvgPanZoom({
+    nominalWidth: 940,
+    nominalHeight: 340,
+    minZoom: 0.6,
+    maxZoom: 4.0,
+  });
+
+  // Color mapping
+  const categoryColors: Record<string, string> = {
+    'cs.LG': '#2563eb',
+    'stat.ML': '#ea580c',
+    'cs.CV': '#0284c7',
+    'cs.AI': '#7c3aed',
+    'cs.CL': '#0d9488',
+    'cs.RO': '#f59e0b',
+  };
+  const getCatColor = (cat: string) => categoryColors[cat] || (isDark ? '#94a3b8' : '#64748b');
+
+  // Resolve current bivariate pair
+  const activePair = useMemo(() => {
+    if (!diagnosticData?.lens3_multivariate?.pairs) return null;
+    return diagnosticData.lens3_multivariate.pairs[selectedPairKey] || null;
+  }, [diagnosticData, selectedPairKey]);
+
+  // Points to display in Bivariate Scatter
+  const displayPoints = useMemo(() => {
+    let pts = (activePair?.scatter_samples && activePair.scatter_samples.length > 0)
+      ? activePair.scatter_samples
+      : fallbackPoints.map((p) => ({
+          id: p.id,
+          title: p.title,
+          category: p.category,
+          x: p.words,
+          y: p.formulas,
+          author: p.author,
+          abstract: p.abstract,
+          sampleFormula: p.sampleFormula,
+        }));
+
+    if (selectedCategory !== 'ALL') {
+      pts = pts.filter((p) => p.category === selectedCategory);
+    }
+    return pts;
+  }, [activePair, selectedCategory, fallbackPoints]);
+
+  // Extents for Scatter Plot axes
+  const { maxX, maxY } = useMemo(() => {
+    if (!activePair) return { maxX: 12000, maxY: 300 };
+    if (selectedPairKey === 'words_x_math_density') return { maxX: 12000, maxY: 180 };
+    if (selectedPairKey === 'math_x_authors') return { maxX: 16, maxY: 1200 };
+    if (selectedPairKey === 'words_x_math') return { maxX: 12000, maxY: 1200 };
+    if (selectedPairKey === 'words_x_citations') return { maxX: 12000, maxY: 400 };
+    const max_x = Math.max(...displayPoints.map((p) => p.x), 100);
+    const max_y = Math.max(...displayPoints.map((p) => p.y), 10);
+    return { maxX: max_x * 1.1, maxY: max_y * 1.1 };
+  }, [activePair, selectedPairKey, displayPoints]);
+
+  // Resolve current univariate feature
+  const activeUnivariate = useMemo(() => {
+    if (!diagnosticData?.lens2_univariate) return null;
+    return diagnosticData.lens2_univariate[selectedUnivariateKey] || null;
+  }, [diagnosticData, selectedUnivariateKey]);
+
+  // Theme-dependent styles
+  const themeStyles = {
+    cardBg: isDark ? 'var(--bg-surface, #0f172a)' : '#ffffff',
+    border: isDark ? 'var(--border-subtle, rgba(255,255,255,0.08))' : '#e2e8f0',
+    textPrimary: isDark ? 'var(--text-primary, #f8fafc)' : '#0f172a',
+    textSecondary: isDark ? 'var(--text-secondary, #94a3b8)' : '#475569',
+    textMuted: isDark ? 'var(--text-muted, #64748b)' : '#94a3b8',
+    axisLine: isDark ? '#334155' : '#cbd5e1',
+    gridLine: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+  };
+
+  return (
+    <div
+      style={{
+        backgroundColor: themeStyles.cardBg,
+        borderRadius: '8px',
+        border: `1px solid ${themeStyles.border}`,
+        padding: '10px 14px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        minHeight: 0,
+        ...(isTheaterMode
+          ? {
+              position: 'fixed',
+              top: '52px',
+              left: '58px',
+              right: 0,
+              bottom: '32px',
+              zIndex: 45,
+              backgroundColor: themeStyles.cardBg,
+              padding: '16px 20px',
+            }
+          : {}),
+      }}
+    >
+      {/* ---------------------------------------------------------------- */}
+      {/* ROW 1: HEADER & 3-LENS SUB-TAB CONTROLS                           */}
+      {/* ---------------------------------------------------------------- */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          height: '28px',
+          marginBottom: '6px',
+          flexShrink: 0,
+          gap: '8px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 800,
+              padding: '2px 6px',
+              borderRadius: '4px',
+              background: 'var(--badge-bg, rgba(245, 158, 11, 0.15))',
+              border: '1px solid var(--badge-border, rgba(245, 158, 11, 0.3))',
+              color: 'var(--accent-bronze, #f59e0b)',
+              flexShrink: 0,
+            }}
+          >
+            [EDA-03]
+          </span>
+          <h3
+            style={{
+              fontSize: '13px',
+              fontWeight: 800,
+              color: themeStyles.textPrimary,
+              margin: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            CHẨN ĐOÁN 3 THẤU KÍNH &amp; TƯƠNG TÁC ĐA BIẾN (3-LENS DIAGNOSTIC SUITE)
+          </h3>
+          <span
+            style={{
+              fontSize: '9px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              padding: '1px 5px',
+              borderRadius: '3px',
+              backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#e0f2fe',
+              color: isDark ? '#38bdf8' : '#0369a1',
+              border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
+            }}
+          >
+            LECTURE §6.1-§6.4
+          </span>
+        </div>
+
+        {/* 3-Lens Pill Switcher Tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+          {[
+            { id: 'lens3_bivariate' as const, label: 'LENS 1 & 3: TƯƠNG TÁC ĐA BIẾN & MI', icon: '☍' },
+            { id: 'lens2_univariate' as const, label: 'LENS 2: ĐƠN BIẾN & Q-Q NORMALITY', icon: '◬' },
+            { id: 'governance' as const, label: '§6.4 ĐIỀU HƯỚNG PIPELINE', icon: '⚙' },
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: isActive ? 800 : 600,
+                  backgroundColor: isActive
+                    ? isDark
+                      ? 'rgba(37, 99, 235, 0.25)'
+                      : '#dbeafe'
+                    : isDark
+                    ? 'rgba(255,255,255,0.05)'
+                    : '#f1f5f9',
+                  color: isActive ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary,
+                  border: `1px solid ${isActive ? '#3b82f6' : themeStyles.border}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Theater Mode Toggle */}
+          <button
+            type="button"
+            onClick={onToggleTheater}
+            style={{
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              backgroundColor: isTheaterMode
+                ? isDark
+                  ? 'rgba(245, 158, 11, 0.25)'
+                  : '#fef3c7'
+                : isDark
+                ? 'rgba(255,255,255,0.06)'
+                : '#f1f5f9',
+              color: isTheaterMode ? '#f59e0b' : themeStyles.textSecondary,
+              border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
+              cursor: 'pointer',
+            }}
+            title="Phóng đại toàn màn hình 100% (Theater Mode)"
+          >
+            <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* TAB 1: BIVARIATE INTERACTIONS & MUTUAL INFORMATION (LENS 1 & 3)   */}
+      {/* ---------------------------------------------------------------- */}
+      {activeTab === 'lens3_bivariate' && activePair && (
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '6px' }}>
+          {/* Pair Selector & Metric Capsule Bar */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '4px 8px',
+              borderRadius: '5px',
+              backgroundColor: 'var(--bg-canvas, rgba(0,0,0,0.02))',
+              border: `1px solid ${themeStyles.border}`,
+              flexShrink: 0,
+              flexWrap: 'wrap',
+              gap: '6px',
+            }}
+          >
+            {/* Pair Switcher Chips */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                Cặp biến tương tác:
+              </span>
+              {[
+                { key: 'words_x_math_density', label: 'Mật độ Toán × Số từ (§6.3 Case Study)' },
+                { key: 'math_x_authors', label: 'Toán × Tác giả (Nghịch lý tác giả)' },
+                { key: 'words_x_math', label: 'Số từ × Công thức (Đồng biến)' },
+                { key: 'words_x_citations', label: 'Số từ × Trích dẫn (Pareto)' },
+              ].map((p) => {
+                const isSelected = selectedPairKey === p.key;
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setSelectedPairKey(p.key)}
+                    style={{
+                      padding: '2px 7px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: isSelected ? 800 : 500,
+                      backgroundColor: isSelected
+                        ? isDark
+                          ? 'rgba(234, 88, 12, 0.25)'
+                          : '#ffedd5'
+                        : 'transparent',
+                      color: isSelected ? '#ea580c' : themeStyles.textSecondary,
+                      border: `1px solid ${isSelected ? '#ea580c' : themeStyles.border}`,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Interaction Metric Chips */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#eff6ff',
+                  border: '1px solid #3b82f6',
+                  color: isDark ? '#93c5fd' : '#1d4ed8',
+                }}
+              >
+                Pearson <strong>r = {activePair.pearson_r}</strong> (p = {activePair.pearson_p})
+              </div>
+              <div
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  backgroundColor: isDark ? 'rgba(124,58,237,0.15)' : '#f5f3ff',
+                  border: '1px solid #8b5cf6',
+                  color: isDark ? '#c4b5fd' : '#6d28d9',
+                }}
+              >
+                Spearman <strong>ρ = {activePair.spearman_rho}</strong>
+              </div>
+              <div
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  padding: '2px 8px',
+                  borderRadius: '3px',
+                  backgroundColor: isDark ? 'rgba(234,88,12,0.22)' : '#fff7ed',
+                  border: '1px solid #ea580c',
+                  color: '#ea580c',
+                  boxShadow: '0 0 6px rgba(234,88,12,0.2)',
+                }}
+              >
+                ★ Mutual Info: <strong>I(X; Y) = {activePair.mutual_information}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Lecture §6.3 Crucial Warning Banner */}
+          {activePair.warning && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
+                padding: '6px 10px',
+                borderRadius: '5px',
+                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.10)' : '#fefce8',
+                border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : '#fde047'}`,
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  backgroundColor: '#f59e0b',
+                  color: '#000000',
+                  flexShrink: 0,
+                  marginTop: '1px',
+                }}
+              >
+                {activePair.warning.badge}
+              </span>
+              <div style={{ fontSize: '11px', color: themeStyles.textPrimary, lineHeight: 1.35 }}>
+                <strong style={{ color: '#d97706' }}>{activePair.warning.title}: </strong>
+                <span>{activePair.warning.text}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Row: Quadrant Filters, Category Slicers & ChartToolbar */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '4px 8px',
+              borderRadius: '5px',
+              backgroundColor: 'var(--bg-canvas, rgba(0,0,0,0.02))',
+              border: `1px solid ${themeStyles.border}`,
+              flexShrink: 0,
+              flexWrap: 'wrap',
+              gap: '6px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Phân vị:</span>
+              {[
+                { id: 'ALL' as const, label: 'Tất cả' },
+                { id: 'Q1' as const, label: 'Q1 Lý thuyết' },
+                { id: 'Q2' as const, label: 'Q2 Chuyên khảo' },
+                { id: 'Q3' as const, label: 'Q3 Bài ngắn' },
+                { id: 'Q4' as const, label: 'Q4 LLMs' },
+              ].map((q) => {
+                const isQActive = selectedQuadrant === q.id;
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => setSelectedQuadrant(isQActive && q.id !== 'ALL' ? 'ALL' : q.id)}
+                    style={{
+                      padding: '2px 7px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: isQActive ? 700 : 500,
+                      backgroundColor: isQActive ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#dbeafe') : 'transparent',
+                      color: isQActive ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textMuted,
+                      border: `1px solid ${isQActive ? '#3b82f6' : themeStyles.border}`,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {q.label}
+                  </button>
+                );
+              })}
+
+              <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 4px' }} />
+
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Chủ đề:</span>
+              {['ALL', 'cs.LG', 'stat.ML', 'cs.CV', 'cs.AI', 'cs.CL', 'cs.RO'].map((cat) => {
+                const isCatActive = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    style={{
+                      padding: '1px 6px',
+                      borderRadius: '3px',
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: isCatActive ? 800 : 500,
+                      backgroundColor: isCatActive ? (categoryColors[cat] || '#3b82f6') : 'transparent',
+                      color: isCatActive ? '#ffffff' : themeStyles.textSecondary,
+                      border: `1px solid ${isCatActive ? (categoryColors[cat] || '#3b82f6') : themeStyles.border}`,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ChartToolbar
+                theme={theme}
+                svgRef={scatterSvgRef}
+                filename={`eda-3lens-${selectedPairKey}`}
+                zoomLevel={scatterPanZoom.zoom}
+                hasPannedOrZoomed={scatterPanZoom.hasPannedOrZoomed}
+                onZoomIn={() => scatterPanZoom.zoomIn(0.25)}
+                onZoomOut={() => scatterPanZoom.zoomOut(0.25)}
+                onResetZoom={scatterPanZoom.resetView}
+                isLensActive={isLensActive}
+                onToggleLens={() => setIsLensActive((v) => !v)}
+                isTheater={isTheaterMode}
+                onToggleTheater={onToggleTheater}
+                csvData={displayPoints.map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  category: p.category,
+                  x: p.x,
+                  y: p.y,
+                  author: p.author,
+                }))}
+                onShowToast={onShowToast}
+              />
+            </div>
+          </div>
+
+          {/* Bivariate SVG Scatter & Spline Chart */}
+          <div
+            {...(isLensActive ? {} : scatterPanZoom.containerProps)}
+            style={{
+              ...(isLensActive ? {} : scatterPanZoom.containerProps.style),
+              flex: 1,
+              minHeight: 0,
+              position: 'relative',
+              overflow: 'hidden',
+              backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.01)',
+              borderRadius: '6px',
+              border: `1px solid ${themeStyles.border}`,
+            }}
+          >
+            <svg
+              ref={scatterSvgRef}
+              viewBox={scatterPanZoom.viewBox}
+              preserveAspectRatio="xMidYMid meet"
+              style={{
+                width: '100%',
+                height: '100%',
+                overflow: 'visible',
+                cursor: isLensActive ? 'crosshair' : (scatterPanZoom.containerProps.style.cursor || 'default'),
+              }}
+              onMouseMove={(e: MouseEvent<SVGSVGElement>) => {
+                if (!isLensActive) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const scaleX = 940 / rect.width;
+                const scaleY = 340 / rect.height;
+                setLensPos({
+                  x: (e.clientX - rect.left) * scaleX,
+                  y: (e.clientY - rect.top) * scaleY,
+                });
+              }}
+              onMouseLeave={() => {
+                setLensPos(null);
+                setHoveredPoint(null);
+              }}
+            >
+              {/* Quadrant Background Zones */}
+              {/* Q1: Top-Left (High Y, Low X) */}
+              <rect
+                x="60"
+                y="20"
+                width="425"
+                height="140"
+                fill={selectedQuadrant === 'Q1' ? (isDark ? 'rgba(245, 158, 11, 0.22)' : 'rgba(254, 243, 199, 0.7)') : (isDark ? 'rgba(245, 158, 11, 0.06)' : 'rgba(254, 243, 199, 0.3)')}
+                stroke={selectedQuadrant === 'Q1' ? '#f59e0b' : 'transparent'}
+                strokeWidth="1.5"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q1' ? 'ALL' : 'Q1')}
+              />
+              <text x="75" y="55" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#f59e0b' : '#d97706'} opacity="0.12" style={{ pointerEvents: 'none' }}>
+                Q1: LÝ THUYẾT NẶNG TOÁN
+              </text>
+
+              {/* Q2: Top-Right (High Y, High X) */}
+              <rect
+                x="485"
+                y="20"
+                width="425"
+                height="140"
+                fill={selectedQuadrant === 'Q2' ? (isDark ? 'rgba(37, 99, 235, 0.22)' : 'rgba(219, 234, 254, 0.7)') : (isDark ? 'rgba(37, 99, 235, 0.06)' : 'rgba(219, 234, 254, 0.3)')}
+                stroke={selectedQuadrant === 'Q2' ? '#3b82f6' : 'transparent'}
+                strokeWidth="1.5"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q2' ? 'ALL' : 'Q2')}
+              />
+              <text x="880" y="55" textAnchor="end" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#60a5fa' : '#2563eb'} opacity="0.12" style={{ pointerEvents: 'none' }}>
+                Q2: CHUYÊN KHẢO TOÀN DIỆN
+              </text>
+
+              {/* Q3: Bottom-Left (Low Y, Low X) */}
+              <rect
+                x="60"
+                y="160"
+                width="425"
+                height="130"
+                fill={selectedQuadrant === 'Q3' ? (isDark ? 'rgba(100, 116, 139, 0.25)' : 'rgba(203, 213, 225, 0.7)') : (isDark ? 'rgba(100, 116, 139, 0.06)' : 'rgba(241, 245, 249, 0.4)')}
+                stroke={selectedQuadrant === 'Q3' ? '#94a3b8' : 'transparent'}
+                strokeWidth="1.5"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q3' ? 'ALL' : 'Q3')}
+              />
+              <text x="75" y="275" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#94a3b8' : '#64748b'} opacity="0.12" style={{ pointerEvents: 'none' }}>
+                Q3: BÀI NGẮN / WORKSHOP
+              </text>
+
+              {/* Q4: Bottom-Right (Low Y, High X) */}
+              <rect
+                x="485"
+                y="160"
+                width="425"
+                height="130"
+                fill={selectedQuadrant === 'Q4' ? (isDark ? 'rgba(16, 185, 129, 0.22)' : 'rgba(209, 250, 229, 0.7)') : (isDark ? 'rgba(16, 185, 129, 0.06)' : 'rgba(236, 253, 245, 0.4)')}
+                stroke={selectedQuadrant === 'Q4' ? '#10b981' : 'transparent'}
+                strokeWidth="1.5"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q4' ? 'ALL' : 'Q4')}
+              />
+              <text x="880" y="275" textAnchor="end" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#34d399' : '#059669'} opacity="0.12" style={{ pointerEvents: 'none' }}>
+                Q4: HỆ THỐNG THỰC NGHIỆM / LLMS
+              </text>
+
+              {/* Axis Grid Lines */}
+              <line x1="485" y1="20" x2="485" y2="290" stroke={themeStyles.axisLine} strokeDasharray="3 3" strokeWidth="1" />
+              <line x1="60" y1="160" x2="910" y2="160" stroke={themeStyles.axisLine} strokeDasharray="3 3" strokeWidth="1" />
+
+              {/* Y Axis Grid & Labels */}
+              {[0, 0.25, 0.5, 0.75, 1.0].map((ratio) => {
+                const yVal = Math.round(ratio * maxY);
+                const py = 290 - ratio * 270;
+                return (
+                  <g key={ratio}>
+                    <line x1="55" y1={py} x2="910" y2={py} stroke={themeStyles.gridLine} strokeWidth="1" />
+                    <text x="50" y={py + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                      {yVal} {activePair.y_unit}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* X Axis Grid & Labels */}
+              {[0, 0.2, 0.4, 0.6, 0.8, 1.0].map((ratio) => {
+                const xVal = Math.round(ratio * maxX);
+                const px = 60 + ratio * 850;
+                return (
+                  <g key={ratio}>
+                    <line x1={px} y1="20" x2={px} y2="295" stroke={themeStyles.gridLine} strokeWidth="1" />
+                    <text x={px} y="306" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                      {xVal >= 1000 ? `${(xVal / 1000).toFixed(0)}k` : xVal} {activePair.x_unit}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Linear Fit Regression Line (Dashed Blue) */}
+              {(() => {
+                const x0 = 0;
+                const x1 = maxX;
+                const y0 = activePair.linear_fit.intercept + activePair.linear_fit.slope * x0;
+                const y1 = activePair.linear_fit.intercept + activePair.linear_fit.slope * x1;
+                const px0 = 60;
+                const py0 = 290 - Math.min(270, Math.max(0, (y0 / maxY) * 270));
+                const px1 = 910;
+                const py1 = 290 - Math.min(270, Math.max(0, (y1 / maxY) * 270));
+                return (
+                  <g>
+                    <line
+                      x1={px0}
+                      y1={py0}
+                      x2={px1}
+                      y2={py1}
+                      stroke="#3b82f6"
+                      strokeWidth="2"
+                      strokeDasharray="6 4"
+                    />
+                    <text
+                      x="780"
+                      y={Math.max(35, py1 - 8)}
+                      fill="#3b82f6"
+                      fontSize="9"
+                      fontFamily="var(--font-mono)"
+                      fontWeight="700"
+                    >
+                      Hồi quy tuyến tính (r={activePair.pearson_r})
+                    </text>
+                  </g>
+                );
+              })()}
+
+              {/* Non-Linear Spline / Empirical Trend Curve (Solid Orange) */}
+              {activePair.spline_points && activePair.spline_points.length > 1 && (() => {
+                const pathD = activePair.spline_points
+                  .map((pt, idx) => {
+                    const cx = 60 + Math.min(850, Math.max(0, (pt.x / maxX) * 850));
+                    const cy = 290 - Math.min(270, Math.max(0, (pt.y / maxY) * 270));
+                    return `${idx === 0 ? 'M' : 'L'} ${cx.toFixed(1)} ${cy.toFixed(1)}`;
+                  })
+                  .join(' ');
+                return (
+                  <g>
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke="#ea580c"
+                      strokeWidth="3.2"
+                      strokeLinecap="round"
+                    />
+                    <text
+                      x="240"
+                      y="40"
+                      fill="#ea580c"
+                      fontSize="9"
+                      fontFamily="var(--font-mono)"
+                      fontWeight="800"
+                    >
+                      ★ Xu hướng phi tuyến thực nghiệm (MI={activePair.mutual_information})
+                    </text>
+                  </g>
+                );
+              })()}
+
+              {/* Data Points */}
+              {displayPoints.map((pt) => {
+                const cx = 60 + Math.min(850, Math.max(0, (pt.x / maxX) * 850));
+                const cy = 290 - Math.min(270, Math.max(0, (pt.y / maxY) * 270));
+                const isSelected = selectedPaperId === pt.id;
+                const isHovered = hoveredPoint?.id === pt.id;
+                const col = getCatColor(pt.category);
+
+                return (
+                  <circle
+                    key={pt.id}
+                    cx={cx}
+                    cy={cy}
+                    r={isSelected ? '8' : isHovered ? '7' : '4.5'}
+                    fill={col}
+                    stroke={isSelected ? '#f59e0b' : isDark ? '#0f172a' : '#ffffff'}
+                    strokeWidth={isSelected ? '2.5' : isHovered ? '2' : '1'}
+                    opacity={isSelected || isHovered ? 1 : 0.85}
+                    style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
+                    onClick={() => onSelectPaper({
+                      id: pt.id,
+                      title: pt.title,
+                      category: pt.category,
+                      words: pt.x,
+                      formulas: pt.y,
+                      author: pt.author,
+                      abstract: pt.abstract,
+                      sampleFormula: pt.sampleFormula,
+                    })}
+                    onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
+                      const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+                      setHoveredPoint({
+                        ...pt,
+                        screenX: rect.left + rect.width / 2,
+                        screenY: rect.top - 8,
+                      });
+                    }}
+                    onMouseLeave={() => setHoveredPoint(null)}
+                  />
+                );
+              })}
+
+              {/* Crosshair Snapping */}
+              {hoveredPoint && (() => {
+                const cx = 60 + Math.min(850, Math.max(0, (hoveredPoint.x / maxX) * 850));
+                const cy = 290 - Math.min(270, Math.max(0, (hoveredPoint.y / maxY) * 270));
+                return (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <line x1="60" y1={cy} x2={cx} y2={cy} stroke="#ea580c" strokeWidth="1" strokeDasharray="3 2" />
+                    <line x1={cx} y1={cy} x2={cx} y2="290" stroke="#2563eb" strokeWidth="1" strokeDasharray="3 2" />
+                    <rect x="10" y={cy - 8} width="46" height="16" rx="3" fill="#ea580c" />
+                    <text x="33" y={cy + 4} textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
+                      {hoveredPoint.y.toFixed(1)}
+                    </text>
+                    <rect x={cx - 24} y="292" width="48" height="16" rx="3" fill="#2563eb" />
+                    <text x={cx} y={304} textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
+                      {hoveredPoint.x >= 1000 ? `${(hoveredPoint.x / 1000).toFixed(1)}k` : hoveredPoint.x.toFixed(0)}
+                    </text>
+                  </g>
+                );
+              })()}
+              {/* Magnifier Lens 2.5x Tool */}
+              {isLensActive && lensPos && (
+                <g style={{ pointerEvents: 'none' }}>
+                  <circle
+                    cx={lensPos.x}
+                    cy={lensPos.y}
+                    r="75"
+                    fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
+                    stroke="#38bdf8"
+                    strokeWidth="2.5"
+                  />
+                  <circle cx={lensPos.x} cy={lensPos.y} r="75" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                  <text x={lensPos.x} y={lensPos.y - 58} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#38bdf8">
+                    LENS 2.5X
+                  </text>
+                  {displayPoints.map((pt) => {
+                    const origX = 60 + Math.min(850, Math.max(0, (pt.x / maxX) * 850));
+                    const origY = 290 - Math.min(270, Math.max(0, (pt.y / maxY) * 270));
+                    const dist = Math.hypot(origX - lensPos.x, origY - lensPos.y);
+                    if (dist > 70) return null;
+                    const magX = lensPos.x + (origX - lensPos.x) * 2.2;
+                    const magY = lensPos.y + (origY - lensPos.y) * 2.2;
+                    if (Math.hypot(magX - lensPos.x, magY - lensPos.y) > 70) return null;
+                    return (
+                      <g key={`lens-${pt.id}`}>
+                        <circle cx={magX} cy={magY} r="6.5" fill={getCatColor(pt.category)} stroke="#ffffff" strokeWidth="2" />
+                        <text x={magX} y={magY - 8} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill={themeStyles.textPrimary}>
+                          {pt.id.replace('arXiv:', '')}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </g>
+              )}
+            </svg>
+
+            {/* Hover Tooltip Popup Card */}
+            {hoveredPoint && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  maxWidth: '340px',
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                  border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
+                  borderRadius: '6px',
+                  padding: '10px 12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  pointerEvents: 'none',
+                  zIndex: 20,
+                  backdropFilter: 'blur(6px)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#38bdf8' }}>
+                    {hoveredPoint.id}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      padding: '1px 5px',
+                      borderRadius: '3px',
+                      backgroundColor: getCatColor(hoveredPoint.category),
+                      color: '#ffffff',
+                    }}
+                  >
+                    {hoveredPoint.category}
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: themeStyles.textPrimary, marginBottom: '4px', lineHeight: 1.25 }}>
+                  {hoveredPoint.title}
+                </div>
+                <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+                  {hoveredPoint.author}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ color: '#2563eb' }}>
+                    {activePair.x_label}: <strong>{hoveredPoint.x.toLocaleString()}</strong>
+                  </div>
+                  <div style={{ color: '#ea580c' }}>
+                    {activePair.y_label}: <strong>{hoveredPoint.y.toLocaleString()}</strong>
+                  </div>
+                </div>
+                {hoveredPoint.sampleFormula && (
+                  <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.border}` }}>
+                    <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>MẪU LATEX TOÀN VĂN:</div>
+                    <div style={{ fontSize: '10px', color: '#10b981', overflow: 'hidden' }}>
+                      <ScientificMath math={hoveredPoint.sampleFormula} block={false} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------- */}
+      {/* TAB 2: UNIVARIATE DISTRIBUTIONS & Q-Q NORMALITY (LENS 2)          */}
+      {/* ---------------------------------------------------------------- */}
+      {activeTab === 'lens2_univariate' && activeUnivariate && (
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '8px' }}>
+          {/* Feature Selector Tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flexShrink: 0 }}>
+            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+              Biến kiểm định:
+            </span>
+            {diagnosticData?.lens2_univariate &&
+              Object.values(diagnosticData.lens2_univariate).map((feat) => {
+                const isSelected = selectedUnivariateKey === feat.key;
+                return (
+                  <button
+                    key={feat.key}
+                    type="button"
+                    onClick={() => setSelectedUnivariateKey(feat.key)}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: isSelected ? 800 : 500,
+                      backgroundColor: isSelected
+                        ? isDark
+                          ? 'rgba(37, 99, 235, 0.25)'
+                          : '#dbeafe'
+                        : 'transparent',
+                      color: isSelected ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary,
+                      border: `1px solid ${isSelected ? '#3b82f6' : themeStyles.border}`,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {feat.label}
+                  </button>
+                );
+              })}
+          </div>
+
+          {/* Diagnostic KPI Cards (§6.2 Skewness, Kurtosis, D'Agostino) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', flexShrink: 0 }}>
+            {/* Skewness Card */}
+            <div
+              style={{
+                backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
+                borderRadius: '6px',
+                border: `1px solid ${themeStyles.border}`,
+                borderLeft: '3px solid #ea580c',
+                padding: '6px 10px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
+                  HỆ SỐ LỆCH (SKEWNESS S)
+                </span>
+                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
+                  {activeUnivariate.skew_category}
+                </span>
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 900, color: '#ea580c', marginTop: '2px' }}>
+                S = {activeUnivariate.skewness > 0 ? `+${activeUnivariate.skewness}` : activeUnivariate.skewness}
+              </div>
+              <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', lineHeight: 1.25 }}>
+                {activeUnivariate.skew_interpretation}
+              </div>
+            </div>
+
+            {/* Kurtosis Card */}
+            <div
+              style={{
+                backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
+                borderRadius: '6px',
+                border: `1px solid ${themeStyles.border}`,
+                borderLeft: '3px solid #7c3aed',
+                padding: '6px 10px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
+                  ĐỘ NHỌN (KURTOSIS K)
+                </span>
+                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed' }}>
+                  {activeUnivariate.kurtosis_category}
+                </span>
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 900, color: '#7c3aed', marginTop: '2px' }}>
+                K = {activeUnivariate.kurtosis > 0 ? `+${activeUnivariate.kurtosis}` : activeUnivariate.kurtosis}
+              </div>
+              <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', lineHeight: 1.25 }}>
+                {activeUnivariate.kurtosis_interpretation}
+              </div>
+            </div>
+
+            {/* D'Agostino Normality Test */}
+            <div
+              style={{
+                backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
+                borderRadius: '6px',
+                border: `1px solid ${themeStyles.border}`,
+                borderLeft: '3px solid #dc2626',
+                padding: '6px 10px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
+                  D'AGOSTINO'S K² TEST
+                </span>
+                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#dc2626' }}>
+                  p {activeUnivariate.dagostino_p}
+                </span>
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#dc2626', marginTop: '4px' }}>
+                {activeUnivariate.normality_verdict}
+              </div>
+              <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                K² = {activeUnivariate.dagostino_k2.toLocaleString()}
+              </div>
+            </div>
+
+            {/* Location & Dispersion Stats */}
+            <div
+              style={{
+                backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
+                borderRadius: '6px',
+                border: `1px solid ${themeStyles.border}`,
+                borderLeft: '3px solid #2563eb',
+                padding: '6px 10px',
+              }}
+            >
+              <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
+                VỊ TRÍ &amp; PHÂN VỊ (CENTROID &amp; QUANTILES)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginTop: '4px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                <div>
+                  Mean: <strong style={{ color: '#2563eb' }}>{activeUnivariate.mean}</strong>
+                </div>
+                <div>
+                  Median: <strong style={{ color: '#ea580c' }}>{activeUnivariate.median}</strong>
+                </div>
+                <div style={{ color: themeStyles.textMuted }}>P25: {activeUnivariate.p25}</div>
+                <div style={{ color: themeStyles.textMuted }}>P75: {activeUnivariate.p75}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Dual Visual Diagnostics: Histogram + KDE (Left) and Q-Q Plot (Right) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px', flex: 1, minHeight: 0 }}>
+            {/* Histogram & Gaussian KDE Plot */}
+            <div
+              style={{
+                backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.01)',
+                borderRadius: '6px',
+                border: `1px solid ${themeStyles.border}`,
+                padding: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary }}>
+                  BIỂU ĐỒ TẦN SUẤT &amp; ĐƯỜNG MẬT ĐỘ GAUSSIAN KDE
+                </span>
+                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                  25 bins &bull; Mean vs Median divergence
+                </span>
+              </div>
+              <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                <svg
+                  ref={histSvgRef}
+                  viewBox="0 0 500 240"
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{ width: '100%', height: '100%' }}
+                >
+                  {/* Axis Baseline */}
+                  <line x1="40" y1="200" x2="480" y2="200" stroke={themeStyles.axisLine} strokeWidth="1" />
+
+                  {/* Histogram Bars */}
+                  {(() => {
+                    const maxCount = Math.max(...activeUnivariate.histogram_bins.map((b) => b.count), 1);
+                    return activeUnivariate.histogram_bins.map((b, i) => {
+                      const bw = 430 / activeUnivariate.histogram_bins.length;
+                      const bx = 45 + i * bw;
+                      const bh = (b.count / maxCount) * 160;
+                      const by = 200 - bh;
+                      return (
+                        <g key={i}>
+                          <rect
+                            x={bx + 1}
+                            y={by}
+                            width={Math.max(2, bw - 2)}
+                            height={bh}
+                            fill={isDark ? 'rgba(37, 99, 235, 0.45)' : 'rgba(37, 99, 235, 0.3)'}
+                            stroke="#3b82f6"
+                            strokeWidth="1"
+                          />
+                        </g>
+                      );
+                    });
+                  })()}
+
+                  {/* Gaussian KDE Smooth Curve Overlay */}
+                  {activeUnivariate.kde_points && activeUnivariate.kde_points.length > 1 && (() => {
+                    const minX = activeUnivariate.kde_points[0].x;
+                    const maxX = activeUnivariate.kde_points[activeUnivariate.kde_points.length - 1].x;
+                    const pathD = activeUnivariate.kde_points
+                      .map((pt, idx) => {
+                        const px = 45 + ((pt.x - minX) / (maxX - minX || 1)) * 430;
+                        const py = 200 - pt.y * 160;
+                        return `${idx === 0 ? 'M' : 'L'} ${px.toFixed(1)} ${py.toFixed(1)}`;
+                      })
+                      .join(' ');
+                    return (
+                      <path
+                        d={pathD}
+                        fill="none"
+                        stroke="#06b6d4"
+                        strokeWidth="2.5"
+                      />
+                    );
+                  })()}
+
+                  {/* Mean Marker (Dashed Blue Line) */}
+                  {(() => {
+                    const minX = activeUnivariate.histogram_bins[0]?.x0 || 0;
+                    const maxX = activeUnivariate.histogram_bins[activeUnivariate.histogram_bins.length - 1]?.x1 || 1;
+                    const meanPx = 45 + Math.min(430, Math.max(0, ((activeUnivariate.mean - minX) / (maxX - minX || 1)) * 430));
+                    const medPx = 45 + Math.min(430, Math.max(0, ((activeUnivariate.median - minX) / (maxX - minX || 1)) * 430));
+                    return (
+                      <g>
+                        <line x1={meanPx} y1="30" x2={meanPx} y2="200" stroke="#2563eb" strokeWidth="2" strokeDasharray="4 2" />
+                        <text x={meanPx} y="25" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="800" fill="#2563eb">
+                          Mean: {activeUnivariate.mean}
+                        </text>
+
+                        <line x1={medPx} y1="45" x2={medPx} y2="200" stroke="#ea580c" strokeWidth="2" strokeDasharray="4 2" />
+                        <text x={medPx} y="40" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="800" fill="#ea580c">
+                          Median: {activeUnivariate.median}
+                        </text>
+                      </g>
+                    );
+                  })()}
+                </svg>
+              </div>
+            </div>
+
+            {/* Q-Q Plot (Normal Quantile-Quantile) */}
+            <div
+              style={{
+                backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.01)',
+                borderRadius: '6px',
+                border: `1px solid ${themeStyles.border}`,
+                padding: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary }}>
+                  Q-Q PLOT (NORMAL QUANTILE-QUANTILE)
+                </span>
+                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#dc2626' }}>
+                  Độ lệch khỏi đường chéo 45°
+                </span>
+              </div>
+              <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                <svg
+                  ref={qqSvgRef}
+                  viewBox="0 0 400 240"
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{ width: '100%', height: '100%' }}
+                >
+                  {/* Grid Lines */}
+                  <line x1="40" y1="20" x2="40" y2="200" stroke={themeStyles.axisLine} strokeWidth="1" />
+                  <line x1="40" y1="200" x2="380" y2="200" stroke={themeStyles.axisLine} strokeWidth="1" />
+
+                  {/* 45-degree Reference Line (Red Dashed) */}
+                  <line x1="60" y1="180" x2="360" y2="40" stroke="#dc2626" strokeWidth="2" strokeDasharray="5 3" />
+                  <text x="365" y="45" fontSize="9" fontFamily="var(--font-mono)" fill="#dc2626" fontWeight="700">
+                    Phân phối chuẩn N(0,1)
+                  </text>
+
+                  {/* Q-Q Points */}
+                  {activeUnivariate.qq_points &&
+                    activeUnivariate.qq_points.map((pt, idx) => {
+                      // Map theoretical (-2.5 to 2.5) to X (60 to 360)
+                      const cx = 210 + (pt.theoretical / 2.5) * 150;
+                      // Map empirical (-2.5 to 4.5) to Y (180 to 30)
+                      const cy = 180 - Math.min(160, Math.max(0, ((pt.empirical + 2.5) / 7.0) * 160));
+                      return (
+                        <circle
+                          key={idx}
+                          cx={cx}
+                          cy={cy}
+                          r="4"
+                          fill="#3b82f6"
+                          stroke={isDark ? '#0f172a' : '#ffffff'}
+                          strokeWidth="1.2"
+                        />
+                      );
+                    })}
+
+                  <text x="210" y="225" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                    Phân vị chuẩn lý thuyết (Theoretical Normal Quantiles)
+                  </text>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------- */}
+      {/* TAB 3: DOWNSTREAM PIPELINE GOVERNANCE (§6.4)                      */}
+      {/* ---------------------------------------------------------------- */}
+      {activeTab === 'governance' && (
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '8px', overflowY: 'auto' }}>
+          <div
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              backgroundColor: isDark ? 'rgba(56, 189, 248, 0.1)' : '#f0f9ff',
+              border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ fontSize: '11px', color: themeStyles.textPrimary }}>
+              <strong style={{ color: '#0284c7' }}>BÀI GIẢNG §6.4: </strong>
+              <span>Hình học dữ liệu thực nghiệm quyết định cấu trúc bắt buộc của các bước tiền xử lý &amp; học máy.</span>
+            </div>
+            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#0284c7' }}>
+              4 QUY TẮC ĐÃ ÁP DỤNG TRÊN LAKEHOUSE
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', flex: 1 }}>
+            {diagnosticData?.downstream_governance?.map((gov) => (
+              <div
+                key={gov.rule_id}
+                style={{
+                  backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.02)',
+                  borderRadius: '6px',
+                  border: `1px solid ${themeStyles.border}`,
+                  borderTop: `3px solid ${gov.badge_color}`,
+                  padding: '10px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 800,
+                      padding: '1px 5px',
+                      borderRadius: '3px',
+                      backgroundColor: `${gov.badge_color}22`,
+                      color: gov.badge_color,
+                      border: `1px solid ${gov.badge_color}55`,
+                    }}
+                  >
+                    {gov.tag}
+                  </span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 800 }}>
+                    ✓ PRODUCTION VALIDATED
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
+                  {gov.observed_geometry}
+                </div>
+
+                <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: gov.badge_color }}>
+                  Bằng chứng: <strong>{gov.empirical_evidence}</strong>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: themeStyles.textSecondary,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc',
+                    padding: '6px 8px',
+                    borderRadius: '4px',
+                    borderLeft: `2px solid ${gov.badge_color}`,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  <strong style={{ color: themeStyles.textPrimary }}>Yêu cầu kiến trúc (§6.4): </strong>
+                  {gov.pipeline_requirement}
+                </div>
+
+                <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: 'auto', paddingTop: '4px' }}>
+                  <strong>Thực thi trong Lakehouse: </strong>
+                  {gov.applied_in_lakehouse}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

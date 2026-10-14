@@ -22,35 +22,39 @@ export function GeometricPipelineDiagram() {
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   const {
-    totalCorpus,
     sessionIngested,
     storageUsedGb,
     storageStats,
     isStreaming,
   } = useLakehouseStreamStore();
 
-  const currentCorpus = totalCorpus || 36414;
-  const currentBronzeCount = storageStats?.activeLakehouse
-    ? storageStats.activeLakehouse.arxivHtmlCount + sessionIngested
-    : (storageStats?.zones?.bronzeCount ?? 11660) + sessionIngested;
-  const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24754;
+  const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
+  const currentArxivCount = (sourceBreakdown?.arxiv ?? 1485) + sessionIngested;
+  const currentDoiCount = sourceBreakdown?.doi ?? 8890;
+  const currentOpenAlexCount = sourceBreakdown?.openalex ?? 0;
+  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 999;
+  const currentCvfCount = sourceBreakdown?.cvf ?? 1267;
+  const currentZenodoCount = sourceBreakdown?.zenodo ?? 0;
+  const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
+  const currentCorpus = currentTotalCorpus;
+  const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 12;
   const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
     ?? storageStats?.zones?.goldChunkCount 
-    ?? 164702;
+    ?? 40399;
   const currentFormulas = 2220938;
   const currentEnriched = currentBronzeCount;
-  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
+  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
 
   const [statusText, setStatusText] = useState<string>(
-    `PIPELINE READY · ${currentCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`
+    `PIPELINE READY · ${currentTotalCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`
   );
 
   useEffect(() => {
     if (!isRunning) {
-      setStatusText(`PIPELINE READY · ${currentCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`);
+      setStatusText(`PIPELINE READY · ${currentTotalCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`);
     }
-  }, [currentCorpus, currentVectors, isRunning]);
+  }, [currentTotalCorpus, currentVectors, isRunning]);
 
   const nodes = useMemo<DiagramNode[]>(() => [
     {
@@ -60,13 +64,19 @@ export function GeometricPipelineDiagram() {
       zone: 'HARVEST',
       zoneColor: '#ef4444',
       toolName: 'Source Harvester',
-      toolCategory: 'arXiv + OpenAlex + Conf',
-      metricLabel: 'TOTAL CORPUS',
-      metricValue: `${(currentBronzeCount + currentOpenAlexCount).toLocaleString()} Works`,
-      secondaryMetric: `${(currentBronzeCount / 1000).toFixed(1)}k arXiv · ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex · 184 Conf`,
+      toolCategory: 'DOI + arXiv + CVF + OpenReview + Zenodo',
+      metricLabel: 'GENUINE FULL-TEXT',
+      metricValue: `${currentTotalCorpus.toLocaleString()} Papers`,
+      secondaryMetric: `${(currentDoiCount / 1000).toFixed(1)}k DOI · ${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${currentZenodoCount.toLocaleString()} Zenodo`,
       status: isStreaming ? 'ACTIVE' : 'SYNCED',
       iconType: 'arxiv',
-      specList: ['arXiv OAI-PMH & ar5iv HTML5', 'OpenAlex REST API & Citations', 'NeurIPS / ICML / ICLR / KDD']
+      specList: [
+        `DOI / Publishers (${(currentDoiCount / 1000).toFixed(1)}k)`,
+        `arXiv OAI-PMH & REST (${(currentArxivCount / 1000).toFixed(1)}k)`,
+        `CVF CVPR/ICCV Open Access (${(currentCvfCount / 1000).toFixed(1)}k)`,
+        `OpenReview ICLR/NeurIPS (${(currentOpenReviewCount / 1000).toFixed(1)}k)`,
+        `Zenodo Marker PDF Engine (${currentZenodoCount.toLocaleString()})`,
+      ]
     },
     {
       id: 'node-bronze',
@@ -78,7 +88,7 @@ export function GeometricPipelineDiagram() {
       toolCategory: 'Multi-Tier Raw Lake',
       metricLabel: 'ACTIVE STORED',
       metricValue: `${storageUsedGb.toFixed(3)} GB`,
-      secondaryMetric: `${currentBronzeCount.toLocaleString()} HTML5 · ${currentOpenAlexCount.toLocaleString()} Meta`,
+      secondaryMetric: `${currentDoiCount.toLocaleString()} DOI · ${currentArxivCount.toLocaleString()} Preprints · ${(currentCvfCount + currentOpenReviewCount + currentZenodoCount).toLocaleString()} Conf`,
       status: 'ONLINE',
       iconType: 'r2',
       specList: ['S3 Compatible Global Edge', 'Zero Egress Fees (100% Free)', 'SHA-256 Content Addressed']

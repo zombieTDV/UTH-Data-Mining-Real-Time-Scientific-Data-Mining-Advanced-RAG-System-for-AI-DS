@@ -6,7 +6,7 @@ class SearchRequest(BaseModel):
     query: str = Field(..., examples=["conditional diffusion distillation"])
     top_k: int = Field(5, ge=1, le=50, examples=[5])
     category: Optional[str] = Field(None, examples=["cs.AI"])
-    mode: Optional[str] = Field("fts", examples=["fts"])  # "fts", "vector", "hybrid"
+    mode: Optional[str] = Field("hybrid", examples=["hybrid"])  # "fts", "vector", "hybrid"
     no_cache: Optional[bool] = Field(False)
 
 

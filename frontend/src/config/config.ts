@@ -45,6 +45,7 @@ export const API_CONFIG = {
     ingestionStart: '/api/ingestion/start',
     ingestionStop: '/api/ingestion/stop',
     ingestionStream: '/api/ingestion/stream',
+    ingestionLogs: '/api/ingestion/pipeline-logs',
     paperById: '/api/papers',
     storageQuery: '/api/storage/query',
     search: '/api/search',

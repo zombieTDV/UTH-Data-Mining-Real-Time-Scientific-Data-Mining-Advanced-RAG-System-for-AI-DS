@@ -257,6 +257,8 @@ class RetrievalService:
         """Looks up full metadata for a paper across all Silver Parquet catalogs."""
         clean_pid = paper_id.replace("arXiv:", "").strip()
         search_paths = [
+            settings.PROJECT_ROOT_DIR / "data" / "silver" / "tier1" / "landmark_papers.parquet",
+            settings.PROJECT_ROOT_DIR / "data" / "silver" / "tier2" / "near_past_papers.parquet",
             settings.PROJECT_ROOT_DIR / "data" / "silver" / "papers.parquet",
             settings.PROJECT_ROOT_DIR / "data" / "silver" / "year=2026" / "papers.parquet",
             settings.SILVER_PARQUET,
@@ -309,6 +311,7 @@ class RetrievalService:
             return []
 
         search_paths = [
+            settings.PROJECT_ROOT_DIR / "data" / "silver" / "tier1" / "landmark_papers.parquet",
             settings.PROJECT_ROOT_DIR / "data" / "silver" / "papers.parquet",
             settings.PROJECT_ROOT_DIR / "data" / "silver" / "year=2026" / "papers.parquet",
             settings.SILVER_PARQUET,
@@ -352,10 +355,11 @@ class RetrievalService:
             detected_pid = self._extract_paper_id_from_query(req.query)
             if detected_pid:
                 try:
-                    direct_rows = self.table.search().where(f"paper_id = '{detected_pid}'").limit(k * 2).to_pandas()
+                    zero_vec = [0.0] * (self.vector_dim or 768)
+                    direct_rows = self.table.search(zero_vec).where(f"paper_id = '{detected_pid}'").limit(k * 2).to_pandas()
                     if direct_rows.empty and detected_pid.startswith("openalex:"):
                         bare = detected_pid.replace("openalex:", "")
-                        direct_rows = self.table.search().where(f"paper_id = '{bare}'").limit(k * 2).to_pandas()
+                        direct_rows = self.table.search(zero_vec).where(f"paper_id = '{bare}'").limit(k * 2).to_pandas()
 
                     if not direct_rows.empty:
                         logger.info("[RETRIEVAL] Direct paper ID match for '%s': found %d chunks", detected_pid, len(direct_rows))
@@ -397,10 +401,11 @@ class RetrievalService:
                 for th in title_hits:
                     pid = str(th.get("paper_id", ""))
                     try:
-                        t_rows = self.table.search().where(f"paper_id = '{pid}'").limit(3).to_pandas()
+                        zero_vec = [0.0] * (self.vector_dim or 768)
+                        t_rows = self.table.search(zero_vec).where(f"paper_id = '{pid}'").limit(3).to_pandas()
                         if t_rows.empty and pid.startswith("openalex:"):
                             bare = pid.replace("openalex:", "")
-                            t_rows = self.table.search().where(f"paper_id = '{bare}'").limit(3).to_pandas()
+                            t_rows = self.table.search(zero_vec).where(f"paper_id = '{bare}'").limit(3).to_pandas()
                         for _, tr in t_rows.iterrows():
                             cid = str(tr.get("chunk_id", ""))
                             if cid in seen_chunk_ids:
@@ -451,18 +456,24 @@ class RetrievalService:
 
             # Execute search on LanceDB
             query_builder = None
-            if mode in ("vector", "dense", "hybrid"):
-                query_vector = embedder_service.embed_query(req.query)
-                if query_vector is not None and self.vector_dim == len(query_vector):
-                    query_builder = self.table.search(query_vector, vector_column_name="vector").metric("cosine")
+            query_vector = embedder_service.embed_query(req.query)
+            if query_vector is not None and self.vector_dim == len(query_vector):
+                query_builder = self.table.search(query_vector, vector_column_name="vector").metric("cosine")
+                try:
+                    query_builder = query_builder.nprobes(32).refine_factor(10)
+                except Exception:
                     try:
                         query_builder = query_builder.nprobes(20)
                     except Exception:
                         pass
-                else:
+            elif mode == "fts":
+                try:
                     query_builder = self.table.search(req.query)
+                except Exception as fts_err:
+                    logger.debug("[RETRIEVAL] FTS search fallback to vector: %s", fts_err)
+                    query_builder = self.table.search([0.0] * (self.vector_dim or 768), vector_column_name="vector")
             else:
-                query_builder = self.table.search(req.query)
+                query_builder = self.table.search([0.0] * (self.vector_dim or 768), vector_column_name="vector")
 
             if req.category and "primary_category" in self.table.schema.names:
                 query_builder = query_builder.where(f"primary_category = '{req.category}'")

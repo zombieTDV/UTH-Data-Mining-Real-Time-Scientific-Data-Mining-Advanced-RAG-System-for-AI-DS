@@ -1,5 +1,6 @@
 export interface AnalyticsOverview {
   total_papers: number;
+  fulltext_papers_count?: number;
   enriched_html_papers: number;
   enrichment_ratio: number;
   total_math_formulas: number;
@@ -59,6 +60,122 @@ export interface EdaResponse {
   math_and_content_stats: MathAndContentStats;
   top_authors: TopAuthorItem[];
   category_cooccurrence: CategoryCooccurItem[];
+  correlations?: {
+    pearson: Record<string, Record<string, { r: number; p: string; note: string }>>;
+    spearman: Record<string, Record<string, { r: number; p: string; note: string }>>;
+    sample_size: number;
+  };
+  scatter_points?: Array<{
+    id: string;
+    title: string;
+    category: string;
+    words: number;
+    formulas: number;
+    author: string;
+    abstract?: string;
+    sampleFormula?: string;
+  }>;
+  diagnostic_3lenses?: Diagnostic3Lenses;
+  rag_audit_metrics?: {
+    total_vectors: number;
+    vector_dimension: number;
+    embedding_model: string;
+    context_window_tokens: number;
+    index_type: string;
+    section_distribution: Array<{
+      section: string;
+      chunks: number;
+      percentage: number;
+    }>;
+  };
+}
+
+export interface Diagnostic3Lenses {
+  lens1_topology: {
+    matrix_shape: [number, number];
+    total_papers_evaluated: number;
+    total_lakehouse_papers: number;
+    memory_footprint_mb: number;
+    null_counts: Record<string, number>;
+    dtypes: Record<string, string>;
+  };
+  lens2_univariate: Record<string, {
+    key: string;
+    label: string;
+    short: string;
+    unit: string;
+    desc: string;
+    mean: number;
+    median: number;
+    std: number;
+    min: number;
+    max: number;
+    p25: number;
+    p50: number;
+    p75: number;
+    p95: number;
+    skewness: number;
+    skew_category: string;
+    skew_interpretation: string;
+    kurtosis: number;
+    kurtosis_category: string;
+    kurtosis_interpretation: string;
+    dagostino_k2: number;
+    dagostino_p: string;
+    is_normal: boolean;
+    normality_verdict: string;
+    histogram_bins: Array<{ x0: number; x1: number; count: number }>;
+    kde_points: Array<{ x: number; y: number }>;
+    qq_points: Array<{ theoretical: number; empirical: number; quantile: number }>;
+  }>;
+  lens3_multivariate: {
+    pairs: Record<string, {
+      pair_id: string;
+      title: string;
+      x_key: string;
+      y_key: string;
+      x_label: string;
+      x_unit: string;
+      y_label: string;
+      y_unit: string;
+      pearson_r: number;
+      pearson_p: string;
+      spearman_rho: number;
+      spearman_p: string;
+      mutual_information: number;
+      linear_fit: {
+        slope: number;
+        intercept: number;
+        r_squared: number;
+      };
+      spline_points: Array<{ x: number; y: number }>;
+      warning: {
+        badge: string;
+        title: string;
+        text: string;
+      };
+      scatter_samples: Array<{
+        id: string;
+        title: string;
+        category: string;
+        x: number;
+        y: number;
+        author: string;
+        abstract?: string;
+        sampleFormula?: string;
+      }>;
+    }>;
+    active_pair_default: string;
+  };
+  downstream_governance: Array<{
+    rule_id: string;
+    observed_geometry: string;
+    empirical_evidence: string;
+    pipeline_requirement: string;
+    applied_in_lakehouse: string;
+    tag: string;
+    badge_color: string;
+  }>;
 }
 
 export interface AssociationRuleItem {
@@ -147,6 +264,9 @@ export interface GraphLinkItem {
 export interface NetworkSummary {
   total_authors: number;
   total_collaborations: number;
+  total_nodes?: number;
+  total_edges?: number;
+  total_papers_indexed?: number;
   network_density: number;
   connected_components: number;
   total_communities_detected: number;
@@ -228,6 +348,20 @@ export interface StorageZoneInfo {
   goldBackupSizeBytes?: number;
 }
 
+export interface SourceBreakdownInfo {
+  arxiv: number;
+  doi?: number;
+  openalex: number;
+  openreview: number;
+  cvf: number;
+  zenodo: number;
+  total_deduplicated: number;
+  tier1_landmark: number;
+  tier2_near_past: number;
+  active_rag_papers: number;
+  active_rag_vectors: number;
+}
+
 export interface ActiveLakehouseInfo {
   totalObjects: number;
   totalSizeBytes: number;
@@ -246,6 +380,7 @@ export interface ActiveLakehouseInfo {
   activeLanceDbVectors: number;
   activeLanceDbSizeBytes: number;
   activeLanceDbSizeMb: number;
+  sourceBreakdown?: SourceBreakdownInfo;
 }
 
 export interface BackupStorageInfo {
@@ -278,6 +413,7 @@ export interface StorageStatsResponse {
   activeLakehouse?: ActiveLakehouseInfo;
   backupStorage?: BackupStorageInfo;
   totalBucket?: TotalBucketInfo;
+  sourceBreakdown?: SourceBreakdownInfo;
   last_synced?: string;
 }
 
@@ -329,6 +465,9 @@ export interface IngestionEvent {
   storage_total_bytes?: number;
   storage_total_gb?: number;
   storage_used_pct?: number;
+  total_vectors?: number;
+  total_sections?: number;
+  total_words?: number;
 }
 
 export interface DuckDbQueryResult {

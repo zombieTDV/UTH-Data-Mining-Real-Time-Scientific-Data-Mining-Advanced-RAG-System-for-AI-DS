@@ -22,27 +22,31 @@ export interface PipelinePhase {
 export function PipelineFlow() {
   const [selectedPhase, setSelectedPhase] = useState<string>('phase-3');
   const {
-    totalCorpus,
     sessionIngested,
     storageUsedGb,
     storageStats,
   } = useLakehouseStreamStore();
 
-  const currentCorpus = totalCorpus || 37103;
-  const currentBronzeCount = storageStats?.activeLakehouse
-    ? storageStats.activeLakehouse.arxivHtmlCount + sessionIngested
-    : (storageStats?.zones?.bronzeCount ?? 11698) + sessionIngested;
-  const currentOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24756;
+  const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
+  const currentArxivCount = (sourceBreakdown?.arxiv ?? 1485) + sessionIngested;
+  const currentDoiCount = sourceBreakdown?.doi ?? 8890;
+  const currentOpenAlexCount = sourceBreakdown?.openalex ?? 0;
+  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 999;
+  const currentCvfCount = sourceBreakdown?.cvf ?? 1267;
+  const currentZenodoCount = sourceBreakdown?.zenodo ?? 0;
+  const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
+  const currentCorpus = currentTotalCorpus;
+  const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 12;
   const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
     ?? storageStats?.zones?.goldChunkCount 
-    ?? 164750;
+    ?? 40399;
   const currentFormulas = 2220938;
   const currentEnriched = currentBronzeCount;
-  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
+  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
   const currentSilverMb = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.silverParquetSizeMb.toFixed(2)
-    : '316.06';
+    : '172.00';
 
   const phases = useMemo<PipelinePhase[]>(() => [
     {
@@ -52,19 +56,27 @@ export function PipelineFlow() {
       zone: 'BRONZE',
       zoneColor: 'var(--accent-bronze)',
       status: 'COMPLETED',
-      inputs: ['arXiv OAI-PMH & ar5iv HTML5', 'OpenAlex REST API & Citations', 'Top AI Conference Proceedings'],
-      outputs: [
-        `${currentBronzeCount.toLocaleString()} arXiv HTML5 Files`,
-        `${currentOpenAlexCount.toLocaleString()} OpenAlex Metadata JSONs`,
-        `${currentBatchesCount} OAI Batch Checkpoints (26.4MB)`
+      inputs: [
+        'DOI Publisher Feed (Nature, IEEE, ACM, Springer)',
+        'arXiv OAI-PMH & REST API',
+        'CVF CVPR & ICCV Open Access',
+        'OpenReview ICLR & NeurIPS Discussions',
+        'Zenodo Open Science (Marker PDF Engine)',
       ],
-      tools: ['HTTPX Async', 'Cloudflare R2 S3 API', 'SHA-256 Hasher'],
+      outputs: [
+        `${currentDoiCount.toLocaleString()} DOI / Journal Publications`,
+        `${currentArxivCount.toLocaleString()} arXiv Preprints`,
+        `${currentCvfCount.toLocaleString()} CVF Conference Proceedings`,
+        `${currentOpenReviewCount.toLocaleString()} OpenReview Peer Reviews`,
+        `${currentZenodoCount.toLocaleString()} Zenodo Marker Manuscripts`,
+      ],
+      tools: ['HTTPX Async', 'Cloudflare R2 S3 API', 'SHA-256 Hasher', 'Marker PDF Engine'],
       metrics: {
-        processed: `${(currentBronzeCount + currentOpenAlexCount).toLocaleString()} Works Harvested`,
-        rate: `${(currentBronzeCount / 1000).toFixed(1)}k arXiv + ${(currentOpenAlexCount / 1000).toFixed(1)}k OpenAlex`,
-        latency: `${storageUsedGb.toFixed(3)} GB Transferred`
+        processed: `${currentTotalCorpus.toLocaleString()} Deduplicated Works`,
+        rate: `${(currentDoiCount / 1000).toFixed(1)}k DOI · ${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${currentZenodoCount.toLocaleString()} Zenodo`,
+        latency: `${storageUsedGb.toFixed(3)} GB Transferred`,
       },
-      details: `Harvests metadata and full-content preprints across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably streams ${currentBronzeCount.toLocaleString()} raw HTML5 preprints and ${currentOpenAlexCount.toLocaleString()} OpenAlex rich records into Cloudflare R2 Bronze Lakehouse.`
+      details: `Harvests full-content preprints and conference publications across cs.AI, cs.LG, cs.CV, cs.CL, stat.ML. Immutably catalogs ${currentTotalCorpus.toLocaleString()} deduplicated genuine full-text papers across 5 primary scientific sources.`,
     },
     {
       id: 'phase-2',

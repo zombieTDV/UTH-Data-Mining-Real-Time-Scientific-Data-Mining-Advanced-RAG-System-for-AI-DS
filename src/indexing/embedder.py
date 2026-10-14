@@ -38,8 +38,28 @@ class NomicEmbedder:
             self.device = torch.device(device)
 
         # Khởi tạo Tokenizer và Model
+        from transformers import PreTrainedModel
+
+        def _patch_extended_mask(self_m, attention_mask, input_shape, device=None, dtype=None):
+            if dtype is None:
+                dtype = self_m.dtype if hasattr(self_m, "dtype") else torch.float32
+            if attention_mask.dim() == 3:
+                extended = attention_mask[:, None, :, :]
+            elif attention_mask.dim() == 2:
+                extended = attention_mask[:, None, None, :]
+            else:
+                raise ValueError("Wrong shape")
+            extended = extended.to(dtype=dtype)
+            return (1.0 - extended) * -10000.0
+
+        PreTrainedModel.get_extended_attention_mask = _patch_extended_mask
+
+        model_kwargs = {"trust_remote_code": True}
+        if self.device.type == "cuda":
+            model_kwargs["torch_dtype"] = torch.float16
+
         self.tokenizer = AutoTokenizer.from_pretrained(load_identifier)
-        self.model = AutoModel.from_pretrained(load_identifier, trust_remote_code=True)
+        self.model = AutoModel.from_pretrained(load_identifier, **model_kwargs)
         self.model.to(self.device)
         self.model.eval()
 
@@ -55,8 +75,11 @@ class NomicEmbedder:
         """Sinh vector nhúng cho danh sách tài liệu/chunks (tự động gắn tiền tố search_document:)."""
         all_embeddings = []
 
-        # Chuẩn bị văn bản theo chuẩn của Nomic
-        formatted_texts = [f"search_document: {t}" for t in texts]
+        # Chuẩn bị văn bản theo chuẩn của Nomic, loại bỏ surrogate characters chống lỗi PyO3 Rust
+        formatted_texts = [
+            f"search_document: {t.encode('utf-8', 'ignore').decode('utf-8', 'ignore') if isinstance(t, str) else ''}"
+            for t in texts
+        ]
 
         for i in range(0, len(formatted_texts), batch_size):
             batch = formatted_texts[i : i + batch_size]
@@ -64,17 +87,20 @@ class NomicEmbedder:
                 batch,
                 padding=True,
                 truncation=True,
-                max_length=1024,
+                max_length=512,
                 return_tensors="pt",
             ).to(self.device)
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 try:
                     model_output = self.model(**encoded_input)
                 except Exception as e:
-                    # Fallback sang CPU neu MPS bao loi bo nho
-                    if self.device.type == "mps":
-                        torch.mps.empty_cache()
+                    # Fallback sang CPU neu bao loi bo nho
+                    if self.device.type in ("mps", "cuda"):
+                        if self.device.type == "cuda":
+                            torch.cuda.empty_cache()
+                        else:
+                            torch.mps.empty_cache()
                         cpu_input = {k: v.to("cpu") for k, v in encoded_input.items()}
                         self.model.to("cpu")
                         model_output = self.model(**cpu_input)
@@ -85,9 +111,12 @@ class NomicEmbedder:
                 embeddings = self._mean_pooling(model_output, encoded_input["attention_mask"].to(model_output[0].device))
                 # L2 Normalize
                 embeddings = F.normalize(embeddings, p=2, dim=1)
-                all_embeddings.extend(embeddings.cpu().tolist())
+                all_embeddings.extend(embeddings.float().cpu().tolist())
 
-            if self.device.type == "mps":
+            del encoded_input, model_output, embeddings
+            if self.device.type == "cuda" and (i // batch_size) % 100 == 0 and i > 0:
+                torch.cuda.empty_cache()
+            elif self.device.type == "mps":
                 torch.mps.empty_cache()
 
         return all_embeddings
@@ -96,7 +125,8 @@ class NomicEmbedder:
 
     def embed_query(self, query: str) -> List[float]:
         """Sinh vector nhúng cho câu truy vấn tìm kiếm của người dùng (tự động gắn tiền tố search_query:)."""
-        formatted_query = f"search_query: {query}"
+        clean_q = query.encode("utf-8", "ignore").decode("utf-8", "ignore") if isinstance(query, str) else ""
+        formatted_query = f"search_query: {clean_q}"
         encoded_input = self.tokenizer(
             [formatted_query],
             padding=True,

@@ -44,3 +44,19 @@ async def broadcast_ingestion_event(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Allows external ingestion pipelines (e.g. OpenReview, CVF) to broadcast progress directly to connected Frontend clients."""
     await streaming_service.broadcast_event(payload)
     return {"status": "BROADCASTED"}
+
+
+@router.post("/reset")
+async def reset_streaming_session() -> Dict[str, Any]:
+    """Resets session ingested count and storage delta back to baseline."""
+    streaming_service.reset_session()
+    return {"status": "RESET", "session_ingested": 0}
+
+
+@router.get("/pipeline-logs")
+async def get_real_pipeline_logs(limit: int = 150) -> Dict[str, Any]:
+    """Fetches real structured pipeline execution logs directly from disk."""
+    logs = streaming_service.get_latest_pipeline_logs(limit=limit)
+    return {"status": "SUCCESS", "count": len(logs), "logs": logs}
+
+

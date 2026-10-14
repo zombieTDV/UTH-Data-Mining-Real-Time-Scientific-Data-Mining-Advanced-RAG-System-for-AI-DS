@@ -16,7 +16,7 @@ export const TOOLS_DATA: ToolItem[] = [
     name: 'Cloudflare R2',
     category: 'Storage',
     role: 'Bronze Lakehouse & Gold Backup',
-    spec: 'S3 API · Zero Egress Fees · 5.52 GB',
+    spec: 'S3 API · Zero Egress Fees · 4.77 GB (Free Tier)',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -45,7 +45,7 @@ export const TOOLS_DATA: ToolItem[] = [
     name: 'LanceDB',
     category: 'Vector DB',
     role: 'Multi-Modal Vector Lakehouse (Gold)',
-    spec: '143,523 Embeddings · Cosine ANN',
+    spec: '913,205 Embeddings · IVF-PQ Cosine ANN',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -61,7 +61,7 @@ export const TOOLS_DATA: ToolItem[] = [
     name: 'Apache Parquet',
     category: 'Storage',
     role: 'Silver Canonical Storage Format',
-    spec: 'Snappy Compressed · Year=2026 Partition',
+    spec: 'Snappy Compressed · Tier 1 & Tier 2',
     status: 'Synced',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -88,15 +88,20 @@ export const TOOLS_DATA: ToolItem[] = [
     )
   },
   {
-    id: 'apple-metal',
-    name: 'Apple Silicon Metal',
+    id: 'hardware-accel',
+    name: 'Hardware Accelerator',
     category: 'Compute',
-    role: 'Hardware Acceleration (MPS)',
-    spec: 'Unified Memory · Metal GPU Offload',
+    role: 'GPU Acceleration & Inference',
+    spec: 'NVIDIA CUDA / Tensor Cores & Apple MPS Multi-Backend',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.88c.66-.82 1.11-1.96.99-3.1-.96.04-2.11.64-2.79 1.44-.6.69-1.12 1.83-.98 2.95 1.07.08 2.14-.56 2.78-1.29z" fill="var(--text-primary)"/>
+        <rect x="2" y="6" width="20" height="12" rx="2" stroke="#10b981" strokeWidth="1.8" />
+        <path d="M6 12h12M12 6v12" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="6" cy="6" r="1" fill="#10b981" />
+        <circle cx="18" cy="6" r="1" fill="#10b981" />
+        <circle cx="6" cy="18" r="1" fill="#10b981" />
+        <circle cx="18" cy="18" r="1" fill="#10b981" />
       </svg>
     )
   },

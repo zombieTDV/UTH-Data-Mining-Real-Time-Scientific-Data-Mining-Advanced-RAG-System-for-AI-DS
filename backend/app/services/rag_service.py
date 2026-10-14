@@ -44,8 +44,8 @@ class RagService:
         context_parts: List[str] = []
 
         for c in chunks:
-            section = c.section_title or "Main Methodology"
-            cite_str = f"Paper: {c.paper_id}, Section: {section}"
+            sec_title = c.section_title.strip() if c.section_title else "Abstract"
+            cite_str = f"Paper: {c.paper_id}, Section: {sec_title}"
             if cite_str not in citations:
                 citations.append(cite_str)
 
@@ -54,7 +54,7 @@ class RagService:
             if len(chunk_body) > 3000:
                 chunk_body = chunk_body[:3000] + "... [section truncated]"
             context_parts.append(
-                f"--- [Paper ID: {c.paper_id} | Title: \"{title}\" | Section: {section}] ---\n"
+                f"--- [Paper ID: {c.paper_id} | Title: \"{title}\" | Section: {sec_title}] ---\n"
                 f"{chunk_body}\n"
             )
 
@@ -63,23 +63,23 @@ class RagService:
         authority_note = ""
         if top_auth_chunk:
             authority_note = (
-                f"\n6. Graph PageRank Authority: Paper [Paper: {top_auth_chunk.paper_id}] is authored by high-impact "
+                f"\n7. Graph PageRank Authority: Paper [Paper: {top_auth_chunk.paper_id}] is authored by high-impact "
                 f"citation network influencer '{top_auth_chunk.authority_author}' (Normalized PageRank: {top_auth_chunk.authority_score:.2f}). "
                 "Highlight this authoritative foundation when synthesizing comparative insights."
             )
 
-        # 5. Construct System and User messages with strict negative constraints
+        # 5. Construct System and User messages with balanced grounded synthesis
         system_prompt = (
-            "You are a strictly grounded scientific research assistant specializing in Machine Learning and Computer Science.\n"
-            "Your mission is to provide rigorous, truthful, and accurate technical answers based EXCLUSIVELY on the retrieved scientific literature excerpts below.\n\n"
+            "You are an expert scientific research assistant specializing in Machine Learning, Deep Learning, and Computer Science.\n"
+            "Your mission is to provide rigorous, deep, truthful, and accurate technical answers grounded in scientific literature.\n\n"
             "CRITICAL OPERATIONAL RULES:\n"
-            "1. STRICT FACTUAL GROUNDING: Rely SOLELY and EXCLUSIVELY on facts explicitly stated in the provided paper excerpts. DO NOT extrapolate, assume, or utilize pre-trained parametric memory for empirical values, hyperparameter settings, author claims, or ablation results.\n"
-            "2. MISSING INFORMATION PROTOCOL: If the provided excerpts do not explicitly contain the necessary information to address any part of the user's question, you MUST explicitly state: \"The provided literature does not contain sufficient details regarding [specific aspect].\" NEVER invent, approximate, or extrapolate missing facts.\n"
-            "3. MANDATORY CITATIONS: Every substantive technical claim, architectural detail, and performance metric must cite the exact paper using `[Paper: {paper_id}]`.\n"
-            "4. DIRECT & CONCISE: Answer directly, concisely, and formally without introductory conversational pleasantries, filler, or unrequested tangential background.\n"
+            "1. FACTUAL GROUNDING WITH LITERATURE CITATIONS: Synthesize and explain the technical answer thoroughly, citing the retrieved papers using [Paper: {paper_id}, Section: {section_title}] for every substantive claim, mechanism, architectural detail, and empirical finding found in the excerpts.\n"
+            "2. BALANCED SYNTHESIS & TECHNICAL COMPLETION: First explain what the retrieved literature establishes (citing it directly). If specific micro-level derivations or implementation details are partially omitted from the retrieved excerpt, explain the established foundational mechanisms from scientific consensus to provide a complete, actionable technical answer, distinguishing paper-specific claims from general foundational theory.\n"
+            "3. MANDATORY CITATIONS: Cite the exact source using [Paper: {paper_id}, Section: {section_title}] (e.g. [Paper: 2310.01407, Section: Abstract] or [Paper: 2610.13832, Section: 3. SpatialASM]). DO NOT wrap citations in backticks or code blocks.\n"
+            "4. DIRECT & TECHNICAL: Answer directly with mathematical precision, formulas, and architectural depth without conversational filler.\n"
             "5. PRESERVE LATEX: If mathematical formulas are discussed, preserve exact LaTeX notation like $...$ or $$...$$.\n"
-            "6. ORIGIN & DERIVED WORK ACCURACY: When a paper applies, adapts, or extends a well-known methodology (e.g., Classifier-Free Guidance, LoRA, FlashAttention), explicitly clarify that the paper applies or extends the technique to its domain, rather than claiming it invented the foundational method.\n"
-            f"7. OBJECTIVE SYNTHESIS: When multiple papers discuss related concepts, compare their approaches objectively.{authority_note}"
+            "6. ORIGIN & DERIVED WORK ACCURACY: When a paper applies, adapts, or extends a well-known methodology (e.g., LoRA, FlashAttention, Diffusion Distillation), clarify its specific adaptation versus foundational theory.\n"
+            f"{authority_note}"
         )
 
         context_text = "\n".join(context_parts)
