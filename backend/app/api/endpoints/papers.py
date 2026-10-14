@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
 from backend.app.schemas.search import ChunkDto
-from backend.app.services.retrieval_service import retrieval_service
+from backend.app.services.retrieval import retrieval_service
 
 router = APIRouter()
 

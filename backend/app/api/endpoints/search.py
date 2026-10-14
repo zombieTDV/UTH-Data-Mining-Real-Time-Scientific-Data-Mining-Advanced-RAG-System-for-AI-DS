@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from backend.app.schemas.search import SearchRequest, SearchResponse
-from backend.app.services.retrieval_service import retrieval_service
+from backend.app.services.retrieval import retrieval_service
 
 router = APIRouter()
 

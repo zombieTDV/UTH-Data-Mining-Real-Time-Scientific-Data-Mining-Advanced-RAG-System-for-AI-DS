@@ -1,0 +1,10 @@
+DEFAULT_TOP_K = 5
+DEFAULT_SEARCH_MODE = "fts"
+FALLBACK_TITLE = "Academic Paper"
+FALLBACK_SECTION_CITATION = "Main Body"
+FALLBACK_SECTION_CONTEXT = "Body"
+NO_MATCHING_ANSWER = "No matching scientific literature found in the Gold lakehouse for the given query."
+MAX_CITATIONS = 5
+DEFAULT_SIMILARITY_SCORE = "0.0000"
+DEFAULT_TOP_SCORE = "0.8500"
+OFFLINE_INSTRUCTION = "(Start the local LLM with `npm run start:llm` to enable full neural generative answers)."

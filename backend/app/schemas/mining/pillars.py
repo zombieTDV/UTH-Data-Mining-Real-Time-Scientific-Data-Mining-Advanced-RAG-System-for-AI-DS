@@ -1,51 +1,5 @@
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
-
-
-class EdaOverview(BaseModel):
-    total_papers: int
-    enriched_html_papers: int
-    enrichment_ratio: float
-    total_math_formulas: int
-    total_words: int
-    avg_sections_per_paper: float
-    avg_math_per_paper: float
-    avg_words_per_paper: float
-    earliest_publication: str
-    latest_publication: str
-
-
-class CategoryDistItem(BaseModel):
-    category: str
-    count: int
-    percentage: float
-    total_math_formulas: int
-    avg_words: float
-
-
-class TemporalDistItem(BaseModel):
-    period: str
-    count: int
-
-
-class TopAuthorItem(BaseModel):
-    author: str
-    paper_count: int
-
-
-class CategoryCooccurItem(BaseModel):
-    category_a: str
-    category_b: str
-    cooccurrence_count: int
-
-
-class EdaResponse(BaseModel):
-    dataset_overview: EdaOverview
-    category_distribution: List[CategoryDistItem]
-    temporal_distribution: List[TemporalDistItem]
-    math_and_content_stats: Dict[str, Any]
-    top_authors: List[TopAuthorItem]
-    category_cooccurrence: List[CategoryCooccurItem]
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel
 
 
 class AssociationRuleItem(BaseModel):
@@ -68,7 +22,7 @@ class ClusterProfileItem(BaseModel):
     cluster_id: int
     size: int
     percentage: float
-    dominant_categories: List[Dict[str, Any]]
+    dominant_categories: List[str]
     sample_titles: List[str]
 
 
@@ -83,7 +37,7 @@ class ScatterPointItem(BaseModel):
 
 class ClustersResponse(BaseModel):
     summary: Dict[str, Any]
-    validity_metrics: Dict[str, float]
+    validity_metrics: Dict[str, Any]
     cluster_profiles: List[ClusterProfileItem]
     scatter_2d: List[ScatterPointItem]
 
@@ -100,12 +54,12 @@ class GraphNodeItem(BaseModel):
 class GraphLinkItem(BaseModel):
     source: str
     target: str
-    weight: int
+    weight: float
 
 
 class GraphResponse(BaseModel):
     network_summary: Dict[str, Any]
-    top_influencers: List[Dict[str, Any]]
+    top_influencers: List[GraphNodeItem]
     communities: List[Dict[str, Any]]
     graph_export: Dict[str, Any]
 

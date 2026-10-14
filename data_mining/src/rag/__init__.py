@@ -1,17 +1,20 @@
-"""Scientific RAG module for research question answering."""
-
-from src.rag.prompt_templates import (
-    SCIENTIFIC_RAG_SYSTEM_PROMPT,
-    build_rag_messages,
-    format_scientific_context,
+from src.rag.query_engine import (
+    RAGQueryEngine,
+    RAGConfig,
+    QueryResult,
+    RetrievedChunk,
 )
-from src.rag.llm_client import QwenGGUFEngine
-from src.rag.rag_engine import ScientificRAGEngine
-
-__all__ = [
-    "SCIENTIFIC_RAG_SYSTEM_PROMPT",
-    "build_rag_messages",
-    "format_scientific_context",
-    "QwenGGUFEngine",
-    "ScientificRAGEngine",
-]
+from src.rag.prompt_builder import (
+    ScientificPromptBuilder,
+    BuiltPrompt,
+    SYSTEM_PROMPT_TEMPLATE,
+    USER_PROMPT_TEMPLATE,
+)
+from src.rag.reranker import (
+    RERERANKER_AVAILABLE,
+    rerank_chunks,
+)
+from src.rag.evaluator import (
+    RAGEvaluator,
+    RAGMetrics,
+)

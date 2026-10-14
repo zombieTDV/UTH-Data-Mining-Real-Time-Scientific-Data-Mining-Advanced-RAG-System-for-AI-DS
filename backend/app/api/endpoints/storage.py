@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from backend.app.schemas.storage import StorageStatsResponse
-from backend.app.services.storage_service import storage_service
+from backend.app.services.storage import storage_service
 
 router = APIRouter()
 

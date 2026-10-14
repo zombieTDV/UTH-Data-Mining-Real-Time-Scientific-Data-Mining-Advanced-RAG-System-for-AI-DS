@@ -7,7 +7,7 @@ API Endpoints for Real-Time Streaming Ingestion & Change Data Capture (CDC).
 from typing import Any, Dict
 from fastapi import APIRouter, BackgroundTasks, Query
 from sse_starlette.sse import EventSourceResponse
-from backend.app.services.streaming_service import streaming_service
+from backend.app.services.streaming import streaming_service
 
 router = APIRouter(prefix="/ingestion", tags=["Streaming Ingestion"])
 

@@ -2,7 +2,7 @@ import json
 from fastapi import APIRouter
 from sse_starlette.sse import EventSourceResponse
 from backend.app.schemas.chat import ChatRequest, ChatResponse
-from backend.app.services.rag_service import rag_service
+from backend.app.services.rag import rag_service
 
 router = APIRouter(tags=["RAG & Chat"])
 
