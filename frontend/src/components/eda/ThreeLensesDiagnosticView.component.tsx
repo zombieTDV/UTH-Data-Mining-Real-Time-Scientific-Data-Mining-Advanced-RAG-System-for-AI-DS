@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
+import { useState, useMemo, useRef, type FC, type MouseEvent } from 'react';
 import type { Diagnostic3Lenses } from '../../types';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom } from '../../hooks';
@@ -26,6 +26,7 @@ interface ThreeLensesDiagnosticViewProps {
   onShowToast: (msg: string) => void;
   activeTab?: 'lens3_bivariate' | 'lens2_univariate' | 'governance';
   onTabChange?: (tab: 'lens3_bivariate' | 'lens2_univariate' | 'governance') => void;
+  selectedCategory?: string;
 }
 
 export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
@@ -37,22 +38,10 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   onSelectPaper,
   selectedPaperId,
   onShowToast,
-  activeTab: propActiveTab,
-  onTabChange,
+  activeTab = 'lens3_bivariate',
+  selectedCategory = 'ALL',
 }) => {
   const isDark = theme === 'dark';
-
-  // Sub-tab switcher across the Three Lenses (§6.1 - §6.4)
-  const [internalTab, setInternalTab] = useState<'lens3_bivariate' | 'lens2_univariate' | 'governance'>(propActiveTab || 'lens3_bivariate');
-  const activeTab = propActiveTab || internalTab;
-  const setActiveTab = (tab: 'lens3_bivariate' | 'lens2_univariate' | 'governance') => {
-    setInternalTab(tab);
-    onTabChange?.(tab);
-  };
-
-  useEffect(() => {
-    if (propActiveTab) setInternalTab(propActiveTab);
-  }, [propActiveTab]);
 
   // Pair selection in Lens 3 (default: words_x_math_density from lecture case study)
   const [selectedPairKey, setSelectedPairKey] = useState<string>('words_x_math_density');
@@ -62,9 +51,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
 
   // Quadrant filter in 2D scatter
   const [selectedQuadrant, setSelectedQuadrant] = useState<'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4'>('ALL');
-
-  // Category filter in 2D scatter
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   // GMM Clustering controls
   const [colorMode, setColorMode] = useState<'gmm' | 'category'>('gmm');
@@ -227,7 +213,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
       }}
     >
       {/* ---------------------------------------------------------------- */}
-      {/* ROW 1: HEADER & 3-LENS SUB-TAB CONTROLS                           */}
+      {/* ROW 1: STREAMLINED DECK HEADER (NO DUPLICATE TABS)                 */}
       {/* ---------------------------------------------------------------- */}
       <div
         style={{
@@ -235,12 +221,12 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
           justifyContent: 'space-between',
           alignItems: 'center',
           height: '28px',
-          marginBottom: '6px',
+          marginBottom: '4px',
           flexShrink: 0,
           gap: '8px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
           <span
             style={{
               fontSize: '10px',
@@ -254,11 +240,11 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               flexShrink: 0,
             }}
           >
-            [EDA-03]
+            {activeTab === 'lens3_bivariate' ? '[EDA-03]' : activeTab === 'lens2_univariate' ? '[EDA-02]' : '[EDA-08]'}
           </span>
           <h3
             style={{
-              fontSize: '13px',
+              fontSize: '12.5px',
               fontWeight: 800,
               color: themeStyles.textPrimary,
               margin: 0,
@@ -267,7 +253,11 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            CHẨN ĐOÁN 3 THẤU KÍNH &amp; TƯƠNG TÁC ĐA BIẾN (3-LENS DIAGNOSTIC SUITE)
+            {activeTab === 'lens3_bivariate'
+              ? 'TƯƠNG TÁC ĐA BIẾN & PHÂN CỤM GMM 2D (BIVARIATE INTERACTIONS & GMM)'
+              : activeTab === 'lens2_univariate'
+              ? 'PHÂN PHỐI ĐƠN BIẾN & KIỂM ĐỊNH CHUẨN TẮC Q-Q (UNIVARIATE & NORMALITY)'
+              : 'MA TRẬN QUY TẮC ĐIỀU HƯỚNG LAKEHOUSE (§6.4 GOVERNANCE)'}
           </h3>
           <span
             style={{
@@ -279,78 +269,93 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#e0f2fe',
               color: isDark ? '#38bdf8' : '#0369a1',
               border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
+              flexShrink: 0,
             }}
           >
-            LECTURE §6.1-§6.4
+            {activeTab === 'lens3_bivariate' ? 'LECTURE §6.3' : activeTab === 'lens2_univariate' ? 'LECTURE §6.2' : 'LECTURE §6.4'}
           </span>
         </div>
 
-        {/* 3-Lens Pill Switcher Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-          {[
-            { id: 'lens3_bivariate' as const, label: 'LENS 1 & 3: TƯƠNG TÁC ĐA BIẾN & MI', icon: '☍' },
-            { id: 'lens2_univariate' as const, label: 'LENS 2: ĐƠN BIẾN & Q-Q NORMALITY', icon: '◬' },
-            { id: 'governance' as const, label: '§6.4 ĐIỀU HƯỚNG PIPELINE', icon: '⚙' },
-          ].map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
+        {/* Right side: Statistical metrics for Bivariate + Toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          {activeTab === 'lens3_bivariate' && activePair && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div
                 style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
                   fontSize: '10px',
                   fontFamily: 'var(--font-mono)',
-                  fontWeight: isActive ? 800 : 600,
-                  backgroundColor: isActive
-                    ? isDark
-                      ? 'rgba(37, 99, 235, 0.25)'
-                      : '#dbeafe'
-                    : isDark
-                    ? 'rgba(255,255,255,0.05)'
-                    : '#f1f5f9',
-                  color: isActive ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary,
-                  border: `1px solid ${isActive ? '#3b82f6' : themeStyles.border}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#eff6ff',
+                  border: '1px solid #3b82f6',
+                  color: isDark ? '#93c5fd' : '#1d4ed8',
+                  whiteSpace: 'nowrap',
                 }}
+                title="Hệ số tương quan Pearson r (tuyến tính)"
               >
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+                r = <strong>{activePair.pearson_r}</strong>
+              </div>
+              <div
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  backgroundColor: isDark ? 'rgba(124,58,237,0.15)' : '#f5f3ff',
+                  border: '1px solid #8b5cf6',
+                  color: isDark ? '#c4b5fd' : '#6d28d9',
+                  whiteSpace: 'nowrap',
+                }}
+                title="Hệ số tương quan Spearman ρ (thứ bậc phi tuyến)"
+              >
+                ρ = <strong>{activePair.spearman_rho}</strong>
+              </div>
+              <div
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  padding: '2px 7px',
+                  borderRadius: '3px',
+                  backgroundColor: isDark ? 'rgba(234,88,12,0.22)' : '#fff7ed',
+                  border: '1px solid #ea580c',
+                  color: '#ea580c',
+                  whiteSpace: 'nowrap',
+                }}
+                title="Mutual Information I(X; Y) đo lường phi tuyến"
+              >
+                ★ I(X; Y) = <strong>{activePair.mutual_information}</strong>
+              </div>
+            </div>
+          )}
 
-          {/* Theater Mode Toggle */}
-          <button
-            type="button"
-            onClick={onToggleTheater}
-            style={{
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              backgroundColor: isTheaterMode
-                ? isDark
-                  ? 'rgba(245, 158, 11, 0.25)'
-                  : '#fef3c7'
-                : isDark
-                ? 'rgba(255,255,255,0.06)'
-                : '#f1f5f9',
-              color: isTheaterMode ? '#f59e0b' : themeStyles.textSecondary,
-              border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
-              cursor: 'pointer',
-            }}
-            title="Phóng đại toàn màn hình 100% (Theater Mode)"
-          >
-            <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
-          </button>
+          <ChartToolbar
+            theme={theme}
+            svgRef={activeTab === 'lens3_bivariate' ? scatterSvgRef : activeTab === 'lens2_univariate' ? histSvgRef : undefined}
+            filename={`eda-3lens-${activeTab}`}
+            zoomLevel={activeTab === 'lens3_bivariate' ? scatterPanZoom.zoom : undefined}
+            hasPannedOrZoomed={activeTab === 'lens3_bivariate' ? scatterPanZoom.hasPannedOrZoomed : undefined}
+            onZoomIn={activeTab === 'lens3_bivariate' ? () => scatterPanZoom.zoomIn(0.25) : undefined}
+            onZoomOut={activeTab === 'lens3_bivariate' ? () => scatterPanZoom.zoomOut(0.25) : undefined}
+            onResetZoom={activeTab === 'lens3_bivariate' ? scatterPanZoom.resetView : undefined}
+            isLensActive={activeTab === 'lens3_bivariate' ? isLensActive : undefined}
+            onToggleLens={activeTab === 'lens3_bivariate' ? () => setIsLensActive((v) => !v) : undefined}
+            isTheater={isTheaterMode}
+            onToggleTheater={onToggleTheater}
+            csvData={
+              activeTab === 'lens3_bivariate'
+                ? displayPoints.map((p) => ({
+                    id: p.id,
+                    title: p.title,
+                    category: p.category,
+                    x: p.x,
+                    y: p.y,
+                    author: p.author,
+                  }))
+                : undefined
+            }
+            onShowToast={onShowToast}
+          />
         </div>
       </div>
 
@@ -359,9 +364,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
       {/* ---------------------------------------------------------------- */}
       {activeTab === 'lens3_bivariate' && activePair && (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '6px' }}>
-          {/* ================================================================ */}
-          {/* COMPACT HUD ROW 1: PAIR SELECTOR + STATISTICAL METRICS + TOOLBAR */}
-          {/* ================================================================ */}
+          {/* COMPACT UNIFIED CONTROL HUD: PAIR SELECTOR + GMM CLUSTERS & ELLIPSES + QUADRANTS + WARNING */}
           <div
             style={{
               display: 'flex',
@@ -372,18 +375,19 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               backgroundColor: 'var(--bg-canvas, rgba(0,0,0,0.02))',
               border: `1px solid ${themeStyles.border}`,
               flexShrink: 0,
-              gap: '6px',
+              gap: '8px',
               minHeight: '28px',
+              overflowX: 'auto',
             }}
           >
-            {/* Pair Switcher Chips */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'nowrap', overflowX: 'auto' }}>
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            {/* Left Controls: Pair Switcher + GMM Controls + Quadrants */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'nowrap', flexShrink: 0 }}>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>
                 Cặp biến:
               </span>
               {[
                 { key: 'words_x_math_density', label: 'Mật độ Toán × Từ (§6.3)' },
-                { key: 'math_x_authors', label: 'Toán × Tác giả (Nghịch lý)' },
+                { key: 'math_x_authors', label: 'Toán × Tác giả' },
                 { key: 'words_x_math', label: 'Số từ × Công thức' },
                 { key: 'words_x_citations', label: 'Số từ × Trích dẫn' },
               ].map((p) => {
@@ -414,145 +418,33 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   </button>
                 );
               })}
-            </div>
 
-            {/* Interaction Metric Chips + ChartToolbar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-              <div
-                style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#eff6ff',
-                  border: '1px solid #3b82f6',
-                  color: isDark ? '#93c5fd' : '#1d4ed8',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                r = <strong>{activePair.pearson_r}</strong>
-              </div>
-              <div
-                style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  backgroundColor: isDark ? 'rgba(124,58,237,0.15)' : '#f5f3ff',
-                  border: '1px solid #8b5cf6',
-                  color: isDark ? '#c4b5fd' : '#6d28d9',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                ρ = <strong>{activePair.spearman_rho}</strong>
-              </div>
-              <div
-                style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  padding: '2px 7px',
-                  borderRadius: '3px',
-                  backgroundColor: isDark ? 'rgba(234,88,12,0.22)' : '#fff7ed',
-                  border: '1px solid #ea580c',
-                  color: '#ea580c',
-                  boxShadow: '0 0 5px rgba(234,88,12,0.15)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                ★ I(X; Y) = <strong>{activePair.mutual_information}</strong>
-              </div>
+              <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 4px', flexShrink: 0 }} />
 
-              <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 2px' }} />
-
-              <ChartToolbar
-                theme={theme}
-                svgRef={scatterSvgRef}
-                filename={`eda-3lens-${selectedPairKey}`}
-                zoomLevel={scatterPanZoom.zoom}
-                hasPannedOrZoomed={scatterPanZoom.hasPannedOrZoomed}
-                onZoomIn={() => scatterPanZoom.zoomIn(0.25)}
-                onZoomOut={() => scatterPanZoom.zoomOut(0.25)}
-                onResetZoom={scatterPanZoom.resetView}
-                isLensActive={isLensActive}
-                onToggleLens={() => setIsLensActive((v) => !v)}
-                isTheater={isTheaterMode}
-                onToggleTheater={onToggleTheater}
-                csvData={displayPoints.map((p) => ({
-                  id: p.id,
-                  title: p.title,
-                  category: p.category,
-                  x: p.x,
-                  y: p.y,
-                  author: p.author,
-                }))}
-                onShowToast={onShowToast}
-              />
-            </div>
-          </div>
-
-          {/* ================================================================ */}
-          {/* COMPACT HUD ROW 2: GMM CONTROLS + QUADRANT/CAT SLICERS + WARNING */}
-          {/* ================================================================ */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '3px 8px',
-              borderRadius: '5px',
-              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.06)' : 'rgba(240, 253, 244, 0.6)',
-              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.22)' : '#bbf7d0'}`,
-              flexShrink: 0,
-              gap: '6px',
-              minHeight: '28px',
-              overflowX: 'auto',
-            }}
-          >
-            {/* Left Controls: GMM Color / Clusters / Ellipses & Slicers */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'nowrap', flexShrink: 0 }}>
               {/* Color Mode Switcher */}
-              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' }}>
+              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5', flexShrink: 0, whiteSpace: 'nowrap' }}>
                 GMM
               </span>
               <button
                 type="button"
-                onClick={() => setColorMode('gmm')}
+                onClick={() => setColorMode((prev) => (prev === 'gmm' ? 'category' : 'gmm'))}
                 style={{
                   padding: '1px 5px',
                   borderRadius: '3px',
                   fontSize: '9px',
                   fontFamily: 'var(--font-mono)',
-                  fontWeight: colorMode === 'gmm' ? 800 : 500,
+                  fontWeight: 700,
                   backgroundColor: colorMode === 'gmm' ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#d1fae5') : 'transparent',
                   color: colorMode === 'gmm' ? '#10b981' : themeStyles.textSecondary,
                   border: `1px solid ${colorMode === 'gmm' ? '#10b981' : themeStyles.border}`,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}
+                title={colorMode === 'gmm' ? 'Đang tô màu theo Cụm GMM (Nhấn để đổi sang màu Chủ đề arXiv)' : 'Đang tô màu theo Chủ đề arXiv (Nhấn để đổi sang Cụm GMM)'}
               >
-                Màu Cụm
+                {colorMode === 'gmm' ? '● Màu Cụm' : '◐ Màu Chủ đề'}
               </button>
-              <button
-                type="button"
-                onClick={() => setColorMode('category')}
-                style={{
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                  fontSize: '9px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: colorMode === 'category' ? 800 : 500,
-                  backgroundColor: colorMode === 'category' ? (isDark ? 'rgba(59, 130, 246, 0.3)' : '#dbeafe') : 'transparent',
-                  color: colorMode === 'category' ? '#3b82f6' : themeStyles.textSecondary,
-                  border: `1px solid ${colorMode === 'category' ? '#3b82f6' : themeStyles.border}`,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Màu Chủ đề
-              </button>
-
-              <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border, margin: '0 2px' }} />
 
               {/* GMM Cluster Filter Pills */}
               {activePair?.gmm_clusters && activePair.gmm_clusters.length > 0 && (
@@ -571,6 +463,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       border: `1px solid ${selectedGmmCluster === 'ALL' ? themeStyles.textPrimary : themeStyles.border}`,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
+                      flexShrink: 0,
                     }}
                   >
                     Tất cả cụm
@@ -596,6 +489,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                           alignItems: 'center',
                           gap: '3px',
                           whiteSpace: 'nowrap',
+                          flexShrink: 0,
                         }}
                       >
                         <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: isClusterActive ? '#ffffff' : c.color }} />
@@ -604,7 +498,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     );
                   })}
 
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, cursor: 'pointer', marginLeft: '2px', whiteSpace: 'nowrap' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, cursor: 'pointer', marginLeft: '2px', whiteSpace: 'nowrap', flexShrink: 0 }}>
                     <input
                       type="checkbox"
                       checked={showGmmEllipses}
@@ -613,13 +507,15 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     />
                     <span>1.5σ Ellipse</span>
                   </label>
-
-                  <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border, margin: '0 2px' }} />
                 </>
               )}
 
+              <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 4px', flexShrink: 0 }} />
+
               {/* Quadrant Filters */}
-              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Vùng:</span>
+              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                Vùng:
+              </span>
               {[
                 { id: 'ALL' as const, label: 'All' },
                 { id: 'Q1' as const, label: 'Q1' },
@@ -643,44 +539,16 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       color: isQActive ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textMuted,
                       border: `1px solid ${isQActive ? '#3b82f6' : themeStyles.border}`,
                       cursor: 'pointer',
+                      flexShrink: 0,
                     }}
                   >
                     {q.label}
                   </button>
                 );
               })}
-
-              <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border, margin: '0 2px' }} />
-
-              {/* Category Filter */}
-              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>cs.*:</span>
-              {['ALL', 'cs.LG', 'stat.ML', 'cs.CV', 'cs.AI', 'cs.CL'].map((cat) => {
-                const isCatActive = selectedCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat)}
-                    style={{
-                      padding: '1px 4px',
-                      borderRadius: '3px',
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: isCatActive ? 800 : 500,
-                      backgroundColor: isCatActive ? (categoryColors[cat] || '#3b82f6') : 'transparent',
-                      color: isCatActive ? '#ffffff' : themeStyles.textSecondary,
-                      border: `1px solid ${isCatActive ? (categoryColors[cat] || '#3b82f6') : themeStyles.border}`,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
             </div>
 
-            {/* Right: Crucial Warning Chip */}
+            {/* Right: Crucial Warning Chip with Hover Tooltip */}
             {activePair.warning && (
               <div
                 title={activePair.warning.text}
@@ -692,7 +560,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   borderRadius: '4px',
                   backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
                   border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : '#fde047'}`,
-                  fontSize: '10px',
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
                   color: isDark ? '#fbbf24' : '#b45309',
                   flexShrink: 0,
                   cursor: 'help',

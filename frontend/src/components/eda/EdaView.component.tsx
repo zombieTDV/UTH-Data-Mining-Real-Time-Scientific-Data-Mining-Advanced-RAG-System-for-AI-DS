@@ -1623,10 +1623,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             onSelectPaper={(pt) => setSelectedPaperForDrawer(pt)}
             selectedPaperId={selectedPaperForDrawer?.id}
             activeTab="lens2_univariate"
-            onTabChange={(tab) => {
-              if (tab === 'lens3_bivariate') setActiveDeck('scatter');
-              if (tab === 'governance') setActiveDeck('governance');
-            }}
+            selectedCategory={selectedCategory}
             onShowToast={(msg) => {
               setFeedbackToast(msg);
               setTimeout(() => setFeedbackToast(null), 2500);
@@ -1647,10 +1644,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             onSelectPaper={(pt) => setSelectedPaperForDrawer(pt)}
             selectedPaperId={selectedPaperForDrawer?.id}
             activeTab="lens3_bivariate"
-            onTabChange={(tab) => {
-              if (tab === 'lens2_univariate') setActiveDeck('combo');
-              if (tab === 'governance') setActiveDeck('governance');
-            }}
+            selectedCategory={selectedCategory}
             onShowToast={(msg) => {
               setFeedbackToast(msg);
               setTimeout(() => setFeedbackToast(null), 2500);
@@ -1671,10 +1665,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             onSelectPaper={(pt) => setSelectedPaperForDrawer(pt)}
             selectedPaperId={selectedPaperForDrawer?.id}
             activeTab="governance"
-            onTabChange={(tab) => {
-              if (tab === 'lens3_bivariate') setActiveDeck('scatter');
-              if (tab === 'lens2_univariate') setActiveDeck('combo');
-            }}
+            selectedCategory={selectedCategory}
             onShowToast={(msg) => {
               setFeedbackToast(msg);
               setTimeout(() => setFeedbackToast(null), 2500);
