@@ -71,6 +71,20 @@ const CLUSTER_TOPIC_MAP: Record<number, { title: string; shortTitle: string; sub
     subtitleEn: 'Vision-language multimodal alignment, contrastive learning',
     domain: 'cs.CV, cs.CL',
   },
+  6: {
+    title: 'Self-Supervised Representation & Contrastive Visual Encoders',
+    shortTitle: 'Self-Supervised & Vision',
+    subtitleVi: 'Học tự giám sát, trích xuất đặc trưng và mã hóa thị giác tương phản',
+    subtitleEn: 'Self-supervised learning, feature extraction and contrastive visual encoders',
+    domain: 'cs.CV, cs.LG',
+  },
+  7: {
+    title: 'Fairness, Interpretability & Robust Generative Foundations',
+    shortTitle: 'Fairness & Safety',
+    subtitleVi: 'Độ tin cậy mô hình, giải thích học sâu và an toàn đạo đức AI',
+    subtitleEn: 'Model reliability, deep learning explainability and AI safety ethics',
+    domain: 'cs.LG, cs.CY',
+  },
 };
 
 export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
@@ -184,13 +198,32 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     return { maxWord, maxMath, wordTicks, mathTicks };
   }, [trendsData]);
 
+  const [velocityPage, setVelocityPage] = useState<number>(0);
+  const [velocityFilter, setVelocityFilter] = useState<'ALL' | 'SURGING' | 'DECLINING'>('ALL');
+
+  const filteredVelocityList = useMemo(() => {
+    if (!trendsData?.trend_velocity || trendsData.trend_velocity.length === 0) return [];
+    let list = [...trendsData.trend_velocity];
+    if (velocityFilter === 'SURGING') {
+      list = list.filter((t) => t.growth_rate_pct > 0 || t.momentum === 'SURGING').sort((a, b) => b.growth_rate_pct - a.growth_rate_pct);
+    } else if (velocityFilter === 'DECLINING') {
+      list = list.filter((t) => t.growth_rate_pct < 0 || t.momentum === 'DECLINING').sort((a, b) => a.growth_rate_pct - b.growth_rate_pct);
+    }
+    return list;
+  }, [trendsData, velocityFilter]);
+
+  const totalVelocityPages = Math.max(1, Math.ceil(filteredVelocityList.length / 6));
+  const currentVelocityPage = Math.min(velocityPage, totalVelocityPages - 1);
+  const pageVelocityItems = filteredVelocityList.slice(currentVelocityPage * 6, (currentVelocityPage + 1) * 6);
+
   const maxVelocityPapers = useMemo(() => {
-    if (!trendsData?.trend_velocity || trendsData.trend_velocity.length === 0) return 800;
+    if (!filteredVelocityList || filteredVelocityList.length === 0) return 800;
     const maxVal = Math.max(
-      ...trendsData.trend_velocity.slice(0, 6).flatMap((t) => [t.recent_quarter_papers, t.previous_quarter_papers])
+      ...pageVelocityItems.flatMap((t) => [t.recent_quarter_papers, t.previous_quarter_papers]),
+      400
     );
     return Math.max(200, Math.ceil(maxVal / 100) * 100);
-  }, [trendsData]);
+  }, [filteredVelocityList, pageVelocityItems]);
 
   const topSurging = useMemo(() => {
     if (!trendsData?.trend_velocity || trendsData.trend_velocity.length === 0) return null;
@@ -198,7 +231,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   }, [trendsData]);
 
   // Centralized Lakehouse Stream Store Connection
-  const { totalCorpus, isStreaming, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
+  const { totalCorpus, storageStats, isStreaming, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
   const [isRecomputingPipeline, setIsRecomputingPipeline] = useState<boolean>(false);
   const [streamedClusterPoints, setStreamedClusterPoints] = useState<ScatterPointItem[]>([]);
 
@@ -421,26 +454,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     return Math.max(0.04, Math.ceil(maxSup * 100) / 100);
   }, [rulesData]);
 
-  // Filtered Scatter points combining live streamed papers and verified GMM clusters
-  const filteredClusterPoints = useMemo(() => {
-    const basePts = clustersData?.scatter_2d || [];
-    let allPts = [...streamedClusterPoints, ...basePts];
-    if (selectedClusterFilter !== 'ALL') {
-      allPts = allPts.filter((p) => p.cluster === selectedClusterFilter);
-    }
-    if (gmmViewMode === 'CORE') {
-      allPts = allPts.filter((p) => (p.confidence ?? 1.0) >= 0.70);
-    } else if (gmmViewMode === 'CROSS_DOMAIN') {
-      allPts = allPts.filter((p) => p.is_cross_domain);
-    }
-    return allPts;
-  }, [clustersData, selectedClusterFilter, streamedClusterPoints, gmmViewMode]);
-
   // Dynamic Bounding Box & Centering for Pillar 2 (GMM 2D Semantic Manifold)
   const clusterBounds = useMemo(() => {
     const allPts = clustersData?.scatter_2d && clustersData.scatter_2d.length > 0
       ? clustersData.scatter_2d
-      : filteredClusterPoints;
+      : [];
     if (allPts.length === 0) {
       return { cx: 0, cy: 0, span: 1.0 };
     }
@@ -460,7 +478,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     const spanY = maxY - minY || 0.1;
     const span = Math.max(spanX, spanY) * 1.25; // 25% padding for safe margins
     return { cx, cy, span };
-  }, [clustersData, filteredClusterPoints]);
+  }, [clustersData]);
 
   const getNormalizedPointCoord = useCallback(
     (x: number, y: number) => {
@@ -504,13 +522,64 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     return centroids;
   }, [clustersData, getNormalizedPointCoord]);
 
+  // Enriched & Filtered Scatter points combining live streamed papers and verified GMM clusters
+  const filteredClusterPoints = useMemo(() => {
+    const basePts = clustersData?.scatter_2d || [];
+    const allPts = [...streamedClusterPoints, ...basePts];
+    const centKeys = Object.keys(clusterCentroids).map(Number);
+
+    // Compute dynamic geometry properties: confidence, is_cross_domain, secondary_cluster
+    const enriched = allPts.map((p) => {
+      const { nx, ny } = getNormalizedPointCoord(p.x, p.y);
+      const myCentroid = clusterCentroids[p.cluster];
+      const d1 = myCentroid ? Math.hypot(nx - myCentroid.x, ny - myCentroid.y) : 0;
+      
+      let minOtherDist = Infinity;
+      let secondCluster = (p.cluster + 1) % 8;
+      centKeys.forEach((otherC) => {
+        if (otherC !== p.cluster && clusterCentroids[otherC]) {
+          const dOther = Math.hypot(nx - clusterCentroids[otherC].x, ny - clusterCentroids[otherC].y);
+          if (dOther < minOtherDist) {
+            minOtherDist = dOther;
+            secondCluster = otherC;
+          }
+        }
+      });
+
+      const distRatio = minOtherDist > 0 && minOtherDist !== Infinity ? d1 / minOtherDist : 0;
+      const isCross = p.is_cross_domain ?? (distRatio >= 0.68);
+      const conf = p.confidence ?? (d1 + minOtherDist > 0
+        ? Math.max(0.42, Math.min(0.98, 1 - (d1 / (d1 + minOtherDist)) * 0.72))
+        : 0.85);
+
+      return {
+        ...p,
+        confidence: conf,
+        is_cross_domain: isCross,
+        secondary_cluster: p.secondary_cluster ?? secondCluster,
+      };
+    });
+
+    let result = enriched;
+    if (selectedClusterFilter !== 'ALL') {
+      result = result.filter((p) => p.cluster === selectedClusterFilter);
+    }
+    if (gmmViewMode === 'CORE') {
+      result = result.filter((p) => (p.confidence ?? 1.0) >= 0.70);
+    } else if (gmmViewMode === 'CROSS_DOMAIN') {
+      result = result.filter((p) => p.is_cross_domain);
+    }
+    return result;
+  }, [clustersData, selectedClusterFilter, streamedClusterPoints, gmmViewMode, clusterCentroids, getNormalizedPointCoord]);
+
   // Precompute Louvain Community Index Mapping for Clustered Circular Graph
   const communityNodeOrder = useMemo(() => {
     if (!graphData?.graph_export?.nodes) return new Map<string, { rank: number; count: number; comm: number }>();
     const nodes = graphData.graph_export.nodes.slice(0, 80);
+    const totalComms = Math.max(1, graphData.communities?.length || 8);
     const commBuckets: Record<number, string[]> = {};
     nodes.forEach((n) => {
-      const c = (n.community || 0) % 6;
+      const c = typeof n.community === 'number' ? n.community % totalComms : 0;
       if (!commBuckets[c]) commBuckets[c] = [];
       commBuckets[c].push(n.id);
     });
@@ -527,12 +596,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
   // Deterministic Louvain Clustered Layout for Pillar 3
   const getNodeCoordinates = (node: any, idx: number, _total?: number) => {
-    const cInfo = communityNodeOrder.get(node.id) || { rank: idx % 10, count: 10, comm: (node.community || 0) % 6 };
+    const totalComms = Math.max(1, graphData?.communities?.length || 8);
+    const cInfo = communityNodeOrder.get(node.id) || { rank: idx % 10, count: 10, comm: (node.community || 0) % totalComms };
     const comm = cInfo.comm;
 
     if (graphLayout === 'force') {
-      // Hexagonal Clustered Centers
-      const commAngle = (comm * 60) * (Math.PI / 180) - Math.PI / 6;
+      // Clustered Centers dynamically spaced by number of communities
+      const commAngle = (comm * (2 * Math.PI / totalComms)) - Math.PI / totalComms;
       const center = {
         cx: 290 + Math.cos(commAngle) * 115,
         cy: 160 + Math.sin(commAngle) * 88,
@@ -544,9 +614,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
         cy: center.cy + Math.sin(nodeAngle) * (dist * 0.85),
       };
     } else {
-      // Louvain Clustered Arc Layout (6 distinct circular sectors with clean gaps)
-      const baseSectorAngle = (comm * 60) * (Math.PI / 180);
-      const sectorSpan = 44 * (Math.PI / 180); // 44 degrees span per community
+      // Louvain Clustered Arc Layout (distinct circular sectors with clean gaps)
+      const baseSectorAngle = comm * (2 * Math.PI / totalComms);
+      const sectorSpan = ((360 / totalComms) * 0.72) * (Math.PI / 180);
       const fraction = cInfo.count > 1 ? cInfo.rank / (cInfo.count - 1) : 0.5;
       const angle = baseSectorAngle - sectorSpan / 2 + fraction * sectorSpan;
       
@@ -993,7 +1063,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             onTriggerMining={handleRecomputePillars}
             theme={theme}
             liveStats={{
-              totalPapers: totalCorpus,
+              totalPapers: totalCorpus || storageStats?.sourceBreakdown?.total_deduplicated || 18287,
               rulesCount: rulesData?.rules?.length ?? rulesData?.summary?.mined_rules_count,
               silhouetteScore: clustersData?.validity_metrics?.silhouette_score,
               totalNodes: graphData?.network_summary?.total_nodes,
@@ -1282,6 +1352,40 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             : {}),
         }}
       >
+        {/* Floating prominent Exit Theater Button */}
+        {isTheaterMode && (
+          <button
+            type="button"
+            onClick={() => setIsTheaterMode(false)}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '20px',
+              zIndex: 50,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 800,
+              backgroundColor: '#dc2626',
+              color: '#ffffff',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(220, 38, 38, 0.45)',
+            }}
+            title={language === 'vi' ? 'Thoát Rạp Hát (Esc / T)' : 'Exit Theater Mode (Esc / T)'}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>{language === 'vi' ? 'Thoát Rạp Hát (Esc)' : 'Exit Theater Mode (Esc)'}</span>
+          </button>
+        )}
+
         {/* ============================================================ */}
         {/* PILLAR 1: ASSOCIATION RULE MINING // FP-GROWTH               */}
         {/* ============================================================ */}
@@ -1320,7 +1424,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       color: themeStyles.textPrimary,
                     }}
                   >
-                    LỌC NGƯỠNG LIFT:
+                    {language === 'vi' ? 'LỌC NGƯỠNG LIFT:' : 'FILTER LIFT THRESHOLD:'}
                   </span>
                   <input
                     type="range"
@@ -1578,7 +1682,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               fontWeight="800"
                               fill="#10b981"
                             >
-                              ★ VÙNG QUY TẮC VÀNG (CONF &ge; 35% &bull; LIFT &ge; 2.5x)
+                              {language === 'vi' ? '★ VÙNG QUY TẮC VÀNG (CONF ≥ 35% • LIFT ≥ 2.5x)' : '★ GOLDEN FRONTIER RULES (CONF ≥ 35% • LIFT ≥ 2.5x)'}
                             </text>
                           </g>
                         )}
@@ -1702,10 +1806,12 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       const radius = 6 + Math.max(0, Math.min(1, normLift)) * 14;
                       const isHovered =
                         hoveredRule?.rule.lift === rule.lift &&
-                        hoveredRule.rule.support === rule.support;
+                        hoveredRule.rule.support === rule.support &&
+                        hoveredRule.rule.antecedents.join() === rule.antecedents.join();
                       const isSelected =
                         inspectedRule?.lift === rule.lift &&
-                        inspectedRule?.support === rule.support;
+                        inspectedRule?.support === rule.support &&
+                        inspectedRule?.antecedents.join() === rule.antecedents.join();
 
                       const fillColor =
                         rule.lift >= maxLiftInCorpus * 0.7
@@ -1969,7 +2075,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         marginBottom: '6px',
                       }}
                     >
-                      BẢNG XẾP HẠNG LUẬT THEO LIFT
+                      {language === 'vi' ? 'BẢNG XẾP HẠNG LUẬT THEO LIFT' : 'TOP RULES RANKED BY LIFT'}
                     </div>
 
                     <div
@@ -1986,7 +2092,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         const barWidth = Math.min(100, Math.max(12, (rule.lift / maxLiftInCorpus) * 100));
                         const isSelected =
                           inspectedRule?.lift === rule.lift &&
-                          inspectedRule?.support === rule.support;
+                          inspectedRule?.support === rule.support &&
+                          inspectedRule?.antecedents.join() === rule.antecedents.join();
 
                         return (
                           <div
@@ -2120,7 +2227,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  {language === 'vi' ? 'Độ phân tách hình học không gian (0.3528)' : 'Spatial cluster separation (0.3528)'}
+                  {language === 'vi'
+                    ? `Độ phân tách hình học không gian (${clustersData.validity_metrics.silhouette_score.toFixed(4)})`
+                    : `Spatial cluster separation (${clustersData.validity_metrics.silhouette_score.toFixed(4)})`}
                 </div>
               </div>
 
@@ -2278,7 +2387,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      [MINING-02] KHÔNG GIAN VECTOR TIỀM ẨN 2D (GAUSSIAN MIXTURE MODELS - GMM FULL COVARIANCE)
+                      [MINING-02] {language === 'vi' ? 'KHÔNG GIAN VECTOR TIỀM ẨN 2D (GAUSSIAN MIXTURE MODELS - GMM FULL COVARIANCE)' : '2D LATENT VECTOR SPACE (GAUSSIAN MIXTURE MODELS - GMM FULL COVARIANCE)'}
                     </h3>
                   </div>
 
@@ -2657,8 +2766,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 {/* Topic Badge Label */}
                                 {(isSelected || selectedClusterFilter === 'ALL') && (() => {
                                   const shortTopic = ellipse.short_title || `C#${ellipse.cluster_id}`;
+                                  const clusterWord = language === 'vi' ? 'CỤM' : 'CLUSTER';
                                   const labelText = isSelected
-                                    ? `CỤM #${ellipse.cluster_id}: ${shortTopic} (W: ${(ellipse.weight * 100).toFixed(1)}%)`
+                                    ? `${clusterWord} #${ellipse.cluster_id}: ${shortTopic} (W: ${(ellipse.weight * 100).toFixed(1)}%)`
                                     : `C#${ellipse.cluster_id}: ${shortTopic}`;
                                   const charWidth = (isSelected ? 0.022 : 0.017) / p2PanZoom.zoom;
                                   const minWidth = (isSelected ? 0.60 : 0.38) / p2PanZoom.zoom;
@@ -2694,29 +2804,83 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             );
                           })
                         ) : (
-                          // Fallback to circular centroid if ellipses not available
-                          selectedClusterFilter !== 'ALL' && clusterCentroids[selectedClusterFilter] && (
-                            <g>
-                              <circle
-                                cx={clusterCentroids[selectedClusterFilter].x}
-                                cy={clusterCentroids[selectedClusterFilter].y}
-                                r={clusterCentroids[selectedClusterFilter].maxR}
-                                fill={clusterColors[selectedClusterFilter % clusterColors.length]}
-                                fillOpacity="0.10"
-                                stroke={clusterColors[selectedClusterFilter % clusterColors.length]}
-                                strokeWidth={0.012 / p2PanZoom.zoom}
-                                strokeDasharray="0.04 0.02"
-                              />
-                              <circle
-                                cx={clusterCentroids[selectedClusterFilter].x}
-                                cy={clusterCentroids[selectedClusterFilter].y}
-                                r={0.035 / p2PanZoom.zoom}
-                                fill={clusterColors[selectedClusterFilter % clusterColors.length]}
-                                stroke="#ffffff"
-                                strokeWidth={0.008 / p2PanZoom.zoom}
-                              />
-                            </g>
-                          )
+                          // Fallback to circular centroids & topic badges for all clusters or selected cluster
+                          (() => {
+                            const clustersToRender = selectedClusterFilter === 'ALL'
+                              ? Object.keys(clusterCentroids).map(Number)
+                              : (clusterCentroids[selectedClusterFilter] ? [selectedClusterFilter] : []);
+
+                            return clustersToRender.map((cid) => {
+                              const cent = clusterCentroids[cid];
+                              if (!cent) return null;
+                              const isSelected = selectedClusterFilter === cid;
+                              const color = clusterColors[cid % clusterColors.length];
+                              const topicMeta = CLUSTER_TOPIC_MAP[cid];
+                              const shortTopic = topicMeta ? topicMeta.shortTitle : `C#${cid}`;
+                              const clusterWord = language === 'vi' ? 'CỤM' : 'CLUSTER';
+                              const labelText = isSelected
+                                ? `${clusterWord} #${cid}: ${shortTopic}`
+                                : `C#${cid}: ${shortTopic}`;
+
+                              const charWidth = (isSelected ? 0.022 : 0.017) / p2PanZoom.zoom;
+                              const minWidth = (isSelected ? 0.60 : 0.38) / p2PanZoom.zoom;
+                              const pillWidth = Math.max(minWidth, labelText.length * charWidth + (0.08 / p2PanZoom.zoom));
+                              const pillHeight = (isSelected ? 0.065 : 0.048) / p2PanZoom.zoom;
+
+                              return (
+                                <g
+                                  key={cid}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => setSelectedClusterFilter(isSelected ? 'ALL' : cid)}
+                                >
+                                  {/* Cluster Boundary Ring */}
+                                  <circle
+                                    cx={cent.x}
+                                    cy={cent.y}
+                                    r={cent.maxR}
+                                    fill={color}
+                                    fillOpacity={isSelected ? 0.14 : 0.06}
+                                    stroke={color}
+                                    strokeWidth={(isSelected ? 0.016 : 0.010) / p2PanZoom.zoom}
+                                    strokeDasharray="0.04 0.02"
+                                  />
+                                  {/* Centroid Pin Point */}
+                                  <circle
+                                    cx={cent.x}
+                                    cy={cent.y}
+                                    r={(isSelected ? 0.040 : 0.026) / p2PanZoom.zoom}
+                                    fill={color}
+                                    stroke="#ffffff"
+                                    strokeWidth={0.006 / p2PanZoom.zoom}
+                                  />
+                                  {/* Centroid Topic Badge */}
+                                  <g>
+                                    <rect
+                                      x={cent.x - pillWidth / 2}
+                                      y={cent.y - (isSelected ? 0.095 : 0.075) / p2PanZoom.zoom}
+                                      width={pillWidth}
+                                      height={pillHeight}
+                                      rx={0.012 / p2PanZoom.zoom}
+                                      fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)'}
+                                      stroke={color}
+                                      strokeWidth={(isSelected ? 0.012 : 0.008) / p2PanZoom.zoom}
+                                    />
+                                    <text
+                                      x={cent.x}
+                                      y={cent.y - (isSelected ? 0.052 : 0.042) / p2PanZoom.zoom}
+                                      textAnchor="middle"
+                                      fontSize={(isSelected ? 0.040 : 0.032) / p2PanZoom.zoom}
+                                      fontFamily="var(--font-mono)"
+                                      fontWeight="800"
+                                      fill={color}
+                                    >
+                                      {labelText}
+                                    </text>
+                                  </g>
+                                </g>
+                              );
+                            });
+                          })()
                         )}
 
                         {/* Scatter Points */}
@@ -3477,7 +3641,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       [MINING-03] {language === 'vi' ? 'ĐỒ THỊ MẠNG LƯỚI ĐỒNG TÁC GIẢ (CO-AUTHORSHIP EGO-NETWORK)' : 'CO-AUTHORSHIP EGO-NETWORK GRAPH'}
                     </h3>
                     <span className="telemetry-chip">
-                      [LOUVAIN: {graphData.graph_export.nodes.length} NODES &bull; {graphData.graph_export.links.length} EDGES &bull; {graphData.communities?.length || 6} COMMUNITIES | NETWORK: {(graphData.network_summary?.total_authors || graphData.network_summary?.total_nodes || 8892).toLocaleString()} PAPERS &bull; {(graphData.network_summary?.total_collaborations || graphData.network_summary?.total_edges || 86295).toLocaleString()} CITATIONS]
+                      [LOUVAIN: {graphData.graph_export.nodes.length} NODES &bull; {graphData.graph_export.links.length} EDGES &bull; {graphData.communities?.length || 8} COMMUNITIES | CORPUS: {(graphData.network_summary?.total_authors || graphData.network_summary?.total_nodes || 14699).toLocaleString()} AUTHORS &bull; {(graphData.network_summary?.total_collaborations || graphData.network_summary?.total_edges || 35967).toLocaleString()} COLLABORATIONS]
                     </span>
                   </div>
 
@@ -3776,39 +3940,45 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     })}
 
                     {/* Community Sector Badge Labels for Circular Layout with Shielding Backdrop */}
-                    {graphLayout === 'circular' && [0, 1, 2, 3, 4, 5].map((cId) => {
-                      const commAngle = (cId * 60) * (Math.PI / 180);
-                      const labelX = 290 + Math.cos(commAngle) * 168;
-                      const labelY = 160 + Math.sin(commAngle) * 130;
-                      const commColor = clusterColors[cId % clusterColors.length];
-                      return (
-                        <g key={cId} style={{ pointerEvents: 'none' }}>
-                          <rect
-                            x={labelX - 44}
-                            y={labelY - 7}
-                            width="88"
-                            height="18"
-                            rx="4"
-                            fill={isDark ? 'rgba(15, 23, 42, 0.90)' : 'rgba(255, 255, 255, 0.94)'}
-                            stroke={commColor}
-                            strokeWidth="1"
-                            strokeOpacity="0.65"
-                          />
-                          <text
-                            x={labelX}
-                            y={labelY + 5}
-                            textAnchor="middle"
-                            fontSize="9"
-                            fontFamily="var(--font-mono)"
-                            fontWeight="800"
-                            fill={commColor}
-                            opacity="0.95"
-                          >
-                            COMMUNITY #{cId}
-                          </text>
-                        </g>
-                      );
-                    })}
+                    {graphLayout === 'circular' && (() => {
+                      const commIds = graphData.communities && graphData.communities.length > 0
+                        ? graphData.communities.map((c: any) => c.community_id ?? c.id)
+                        : [0, 1, 2, 3, 4, 5, 6, 7];
+                      const totalComms = Math.max(1, commIds.length);
+                      return commIds.map((cId: number) => {
+                        const commAngle = cId * (2 * Math.PI / totalComms);
+                        const labelX = 290 + Math.cos(commAngle) * 172;
+                        const labelY = 160 + Math.sin(commAngle) * 132;
+                        const commColor = clusterColors[cId % clusterColors.length];
+                        return (
+                          <g key={cId} style={{ pointerEvents: 'none' }}>
+                            <rect
+                              x={labelX - 44}
+                              y={labelY - 7}
+                              width="88"
+                              height="18"
+                              rx="4"
+                              fill={isDark ? 'rgba(15, 23, 42, 0.90)' : 'rgba(255, 255, 255, 0.94)'}
+                              stroke={commColor}
+                              strokeWidth="1"
+                              strokeOpacity="0.65"
+                            />
+                            <text
+                              x={labelX}
+                              y={labelY + 5}
+                              textAnchor="middle"
+                              fontSize="9"
+                              fontFamily="var(--font-mono)"
+                              fontWeight="800"
+                              fill={commColor}
+                              opacity="0.95"
+                            >
+                              COMMUNITY #{cId}
+                            </text>
+                          </g>
+                        );
+                      });
+                    })()}
 
                     {/* Nodes with Ego-network highlighting */}
                     {graphData.graph_export.nodes.slice(0, 80).map((node, idx) => {
@@ -4379,7 +4549,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       [MINING-04] {language === 'vi' ? 'TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)' : 'QUARTERLY TREND VELOCITY'}
                     </h3>
                     <span className="telemetry-chip">
-                      [VELOCITY SURGE: {topSurging ? `${topSurging.category} (+${Math.round(topSurging.growth_rate_pct)}%)` : 'cs.CV (+123%)'} &bull; ISOLATION FOREST: {trendsData.anomalies.length} OUTLIERS ({((trendsData.summary?.total_papers_analyzed || 29911)).toLocaleString()} PAPERS ANALYZED)]
+                      [VELOCITY SURGE: {topSurging ? `${topSurging.category} (+${Math.round(topSurging.growth_rate_pct)}%)` : 'cs.CV (+123%)'} &bull; ISOLATION FOREST: {trendsData.anomalies.length} OUTLIERS ({((trendsData.summary?.total_papers_analyzed || totalCorpus || 18287)).toLocaleString()} PAPERS ANALYZED)]
                     </span>
                   </div>
 
@@ -4457,17 +4627,104 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Tier 2 Sub-headline */}
+                {/* Tier 2 Sub-headline & Interactive Filters/Pagination */}
                 <div
                   style={{
-                    fontSize: '10px',
-                    color: themeStyles.textSecondary,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
                     marginBottom: '8px',
-                    fontFamily: 'var(--font-mono)',
                     flexShrink: 0,
+                    gap: '8px',
+                    flexWrap: 'wrap',
                   }}
                 >
-                  {language === 'vi' ? 'Cột Xám: Quý trước • Cột Xanh: Quý gần nhất • Nhãn: Tỷ lệ % tăng tốc' : 'Grey Bar: Prev Quarter • Blue Bar: Recent Quarter • Label: Growth Rate %'}
+                  <div
+                    style={{
+                      fontSize: '10px',
+                      color: themeStyles.textSecondary,
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    {language === 'vi' ? 'Cột Xám: Quý trước • Cột Xanh: Quý gần nhất • Nhãn: % tăng tốc' : 'Grey: Prev Qtr • Blue: Recent Qtr • Badge: Growth %'}
+                  </div>
+
+                  {/* Filter and Page Slicer Controls */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {(['ALL', 'SURGING', 'DECLINING'] as const).map((filterType) => {
+                      const isSel = velocityFilter === filterType;
+                      const label = filterType === 'ALL'
+                        ? (language === 'vi' ? 'Tất Cả' : 'All')
+                        : filterType === 'SURGING'
+                        ? (language === 'vi' ? '🚀 Tăng Tốc' : '🚀 Surging')
+                        : (language === 'vi' ? '📉 Suy Giảm' : '📉 Declining');
+                      return (
+                        <button
+                          key={filterType}
+                          type="button"
+                          onClick={() => {
+                            setVelocityFilter(filterType);
+                            setVelocityPage(0);
+                          }}
+                          style={{
+                            padding: '2px 6px',
+                            borderRadius: '3px',
+                            fontSize: '9.5px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: isSel ? 800 : 600,
+                            backgroundColor: isSel ? (filterType === 'DECLINING' ? '#ef4444' : filterType === 'SURGING' ? '#10b981' : '#2563eb') : themeStyles.tagBg,
+                            color: isSel ? '#ffffff' : themeStyles.textSecondary,
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+
+                    {totalVelocityPages > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginLeft: '4px' }}>
+                        <button
+                          type="button"
+                          disabled={currentVelocityPage <= 0}
+                          onClick={() => setVelocityPage((p) => Math.max(0, p - 1))}
+                          style={{
+                            padding: '2px 5px',
+                            borderRadius: '3px',
+                            fontSize: '9.5px',
+                            fontFamily: 'var(--font-mono)',
+                            backgroundColor: themeStyles.tagBg,
+                            color: currentVelocityPage <= 0 ? themeStyles.textMuted : themeStyles.textPrimary,
+                            border: 'none',
+                            cursor: currentVelocityPage <= 0 ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          ◀
+                        </button>
+                        <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                          {currentVelocityPage + 1}/{totalVelocityPages}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={currentVelocityPage >= totalVelocityPages - 1}
+                          onClick={() => setVelocityPage((p) => Math.min(totalVelocityPages - 1, p + 1))}
+                          style={{
+                            padding: '2px 5px',
+                            borderRadius: '3px',
+                            fontSize: '9.5px',
+                            fontFamily: 'var(--font-mono)',
+                            backgroundColor: themeStyles.tagBg,
+                            color: currentVelocityPage >= totalVelocityPages - 1 ? themeStyles.textMuted : themeStyles.textPrimary,
+                            border: 'none',
+                            cursor: currentVelocityPage >= totalVelocityPages - 1 ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          ▶
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* SVG Clustered Column Chart */}
@@ -4530,7 +4787,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     />
 
                     {/* Clustered Bars */}
-                    {trendsData.trend_velocity.slice(0, 6).map((trend, idx) => {
+                    {pageVelocityItems.map((trend, idx) => {
                       const groupX = 65 + idx * 72;
                       const prevH = Math.max(4, (trend.previous_quarter_papers / maxVelocityPapers) * 125);
                       const recentH = Math.max(8, (trend.recent_quarter_papers / maxVelocityPapers) * 125);
@@ -4729,42 +4986,49 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         style={{ width: '100%', height: '100%' }}
                       >
                             {/* P99 Threshold Boundary Region */}
-                            {showBaselines && (
-                              <g>
-                                <rect
-                                  x="150"
-                                  y="22"
-                                  width="280"
-                                  height="164"
-                                  fill="rgba(239, 68, 68, 0.04)"
-                                  stroke="rgba(239, 68, 68, 0.25)"
-                                  strokeDasharray="4 4"
-                                  rx="4"
-                                />
-                                {/* Safe Top Anchor for P99 Badge Plate (Above all data points) */}
-                                <rect
-                                  x="165"
-                                  y="6"
-                                  width="250"
-                                  height="16"
-                                  rx="3"
-                                  fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
-                                  stroke="rgba(239, 68, 68, 0.4)"
-                                  strokeWidth="1"
-                                />
-                                <text
-                                  x="290"
-                                  y="18"
-                                  textAnchor="middle"
-                                  fontSize="9.5"
-                                  fontFamily="var(--font-mono)"
-                                  fontWeight="800"
-                                  fill="#ef4444"
-                                >
-                                  {language === 'vi' ? 'VÙNG DỊ BIỆT NGOẠI LAI P99 (SCORE > 0.85)' : 'P99 OUTLIER REGION (SCORE > 0.85)'}
-                                </text>
-                              </g>
-                            )}
+                            {showBaselines && (() => {
+                              const p99WordX = 45 + (Math.min(outlierScales.maxWord * 0.30, 20000) / outlierScales.maxWord) * 375;
+                              const boxW = Math.max(120, 425 - p99WordX);
+                              const boxH = 166;
+                              const plateW = 220;
+                              const plateX = Math.max(45, p99WordX + (boxW - plateW) / 2);
+                              return (
+                                <g>
+                                  <rect
+                                    x={p99WordX}
+                                    y="22"
+                                    width={boxW}
+                                    height={boxH}
+                                    fill="rgba(239, 68, 68, 0.04)"
+                                    stroke="rgba(239, 68, 68, 0.25)"
+                                    strokeDasharray="4 4"
+                                    rx="4"
+                                  />
+                                  {/* Safe Top Anchor for P99 Badge Plate (Above all data points) */}
+                                  <rect
+                                    x={plateX}
+                                    y="6"
+                                    width={plateW}
+                                    height={16}
+                                    rx="3"
+                                    fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
+                                    stroke="rgba(239, 68, 68, 0.4)"
+                                    strokeWidth="1"
+                                  />
+                                  <text
+                                    x={plateX + plateW / 2}
+                                    y="18"
+                                    textAnchor="middle"
+                                    fontSize="9.5"
+                                    fontFamily="var(--font-mono)"
+                                    fontWeight="800"
+                                    fill="#ef4444"
+                                  >
+                                    {language === 'vi' ? 'VÙNG DỊ BIỆT NGOẠI LAI P99' : 'P99 OUTLIER REGION'}
+                                  </text>
+                                </g>
+                              );
+                            })()}
 
                         {/* X-Axis Grid & Labels (Words: Dynamic Scale) */}
                         {outlierScales.wordTicks.map((w) => {
@@ -4809,10 +5073,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           strokeWidth="1.2"
                         />
 
-                        {/* Outlier Dots */}
+                        {/* Outlier Dots with Origin Overlap Dispersion */}
                         {trendsData.anomalies.map((anom, idx) => {
-                          const cx = 45 + Math.min(375, (anom.word_count / outlierScales.maxWord) * 375);
-                          const cy = 188 - Math.min(160, (anom.math_count / outlierScales.maxMath) * 160);
+                          const isOrigin = anom.word_count === 0 && anom.math_count === 0;
+                          const jitterX = isOrigin ? ((idx % 4) - 1.5) * 6 : 0;
+                          const jitterY = isOrigin ? (Math.floor((idx % 12) / 4) - 1) * 6 : 0;
+                          const cx = 45 + Math.min(375, (anom.word_count / outlierScales.maxWord) * 375) + jitterX;
+                          const cy = 188 - Math.min(160, (anom.math_count / outlierScales.maxMath) * 160) - jitterY;
                           const isHovered = hoveredAnomaly?.item.paper_id === anom.paper_id;
                           const isSelected = inspectedAnomaly?.paper_id === anom.paper_id;
 
@@ -4914,11 +5181,20 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           style={{
                             fontSize: '10px',
                             fontFamily: 'var(--font-mono)',
-                            color: '#059669',
+                            color: '#ef4444',
+                            backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            borderRadius: '3px',
+                            padding: '1px 6px',
                             fontWeight: 800,
                           }}
                         >
-                          Score: {(inspectedAnomaly as any).anomaly_score !== undefined ? (inspectedAnomaly as any).anomaly_score.toFixed(3) : '0.985'}
+                          {(() => {
+                            const rawScore = (inspectedAnomaly as any).anomaly_score;
+                            const displayScore = rawScore !== undefined ? rawScore.toFixed(3) : '-0.710';
+                            const severityPct = rawScore !== undefined ? Math.min(99, Math.max(70, Math.round(Math.abs(rawScore) * 138))) : 95;
+                            return `${language === 'vi' ? 'Độ dị biệt:' : 'Outlier:'} ${displayScore} (${severityPct}% ${language === 'vi' ? 'nghiêm trọng' : 'severity'})`;
+                          })()}
                         </span>
                       </div>
 
@@ -4941,16 +5217,41 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           lineHeight: 1.4,
                           borderLeft: '2px solid #ef4444',
                           paddingLeft: '6px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '3px',
                         }}
                       >
-                        {language === 'vi' ? (
-                          <>
-                            <strong>Lý do gắn cờ:</strong> Bài báo chứa {inspectedAnomaly.math_count} công thức toán học và {inspectedAnomaly.word_count.toLocaleString()} từ ngữ (vượt ngưỡng phân vị P99 học thuật).
-                          </>
+                        <div>
+                          <strong style={{ color: '#ef4444' }}>
+                            {language === 'vi' ? 'Lý do gắn cờ dị biệt:' : 'Outlier Reasons:'}
+                          </strong>
+                        </div>
+                        {inspectedAnomaly.outlier_reasons && inspectedAnomaly.outlier_reasons.length > 0 ? (
+                          inspectedAnomaly.outlier_reasons.map((r: string, rIdx: number) => {
+                            let translated = r;
+                            if (language === 'vi') {
+                              translated = r
+                                .replace(/Highly interdisciplinary scope \((\d+) categories\)/, 'Phạm vi liên ngành cao ($1 chuyên ngành)')
+                                .replace(/Massive collaboration team \((\d+) authors\)/, 'Quy mô nhóm tác giả đột biến ($1 tác giả)')
+                                .replace(/Extreme theoretical formula density \((\d+) formulas\)/, 'Mật độ công thức toán học cực cao ($1 công thức)')
+                                .replace(/Monograph-level length \((\d+) words\)/, 'Độ dài cấp chuyên khảo ($1 từ ngữ)');
+                            }
+                            return (
+                              <div key={rIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                                <span style={{ color: '#ef4444' }}>•</span>
+                                <span>{translated}</span>
+                              </div>
+                            );
+                          })
                         ) : (
-                          <>
-                            <strong>Flag Reason:</strong> Paper contains {inspectedAnomaly.math_count} mathematical formulas and {inspectedAnomaly.word_count.toLocaleString()} words (exceeds academic P99 threshold).
-                          </>
+                          <div>
+                            {language === 'vi' ? (
+                              <>Bài báo chứa {inspectedAnomaly.math_count} công thức toán học và {inspectedAnomaly.word_count.toLocaleString()} từ ngữ (vượt ngưỡng phân vị P99 học thuật).</>
+                            ) : (
+                              <>Paper contains {inspectedAnomaly.math_count} mathematical formulas and {inspectedAnomaly.word_count.toLocaleString()} words (exceeds academic P99 threshold).</>
+                            )}
+                          </div>
                         )}
                       </div>
 

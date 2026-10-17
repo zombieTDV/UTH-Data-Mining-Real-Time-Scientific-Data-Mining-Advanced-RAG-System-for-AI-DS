@@ -21,28 +21,28 @@ export const createInitialLakehouseLogs = (): StreamingLogEntry[] => {
       time: formatTime(new Date(now.getTime() - 1000 * 150)),
       level: 'STORAGE',
       tag: 'R2/SYNC',
-      msg: 'Cloudflare R2 lakehouse active: 8.277 GB across Bronze (7.744 GB HTML5/OpenAlex), Silver (321.68 MB Parquet), Gold (211.26 MB LanceDB)',
+      msg: 'Cloudflare R2 lakehouse active: 8.750 GB across Bronze (2.352 GB HTML5/OpenAlex), Silver (321.69 MB Parquet), Gold (211.27 MB LanceDB, 4.943 GB Backups)',
     },
     {
       id: 'init-02',
       time: formatTime(new Date(now.getTime() - 1000 * 120)),
       level: 'SUCCESS',
       tag: 'GOLD/LANCEDB',
-      msg: '164,702 vector embeddings active in LanceDB table scientific_papers_gold (Cosine ANN, 768-dim nomic-embed-text-v1.5)',
+      msg: '164,750 vector embeddings active in LanceDB table scientific_papers_gold (Cosine ANN, 768-dim nomic-embed-text-v1.5)',
     },
     {
       id: 'init-03',
       time: formatTime(new Date(now.getTime() - 1000 * 90)),
       level: 'INFO',
       tag: 'SILVER/DUCKDB',
-      msg: 'DuckDB columnar OLAP engine attached to Silver Parquet partitions (2,220,938 LaTeX formulas indexed with SIMD)',
+      msg: 'DuckDB columnar OLAP engine attached to Silver Parquet partitions (2,838,695 LaTeX formulas indexed with SIMD)',
     },
     {
       id: 'init-04',
       time: formatTime(new Date(now.getTime() - 1000 * 60)),
       level: 'INFO',
       tag: 'CORPUS/SYNC',
-      msg: 'Corpus baseline verified: 36,414 works (11,660 arXiv HTML5 + 24,754 OpenAlex JSON-LD + 184 conferences) mapped in Lakehouse Bronze layer',
+      msg: 'Corpus baseline verified: 18,287 works (101 arXiv HTML5 + 9,621 OpenAlex + 8,565 conferences/journals) mapped in Lakehouse Bronze & Silver layers',
     },
     {
       id: 'init-05',
@@ -131,10 +131,8 @@ const getStoredStorageStats = (): StorageStatsResponse | null => {
       const saved = localStorage.getItem('uth_lakehouse_storage_stats_cache');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Automatically invalidate stale caches from previous sessions (< 29,911 papers or < 913,205 vectors)
         const dedup = parsed?.sourceBreakdown?.total_deduplicated || parsed?.activeLakehouse?.sourceBreakdown?.total_deduplicated || 0;
-        const vecs = parsed?.activeLakehouse?.activeLanceDbVectors || 0;
-        if (dedup < 29911 || vecs < 913205) {
+        if (dedup < 100) {
           localStorage.removeItem('uth_lakehouse_storage_stats_cache');
           return null;
         }
@@ -152,13 +150,13 @@ let state: LakehouseStreamState = {
   totalCorpus:
     initialCachedStats?.sourceBreakdown?.total_deduplicated ??
     initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ??
-    23333,
+    18287,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
-  storageUsedGb: initialCachedStats?.totalBucket?.totalSizeGb ?? initialCachedStats?.activeLakehouse?.totalSizeGb ?? 11.43,
-  storageUsedPct: initialCachedStats?.totalBucket?.usedPercentage ?? initialCachedStats?.activeLakehouse?.usedPercentage ?? 114.3,
-  storageTotalBytes: initialCachedStats?.totalBucket?.totalSizeBytes ?? initialCachedStats?.activeLakehouse?.totalSizeBytes ?? 12272600656,
+  storageUsedGb: initialCachedStats?.totalBucket?.totalSizeGb ?? initialCachedStats?.activeLakehouse?.totalSizeGb ?? 8.75,
+  storageUsedPct: initialCachedStats?.totalBucket?.usedPercentage ?? initialCachedStats?.activeLakehouse?.usedPercentage ?? 87.5,
+  storageTotalBytes: initialCachedStats?.totalBucket?.totalSizeBytes ?? initialCachedStats?.activeLakehouse?.totalSizeBytes ?? 8751797344,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
   storageStats: initialCachedStats,
@@ -167,7 +165,7 @@ let state: LakehouseStreamState = {
   viewMode: getStoredViewMode(),
   logs: getStoredLogs(),
   isSyncingR2: false,
-  lastSyncedR2: initialCachedStats?.last_synced ?? '2026-10-09 12:15:19',
+  lastSyncedR2: initialCachedStats?.last_synced ?? '2026-10-18 03:33:05',
   miningSyncVersion: 0,
 };
 
@@ -195,9 +193,9 @@ export async function refreshStorageStats(forceReset: boolean = false): Promise<
     const data = await fetchStorageStats();
     if (data) {
       const mode = state.viewMode;
-      const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 8.277);
-      const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 82.77);
-      const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 8887884161);
+      const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 2.895);
+      const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 28.95);
+      const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 3108398926);
 
       // Merge storageStats but never let polling overwrite HIGHER numbers already pushed via SSE,
       // UNLESS a forceReset was explicitly triggered by user resetting the ingestion session.
@@ -224,7 +222,7 @@ export async function refreshStorageStats(forceReset: boolean = false): Promise<
         data.activeLakehouse?.sourceBreakdown?.total_deduplicated ||
         data.sourceBreakdown?.active_rag_papers ||
         data.total_objects ||
-        23333;
+        18287;
 
       updateState({
         totalCorpus: updatedTotalWorks,
@@ -283,9 +281,9 @@ export function setViewMode(mode: 'active' | 'total'): void {
         pct = data.used_percentage;
         bytes = data.total_size_bytes;
       } else {
-        gb = data.activeLakehouse?.totalSizeGb ?? 8.277;
-        pct = data.activeLakehouse?.usedPercentage ?? 82.77;
-        bytes = data.activeLakehouse?.totalSizeBytes ?? 8887884161;
+        gb = data.activeLakehouse?.totalSizeGb ?? 2.895;
+        pct = data.activeLakehouse?.usedPercentage ?? 28.95;
+        bytes = data.activeLakehouse?.totalSizeBytes ?? 3108398926;
       }
     }
     if (typeof window !== 'undefined') {
@@ -368,7 +366,7 @@ export function initializeLakehouseStream(): () => void {
       if (st) {
         updateState({
           isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || state.totalCorpus || 23333,
+          totalCorpus: st.total_corpus || state.totalCorpus || 18287,
           sessionIngested: st.status === 'STREAMING' ? (st.session_ingested || 0) : 0,
           streamSpeed: st.speed_ppm || 0,
           storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,
@@ -411,7 +409,7 @@ export function initializeLakehouseStream(): () => void {
               ? {
                   ...prev.storageStats.activeLakehouse,
                   activeLanceDbVectors:
-                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) + vectorsDelta,
+                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164750) + vectorsDelta,
                   totalSizeGb: updatedGb,
                   usedPercentage: updatedPct,
                 }
@@ -465,7 +463,7 @@ export function initializeLakehouseStream(): () => void {
               ? {
                   ...prev.storageStats.activeLakehouse,
                   activeLanceDbVectors:
-                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164702) + vectorsDelta,
+                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 164750) + vectorsDelta,
                 }
               : prev.storageStats?.activeLakehouse;
 

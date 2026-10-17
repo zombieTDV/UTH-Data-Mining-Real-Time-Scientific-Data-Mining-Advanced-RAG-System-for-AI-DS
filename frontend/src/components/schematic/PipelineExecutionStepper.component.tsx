@@ -68,14 +68,14 @@ export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
     if (currentStage === 'bronze') {
       return {
         badge: language === 'vi' ? '⚡ CHẶNG 2: HỒ THÔ BẤT BIẾN' : '⚡ STAGE 2: BRONZE LAKE',
-        detail: language === 'vi' ? 'Cloudflare R2 Object Storage (8.28 GB)' : 'Cloudflare R2 (8.28 GB)',
+        detail: language === 'vi' ? 'Cloudflare R2 Object Storage (8.75 GB)' : 'Cloudflare R2 (8.75 GB)',
         color: '#e11d48',
       };
     }
     if (currentStage === 'duckdb') {
       return {
         badge: language === 'vi' ? '⚡ CHẶNG 3: BÓC TÁCH SIMD OLAP' : '⚡ STAGE 3: VECTORIZED SIMD',
-        detail: language === 'vi' ? 'DuckDB + 2,220,938 Công Thức Toán LaTeX' : 'DuckDB + 2.22M LaTeX Formulas',
+        detail: language === 'vi' ? 'DuckDB + 2,838,695 Công Thức Toán LaTeX' : 'DuckDB + 2.84M LaTeX Formulas',
         color: '#f59e0b',
       };
     }
@@ -95,7 +95,7 @@ export const PipelineExecutionStepper: FC<PipelineExecutionStepperProps> = ({
     }
     return {
       badge: language === 'vi' ? '● HỆ THỐNG SẴN SÀNG' : '● SYSTEM READY',
-      detail: language === 'vi' ? 'Hồ Dữ Liệu Hoạt Động: 8.28 GB / 10 GB (82.8%)' : 'Active Lakehouse: 8.28 GB / 10 GB (82.8%)',
+      detail: language === 'vi' ? 'Dung Lượng R2 Lưu Trữ: 8.75 GB / 10 GB (87.5%)' : 'R2 Lakehouse Storage: 8.75 GB / 10 GB (87.5%)',
       color: '#38bdf8',
     };
   };

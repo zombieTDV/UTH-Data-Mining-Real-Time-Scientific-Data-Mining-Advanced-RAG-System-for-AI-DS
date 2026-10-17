@@ -1,5 +1,6 @@
-import { useState, type FC, type ReactNode } from 'react';
+import { useState, useMemo, type FC, type ReactNode } from 'react';
 import { useTranslation } from '../../hooks';
+import { useLakehouseStreamStore } from '../../store';
 
 export interface ToolItem {
   id: string;
@@ -28,9 +29,9 @@ export const TOOLS_DATA: ToolItem[] = [
     specVi: 'S3 API · Không phí Egress · Phân vùng Bronze/Silver/Gold',
     specEn: 'S3 API · Zero Egress Fees · Bronze/Silver/Gold Partitions',
     status: 'Operational',
-    metricBadge: '8.28 GB Active',
-    metricBadgeVi: '8.28 GB Khả Dụng',
-    metricBadgeEn: '8.28 GB Active',
+    metricBadge: '8.75 GB Active',
+    metricBadgeVi: '8.75 GB Khả Dụng',
+    metricBadgeEn: '8.75 GB Active',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M18.8 11.2C18.4 8.3 15.9 6 13 6c-2.4 0-4.5 1.5-5.4 3.7C5.3 10 3.5 12 3.5 14.5c0 2.8 2.2 5 5 5h10c2.5 0 4.5-2 4.5-4.5 0-2.1-1.5-3.8-3.5-4.3z" stroke="#F38020" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -48,9 +49,9 @@ export const TOOLS_DATA: ToolItem[] = [
     specVi: 'Tăng tốc SIMD · Truy vấn Parquet không sao chép',
     specEn: 'SIMD Acceleration · Zero-Copy Parquet Query',
     status: 'Operational',
-    metricBadge: '2,220,938 CT Toán',
-    metricBadgeVi: '2,220,938 CT Toán',
-    metricBadgeEn: '2,220,938 Formulas',
+    metricBadge: '2,838,695 CT Toán',
+    metricBadgeVi: '2,838,695 CT Toán',
+    metricBadgeEn: '2,838,695 Formulas',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <rect x="3" y="3" width="18" height="18" rx="5" stroke="#FFF000" strokeWidth="1.8"/>
@@ -65,13 +66,13 @@ export const TOOLS_DATA: ToolItem[] = [
     category: 'Vector DB',
     roleVi: 'Hồ vector đa phương thức phục vụ tìm kiếm ngữ nghĩa',
     roleEn: 'Multi-Modal Vector Lakehouse (Gold Tier)',
-    spec: '913,205 Embeddings · IVF-PQ Cosine ANN',
-    specVi: '913,205 Embeddings · IVF-PQ Cosine ANN',
-    specEn: '913,205 Embeddings · IVF-PQ Cosine ANN',
+    spec: '164,750 Embeddings · IVF-PQ Cosine ANN',
+    specVi: '164,750 Embeddings · IVF-PQ Cosine ANN',
+    specEn: '164,750 Embeddings · IVF-PQ Cosine ANN',
     status: 'Operational',
-    metricBadge: '164,702 Vectors',
-    metricBadgeVi: '164,702 Vectors',
-    metricBadgeEn: '164,702 Vectors',
+    metricBadge: '164,750 Vectors',
+    metricBadgeVi: '164,750 Vectors',
+    metricBadgeEn: '164,750 Vectors',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <polygon points="12 2 21 7 21 17 12 22 3 17 3 7" stroke="#22D3EE" strokeWidth="1.8" strokeLinejoin="round"/>
@@ -177,9 +178,9 @@ export const TOOLS_DATA: ToolItem[] = [
     specVi: 'cs.AI, cs.LG, cs.CV, cs.CL · Cấu trúc toàn văn HTML5',
     specEn: 'cs.AI, cs.LG, cs.CV, cs.CL · HTML5 Full-Text Structure',
     status: 'Synced',
-    metricBadge: '11,660 HTML5',
-    metricBadgeVi: '11,660 HTML5',
-    metricBadgeEn: '11,660 HTML5',
+    metricBadge: '101 HTML5',
+    metricBadgeVi: '101 HTML5',
+    metricBadgeEn: '101 HTML5',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="#B91C1C" strokeWidth="1.8"/>
@@ -194,13 +195,13 @@ export const TOOLS_DATA: ToolItem[] = [
     category: 'Data Source',
     roleVi: 'Cơ sở dữ liệu trích dẫn và liên kết tác giả toàn cầu',
     roleEn: 'Global Citation Graph & Bibliometric Catalog',
-    spec: '24,754 Works · JSON-LD Metadata · Concept Hierarchies',
-    specVi: '24,754 Bài báo · Siêu dữ liệu JSON-LD · Thứ bậc khái niệm',
-    specEn: '24,754 Works · JSON-LD Metadata · Concept Hierarchies',
+    spec: '9,621 Works · JSON-LD Metadata · Concept Hierarchies',
+    specVi: '9,621 Bài báo · Siêu dữ liệu JSON-LD · Thứ bậc khái niệm',
+    specEn: '9,621 Works · JSON-LD Metadata · Concept Hierarchies',
     status: 'Synced',
-    metricBadge: '24,754 Works',
-    metricBadgeVi: '24,754 Bài Báo',
-    metricBadgeEn: '24,754 Works',
+    metricBadge: '9,621 Works',
+    metricBadgeVi: '9,621 Bài Báo',
+    metricBadgeEn: '9,621 Works',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="9" stroke="#EC4899" strokeWidth="1.8"/>
@@ -214,6 +215,7 @@ export const TOOLS_DATA: ToolItem[] = [
 
 export const ToolLogosGrid: FC = () => {
   const { language } = useTranslation();
+  const { storageStats, storageUsedGb } = useLakehouseStreamStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   const categories = ['ALL', 'Storage', 'Compute', 'Vector DB', 'Model & Engine', 'Data Source'];
@@ -227,9 +229,67 @@ export const ToolLogosGrid: FC = () => {
     'Data Source': { vi: 'Nguồn Dữ Liệu', en: 'Data Source' },
   };
 
+  const dynamicToolsData = useMemo(() => {
+    const r2Gb = storageStats?.total_size_gb ?? (storageUsedGb > 0 ? storageUsedGb : 8.75);
+    const vectorCount = storageStats?.backupStorage?.vectorCount ?? 164750;
+    const arxivCount = storageStats?.activeLakehouse?.arxivHtmlCount ?? 101;
+    const openalexCount = storageStats?.activeLakehouse?.openalexCount ?? 9621;
+    const silverMb = storageStats?.activeLakehouse?.silverParquetSizeMb ?? 321.68;
+
+    return TOOLS_DATA.map((t) => {
+      if (t.id === 'cloudflare-r2') {
+        return {
+          ...t,
+          metricBadge: `${r2Gb.toFixed(2)} GB Active`,
+          metricBadgeVi: `${r2Gb.toFixed(2)} GB Khả Dụng`,
+          metricBadgeEn: `${r2Gb.toFixed(2)} GB Active`,
+        };
+      }
+      if (t.id === 'lancedb') {
+        return {
+          ...t,
+          spec: `${vectorCount.toLocaleString()} Embeddings · IVF-PQ Cosine ANN`,
+          specVi: `${vectorCount.toLocaleString()} Embeddings · IVF-PQ Cosine ANN`,
+          specEn: `${vectorCount.toLocaleString()} Embeddings · IVF-PQ Cosine ANN`,
+          metricBadge: `${vectorCount.toLocaleString()} Vectors`,
+          metricBadgeVi: `${vectorCount.toLocaleString()} Vectors`,
+          metricBadgeEn: `${vectorCount.toLocaleString()} Vectors`,
+        };
+      }
+      if (t.id === 'arxiv') {
+        return {
+          ...t,
+          metricBadge: `${arxivCount.toLocaleString()} HTML5`,
+          metricBadgeVi: `${arxivCount.toLocaleString()} HTML5`,
+          metricBadgeEn: `${arxivCount.toLocaleString()} HTML5`,
+        };
+      }
+      if (t.id === 'openalex') {
+        return {
+          ...t,
+          spec: `${openalexCount.toLocaleString()} Works · JSON-LD Metadata · Concept Hierarchies`,
+          specVi: `${openalexCount.toLocaleString()} Bài báo · Siêu dữ liệu JSON-LD · Thứ bậc khái niệm`,
+          specEn: `${openalexCount.toLocaleString()} Works · JSON-LD Metadata · Concept Hierarchies`,
+          metricBadge: `${openalexCount.toLocaleString()} Works`,
+          metricBadgeVi: `${openalexCount.toLocaleString()} Bài Báo`,
+          metricBadgeEn: `${openalexCount.toLocaleString()} Works`,
+        };
+      }
+      if (t.id === 'parquet') {
+        return {
+          ...t,
+          metricBadge: `${silverMb.toFixed(2)} MB`,
+          metricBadgeVi: `${silverMb.toFixed(2)} MB`,
+          metricBadgeEn: `${silverMb.toFixed(2)} MB`,
+        };
+      }
+      return t;
+    });
+  }, [storageStats, storageUsedGb]);
+
   const filteredTools = selectedCategory === 'ALL'
-    ? TOOLS_DATA
-    : TOOLS_DATA.filter((t) => t.category === selectedCategory);
+    ? dynamicToolsData
+    : dynamicToolsData.filter((t) => t.category === selectedCategory);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

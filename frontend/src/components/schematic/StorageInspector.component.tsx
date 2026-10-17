@@ -60,7 +60,7 @@ export function StorageInspector() {
         await refreshStorageStats(true);
         const updated = await fetchStorageStats();
         setStats(updated);
-        setSyncMessage(language === 'vi' ? 'Đã đặt lại phiên cào về mốc cơ sở chuẩn (36,414 bài).' : 'Session counter reset to baseline (36,414 works).');
+        setSyncMessage(language === 'vi' ? 'Đã đặt lại phiên cào về mốc cơ sở chuẩn (18,287 bài).' : 'Session counter reset to baseline (18,287 works).');
       } catch (e: any) {
         console.error('Failed to reset session:', e);
       } finally {
@@ -81,18 +81,18 @@ export function StorageInspector() {
   const backupData = activeStats?.backupStorage;
   const totalBucket = activeStats?.totalBucket;
 
-  const arxivCount = (activeData?.arxivHtmlCount ?? 11698) + sessionIngested;
-  const arxivGb = (activeData?.arxivHtmlSizeGb ?? 3.763).toFixed(3);
-  const openalexCount = (activeData?.openalexCount ?? 24756).toLocaleString();
-  const openalexGb = (activeData?.openalexSizeGb ?? 4.066).toFixed(3);
-  const silverMb = (activeData?.silverParquetSizeMb ?? 321.68).toFixed(2);
-  const goldChunks = (activeData?.activeLanceDbVectors ?? 164750).toLocaleString();
-  const backupGb = (backupData?.totalSizeGb ?? 4.107).toFixed(3);
+  const arxivCount = (activeData?.arxivHtmlCount ?? 101) + sessionIngested;
+  const arxivGb = (activeData?.arxivHtmlSizeGb ?? 0.585).toFixed(3);
+  const openalexCount = (activeData?.openalexCount ?? 9621).toLocaleString();
+  const openalexGb = (activeData?.openalexSizeGb ?? 1.767).toFixed(3);
+  const silverMb = (activeData?.silverParquetSizeMb ?? 321.69).toFixed(2);
+  const goldChunks = (backupData?.vectorCount ?? (activeData?.activeLanceDbVectors ?? 164750)).toLocaleString();
+  const backupGb = (backupData?.totalSizeGb ?? 4.943).toFixed(3);
 
-  const activeGb = (storageUsedGb || Number(activeData?.totalSizeGb ?? 8.191)).toFixed(3);
-  const activePct = (storageUsedPct || Number(activeData?.usedPercentage ?? 81.91)).toFixed(1);
-  const totalGb = (totalBucket?.totalSizeGb ?? 11.43).toFixed(3);
-  const totalPct = (totalBucket?.usedPercentage ?? 114.3).toFixed(1);
+  const activeGb = (storageUsedGb || Number(activeData?.totalSizeGb ?? 2.895)).toFixed(3);
+  const activePct = (storageUsedPct || Number(activeData?.usedPercentage ?? 28.95)).toFixed(1);
+  const totalGb = (totalBucket?.totalSizeGb ?? 8.75).toFixed(3);
+  const totalPct = (totalBucket?.usedPercentage ?? 87.5).toFixed(1);
 
   // Segment widths relative to 10GB Free Tier limit
   const arxivBarPct = Math.min(100, (Number(arxivGb) / 10.0) * 100);
@@ -146,7 +146,7 @@ export function StorageInspector() {
       name: language === 'vi' ? 'Lakehouse chuẩn hóa chọn lọc' : 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy & Zstd)',
-      itemsCount: language === 'vi' ? '29,911 bài (Lakehouse HTML5 Tầng 1 + 2)' : '29,911 works (Tier 1 + Tier 2 HTML5 lakehouse)',
+      itemsCount: language === 'vi' ? '11 Phân vùng (18,287 bài)' : '11 Partitions (18,287 works)',
       sizeBytes: `${silverMb} MB`,
       r2Location: 's3://uth-scientific-lakehouse/silver/ (papers, cvf, openreview)',
       color: '#10b981',
@@ -329,7 +329,7 @@ export function StorageInspector() {
             </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            arXiv HTML5 (3.76 GB) + OpenAlex (3.97 GB) + Parquet (316 MB)
+            arXiv HTML5 ({arxivGb} GB) + OpenAlex ({openalexGb} GB) + Parquet ({silverMb} MB)
           </div>
         </div>
 
@@ -345,7 +345,7 @@ export function StorageInspector() {
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>
             <AnimatedCounter value={Number(backupGb)} decimals={3} suffix=" GB" />{' '}
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>(164,750 vectors · 85 {language === 'vi' ? 'tệp' : 'files'})</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>({goldChunks} vectors · {backupData?.totalObjects ?? 28} {language === 'vi' ? 'tệp' : 'files'})</span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {language === 'vi' ? 'LanceDB IVF-PQ index phục vụ Semantic Search & Grounded RAG' : 'LanceDB IVF-PQ index serving Semantic Search & Grounded RAG'}
@@ -369,7 +369,9 @@ export function StorageInspector() {
             </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {language === 'vi' ? '36,751 tệp (gồm Bronze, Silver & Gold Vector)' : '36,751 files (across Bronze, Silver & Gold Vector)'}
+            {language === 'vi'
+              ? `${(totalBucket?.totalObjects ?? activeStats?.total_objects ?? 10452).toLocaleString()} tệp (gồm Bronze, Silver & Gold Vector)`
+              : `${(totalBucket?.totalObjects ?? activeStats?.total_objects ?? 10452).toLocaleString()} files (across Bronze, Silver & Gold Vector)`}
           </div>
         </div>
       </div>

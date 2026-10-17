@@ -121,7 +121,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
               BRONZE VAULT
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-              Raw HTML5 & OAI-PMH preprint archives (11,660 arXiv + OpenAlex)
+              Raw HTML5 & OAI-PMH preprint archives (101 arXiv + 9,621 OpenAlex)
             </div>
           </div>
 
@@ -138,7 +138,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
               SILVER COLUMNAR
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-              Cleaned, typed Parquet tables (36.4k papers, CVF, OpenReview)
+              Cleaned, typed Parquet tables (18.3k papers, CVF, OpenReview)
             </div>
           </div>
 
@@ -172,7 +172,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
               LANCEDB 768-D
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-              164,702 vectors with Tantivy FTS & IVF-PQ Cosine indexing
+              164,750 vectors with Tantivy FTS & IVF-PQ Cosine indexing
             </div>
           </div>
         </div>

@@ -86,7 +86,7 @@ export const LanceDbInspector: FC<LanceDbInspectorProps> = ({
     vector_column: 'vector',
     vector_dimension: 768,
     embedding_model: 'nomic-ai/nomic-embed-text-v1.5 (Matryoshka 768-D)',
-    total_chunks: 913205,
+    total_chunks: 164750,
     openreview_chunks: 26187,
     cvpr_chunks: 22790,
     indices: [

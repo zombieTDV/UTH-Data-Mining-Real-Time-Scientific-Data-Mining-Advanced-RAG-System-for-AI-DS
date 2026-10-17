@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, type FC, type MouseEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, type FC, type MouseEvent } from 'react';
 import {
   startStreamingIngestion,
   stopStreamingIngestion,
@@ -50,7 +50,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '29,911 Genuine Full-Text Works',
+      primaryMetric: '18,287 Deduplicated Works',
       secondaryMetric: '100% Full-Text Verified (Introduction, Methods, Experiments, Conclusion)',
       latency: 'Marker 2.0 Neural OCR (CUDA FP16)',
       throughput: '100% Cryptographic SHA-256 Verified',
@@ -58,7 +58,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
     features: [
       'Pure Full-Text Corpus: strictly excludes abstract-only records to guarantee complete multi-section coverage',
       'Marker 2.0 Neural Engine (CUDA FP16) converts scientific PDFs to high-fidelity Markdown preserving LaTeX formulas ($...$)',
-      'Multi-tier architectural harvest containing 29,911 verified full-text papers',
+      'Multi-tier architectural harvest containing 18,287 verified full-text papers',
       'Full section hierarchy: Abstract, 1 Introduction, 2 Methodology, 3 Experiments, 4 Diagnostics, Conclusion',
     ],
     samplePreviewTitle: 'Pure Full-Text Harvest & Marker Engine Spec',
@@ -66,7 +66,7 @@ export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
 GET https://arxiv.org/pdf/{paper_id}.pdf -> Marker Neural OCR (CUDA FP16)
 GET https://api.openreview.net/notes (OpenReview ICLR/NeurIPS Full Text)
 GET https://openaccess.thecvf.com (CVF CVPR/ICCV Open Access Proceedings)
-Tier 1 + Tier 2 Full-Text Pipeline: 29,911 Verified Works (Zero Abstract-Only Records)
+Tier 1 + Tier 2 Full-Text Pipeline: 18,287 Verified Works (Zero Abstract-Only Records)
 Full-Text Sections: Introduction, Model Architecture, Experiments, Ablations, Diagnostics, Conclusion`,
   },
   'bronze-instance': {
@@ -78,27 +78,29 @@ Full-Text Sections: Introduction, Model Architecture, Experiments, Ablations, Di
     badgeColor: '#e11d48',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '8.277 GB Stored (Primary Active)',
-      secondaryMetric: '11,660 HTML5 + 24,754 Metadata (82.8% Quota)',
+      primaryMetric: '8.75 GB Stored (Total Bucket)',
+      secondaryMetric: '10,452 Objects · 87.5% Free Tier Quota',
       latency: '< 45ms S3 HeadObject',
       throughput: 'Zero Egress Fees (Cloudflare Global Edge)',
     },
     features: [
       'Global low-latency S3-compatible cloud object store with 0 egress costs',
       'Strict partitioning scheme: bronze/raw_html/year=2026/ and bronze/openalex/year=2026/',
-      'Stores 11,660 raw HTML5 files and 24,754 OpenAlex metadata JSON records',
+      'Stores 10,452 Lakehouse objects across Bronze, Silver, and Gold tiers',
       'Dual automated MD5 and SHA-256 integrity verification on upload',
     ],
     samplePreviewTitle: 'Cloudflare R2 Bucket Key Hierarchy',
     sampleCodeOrSchema: `s3://uth-scientific-lakehouse/
 ├── bronze/
-│   ├── raw_html/year=2026/ (11,660 HTML5 preprints · 3.763 GB)
-│   ├── openalex/year=2026/ (24,754 JSON records · 3.971 GB)
+│   ├── raw_html/year=2026/ (101 HTML5 preprints · 0.585 GB)
+│   ├── openalex/year=2026/ (9,621 JSON records · 1.767 GB)
+│   ├── openreview/ (1,000 proceedings · 25.03 MB)
+│   ├── cvf/ (1,000 CVPR papers · 2.66 MB)
 │   └── oai_batches/ (12 batch checkpoints · 26.4 MB)
 ├── silver/
 │   └── papers/year=2026/ (11 Parquet partitions · 321.69 MB)
 └── gold/
-    └── lancedb/ (164,702 vectors · 211.26 MB active / 28 backup segments · 3.20 GB)`,
+    └── lancedb/ (164,750 vectors · 28 backup snapshots · 4.94 GB · 211.27 MB active index)`,
   },
   'review-duckdb': {
     id: 'review-duckdb',
@@ -109,8 +111,8 @@ Full-Text Sections: Introduction, Model Architecture, Experiments, Ablations, Di
     badgeColor: '#f59e0b',
     status: 'ACTIVE',
     telemetrySummary: {
-      primaryMetric: '2,220,938 LaTeX Formulas',
-      secondaryMetric: '9,015 Full-Section Enriched Papers',
+      primaryMetric: '2,838,695 LaTeX Formulas',
+      secondaryMetric: '11,619 Full-Section Enriched Papers',
       latency: '0.042s Execution Benchmark',
       throughput: 'Zero-Copy Apache Arrow Columnar Memory',
     },
@@ -142,8 +144,8 @@ ORDER BY paper_count DESC;
     badgeColor: '#10b981',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '103.80 MB Parquet Size',
-      secondaryMetric: '23 Partitions (29,911 Full-Text Papers)',
+      primaryMetric: '321.69 MB Parquet Size',
+      secondaryMetric: '11 Partitions (18,287 Full-Text Papers)',
       latency: '10x Storage Compression Ratio',
       throughput: 'Column Projection & Predicate Pushdown',
     },
@@ -170,20 +172,20 @@ ORDER BY paper_count DESC;
     name: 'LanceDB & 4 Mining Pillars',
     category: 'Gold Vector Lakehouse & Mining Core',
     role: 'Dense contextual embeddings and machine learning mining pillars',
-    engineVersion: 'LanceDB v0.17 + Nomic Embed Text v1.5 (MPS Apple Silicon)',
+    engineVersion: 'LanceDB v0.17 + Nomic Embed Text v1.5 (768-D)',
     badgeColor: '#2563eb',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '913,205 Vectors Indexed',
-      secondaryMetric: '29,911 Papers • 768 Dimensions (Nomic)',
+      primaryMetric: '164,750 Vectors Indexed',
+      secondaryMetric: '18,287 Papers • 768 Dimensions (Nomic)',
       latency: '< 18ms Cosine ANN Lookup',
       throughput: '4 Mining Pillars Fully Computed',
     },
     features: [
       'Multi-modal vector lakehouse based on Lance columnar format for disk-based ANN',
-      'Pillar 1: FP-Growth Association Mining (22 frequent itemsets, max lift: 2.14)',
-      'Pillar 2: K-Means & DBSCAN Semantic Clustering (6 clusters, silhouette: 0.0216)',
-      'Pillar 3: Louvain Co-authorship Graph (35,117 authors, PageRank centrality)',
+      'Pillar 1: FP-Growth Association Mining (30 rules, max lift: 2.14)',
+      'Pillar 2: K-Means & DBSCAN Semantic Clustering (silhouette: 0.0523)',
+      'Pillar 3: Louvain Co-authorship Graph (14,699 authors, PageRank centrality)',
       'Pillar 4: Isolation Forest Outlier Detection (30 frontier novelty papers)',
     ],
     samplePreviewTitle: 'LanceDB Vector Search & Mining Code',
@@ -192,7 +194,7 @@ ORDER BY paper_count DESC;
 db = lancedb.connect("data/gold/lancedb")
 tbl = db.open_table("scientific_papers_gold")
 
-# Hardware-accelerated Cosine ANN retrieval over 913,205 chunks (29,911 papers)
+# Hardware-accelerated Cosine ANN retrieval over 164,750 chunks (18,287 papers)
 results = tbl.search(query_embedding) \\
              .metric("cosine") \\
              .where("category = 'cs.AI'") \\
@@ -206,12 +208,12 @@ results = tbl.search(query_embedding) \\
     name: 'Qwen 2.5 & Grounded RAG Engine',
     category: 'Scientific Synthesis & Inference',
     role: 'Strict anti-hallucination academic question-answering with citations',
-    engineVersion: 'Qwen2.5-7B-Instruct (GGUF) + llama.cpp Metal Acceleration',
+    engineVersion: 'Qwen2.5-7B-Instruct (GGUF) + llama.cpp Hardware Acceleration',
     badgeColor: '#6366f1',
     status: 'ACTIVE',
     telemetrySummary: {
       primaryMetric: 'Verified Citations Gate',
-      secondaryMetric: 'Apple Silicon GPU Metal Offload',
+      secondaryMetric: 'Grounded Anti-Hallucination Gate',
       latency: 'Sub-50ms Context ANN Fetch',
       throughput: 'Exact DOI & Section Attributions',
     },
@@ -229,7 +231,7 @@ Ground every assertion strictly in provided LanceDB chunks.
 - Always cite source papers using format: [arXiv:ID, Section Name]
 - Render all equations in pristine LaTeX syntax: $...$ or $$...$$
 
-[RETRIEVED CONTEXT: 5 CHUNKS FROM 164,702 VECTORS]
+[RETRIEVED CONTEXT: 5 CHUNKS FROM 164,750 VECTORS]
 (Chunk 1: arXiv:2602.0412 · Introduction · Similarity: 0.884)...`,
   },
 };
@@ -391,7 +393,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         await resetStorageSession();
         resetSessionInStore();
         await refreshStorageStats(true);
-        setR2SyncMessage(language === 'vi' ? 'Đã đặt lại phiên cào về mốc cơ sở chuẩn (29,911 bài).' : 'Session counter reset to baseline (29,911 works).');
+        const resetBaselineCount = (totalCorpus || storageStats?.sourceBreakdown?.total_deduplicated || 18287).toLocaleString();
+        setR2SyncMessage(language === 'vi' ? `Đã đặt lại phiên cào về mốc cơ sở chuẩn (${resetBaselineCount} bài).` : `Session counter reset to baseline (${resetBaselineCount} works).`);
       } catch (e: any) {
         console.error('Failed to reset session:', e);
       } finally {
@@ -486,11 +489,37 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   }, [language]);
 
   // Pan and Zoom Canvas State
-  const [zoom, setZoom] = useState<number>(0.94);
+  const [zoom, setZoom] = useState<number>(0.85);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const handleFitView = useCallback(() => {
+    const el = canvasRef.current;
+    if (!el) {
+      setZoom(0.85);
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+    const containerWidth = el.clientWidth || window.innerWidth;
+    // Full horizontal pipeline width is ~1880px with paddings
+    const targetZoom = Math.min(1.0, Math.max(0.48, (containerWidth - 60) / 1880));
+    setZoom(parseFloat(targetZoom.toFixed(2)));
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  // Auto-fit on initial mount or window resize
+  useEffect(() => {
+    handleFitView();
+    const handleResize = () => {
+      if (pan.x === 0 && pan.y === 0) {
+        handleFitView();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [handleFitView]);
 
   // Interactive Lineage Ray Tracing State
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -572,47 +601,46 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   // Simulation state for realistic data streaming animation
   const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
   const [simulationHarvestedCount, setSimulationHarvestedCount] = useState<number>(0);
-  const [formulasExtracted, setFormulasExtracted] = useState<number>(2765395);
-  const [vectorsIndexed, setVectorsIndexed] = useState<number>(913205);
+  const [formulasExtracted, setFormulasExtracted] = useState<number>(2838695);
+  const [vectorsIndexed, setVectorsIndexed] = useState<number>(164750);
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
   const streamOffset = isPipelineRunning ? streamSessionCount : 0;
-  const liveArxivCount = Math.max(11630, sourceBreakdown?.arxiv ?? 11630) + streamOffset;
+  const liveArxivCount = (sourceBreakdown?.arxiv ?? 101) + streamOffset;
   const liveDoiCount = sourceBreakdown?.doi ?? 8890;
-  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 0;
+  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 1000;
   const liveCvfCount = sourceBreakdown?.cvf ?? 9389;
   const liveZenodoCount = sourceBreakdown?.zenodo ?? 2;
-  const liveOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? 24756;
+  const liveOpenAlexCount = storageStats?.activeLakehouse?.openalexCount ?? (sourceBreakdown?.openalex ?? 9621);
   const liveConfCount = storageStats?.activeLakehouse?.conferenceCount ?? 184;
   const liveBronzeCount = liveArxivCount;
-  const liveTotalWorks = Math.max(
-    29911,
+  const liveTotalWorks = (
     sourceBreakdown?.total_deduplicated ??
-      (liveDoiCount + (sourceBreakdown?.arxiv ?? 11630) + liveOpenReviewCount + liveCvfCount + liveZenodoCount)
+    (liveDoiCount + (sourceBreakdown?.arxiv ?? 101) + liveOpenReviewCount + liveCvfCount + liveZenodoCount)
   ) + streamOffset;
 
   const liveBronzeGb = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.arxivHtmlSizeGb.toFixed(3)
-    : (3.763 + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3);
+    : (0.585 + (streamSessionCount * 380000) / (1024 ** 3)).toFixed(3);
 
   const liveSilverMb = storageStats?.activeLakehouse?.silverParquetSizeMb ?? 321.69;
   const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 11;
 
   const liveVectors = isPipelineRunning && simulationStage !== 'completed'
     ? vectorsIndexed
-    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 913205);
-  const liveFormulas = (formulasExtracted || 2220938);
+    : (storageStats?.backupStorage?.vectorCount ?? (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164750));
+  const liveFormulas = (formulasExtracted || 2838695);
 
   const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
-  const liveTotalStorageGb = storageStats?.totalBucket?.totalSizeGb ?? (storageStats?.total_size_gb ?? 12.18);
-  const liveGoldGb = storageStats?.goldVectorLakehouse?.totalSizeGb ?? (storageStats?.backupStorage?.totalSizeGb ?? 3.238);
-  const liveActiveStorageGb = storageStats?.activeLakehouse?.totalSizeGb ?? (storageUsedGb > 10 ? 8.277 : (storageUsedGb || 8.277));
+  const liveTotalStorageGb = storageStats?.totalBucket?.totalSizeGb ?? (storageStats?.total_size_gb ?? 8.75);
+  const liveGoldGb = storageStats?.backupStorage?.totalSizeGb ?? (storageStats?.goldVectorLakehouse?.totalSizeGb ?? 4.943);
+  const liveActiveStorageGb = storageStats?.activeLakehouse?.totalSizeGb ?? (storageUsedGb || 2.895);
   const liveActiveStoragePct = storageStats?.activeLakehouse?.usedPercentage ?? Math.min(100, (liveActiveStorageGb / liveQuotaGb) * 100);
 
-  // Exact layer percentages of total 12.18 GB bucket
+  // Exact layer percentages of total bucket
   const bronzePctOfTotal = ((parseFloat(liveBronzeGb) / liveTotalStorageGb) * 100).toFixed(1);
-  const openalexPctOfTotal = (((storageStats?.activeLakehouse?.openalexSizeGb ?? 3.971) / liveTotalStorageGb) * 100).toFixed(1);
+  const openalexPctOfTotal = (((storageStats?.activeLakehouse?.openalexSizeGb ?? 1.767) / liveTotalStorageGb) * 100).toFixed(1);
   const silverPctOfTotal = (((liveSilverMb / 1024) / liveTotalStorageGb) * 100).toFixed(1);
   const goldPctOfTotal = ((liveGoldGb / liveTotalStorageGb) * 100).toFixed(1);
   const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || liveTotalWorks);
@@ -644,7 +672,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     }
 
     setSimulationStage('harvest');
-    setSimulationHarvestedCount(1420);
+    setSimulationHarvestedCount(Math.round((displayWorks || 18287) * 0.25));
     const now = new Date().toLocaleTimeString('en-US', { hour12: false });
     setLogs((prev) => [
       ...prev,
@@ -653,17 +681,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t1 = setTimeout(() => {
       setSimulationStage('bronze');
-      setSimulationHarvestedCount(6150);
+      setSimulationHarvestedCount(Math.round((displayWorks || 18287) * 0.65));
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 1, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'BRONZE-R2', msg: 'Streamed 6,150 raw HTML5 documents to Cloudflare R2 bucket bronze/raw_html/ (0 egress fees).' },
+        { id: Date.now() + 1, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'BRONZE-R2', msg: 'Streamed raw HTML5 documents to Cloudflare R2 bucket bronze/raw_html/ (0 egress fees).' },
       ]);
     }, 1200);
 
     const t2 = setTimeout(() => {
       setSimulationStage('duckdb');
-      setSimulationHarvestedCount(29911);
-      setFormulasExtracted(1850000);
+      setSimulationHarvestedCount(displayWorks || 18287);
+      setFormulasExtracted(2838695);
       setLogs((prev) => [
         ...prev,
         { id: Date.now() + 2, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'EXEC', tag: 'DUCKDB-SIMD', msg: 'DuckDB SIMD vector parsing LaTeX equations into Apache Arrow columnar memory.' },
@@ -672,20 +700,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
     const t3 = setTimeout(() => {
       setSimulationStage('parallel');
-      setFormulasExtracted(2220938);
-      setVectorsIndexed(110000);
+      setVectorsIndexed(Math.round((liveVectors || 164750) * 0.7));
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,220,938 formulas, 164,702 vectors indexed.' },
+        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: `Silver Parquet & Gold LanceDB synced: ${liveFormulas.toLocaleString()} formulas, ${(liveVectors || 164750).toLocaleString()} vectors indexed.` },
       ]);
     }, 4000);
 
     const t4 = setTimeout(() => {
       setSimulationStage('completed');
-      setVectorsIndexed(164702);
+      setVectorsIndexed(liveVectors || 164750);
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 29,911 works, 913,205 vectors online.' }
+        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: `Lakehouse pipeline execution completed: ${(displayWorks || 18287).toLocaleString()} works, ${(liveVectors || 164750).toLocaleString()} vectors online.` }
       ]);
     }, 6000);
 
@@ -854,7 +881,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     }
 
     if (selectedNodeId === 'review-r2' || selectedNodeId === 'bronze-instance') {
-      const openalexMb = ((storageStats?.activeLakehouse?.openalexSizeGb ?? 3.971) * 1024).toFixed(0);
+      const openalexMb = ((storageStats?.activeLakehouse?.openalexSizeGb ?? 1.767) * 1024).toFixed(0);
+      const openalexGb = (storageStats?.activeLakehouse?.openalexSizeGb ?? 1.767).toFixed(2);
       const openreviewMb = (storageStats?.activeLakehouse?.openreviewSizeMb ?? 25.03).toFixed(1);
       const cvfMb = (storageStats?.activeLakehouse?.cvfSizeMb ?? 2.66).toFixed(1);
       const hierarchySchema = `s3://uth-scientific-lakehouse/
@@ -867,8 +895,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 ├── silver/
 │   └── papers/year=2026/ (${liveSilverPartitions} Parquet partitions · ${liveSilverMb.toFixed(2)} MB)
 └── gold/
-    └── lancedb/ (${liveVectors.toLocaleString()} vectors · 85 R2 objects · ${(storageStats?.goldVectorLakehouse?.totalSizeGb ?? storageStats?.backupStorage?.totalSizeGb ?? 3.24).toFixed(2)} GB IVF-PQ indexed)
-[Bucket Storage: ${liveTotalStorageGb.toFixed(2)} GB Total · Bronze: ${bronzePctOfTotal}% (${parseFloat(liveBronzeGb).toFixed(2)} GB), OpenAlex: ${openalexPctOfTotal}% (3.97 GB), Silver: ${silverPctOfTotal}% (0.31 GB), Gold: ${goldPctOfTotal}% (${liveGoldGb.toFixed(2)} GB)]`;
+    └── lancedb/ (${liveVectors.toLocaleString()} vectors · ${(storageStats?.backupStorage?.totalObjects ?? 28)} backup snapshots · ${liveGoldGb.toFixed(2)} GB IVF-PQ indexed)
+[Bucket Storage: ${liveTotalStorageGb.toFixed(2)} GB Total · Bronze: ${bronzePctOfTotal}% (${parseFloat(liveBronzeGb).toFixed(2)} GB), OpenAlex: ${openalexPctOfTotal}% (${openalexGb} GB), Silver: ${silverPctOfTotal}% (${(liveSilverMb / 1024).toFixed(2)} GB), Gold: ${goldPctOfTotal}% (${liveGoldGb.toFixed(2)} GB)]`;
 
       return {
         ...baseTool,
@@ -878,7 +906,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         sampleCodeOrSchema: hierarchySchema,
         telemetrySummary: {
           primaryMetric: `${liveTotalStorageGb.toFixed(2)} GB Total Bucket Storage`,
-          secondaryMetric: `Bronze: ${parseFloat(liveBronzeGb).toFixed(2)} GB • OpenAlex: 3.97 GB • Silver: 0.31 GB • Gold: ${liveGoldGb.toFixed(2)} GB`,
+          secondaryMetric: `Bronze: ${parseFloat(liveBronzeGb).toFixed(2)} GB • OpenAlex: ${openalexGb} GB • Silver: ${(liveSilverMb / 1024).toFixed(2)} GB • Gold: ${liveGoldGb.toFixed(2)} GB`,
           latency: '< 42ms S3 HeadObject',
           throughput: 'Zero Egress Fees ($0.00) • SHA-256 Digest Required',
         },
@@ -1069,7 +1097,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
       >
         <div
           style={{
-            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -85 : 15)}px) scale(${drawerOpen ? Math.min(zoom, 0.85) : zoom})`,
+            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -130 : 15)}px) scale(${drawerOpen ? Math.min(zoom, 0.76) : zoom})`,
             transformOrigin: 'center center',
             transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
             display: 'flex',
@@ -1219,7 +1247,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
-              title="CỔNG PHÁT [OUT: RAW STREAM]"
+              title={language === 'vi' ? 'CỔNG PHÁT [OUT: DÒNG THÔ]' : 'OUTPUT PORT [OUT: RAW STREAM]'}
             >
               <span
                 style={{
@@ -1633,7 +1661,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
-              title="CỔNG THU [IN: RAW BUCKET]"
+              title={language === 'vi' ? 'CỔNG THU [IN: HỒ THÔ R2]' : 'INPUT PORT [IN: RAW BUCKET]'}
             >
               <span
                 style={{
@@ -1665,7 +1693,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
-              title="CỔNG PHÁT [OUT: S3 STREAM]"
+              title={language === 'vi' ? 'CỔNG PHÁT [OUT: DÒNG S3]' : 'OUTPUT PORT [OUT: S3 STREAM]'}
             >
               <span
                 style={{
@@ -1726,9 +1754,9 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               </div>
 
               {/* Visual Storage Progress Bar showing multi-layer distribution */}
-              <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)', display: 'flex' }} title={`Tổng Bucket R2: ${liveTotalStorageGb.toFixed(2)} GB (Bronze: ${bronzePctOfTotal}%, OpenAlex: ${openalexPctOfTotal}%, Silver: ${silverPctOfTotal}%, Gold: ${goldPctOfTotal}%)`}>
+              <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)', display: 'flex' }} title={language === 'vi' ? `Tổng Bucket R2: ${liveTotalStorageGb.toFixed(2)} GB (Bronze: ${bronzePctOfTotal}%, OpenAlex: ${openalexPctOfTotal}%, Silver: ${silverPctOfTotal}%, Gold: ${goldPctOfTotal}%)` : `Total R2 Bucket: ${liveTotalStorageGb.toFixed(2)} GB (Bronze: ${bronzePctOfTotal}%, OpenAlex: ${openalexPctOfTotal}%, Silver: ${silverPctOfTotal}%, Gold: ${goldPctOfTotal}%)`}>
                 <div style={{ width: `${bronzePctOfTotal}%`, height: '100%', backgroundColor: '#e11d48' }} title={`arXiv Bronze: ${parseFloat(liveBronzeGb).toFixed(2)} GB (${bronzePctOfTotal}%)`} />
-                <div style={{ width: `${openalexPctOfTotal}%`, height: '100%', backgroundColor: '#8b5cf6' }} title={`OpenAlex: 3.97 GB (${openalexPctOfTotal}%)`} />
+                <div style={{ width: `${openalexPctOfTotal}%`, height: '100%', backgroundColor: '#8b5cf6' }} title={`OpenAlex: ${(storageStats?.activeLakehouse?.openalexSizeGb ?? 1.767).toFixed(2)} GB (${openalexPctOfTotal}%)`} />
                 <div style={{ width: `${silverPctOfTotal}%`, height: '100%', backgroundColor: '#10b981' }} title={`Silver Parquet: ${(liveSilverMb / 1024).toFixed(2)} GB (${silverPctOfTotal}%)`} />
                 <div style={{ width: `${goldPctOfTotal}%`, height: '100%', backgroundColor: '#f59e0b' }} title={`Gold Vector: ${liveGoldGb.toFixed(2)} GB (${goldPctOfTotal}%)`} />
               </div>
@@ -1772,12 +1800,12 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     justifyContent: 'space-between',
                     whiteSpace: 'nowrap',
                     minWidth: 0,
-                  }} title="OpenAlex: 3.97 GB">
+                  }} title={`OpenAlex: ${(storageStats?.activeLakehouse?.openalexSizeGb ?? 1.767).toFixed(2)} GB`}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#8b5cf6', flexShrink: 0 }} />
                       OpenAlex
                     </span>
-                    <span>3.97 GB</span>
+                    <span>{(storageStats?.activeLakehouse?.openalexSizeGb ?? 1.767).toFixed(2)} GB</span>
                   </span>
                 </div>
 
@@ -2090,7 +2118,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
-              title="CỔNG THU [IN: ZERO-COPY ARROW]"
+              title={language === 'vi' ? 'CỔNG THU [IN: BỘ ĐỆM ARROW]' : 'INPUT PORT [IN: ZERO-COPY ARROW]'}
             >
               <span
                 style={{
@@ -2122,7 +2150,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 zIndex: 14,
                 pointerEvents: 'none',
               }}
-              title="CỔNG PHÁT [OUT: ENRICHED BATCHES]"
+              title={language === 'vi' ? 'CỔNG PHÁT [OUT: GÓI LÔ ĐÃ LÀM GIÀU]' : 'OUTPUT PORT [OUT: ENRICHED BATCHES]'}
             >
               <span
                 style={{
@@ -2600,7 +2628,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     zIndex: 14,
                     pointerEvents: 'none',
                   }}
-                  title="CỔNG THU [IN: ARROW BATCH]"
+                  title={language === 'vi' ? 'CỔNG THU [IN: LÔ ARROW]' : 'INPUT PORT [IN: ARROW BATCH]'}
                 >
                   <span
                     style={{
@@ -2632,7 +2660,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     zIndex: 14,
                     pointerEvents: 'none',
                   }}
-                  title="CỔNG PHÁT [OUT: SNAPPY PARQUET]"
+                  title={language === 'vi' ? 'CỔNG PHÁT [OUT: NÉN SNAPPY]' : 'OUTPUT PORT [OUT: SNAPPY PARQUET]'}
                 >
                   <span
                     style={{
@@ -2863,7 +2891,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     zIndex: 14,
                     pointerEvents: 'none',
                   }}
-                  title="CỔNG THU [IN: EMBEDDINGS]"
+                  title={language === 'vi' ? 'CỔNG THU [IN: VECTOR NHÚNG]' : 'INPUT PORT [IN: EMBEDDINGS]'}
                 >
                   <span
                     style={{
@@ -2895,7 +2923,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     zIndex: 14,
                     pointerEvents: 'none',
                   }}
-                  title="CỔNG PHÁT [OUT: ANN IVF-PQ]"
+                  title={language === 'vi' ? 'CỔNG PHÁT [OUT: CHỈ MỤC ANN]' : 'OUTPUT PORT [OUT: ANN IVF-PQ]'}
                 >
                   <span
                     style={{
@@ -3377,7 +3405,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   zIndex: 14,
                   pointerEvents: 'none',
                 }}
-                title="CỔNG THU [IN: GROUNDED CONTEXT]"
+                title={language === 'vi' ? 'CỔNG THU [IN: NGỮ CẢNH BẢO ĐẢM]' : 'INPUT PORT [IN: GROUNDED CONTEXT]'}
               >
                 <span
                   style={{
@@ -4125,7 +4153,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                          TRUY VẤN VECTORIZED SIMD SQL (DUCKDB IN-PROCESS)
+                          {language === 'vi' ? 'TRUY VẤN VECTORIZED SIMD SQL (DUCKDB IN-PROCESS)' : 'VECTORIZED SIMD SQL QUERY (DUCKDB IN-PROCESS)'}
                         </span>
                         <span style={{
                           fontSize: '10px',
@@ -4310,16 +4338,16 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                             {language === 'vi' ? 'PHÂN BỐ MẬT ĐỘ CÔNG THỨC TOÁN (SIMD DENSITY METRIC)' : 'MATH FORMULA DENSITY DISTRIBUTION (SIMD DENSITY METRIC)'}
                           </span>
                           <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: isDark ? '#fbbf24' : '#d97706', fontWeight: 700 }}>
-                            Total: 2,220,938 formulas
+                            {language === 'vi' ? `Tổng cộng: ${liveFormulas.toLocaleString()} công thức` : `Total: ${liveFormulas.toLocaleString()} formulas`}
                           </span>
                         </div>
 
                         {/* Stacked Ratio Bar */}
                         <div style={{ display: 'flex', height: '10px', borderRadius: '4px', overflow: 'hidden', gap: '2px' }}>
-                          <div style={{ width: '41%', backgroundColor: '#8b5cf6' }} title="cs.AI: 41.0% (912,400 formulas)" />
-                          <div style={{ width: '33.7%', backgroundColor: '#3b82f6' }} title="cs.LG: 33.7% (748,920 formulas)" />
-                          <div style={{ width: '16.3%', backgroundColor: '#10b981' }} title="cs.CV: 16.3% (362,118 formulas)" />
-                          <div style={{ width: '9.0%', backgroundColor: '#f59e0b' }} title="stat.ML: 9.0% (200,760 formulas)" />
+                          <div style={{ width: '41%', backgroundColor: '#8b5cf6' }} title={`cs.AI: 41.0% (${Math.round(liveFormulas * 0.41).toLocaleString()} ${language === 'vi' ? 'công thức' : 'formulas'})`} />
+                          <div style={{ width: '33.7%', backgroundColor: '#3b82f6' }} title={`cs.LG: 33.7% (${Math.round(liveFormulas * 0.337).toLocaleString()} ${language === 'vi' ? 'công thức' : 'formulas'})`} />
+                          <div style={{ width: '16.3%', backgroundColor: '#10b981' }} title={`cs.CV: 16.3% (${Math.round(liveFormulas * 0.163).toLocaleString()} ${language === 'vi' ? 'công thức' : 'formulas'})`} />
+                          <div style={{ width: '9.0%', backgroundColor: '#f59e0b' }} title={`stat.ML: 9.0% (${Math.round(liveFormulas * 0.09).toLocaleString()} ${language === 'vi' ? 'công thức' : 'formulas'})`} />
                         </div>
 
                         {/* Legend Chips */}
@@ -4539,20 +4567,20 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   const r2TotalBucket = storageStats?.totalBucket;
                   const isTotalView = r2ViewMode === 'total';
 
-                  const r2ArxivCount = (r2ActiveData?.arxivHtmlCount ?? 11660) + streamSessionCount;
-                  const r2ArxivGb = (r2ActiveData?.arxivHtmlSizeGb ?? 3.763).toFixed(3);
-                  const r2OpenAlexCount = (r2ActiveData?.openalexCount ?? 24754).toLocaleString();
-                  const r2OpenAlexGb = (r2ActiveData?.openalexSizeGb ?? 3.971).toFixed(3);
-                  const r2SilverMb = (r2ActiveData?.silverParquetSizeMb ?? 321.68).toFixed(2);
-                  const r2GoldChunks = (r2ActiveData?.activeLanceDbVectors ?? 164702).toLocaleString();
-                  const r2GoldMb = (r2ActiveData?.activeLanceDbSizeMb ?? 211.26).toFixed(2);
-                  const r2BackupGb = (r2BackupData?.totalSizeGb ?? 3.069).toFixed(3);
+                  const r2ArxivCount = (r2ActiveData?.arxivHtmlCount ?? 101) + streamSessionCount;
+                  const r2ArxivGb = (r2ActiveData?.arxivHtmlSizeGb ?? 0.585).toFixed(3);
+                  const r2OpenAlexCount = (r2ActiveData?.openalexCount ?? 9621).toLocaleString();
+                  const r2OpenAlexGb = (r2ActiveData?.openalexSizeGb ?? 1.767).toFixed(3);
+                  const r2SilverMb = (r2ActiveData?.silverParquetSizeMb ?? 321.69).toFixed(2);
+                  const r2GoldChunks = (r2ActiveData?.activeLanceDbVectors ?? 164750).toLocaleString();
+                  const r2GoldMb = (r2ActiveData?.activeLanceDbSizeMb ?? 211.27).toFixed(2);
+                  const r2BackupGb = (r2BackupData?.totalSizeGb ?? 4.943).toFixed(3);
 
-                  const r2ActiveGbNum = storageUsedGb || Number(r2ActiveData?.totalSizeGb ?? 8.277);
+                  const r2ActiveGbNum = storageUsedGb || Number(r2ActiveData?.totalSizeGb ?? 2.895);
                   const r2ActiveGb = r2ActiveGbNum.toFixed(3);
                   const r2ActivePct = Number(r2ActiveData?.usedPercentage ?? ((r2ActiveGbNum / 10.0) * 100)).toFixed(1);
-                  const r2TotalGb = (r2TotalBucket?.totalSizeGb ?? 11.348).toFixed(3);
-                  const r2TotalPct = (r2TotalBucket?.usedPercentage ?? 113.48).toFixed(1);
+                  const r2TotalGb = (r2TotalBucket?.totalSizeGb ?? 8.750).toFixed(3);
+                  const r2TotalPct = (r2TotalBucket?.usedPercentage ?? 87.5).toFixed(1);
 
                   const r2ArxivBarPct = Math.min(100, (Number(r2ArxivGb) / 10.0) * 100);
                   const r2OpenAlexBarPct = Math.min(100, (Number(r2OpenAlexGb) / 10.0) * 100);
@@ -4605,7 +4633,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                       name: language === 'vi' ? 'Lakehouse chuẩn hóa chọn lọc' : 'Curated Canonical Lakehouse',
                       storageType: 'Apache Arrow & Cloudflare R2',
                       format: 'Apache Parquet (Snappy 4.2x)',
-                      itemsCount: language === 'vi' ? '11 Phân vùng (36,414 bài)' : '11 Partitions (36,414 works)',
+                      itemsCount: language === 'vi' ? `${liveSilverPartitions} Phân vùng (${displayWorks.toLocaleString()} bài)` : `${liveSilverPartitions} Partitions (${displayWorks.toLocaleString()} works)`,
                       sizeBytes: `${r2SilverMb} MB`,
                       r2Location: 's3://uth-scientific-lakehouse/silver/',
                       color: '#10b981',
@@ -4631,7 +4659,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                       name: language === 'vi' ? 'Bản sao lưu Vector phục hồi thảm họa' : 'Cloud Disaster Recovery Replica',
                       storageType: 'Cloudflare R2 Cold Snapshots',
                       format: 'LanceDB Multi-Segment Archives',
-                      itemsCount: language === 'vi' ? '32 phân đoạn chunk' : '32 chunk segments',
+                      itemsCount: language === 'vi' ? `${storageStats?.backupStorage?.totalObjects ?? 28} phân đoạn snapshot` : `${storageStats?.backupStorage?.totalObjects ?? 28} snapshot segments`,
                       sizeBytes: `${r2BackupGb} GB`,
                       r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
                       color: '#f59e0b',
@@ -4835,7 +4863,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                             </div>
                             <div style={{ fontSize: '18px', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>
                               <AnimatedCounter value={Number(r2BackupGb)} decimals={3} suffix=" GB" />{' '}
-                              <span style={{ fontSize: '12px', color: themeStyles.textMuted, fontWeight: 500 }}>(164,750 vectors · 85 {language === 'vi' ? 'tệp' : 'files'})</span>
+                              <span style={{ fontSize: '12px', color: themeStyles.textMuted, fontWeight: 500 }}>({r2GoldChunks} vectors · {storageStats?.backupStorage?.totalObjects ?? 28} {language === 'vi' ? 'tệp' : 'files'})</span>
                             </div>
                             <div style={{ fontSize: '10.5px', color: themeStyles.textSecondary, marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
                               {language === 'vi' ? 'LanceDB IVF-PQ index phục vụ Semantic Search & Grounded RAG' : 'LanceDB IVF-PQ index serving Semantic Search & Grounded RAG'}
@@ -4859,7 +4887,9 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                               </span>
                             </div>
                             <div style={{ fontSize: '10.5px', color: themeStyles.textSecondary, marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
-                              {language === 'vi' ? '36,751 tệp (gồm Bronze, Silver & Gold Vector)' : '36,751 files (across Bronze, Silver & Gold Vector)'}
+                              {language === 'vi'
+                                ? `${(storageStats?.total_objects ?? 10452).toLocaleString()} tệp (gồm Bronze, Silver & Gold Vector)`
+                                : `${(storageStats?.total_objects ?? 10452).toLocaleString()} files (across Bronze, Silver & Gold Vector)`}
                             </div>
                           </div>
                         </div>
@@ -5195,7 +5225,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                         {/* Header with Grounding Confidence Meter */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                            HỒ SƠ MINH CHỨNG NGUỒN GỐC (ATTRIBUTION DOSSIER)
+                            {language === 'vi' ? 'HỒ SƠ MINH CHỨNG NGUỒN GỐC (ATTRIBUTION DOSSIER)' : 'GROUNDING ATTRIBUTION DOSSIER'}
                           </span>
                           <span style={{
                             fontSize: '10px',
@@ -5227,7 +5257,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                             <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                              TRÍCH DẪN CÔNG THỨC TOÁN HỌC KHÔNG GIAN VECTOR (LATEX PROOF):
+                              {language === 'vi' ? 'TRÍCH DẪN CÔNG THỨC TOÁN HỌC KHÔNG GIAN VECTOR (LATEX PROOF):' : 'VECTOR-SPACE LATEX FORMULA PROOF CITATION:'}
                             </span>
                             <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: isDark ? '#a5b4fc' : '#4f46e5' }}>
                               Section 3.2
@@ -5294,9 +5324,9 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
       <div
         style={{
           position: 'fixed',
-          bottom: '18px',
+          bottom: drawerOpen ? 'min(520px, calc(60vh + 16px))' : '18px',
           right: '24px',
-          display: drawerOpen ? 'none' : 'flex',
+          display: 'flex',
           alignItems: 'center',
           gap: '8px',
           backgroundColor: themeStyles.zoomBarBg,
@@ -5316,7 +5346,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
         <button
           type="button"
           onClick={() => setZoom((z) => Math.max(parseFloat((z - 0.1).toFixed(2)), 0.4))}
-          title="Zoom Out (Mouse Wheel Down)"
+          title={language === 'vi' ? 'Thu nhỏ (Cuộn chuột xuống)' : 'Zoom Out (Mouse Wheel Down)'}
           style={{
             width: '28px',
             height: '28px',
@@ -5341,7 +5371,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             setZoom(1.0);
             setPan({ x: 0, y: 0 });
           }}
-          title="Reset Zoom & Pan (100%)"
+          title={language === 'vi' ? 'Đặt lại Thu phóng & Vị trí (100%)' : 'Reset Zoom & Pan (100%)'}
           style={{
             border: 'none',
             borderRadius: '6px',
@@ -5360,7 +5390,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
         <button
           type="button"
           onClick={() => setZoom((z) => Math.min(parseFloat((z + 0.1).toFixed(2)), 2.4))}
-          title="Zoom In (Mouse Wheel Up)"
+          title={language === 'vi' ? 'Phóng to (Cuộn chuột lên)' : 'Zoom In (Mouse Wheel Up)'}
           style={{
             width: '28px',
             height: '28px',
@@ -5384,10 +5414,9 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
         <button
           type="button"
           onClick={() => {
-            setZoom(1.0);
-            setPan({ x: 0, y: 0 });
+            handleFitView();
           }}
-          title={language === 'vi' ? 'Căn giữa toàn bộ luồng quy trình (Fit View)' : 'Reset Pan & Fit Pipeline to View'}
+          title={language === 'vi' ? 'Căn vừa khung hình toàn bộ luồng quy trình (Fit View)' : 'Fit Entire Pipeline to View'}
           style={{
             border: `1px solid ${themeStyles.zoomBtnBorder}`,
             borderRadius: '6px',
@@ -5406,6 +5435,38 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
         >
           <span style={{ fontSize: '11px' }}>⌖</span>
           <span>{language === 'vi' ? 'CĂN GIỮA' : 'FIT VIEW'}</span>
+        </button>
+
+        <div style={{ width: '1px', height: '18px', backgroundColor: themeStyles.zoomBtnBorder, margin: '0 2px' }} />
+
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedNodeId('bronze-instance');
+          }}
+          title={language === 'vi' ? 'Mở thanh thanh tra chi tiết Cloudflare R2 Multi-Tier Lakehouse' : 'Open Cloudflare R2 Multi-Tier Lakehouse Inspector'}
+          style={{
+            border: `1px solid ${selectedNodeId === 'bronze-instance' ? 'rgba(245, 158, 11, 0.6)' : themeStyles.zoomBtnBorder}`,
+            borderRadius: '6px',
+            backgroundColor: selectedNodeId === 'bronze-instance' ? 'rgba(245, 158, 11, 0.15)' : themeStyles.zoomBtnBg,
+            color: selectedNodeId === 'bronze-instance' ? '#f59e0b' : themeStyles.textMuted,
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 800,
+            padding: '5px 9px',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+          <span>{language === 'vi' ? 'LĂNG KÍNH R2' : 'R2 LENS'}</span>
         </button>
       </div>
     </div>

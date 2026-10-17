@@ -448,7 +448,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
 
-  const { totalCorpus, isStreaming, sessionIngested, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
+  const { totalCorpus, storageStats, isStreaming, sessionIngested, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
   const [streamedPapers, setStreamedPapers] = useState<ScatterPaperPoint[]>([]);
 
   // Dynamically ingest live streaming papers into the EDA scatter space
@@ -806,7 +806,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
     const pSolo = +(solo / sum * 100).toFixed(1);
     const pMega = +(100 - pSmall - pLarge - pSolo).toFixed(1);
 
-    const total = filteredKpi ? filteredKpi.totalPapers : 29911;
+    const total = filteredKpi ? filteredKpi.totalPapers : (data?.dataset_overview?.total_papers || totalCorpus || 18287);
 
     return [
       { type: language === 'vi' ? 'Nhóm nhỏ (2 - 4 tác giả)' : 'Small team (2 - 4 authors)', pct: pSmall, count: Math.round(total * pSmall / 100).toLocaleString(), color: '#2563eb' },
@@ -901,7 +901,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
     const pIntro = +(introPct / sum * 100).toFixed(1);
     const pDisc = +(100 - pMeth - pExp - pIntro).toFixed(1);
 
-    const totalVectors = data?.rag_audit_metrics?.total_vectors || 913205;
+    const totalVectors = storageStats?.backupStorage?.vectorCount || data?.rag_audit_metrics?.total_vectors || 164750;
     const catVectors = selectedCategory !== 'ALL' && activeCategoryData
       ? Math.round((totalVectors * activeCategoryData.percentage) / 100)
       : totalVectors;
@@ -1211,7 +1211,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                 whiteSpace: 'nowrap',
               }}
             >
-              TẤT CẢ ({Math.max(overview.total_papers || 0, data?.collection_eda?.total_papers || 29911).toLocaleString()})
+              TẤT CẢ ({Math.max(overview.total_papers || 0, data?.collection_eda?.total_papers || totalCorpus || 18287).toLocaleString()})
             </button>
 
             {categoryList.slice(0, 7).map((cat) => {
@@ -1657,7 +1657,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                       [EDA-05] {language === 'vi' ? 'CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)' : 'DISCIPLINE DISTRIBUTION (TAXONOMY DONUT)'}
                     </h3>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                      Tỷ lệ phần trăm phân bố {(overview.total_papers || data?.collection_eda?.total_papers || 29911).toLocaleString()} bài báo
+                      Tỷ lệ phần trăm phân bố {(overview.total_papers || data?.collection_eda?.total_papers || totalCorpus || 18287).toLocaleString()} bài báo
                     </div>
                   </div>
 
@@ -1714,7 +1714,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                       <text x="50" y="48" textAnchor="middle" fontSize="12" fontFamily="var(--font-mono)" fontWeight="800" fill={themeStyles.textPrimary}>
                         {selectedCategory !== 'ALL' && activeCategoryData
                           ? activeCategoryData.count.toLocaleString()
-                          : (overview.total_papers || data?.collection_eda?.total_papers || 29911).toLocaleString()}
+                          : (overview.total_papers || data?.collection_eda?.total_papers || totalCorpus || 18287).toLocaleString()}
                       </text>
                       <text x="50" y="60" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textMuted}>
                         {selectedCategory !== 'ALL' ? selectedCategory : 'PAPERS'}
@@ -2192,7 +2192,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                     [EDA-08] {language === 'vi' ? 'TOP TÁC GIẢ NĂNG SUẤT CAO NHẤT' : 'TOP PRODUCTIVE AUTHORS'}
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#2563eb' }}>
-                    CORE: TOP {displayedTopAuthors.length} AUTHORS n={(filteredKpi ? filteredKpi.totalPapers : (data?.dataset_overview.total_papers || data?.collection_eda?.total_papers || 29911)).toLocaleString()}{selectedCategory !== 'ALL' ? ` [${selectedCategory}]` : ''}
+                    CORE: TOP {displayedTopAuthors.length} AUTHORS n={(filteredKpi ? filteredKpi.totalPapers : (data?.dataset_overview.total_papers || data?.collection_eda?.total_papers || totalCorpus || 18287)).toLocaleString()}{selectedCategory !== 'ALL' ? ` [${selectedCategory}]` : ''}
                   </span>
                 </div>
 
@@ -3288,7 +3288,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                     [EDA-09] RAG VECTOR LAKEHOUSE &amp; CONTEXT CHUNKING
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#7c3aed' }}>
-                    LANCEDB GOLD · {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()} VECTORS (IVF-PQ)
+                    LANCEDB GOLD · {(storageStats?.backupStorage?.vectorCount || data?.rag_audit_metrics?.total_vectors || 164750).toLocaleString()} VECTORS (IVF-PQ)
                   </span>
                 </div>
 
@@ -3352,7 +3352,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'IVF-PQ (K=1024, M=192)'}
+                  {(storageStats?.backupStorage?.vectorCount || data?.rag_audit_metrics?.total_vectors || 164750).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'IVF-PQ (K=1024, M=192)'}
                 </div>
 
                 <ChartToolbar
@@ -3380,14 +3380,14 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                     </div>
                     <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>
                       {selectedCategory !== 'ALL' && activeCategoryData
-                        ? Math.round(((data?.rag_audit_metrics?.total_vectors || 913205) * activeCategoryData.percentage) / 100).toLocaleString()
-                        : (data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()}
+                        ? Math.round(((storageStats?.backupStorage?.vectorCount || data?.rag_audit_metrics?.total_vectors || 164750) * activeCategoryData.percentage) / 100).toLocaleString()
+                        : (storageStats?.backupStorage?.vectorCount || data?.rag_audit_metrics?.total_vectors || 164750).toLocaleString()}
                     </div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>CHUNKS / BÀI</div>
                     <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
-                      {((data?.rag_audit_metrics?.total_vectors || 913205) / Math.max(1, data?.dataset_overview.fulltext_papers_count || 29911)).toFixed(1)}x
+                      {((storageStats?.backupStorage?.vectorCount || data?.rag_audit_metrics?.total_vectors || 164750) / Math.max(1, data?.dataset_overview.fulltext_papers_count || totalCorpus || 18287)).toFixed(1)}x
                     </div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>

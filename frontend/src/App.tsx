@@ -30,10 +30,10 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 29,911 fulltext papers, 913,205 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(29911);
-  const [totalFormulas, setTotalFormulas] = useState<number>(2765395);
-  const [totalVectors, setTotalVectors] = useState<number>(913205);
+  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 18,287 verified works, 164,750 vectors)
+  const [totalPapers, setTotalPapers] = useState<number>(18287);
+  const [totalFormulas, setTotalFormulas] = useState<number>(2838695);
+  const [totalVectors, setTotalVectors] = useState<number>(164750);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 
@@ -64,15 +64,17 @@ export default function App() {
             const works =
               data.sourceBreakdown?.total_deduplicated ||
               data.activeLakehouse.sourceBreakdown?.total_deduplicated ||
-              29911;
+              18287;
             setTotalPapers(works);
-            if (data.activeLakehouse.activeLanceDbVectors) {
-              setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
-            }
+            const vectors =
+              data.backupStorage?.vectorCount ||
+              data.activeLakehouse.activeLanceDbVectors ||
+              164750;
+            setTotalVectors(vectors);
           } else if (data?.sourceBreakdown?.total_deduplicated) {
             setTotalPapers(data.sourceBreakdown.total_deduplicated);
-            if (data?.zones?.goldChunkCount) {
-              setTotalVectors(data.zones.goldChunkCount);
+            if (data?.backupStorage?.vectorCount) {
+              setTotalVectors(data.backupStorage.vectorCount);
             }
           }
         })
@@ -139,9 +141,9 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = Math.max(29911, storageStats?.sourceBreakdown?.total_deduplicated || totalCorpus || totalPapers || 29911) + (isStreaming ? sessionIngested : 0);
-  const effectiveTotalVectors = Math.max(913205, storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 913205);
-  const effectiveTotalFormulas = totalFormulas || 2765395;
+  const effectiveTotalPapers = (storageStats?.sourceBreakdown?.total_deduplicated || totalCorpus || totalPapers || 18287) + (isStreaming ? sessionIngested : 0);
+  const effectiveTotalVectors = storageStats?.backupStorage?.vectorCount || storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 164750;
+  const effectiveTotalFormulas = totalFormulas || 2838695;
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>

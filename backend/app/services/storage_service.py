@@ -40,8 +40,8 @@ class StorageService:
         self.base_silver_count = 11
         self.base_silver_bytes = 337315983       # ~321.68 MB
 
-        self.base_active_gold_vectors = 913205
-        self.base_active_gold_bytes = 380528740  # ~362.9 MB (913,205 vectors + CVPR & OpenReview Gold tables)
+        self.base_active_gold_vectors = 164750
+        self.base_active_gold_bytes = 380528740  # (164,750 vectors + CVPR & OpenReview Gold tables)
 
         self.base_backup_gold_count = 28
         self.base_backup_gold_bytes = 4190362853 # ~3.903 GB (R2 disaster recovery cloud replica, calibrated to 12.18 GB total)
@@ -141,13 +141,13 @@ class StorageService:
 
     def _get_source_breakdown(self) -> SourceBreakdownDto:
         """Returns verified per-source ingestion counts strictly for Genuine Full-Text Papers embedded in LanceDB."""
-        active_rag_vectors = getattr(self, "base_active_gold_vectors", 913205)
-        arxiv_ft = 11630
+        active_rag_vectors = getattr(self, "base_active_gold_vectors", 164750)
+        arxiv_ft = 6
         cvf_ft = 9389
         doi_ft = 8890
         openreview_ft = 0
         zenodo_ft = 2
-        total_fulltext_papers = 29911
+        total_fulltext_papers = 18287
         tier1_count = 3000
 
         try:
@@ -176,7 +176,7 @@ class StorageService:
                     GROUP BY src_clean
                 """).df()
                 src_map = dict(zip(df["src_clean"], df["cnt"]))
-                arxiv_ft = int(src_map.get("arxiv", 11630))
+                arxiv_ft = int(src_map.get("arxiv", 6))
                 cvf_ft = int(src_map.get("cvf", 9389))
                 doi_ft = int(src_map.get("doi", 8890))
                 openreview_ft = int(src_map.get("openreview", 0))

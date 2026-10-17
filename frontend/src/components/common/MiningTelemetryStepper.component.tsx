@@ -60,8 +60,8 @@ const CHECKPOINTS: CheckpointDef[] = [
     key: 'clusters',
     nameVi: 'Phân Cụm Chủ Đề',
     nameEn: 'Topic Clusters',
-    algoVi: 'K-Means trên 384D vector',
-    algoEn: 'K-Means on 384D embeddings',
+    algoVi: 'K-Means trên 768D vector',
+    algoEn: 'K-Means on 768D embeddings',
     color: '#10b981',
     metricLabelVi: 'silhouette',
     metricLabelEn: 'silhouette',
@@ -277,7 +277,7 @@ export const MiningTelemetryStepper: FC<MiningTelemetryStepperProps> = ({
 
           let metricDetail = '';
           if (cp.key === 'eda') {
-            const paperCount = liveStats?.totalPapers || totalCorpus || mod?.total_papers || 38416;
+            const paperCount = liveStats?.totalPapers || totalCorpus || 18287;
             metricDetail = `${paperCount.toLocaleString()} ${language === 'vi' ? cp.metricLabelVi : cp.metricLabelEn}`;
           } else if (cp.key === 'association_rules') {
             const ruleCount = liveStats?.rulesCount ?? mod?.rules_mined ?? 30;

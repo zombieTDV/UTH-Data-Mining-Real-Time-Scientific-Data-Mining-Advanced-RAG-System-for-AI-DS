@@ -100,9 +100,9 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
     collectionData?.total_papers ||
     collectionData?.total_collected ||
     totalCorpus ||
-    29911;
+    18287;
 
-  const baselineLakehousePapers = Math.max(29911, r2TotalPapers) + liveSessionIngested;
+  const baselineLakehousePapers = (r2TotalPapers || 18287) + liveSessionIngested;
 
   const displayedTotalPapers = isFilteredByCategory && filteredKpi
     ? filteredKpi.totalPapers
@@ -116,7 +116,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
     storageStats?.total_size_gb ??
     (storageUsedGb > 0 ? storageUsedGb : null) ??
     collectionData?.total_size_gb ??
-    8.28;
+    8.75;
 
 
   // 2.3 Processing metrics (from processing_eda in R2 + live session delta)

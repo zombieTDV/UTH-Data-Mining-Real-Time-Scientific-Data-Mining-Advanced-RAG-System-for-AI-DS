@@ -9,8 +9,8 @@ export interface StatusBarProps {
 
 export const StatusBar: FC<StatusBarProps> = ({
   totalPapers,
-  totalVectors = 913205,
-  totalFormulas = 2220938,
+  totalVectors = 164750,
+  totalFormulas = 2838695,
 }) => {
   const { language } = useTranslation();
 
@@ -40,7 +40,7 @@ export const StatusBar: FC<StatusBarProps> = ({
       <div style={{ display: 'flex', gap: '16px' }}>
         <span>{totalPapers.toLocaleString()} {language === 'vi' ? 'BÀI BÁO' : 'PAPERS'}</span>
         <span>&bull;</span>
-        <span>{(totalVectors + Math.max(0, totalPapers - 36414) * 14).toLocaleString()} VECTORS</span>
+        <span>{totalVectors.toLocaleString()} VECTORS</span>
         <span>&bull;</span>
         <span>{(totalFormulas / 1000000).toFixed(2)}M {language === 'vi' ? 'CÔNG THỨC' : 'FORMULAS'}</span>
       </div>

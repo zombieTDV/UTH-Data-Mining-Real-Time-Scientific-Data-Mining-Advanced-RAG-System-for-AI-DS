@@ -23,7 +23,7 @@ class StreamingService:
         self.status: str = "IDLE"  # IDLE | STREAMING | PAUSED | COMPLETED | ERROR
         self.target_papers: int = 3000
         self.session_ingested: int = 0
-        self.base_corpus_count: int = 29911  # 29,911 deduplicated full-text papers embedded for RAG
+        self.base_corpus_count: int = 18287  # 18,287 deduplicated full-text papers embedded for RAG
         self.current_speed_ppm: float = 0.0
         self.start_time: Optional[float] = None
         self.stop_signal = asyncio.Event()
@@ -31,8 +31,8 @@ class StreamingService:
         self._task: Optional[asyncio.Task] = None
         self.recent_events: List[Dict[str, Any]] = []
 
-        # Real-time active lakehouse storage tracking (8.277 GB active Lakehouse baseline: Bronze + Silver + Gold)
-        self.base_storage_bytes: int = 8887884161
+        # Real-time active lakehouse storage tracking (8.75 GB active Lakehouse baseline: Bronze + Silver + Gold)
+        self.base_storage_bytes: int = 8751797344
         self.accumulated_bytes_delta: int = 0
         self.free_tier_quota_gb: float = 10.0
 
@@ -69,9 +69,23 @@ class StreamingService:
         self._save_persisted_state()
 
     def get_current_storage(self) -> Dict[str, Any]:
+        try:
+            from backend.app.services.storage_service import storage_service
+            st = storage_service.get_stats()
+            if st and st.total_size_gb:
+                added_gb = self.accumulated_bytes_delta / (10**9)
+                tot_gb = round(st.total_size_gb + added_gb, 2)
+                return {
+                    "total_bytes": st.total_size_bytes + self.accumulated_bytes_delta,
+                    "total_gb": tot_gb,
+                    "used_pct": round((tot_gb / self.free_tier_quota_gb) * 100.0, 1),
+                }
+        except Exception:
+            pass
+
         total_bytes = self.base_storage_bytes + self.accumulated_bytes_delta
-        total_gb = round(total_bytes / (1024**3), 3)
-        used_pct = round((total_gb / self.free_tier_quota_gb) * 100.0, 2)
+        total_gb = round(total_bytes / (10**9), 2)
+        used_pct = round((total_gb / self.free_tier_quota_gb) * 100.0, 1)
         return {
             "total_bytes": total_bytes,
             "total_gb": total_gb,
@@ -82,15 +96,14 @@ class StreamingService:
         elapsed = time.time() - self.start_time if self.start_time else 0
         storage = self.get_current_storage()
         
-        # Query true corpus count from LanceDB
+        # Query true corpus count from storage_service or LanceDB
         real_corpus = self.base_corpus_count
         try:
-            from src.indexing.lancedb_manager import LanceDBManager
-            l_mgr = LanceDBManager()
-            if "scientific_papers_gold" in l_mgr.db.table_names():
-                tbl = l_mgr.db.open_table("scientific_papers_gold")
-                arr = tbl.search().select(["paper_id"]).to_arrow()
-                real_corpus = len(set(arr["paper_id"].to_pylist()))
+            from backend.app.services.storage_service import storage_service
+            st = storage_service.get_stats()
+            if st and st.sourceBreakdown and st.sourceBreakdown.total_deduplicated:
+                real_corpus = st.sourceBreakdown.total_deduplicated
+                self.base_corpus_count = real_corpus
         except Exception:
             pass
 
@@ -98,7 +111,7 @@ class StreamingService:
             "status": self.status,
             "target_papers": self.target_papers,
             "session_ingested": self.session_ingested,
-            "total_corpus": max(real_corpus, self.base_corpus_count + self.session_ingested),
+            "total_corpus": real_corpus + (self.session_ingested if self.status == "STREAMING" else 0),
             "speed_ppm": self.current_speed_ppm,
             "elapsed_seconds": round(elapsed, 1),
             "subscribers_connected": len(self.subscribers),

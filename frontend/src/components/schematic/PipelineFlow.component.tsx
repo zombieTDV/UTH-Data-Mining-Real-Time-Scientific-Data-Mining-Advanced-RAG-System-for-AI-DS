@@ -37,11 +37,11 @@ export function PipelineFlow() {
   const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
   const currentCorpus = currentTotalCorpus;
   const currentBronzeCount = currentArxivCount;
-  const currentBatchesCount = 12;
-  const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
+  const currentVectors = storageStats?.backupStorage?.vectorCount
+    ?? storageStats?.activeLakehouse?.activeLanceDbVectors 
     ?? storageStats?.zones?.goldChunkCount 
-    ?? 40399;
-  const currentFormulas = 2220938;
+    ?? 164750;
+  const currentFormulas = 2838695;
   const currentEnriched = currentBronzeCount;
   const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
   const currentSilverMb = storageStats?.activeLakehouse
@@ -129,7 +129,7 @@ export function PipelineFlow() {
       },
       details: `Runs high-precision cosine semantic search over ${currentVectors.toLocaleString()} vectors, formats academic system prompts with anti-hallucination guardrails, and produces streaming answers with verified section citations.`
     }
-  ], [currentBronzeCount, currentBatchesCount, currentCorpus, storageUsedGb, currentEnriched, currentFormulas, currentVectors, currentGoldMb]);
+  ], [currentBronzeCount, currentCorpus, storageUsedGb, currentEnriched, currentFormulas, currentVectors, currentGoldMb]);
 
   const activePhase = phases.find(p => p.id === selectedPhase) || phases[0];
 

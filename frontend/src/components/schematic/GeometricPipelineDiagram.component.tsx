@@ -38,11 +38,11 @@ export function GeometricPipelineDiagram() {
   const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
   const currentCorpus = currentTotalCorpus;
   const currentBronzeCount = currentArxivCount;
-  const currentBatchesCount = 12;
-  const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
+  const currentVectors = storageStats?.backupStorage?.vectorCount
+    ?? storageStats?.activeLakehouse?.activeLanceDbVectors 
     ?? storageStats?.zones?.goldChunkCount 
-    ?? 40399;
-  const currentFormulas = 2220938;
+    ?? 164750;
+  const currentFormulas = 2838695;
   const currentEnriched = currentBronzeCount;
   const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
 
@@ -183,7 +183,7 @@ export function GeometricPipelineDiagram() {
       iconType: 'terminal',
       specList: ['Exact LaTeX Retention', 'Refusal Gate on Missing Context', 'Dual-Stream Logging']
     }
-  ], [currentCorpus, storageUsedGb, currentBronzeCount, currentBatchesCount, currentFormulas, currentEnriched, currentVectors, currentGoldMb, isStreaming]);
+  ], [currentCorpus, storageUsedGb, currentBronzeCount, currentFormulas, currentEnriched, currentVectors, currentGoldMb, isStreaming]);
 
   const handleRunPipeline = () => {
     setIsRunning(true);

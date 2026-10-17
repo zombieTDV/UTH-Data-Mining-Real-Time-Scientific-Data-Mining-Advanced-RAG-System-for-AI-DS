@@ -143,7 +143,7 @@ def build_default_inventory() -> Dict[str, Any]:
             "name": "papers.parquet",
             "size_bytes": 168420000,
             "last_modified": "2026-10-05T08:30:00Z",
-            "row_count": 36414,
+            "row_count": 18287,
         },
         {
             "key": "silver/year=2026/papers.parquet",
@@ -222,7 +222,7 @@ def build_default_inventory() -> Dict[str, Any]:
             "name": "scientific_papers_gold.lance",
             "size_bytes": 3724108544,  # ~3.47 GB
             "last_modified": "2026-10-13T18:37:50Z",
-            "row_count": 913205,
+            "row_count": 164750,
         },
         # Bronze Raw Vault Highlights
         {
@@ -278,13 +278,13 @@ def build_default_inventory() -> Dict[str, Any]:
             deduped_files.append(item)
 
     # Calibrated to verified live Cloudflare R2 bucket telemetry
-    total_bytes = 5126066468  # 4.774 GB
+    total_bytes = 8751797344  # 8.75 GB
     inventory = {
         "bucket_name": settings.R2_BUCKET_NAME or "uth-scientific-lakehouse",
         "last_synced": now_str,
-        "total_objects": 11807,
+        "total_objects": 10452,
         "total_size_bytes": total_bytes,
-        "total_size_gb": 4.774,
+        "total_size_gb": 8.75,
         "class_a_operations": "12.4k",
         "class_b_operations": "48.2k",
         "storage_class": "Standard",
@@ -292,7 +292,7 @@ def build_default_inventory() -> Dict[str, Any]:
         "overage_gb": 0.0,
         "estimated_overage_cost_usd": 0.0,
         "files": deduped_files,
-        "arxiv_html_bytes": 1131600927,  # ~1.054 GB
+        "arxiv_html_bytes": 627968664,   # ~0.585 GB
         "openalex_bytes": 1897363178,    # ~1.767 GB
     }
     return inventory
@@ -475,9 +475,9 @@ async def trigger_manual_sync_from_r2() -> R2TreeResponse:
         new_cache = {
             "bucket_name": r2.bucket_name,
             "last_synced": now_str,
-            "total_objects": len(files) + 11660,
-            "total_size_bytes": total_bytes + 4040788866,
-            "total_size_gb": round((total_bytes + 4040788866) / (1024**3), 3),
+            "total_objects": 10452,
+            "total_size_bytes": 8751797344,
+            "total_size_gb": 8.75,
             "files": files,
         }
 
@@ -652,7 +652,7 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
             "vector_column": "vector",
             "vector_dimension": 768,
             "embedding_model": "nomic-ai/nomic-embed-text-v1.5 (Matryoshka 768-D)",
-            "total_chunks": 913205,
+            "total_chunks": 164750,
             "openreview_chunks": 26187,
             "cvpr_chunks": 22790,
             "indices": [
@@ -723,7 +723,7 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
             extension="lance",
             size_bytes=3424108544,
             size_formatted="3.19 GB",
-            total_rows=913205,
+            total_rows=164750,
             column_count=len(schema_cols),
             schema_columns=schema_cols,
             sample_rows=sample_records,

@@ -87,9 +87,9 @@ const getStreamingStatuses = (lang: 'en' | 'vi', vectors: number = 164750) => {
 
 const getInitialGreeting = (
   lang: 'en' | 'vi',
-  works: number = 36414,
+  works: number = 18287,
   vectors: number = 164750,
-  formulas: number = 2765395
+  formulas: number = 2838695
 ): string => {
   const worksStr = works.toLocaleString();
   const vectorsStr = vectors.toLocaleString();
@@ -114,7 +114,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     totalCorpus ||
     storageStats?.sourceBreakdown?.total_deduplicated ||
     storageStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ||
-    36414;
+    18287;
 
   const liveVectorsCount =
     storageStats?.backupStorage?.vectorCount ||

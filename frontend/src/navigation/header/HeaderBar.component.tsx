@@ -26,8 +26,8 @@ export const HeaderBar: FC<HeaderBarProps> = ({
   pipelineStatus,
   streamActive,
   totalPapers,
-  totalFormulas = 2765395,
-  totalVectors = 913205,
+  totalFormulas = 2838695,
+  totalVectors = 164750,
   sessionIngested = 0,
   streamSpeed,
   onTriggerPipeline,
@@ -39,7 +39,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
     storageStats?.activeLakehouse?.totalSizeGb ??
     storageStats?.total_size_gb ??
     (storageUsedGb > 0 ? storageUsedGb : null) ??
-    8.28;
+    8.75;
 
   const ingestionPpm = streamSpeed > 0 ? Number(streamSpeed.toFixed(1)) : 32.4;
 
