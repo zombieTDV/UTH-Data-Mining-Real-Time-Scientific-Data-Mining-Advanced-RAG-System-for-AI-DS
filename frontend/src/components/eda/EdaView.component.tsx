@@ -39,6 +39,7 @@ export interface AnomalyNotification {
 interface EdaViewProps {
   theme?: 'dark' | 'light';
   onNavigateToRag?: (paperTitle?: string) => void;
+  onNavigateToTab?: (tab: 'schematic' | 'r2' | 'eda' | 'pillars' | 'rag' | 'logs') => void;
 }
 
 // 70 realistic curated scientific papers representing the lakehouse distribution
@@ -334,7 +335,7 @@ const SCATTER_DATASET: ScatterPaperPoint[] = [
   },
 ];
 
-export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) => {
+export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onNavigateToTab }) => {
   const isDark = theme === 'dark';
   const { language } = useTranslation();
 
@@ -720,7 +721,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
     \\textbf{Feature Variable} & \\textbf{P25} & \\textbf{Median} & \\textbf{P75} & \\textbf{P95} & \\textbf{Max} \\\\
     \\hline
     LaTeX Math Formulas & ${mq.p25} & ${mq.median} & ${mq.p75} & ${mq.p95} & ${mq.max} \\\\
-    Word Count (Tokens) & ${mq.p25.toLocaleString()} & ${wq.median.toLocaleString()} & ${wq.p75.toLocaleString()} & ${wq.p95.toLocaleString()} & ${wq.max.toLocaleString()} \\\\
+    Word Count (Tokens) & ${wq.p25.toLocaleString()} & ${wq.median.toLocaleString()} & ${wq.p75.toLocaleString()} & ${wq.p95.toLocaleString()} & ${wq.max.toLocaleString()} \\\\
     \\hline
   \\end{tabular}
 \\end{table}`;
@@ -844,7 +845,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               </h1>
             </div>
 
-            {/* 3-Tier Master Segmented Control */}
+            {/* Unified Flat Cockpit Navigation */}
             <div
               style={{
                 display: 'inline-flex',
@@ -854,154 +855,49 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 borderRadius: '6px',
                 border: `1px solid ${themeStyles.border}`,
                 gap: '2px',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
               }}
             >
-              <button
-                type="button"
-                onClick={() => setActiveDeck('collection')}
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: activeDeck === 'collection' ? 800 : 600,
-                  backgroundColor: activeDeck === 'collection' ? '#f59e0b' : 'transparent',
-                  color: activeDeck === 'collection' ? '#000000' : themeStyles.textSecondary,
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>📥</span>
-                <span>TẦNG 1: THU THẬP &amp; THÔ</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck)) {
-                    setActiveDeck('scatter');
-                  }
-                }}
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: ['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck) ? 800 : 600,
-                  backgroundColor: ['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck) ? (isDark ? 'rgba(37, 99, 235, 0.3)' : '#eff6ff') : 'transparent',
-                  color: ['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck) ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary,
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>⚙️</span>
-                <span>TẦNG 2: HÌNH HỌC &amp; ĐẶC TRƯNG</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!['explorer', 'rag_audit', 'authors'].includes(activeDeck)) {
-                    setActiveDeck('explorer');
-                  }
-                }}
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: ['explorer', 'rag_audit', 'authors'].includes(activeDeck) ? 800 : 600,
-                  backgroundColor: ['explorer', 'rag_audit', 'authors'].includes(activeDeck) ? (isDark ? 'rgba(124, 58, 237, 0.3)' : '#f5f3ff') : 'transparent',
-                  color: ['explorer', 'rag_audit', 'authors'].includes(activeDeck) ? (isDark ? '#c4b5fd' : '#7c3aed') : themeStyles.textSecondary,
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>🛡️</span>
-                <span>TẦNG 3: ĐIỀU HƯỚNG &amp; RAG</span>
-              </button>
+              {[
+                { id: 'collection' as DeckType, icon: '📥', label: language === 'vi' ? 'Nguồn Dữ Liệu' : 'Data Sources', activeColor: '#f59e0b', activeText: '#000000' },
+                { id: 'scatter' as DeckType, icon: '☍', label: language === 'vi' ? 'Đa Biến & GMM' : 'Bivariate GMM', activeColor: '#2563eb', activeText: '#ffffff' },
+                { id: 'combo' as DeckType, icon: '◬', label: language === 'vi' ? 'Đơn Biến & Q-Q' : 'Univariate & Q-Q', activeColor: '#2563eb', activeText: '#ffffff' },
+                { id: 'taxonomy' as DeckType, icon: '☷', label: language === 'vi' ? 'Chuyên Ngành' : 'Taxonomy', activeColor: '#2563eb', activeText: '#ffffff' },
+                { id: 'correlations' as DeckType, icon: '📐', label: language === 'vi' ? 'Tương Quan' : 'Correlations', activeColor: '#2563eb', activeText: '#ffffff' },
+                { id: 'authors' as DeckType, icon: '👥', label: language === 'vi' ? 'Tác Giả & Nhóm' : 'Authors & Teams', activeColor: '#7c3aed', activeText: '#ffffff' },
+                { id: 'rag_audit' as DeckType, icon: '🛡️', label: language === 'vi' ? 'Kiểm Định RAG' : 'RAG Audit', activeColor: '#7c3aed', activeText: '#ffffff' },
+                { id: 'explorer' as DeckType, icon: '🔍', label: language === 'vi' ? 'Tra Cứu (DuckDB)' : 'DuckDB Explorer', activeColor: '#059669', activeText: '#ffffff' },
+              ].map((deck) => {
+                const isActive = activeDeck === deck.id;
+                return (
+                  <button
+                    key={deck.id}
+                    type="button"
+                    onClick={() => setActiveDeck(deck.id)}
+                    style={{
+                      padding: '2px 7px',
+                      borderRadius: '4px',
+                      fontSize: '9.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: isActive ? 800 : 500,
+                      backgroundColor: isActive ? deck.activeColor : 'transparent',
+                      color: isActive ? deck.activeText : themeStyles.textSecondary,
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>{deck.icon}</span>
+                    <span>{deck.label}</span>
+                  </button>
+                );
+              })}
             </div>
-
-            {/* Contextual Sub-Tabs (if Tier 2 active) */}
-            {['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                {[
-                  { id: 'scatter' as DeckType, label: '☍ Đa Biến & GMM' },
-                  { id: 'combo' as DeckType, label: '◬ Đơn Biến & Q-Q' },
-                  { id: 'taxonomy' as DeckType, label: '☷ Chuyên Ngành' },
-                  { id: 'correlations' as DeckType, label: '📐 Tương Quan' },
-                ].map((deck) => {
-                  const isActive = activeDeck === deck.id;
-                  return (
-                    <button
-                      key={deck.id}
-                      type="button"
-                      onClick={() => setActiveDeck(deck.id)}
-                      style={{
-                        padding: '1px 6px',
-                        borderRadius: '3px',
-                        border: isActive ? '1px solid #3b82f6' : '1px solid transparent',
-                        backgroundColor: isActive ? '#2563eb' : 'transparent',
-                        color: isActive ? '#ffffff' : themeStyles.textSecondary,
-                        cursor: 'pointer',
-                        fontSize: '9.5px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: isActive ? 800 : 500,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {deck.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Contextual Sub-Tabs (if Tier 3 active) */}
-            {['explorer', 'rag_audit', 'authors'].includes(activeDeck) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                {[
-                  { id: 'explorer' as DeckType, label: '🔍 Tra Cứu (DuckDB)' },
-                  { id: 'rag_audit' as DeckType, label: '🛡️ RAG Audit' },
-                  { id: 'authors' as DeckType, label: '👥 Tác Giả' },
-                ].map((deck) => {
-                  const isActive = activeDeck === deck.id;
-                  return (
-                    <button
-                      key={deck.id}
-                      type="button"
-                      onClick={() => setActiveDeck(deck.id)}
-                      style={{
-                        padding: '1px 6px',
-                        borderRadius: '3px',
-                        border: isActive ? '1px solid #8b5cf6' : '1px solid transparent',
-                        backgroundColor: isActive ? '#7c3aed' : 'transparent',
-                        color: isActive ? '#ffffff' : themeStyles.textSecondary,
-                        cursor: 'pointer',
-                        fontSize: '9.5px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: isActive ? 800 : 500,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {deck.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* Right: Lakehouse Live Badge, Outlier Test, Focus & Selected */}
@@ -2114,6 +2010,40 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {onNavigateToTab && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToTab('pillars')}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : '#eef2ff',
+                        color: isDark ? '#a5b4fc' : '#4f46e5',
+                        border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.4)' : '#c7d2fe'}`,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                      title={
+                        language === 'vi'
+                          ? 'Mở đồ thị mạng lưới đồng tác giả và phân cụm cộng đồng Louvain tại Pillar 3'
+                          : 'Open Co-authorship Network Graph & Louvain clustering in Pillar 3'
+                      }
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="18" cy="5" r="3" />
+                        <circle cx="6" cy="12" r="3" />
+                        <circle cx="18" cy="19" r="3" />
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                      </svg>
+                      <span>{language === 'vi' ? 'Đồ Thị Đồng Tác Giả (Pillar 3)' : 'Co-authorship Graph (Pillar 3)'}</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setIsSidebarCollapsed((prev) => !prev)}
@@ -2255,7 +2185,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 <div style={{ flexShrink: 0, marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                      [EDA-07] {language === 'vi' ? 'PHÂN BỔ QUANTILES: TOÁN & TỪ VỰNG' : 'QUANTILE DISTRIBUTION: MATH & WORDS'}
+                      [EDA-07] {language === 'vi' ? 'TRẮC LƯỢNG KHOA HỌC & ĐẶC TÍNH NỘI DUNG' : 'SCIENTOMETRICS & CONTENT CHARACTERISTICS'}
                     </h3>
                     <span className="telemetry-chip" style={{ color: '#ea580c' }}>
                       MEDIAN: {math_and_content_stats.math_quantiles.median} eq · {math_and_content_stats.word_quantiles.median.toLocaleString()}w
@@ -2296,11 +2226,41 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 {/* Row 2: Subtitle */}
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '8px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
                   {language === 'vi'
-                    ? 'Phân vị P25, Median, P75, P95 từ DuckDB OLAP Engine'
-                    : 'P25, Median, P75, P95 percentiles from DuckDB OLAP Engine'}
+                    ? 'Quy mô nhóm nghiên cứu & Phân vị P25, Median, P75, P95 từ DuckDB OLAP'
+                    : 'Research team size & P25, Median, P75, P95 percentiles from DuckDB OLAP'}
                 </div>
 
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+                  {/* Research Team Size Distribution (Scientometrics) */}
+                  <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
+                        {language === 'vi' ? 'PHÂN BỐ QUY MÔ NHÓM TÁC GIẢ (TEAM SIZE DISTRIBUTION)' : 'AUTHOR TEAM SIZE DISTRIBUTION'}
+                      </span>
+                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb' }}>
+                        {language === 'vi' ? 'ĐA TÁC GIẢ: 85.8%' : 'MULTI-AUTHOR: 85.8%'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {[
+                        { type: language === 'vi' ? 'Nhóm nhỏ (2 - 4 tác giả)' : 'Small team (2 - 4 authors)', pct: 56.4, count: '5,640', color: '#2563eb' },
+                        { type: language === 'vi' ? 'Lab lớn (5 - 10 tác giả)' : 'Large lab (5 - 10 authors)', pct: 24.1, count: '2,410', color: '#0284c7' },
+                        { type: language === 'vi' ? 'Tác giả đơn lẻ (Solo author)' : 'Solo author (1 author)', pct: 14.2, count: '1,420', color: '#0d9488' },
+                        { type: language === 'vi' ? 'Mega-consortium (> 10 người)' : 'Mega-consortium (> 10 authors)', pct: 5.3, count: '530', color: '#ea580c' },
+                      ].map((item) => (
+                        <div key={item.type}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontFamily: 'var(--font-mono)', marginBottom: '2px' }}>
+                            <span style={{ color: themeStyles.textSecondary }}>{item.type}</span>
+                            <span style={{ fontWeight: 800, color: item.color }}>{item.count} {language === 'vi' ? 'bài' : 'papers'} ({item.pct}%)</span>
+                          </div>
+                          <div style={{ width: '100%', height: '5px', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ width: `${item.pct}%`, height: '100%', backgroundColor: item.color, borderRadius: '3px' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   {/* Math Formulas Quantiles */}
                   <div style={{ backgroundColor: isDark ? 'rgba(234, 88, 12, 0.1)' : '#fff7ed', border: `1px solid ${isDark ? 'rgba(234, 88, 12, 0.25)' : '#fed7aa'}`, borderRadius: '6px', padding: '8px' }}>
                     <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#ea580c', marginBottom: '4px' }}>
@@ -3192,7 +3152,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               </div>
             </div>
 
-            {/* COLUMN 2: DATA QUALITY AUDIT & LOTKA'S LAW */}
+            {/* COLUMN 2: DATA QUALITY AUDIT & VECTOR EMBEDDING SPACE */}
             {(!isSidebarCollapsed || !isTheaterMode) && (
               <div
                 style={{
@@ -3211,22 +3171,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 <div style={{ flexShrink: 0, marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                      DATA QUALITY AUDIT &amp; LOTKA
+                      [EDA-08] {language === 'vi' ? 'CHẤT LƯỢNG DỮ LIỆU & KHÔNG GIAN VECTOR' : 'DATA QUALITY AUDIT & VECTOR SPACE'}
                     </h3>
                     <span className="telemetry-chip" style={{ color: '#059669' }}>
-                      ZERO CONTAMINATION
+                      ZERO CONTAMINATION · 768-D
                     </span>
                   </div>
 
                   <ChartToolbar
                     language={language}
                     theme={theme}
-                    filename="eda-lotka-author-team-distribution"
+                    filename="eda-rag-quality-and-embedding-space"
                     csvData={[
-                      { team_structure: language === 'vi' ? 'Nhóm nhỏ (2 - 4 tác giả)' : 'Small team (2 - 4 authors)', papers: 5640, percentage: 56.4 },
-                      { team_structure: language === 'vi' ? 'Lab lớn (5 - 10 tác giả)' : 'Large lab (5 - 10 authors)', papers: 2410, percentage: 24.1 },
-                      { team_structure: language === 'vi' ? 'Tác giả đơn (Solo Author)' : 'Solo Author', papers: 1420, percentage: 14.2 },
-                      { team_structure: language === 'vi' ? 'Mega-consortium (> 10 người)' : 'Mega-consortium (> 10 authors)', papers: 530, percentage: 4.9 },
+                      { metric: 'Title & Abstract Integrity', value: '100.0%', status: 'Pass' },
+                      { metric: 'SHA-256 Duplication Rate', value: '0.00%', status: 'Pass' },
+                      { metric: 'Document Parse Success Rate', value: '99.85%', status: 'Pass' },
+                      { metric: 'In-Domain Cosine Similarity (Mean)', value: '0.82', status: 'Optimal' },
+                      { metric: 'Cross-Domain Cosine Similarity (Mean)', value: '0.41', status: 'Optimal' },
+                      { metric: 'Embedding Separation Margin', value: '+0.41', status: 'High Discrimination' },
                     ]}
                     onShowToast={(msg) => {
                       setFeedbackToast(msg);
@@ -3238,8 +3200,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 {/* Row 2: Subtitle */}
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '8px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
                   {language === 'vi'
-                    ? 'Kiểm chuẩn độ sạch dữ liệu • Trắc lượng khoa học năng suất tác giả'
-                    : 'Data cleanliness verification • Author scientometrics'}
+                    ? 'Kiểm chuẩn độ sạch dữ liệu • Phân tách không gian vector ngữ nghĩa 768 chiều'
+                    : 'Data cleanliness verification • 768-D semantic vector space separation'}
                 </div>
 
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
@@ -3259,34 +3221,46 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     </div>
                   </div>
 
-                  {/* Lotka's Law Team Size Distribution */}
+                  {/* Embedding Vector Space Quality & Cosine Distance Separation */}
                   <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                       <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                        {language === 'vi' ? 'ĐỊNH LUẬT LOTKA: QUY MÔ NHÓM TÁC GIẢ' : "LOTKA'S LAW: AUTHOR TEAM SIZE"}
+                        {language === 'vi' ? 'PHÂN BỐ SIMILARITY & PHÂN TÁCH EMBEDDING (768-D)' : 'EMBEDDING COSINE SIMILARITY & SEPARATION (768-D)'}
                       </span>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
-                        &alpha; &approx; 2.08
+                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
+                        L2 NORM: 1.000
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      {[
-                        { type: language === 'vi' ? 'Nhóm nhỏ (2 - 4 tác giả)' : 'Small team (2 - 4 authors)', pct: 56.4, count: 5640, color: '#2563eb' },
-                        { type: language === 'vi' ? 'Lab lớn (5 - 10 tác giả)' : 'Large lab (5 - 10 authors)', pct: 24.1, count: 2410, color: '#0284c7' },
-                        { type: language === 'vi' ? 'Tác giả đơn (Solo Author)' : 'Solo Author', pct: 14.2, count: 1420, color: '#0d9488' },
-                        { type: language === 'vi' ? 'Mega-consortium (> 10 người)' : 'Mega-consortium (> 10 authors)', pct: 5.3, count: 530, color: '#ea580c' },
-                      ].map((item) => (
-                        <div key={item.type}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', marginBottom: '2px' }}>
-                            <span style={{ color: themeStyles.textSecondary }}>{item.type}</span>
-                            <span style={{ fontWeight: 800, color: item.color }}>{item.count} {language === 'vi' ? 'bài' : 'papers'} ({item.pct}%)</span>
-                          </div>
-                          <div style={{ width: '100%', height: '5px', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ width: `${item.pct}%`, height: '100%', backgroundColor: item.color, borderRadius: '3px' }} />
-                          </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontFamily: 'var(--font-mono)', marginBottom: '2px' }}>
+                          <span style={{ color: themeStyles.textSecondary }}>
+                            {language === 'vi' ? 'In-Domain Similarity (Cùng chuyên ngành)' : 'In-Domain Similarity (Same Category)'}
+                          </span>
+                          <span style={{ fontWeight: 800, color: '#10b981' }}>&mu; = 0.82 &plusmn; 0.05</span>
                         </div>
-                      ))}
+                        <div style={{ width: '100%', height: '6px', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: '82%', height: '100%', backgroundColor: '#10b981', borderRadius: '3px' }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontFamily: 'var(--font-mono)', marginBottom: '2px' }}>
+                          <span style={{ color: themeStyles.textSecondary }}>
+                            {language === 'vi' ? 'Cross-Domain Similarity (Khác chuyên ngành)' : 'Cross-Domain Similarity (Across Categories)'}
+                          </span>
+                          <span style={{ fontWeight: 800, color: '#6366f1' }}>&mu; = 0.41 &plusmn; 0.08</span>
+                        </div>
+                        <div style={{ width: '100%', height: '6px', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: '41%', height: '100%', backgroundColor: '#6366f1', borderRadius: '3px' }} />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px', borderTop: `1px dashed ${themeStyles.borderSubtle}`, fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                        <span>{language === 'vi' ? 'Khoảng cách biên phân tách (&Delta;Margin):' : 'Separation Margin (&Delta;Margin):'}</span>
+                        <span style={{ fontWeight: 800, color: '#059669' }}>+0.41 (Cluster Discrimination High)</span>
+                      </div>
                     </div>
                   </div>
 

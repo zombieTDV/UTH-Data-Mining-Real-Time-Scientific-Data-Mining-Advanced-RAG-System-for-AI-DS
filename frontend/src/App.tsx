@@ -203,7 +203,7 @@ export default function App() {
           )}
 
           {activeTab === 'eda' && (
-            <EdaScreen theme={theme} onNavigateToRag={handleNavigateToRag} />
+            <EdaScreen theme={theme} onNavigateToRag={handleNavigateToRag} onNavigateToTab={setActiveTab} />
           )}
 
           {activeTab === 'pillars' && (
