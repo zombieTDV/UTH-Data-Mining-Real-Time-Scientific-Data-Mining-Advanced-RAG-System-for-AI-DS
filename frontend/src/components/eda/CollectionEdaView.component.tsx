@@ -933,26 +933,6 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
                 );
               })}
             </div>
-
-            {/* Bottom API Protocol Badges */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '4px',
-                marginTop: '4px',
-                borderTop: `1px solid ${themeStyles.borderSubtle}`,
-                fontSize: '8px',
-                fontFamily: 'var(--font-mono)',
-                color: themeStyles.textMuted,
-              }}
-            >
-              <span>GIAO THỨC CÀO:</span>
-              <span style={{ color: '#f59e0b', fontWeight: 700 }}>arXiv OAI-PMH (XML) ↗</span>
-              <span style={{ color: '#3b82f6', fontWeight: 700 }}>OpenReview REST v2 ↗</span>
-              <span style={{ color: '#10b981', fontWeight: 700 }}>CVF Scraper ↗</span>
-            </div>
           </div>
         </div>
 
@@ -1065,23 +1045,6 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
                 );
               })}
             </div>
-
-            {/* Imputation Policy Strip */}
-            <div
-              style={{
-                padding: '4px 6px',
-                borderRadius: '3px',
-                backgroundColor: isDark ? 'rgba(56, 189, 248, 0.08)' : '#f0f9ff',
-                border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.2)' : '#bae6fd'}`,
-                fontSize: '8.5px',
-                color: themeStyles.textSecondary,
-                lineHeight: 1.3,
-                marginTop: '1px',
-              }}
-            >
-              <strong style={{ color: '#0284c7' }}>Chính sách khuyết thiếu: </strong>
-              Không gán điểm đánh giá giả định cho arXiv/CVF nhằm bảo toàn phân phối xác suất gốc.
-            </div>
           </div>
 
           {/* 4-Step Silver Cleaning Pipeline */}
@@ -1149,26 +1112,6 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* Canonical Silver Schema Strip */}
-            <div
-              style={{
-                padding: '4px 8px',
-                borderRadius: '3px',
-                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : '#ecfdf5',
-                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#a7f3d0'}`,
-                fontSize: '8.5px',
-                fontFamily: 'var(--font-mono)',
-                color: isDark ? '#34d399' : '#059669',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginTop: 'auto',
-              }}
-            >
-              <span>✓ SILVER SCHEMA:</span>
-              <strong>ID • TITLE • CLEAN_MD • LATEX (${avgMathPerPaper}/p) • SECTIONS (${avgSectionsPerPaper}/p)</strong>
             </div>
           </div>
         </div>
