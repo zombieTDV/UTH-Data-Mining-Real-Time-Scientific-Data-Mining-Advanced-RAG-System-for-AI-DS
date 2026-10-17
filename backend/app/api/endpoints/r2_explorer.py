@@ -373,12 +373,32 @@ async def get_r2_tree() -> R2TreeResponse:
         "lancedb": [],
     }
 
-    zone_stats: Dict[str, Dict[str, Any]] = {
-        "bronze": {"count": 11763, "size_bytes": 3243358353, "size_formatted": "3.02 GB"},
-        "silver": {"count": 22, "size_bytes": 108842727, "size_formatted": "103.80 MB"},
-        "gold": {"count": 3, "size_bytes": 269845250, "size_formatted": "257.34 MB"},
-        "lancedb": {"count": 52, "size_bytes": 1504020138, "size_formatted": "1.40 GB"},
-    }
+    # Load dynamic zone stats from cache if present, else calculate
+    cached_zone_stats = cache.get("zone_stats")
+    if cached_zone_stats and isinstance(cached_zone_stats, dict):
+        zone_stats: Dict[str, Dict[str, Any]] = {
+            z: {
+                "count": cached_zone_stats.get(z, {}).get("count", 0),
+                "size_bytes": cached_zone_stats.get(z, {}).get("size_bytes", 0),
+                "size_formatted": cached_zone_stats.get(z, {}).get("size_formatted", format_size(cached_zone_stats.get(z, {}).get("size_bytes", 0))),
+            }
+            for z in ["bronze", "silver", "gold", "lancedb"]
+        }
+    else:
+        zone_stats = {
+            "bronze": {"count": 0, "size_bytes": 0, "size_formatted": "0 B"},
+            "silver": {"count": 0, "size_bytes": 0, "size_formatted": "0 B"},
+            "gold": {"count": 0, "size_bytes": 0, "size_formatted": "0 B"},
+            "lancedb": {"count": 0, "size_bytes": 0, "size_formatted": "0 B"},
+        }
+        for item in raw_files:
+            k = item["key"]
+            zone, _ = classify_zone(k)
+            if zone in zone_stats:
+                zone_stats[zone]["count"] += 1
+                zone_stats[zone]["size_bytes"] += item.get("size_bytes", 0)
+        for z in zone_stats:
+            zone_stats[z]["size_formatted"] = format_size(zone_stats[z]["size_bytes"])
 
     for item in raw_files:
         k = item["key"]
@@ -407,7 +427,7 @@ async def get_r2_tree() -> R2TreeResponse:
 
     return R2TreeResponse(
         bucket_name=bucket_name,
-        total_objects=cache.get("total_objects", 11807),
+        total_objects=cache.get("total_objects", len(raw_files)),
         total_size_bytes=total_bytes,
         total_size_gb=total_gb,
         free_tier_quota_gb=free_tier_quota_gb,
@@ -434,58 +454,85 @@ async def trigger_manual_sync_from_r2() -> R2TreeResponse:
     """
     from src.storage.r2_client import R2Client
 
-    logger.info("[R2 EXPLORER] Manual sync triggered by user. Querying Cloudflare R2...")
+    logger.info("[R2 EXPLORER] Manual sync triggered by user. Querying live Cloudflare R2...")
     t0 = time.time()
     try:
         r2 = R2Client()
-        # Scan key prefixes
-        prefixes = ["silver/", "gold/", "bronze/", "data/"]
-        scanned_objects = []
+        paginator = r2.s3.get_paginator("list_objects_v2")
 
-        for pfx in prefixes:
-            try:
-                objs = r2.list_objects(prefix=pfx, max_keys=100)
-                scanned_objects.extend(objs)
-            except Exception as e:
-                logger.warning("[R2 EXPLORER] ListObjects failed for %s: %s", pfx, e)
+        real_total_objects = 0
+        real_total_bytes = 0
+        zone_stats = {
+            "bronze": {"count": 0, "size_bytes": 0, "size_formatted": "0 B"},
+            "silver": {"count": 0, "size_bytes": 0, "size_formatted": "0 B"},
+            "gold": {"count": 0, "size_bytes": 0, "size_formatted": "0 B"},
+            "lancedb": {"count": 0, "size_bytes": 0, "size_formatted": "0 B"},
+        }
+        catalog_files: Dict[str, Dict[str, Any]] = {}
 
-        files = []
-        for o in scanned_objects:
-            k = o["key"]
-            # Exclude internal deletion markers and transactions
-            if "/_deletions/" in k or "/_transactions/" in k:
-                continue
-            files.append({
-                "key": k,
-                "name": Path(k).name,
-                "size_bytes": o.get("size", 0),
-                "last_modified": o.get("last_modified"),
-            })
+        for page in paginator.paginate(Bucket=r2.bucket_name):
+            for obj in page.get("Contents", []):
+                k = obj["Key"]
+                sz = obj.get("Size", 0)
+                lm = obj.get("LastModified")
+                lm_str = lm.isoformat() if hasattr(lm, "isoformat") else str(lm) if lm else None
 
-        # If scan returned sparse objects, merge with base catalog
-        default_inv = build_default_inventory()
-        existing_keys = {f["key"] for f in files}
-        for base_f in default_inv["files"]:
-            if base_f["key"] not in existing_keys:
-                files.append(base_f)
+                real_total_objects += 1
+                real_total_bytes += sz
+
+                if "lancedb" in k or k.endswith(".lance"):
+                    zone_stats["lancedb"]["count"] += 1
+                    zone_stats["lancedb"]["size_bytes"] += sz
+                elif k.startswith("bronze/"):
+                    zone_stats["bronze"]["count"] += 1
+                    zone_stats["bronze"]["size_bytes"] += sz
+                elif k.startswith("silver/"):
+                    zone_stats["silver"]["count"] += 1
+                    zone_stats["silver"]["size_bytes"] += sz
+                elif k.startswith("gold/"):
+                    zone_stats["gold"]["count"] += 1
+                    zone_stats["gold"]["size_bytes"] += sz
+
+                # Index catalog files for UI navigation (Parquet, JSON, Lance, Manifests)
+                if not (k.endswith(".parquet") or k.endswith(".json") or k.endswith(".lance") or "manifest" in k or k.startswith("silver/") or k.startswith("gold/")):
+                    continue
+                if "/_deletions/" in k or "/_transactions/" in k:
+                    continue
+
+                # Limit bronze individual files in UI tree to first 250 plus core datasets to maintain fast tree render
+                if k.startswith("bronze/"):
+                    bronze_tree_count = sum(1 for fk in catalog_files if fk.startswith("bronze/"))
+                    if bronze_tree_count >= 250 and not (k.endswith("all.json") or "preprints" in k or "sample" in k or "works" in k or "iclr" in k or "cvpr" in k):
+                        continue
+
+                catalog_files[k] = {
+                    "key": k,
+                    "name": Path(k).name or k,
+                    "size_bytes": sz,
+                    "last_modified": lm_str,
+                }
+
+        for z in zone_stats:
+            zone_stats[z]["size_formatted"] = format_size(zone_stats[z]["size_bytes"])
 
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        total_bytes = sum(f["size_bytes"] for f in files)
 
         new_cache = {
             "bucket_name": r2.bucket_name,
             "last_synced": now_str,
-            "total_objects": 10452,
-            "total_size_bytes": 8751797344,
-            "total_size_gb": 8.75,
-            "files": files,
+            "total_objects": real_total_objects,
+            "total_size_bytes": real_total_bytes,
+            "total_size_gb": round(real_total_bytes / (1024**3), 2),
+            "zone_stats": zone_stats,
+            "files": list(catalog_files.values()),
         }
 
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(new_cache, f, indent=2, ensure_ascii=False)
 
-        logger.info("[R2 EXPLORER] Sync completed in %.2fs. Persisted %d files.", time.time() - t0, len(files))
+        logger.info("[R2 EXPLORER] Live R2 sync completed in %.2fs. Real total: %d objects (%d bytes). Tree files: %d.",
+                    time.time() - t0, real_total_objects, real_total_bytes, len(catalog_files))
         return await get_r2_tree()
 
     except Exception as err:
