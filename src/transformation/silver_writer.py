@@ -141,9 +141,22 @@ class SilverLakehouseWriter:
         local_parquet_path = year_dir / "papers.parquet"
 
         # Nếu file đã tồn tại cục bộ, hợp nhất (idempotent upsert by abstract_hash)
+        existing_df = None
         if local_parquet_path.exists():
-            existing_table = pq.read_table(local_parquet_path)
-            existing_df = existing_table.to_pandas()
+            try:
+                existing_table = pq.read_table(local_parquet_path)
+                existing_df = existing_table.to_pandas()
+            except Exception:
+                # Tự động tải lại bản chuẩn từ MinIO nếu file local bị lỗi/hỏng footer
+                s3_key_recovery = f"silver/papers/year={year}/papers.parquet"
+                try:
+                    self.storage.download_file_safe(s3_key_recovery, local_parquet_path)
+                    existing_table = pq.read_table(local_parquet_path)
+                    existing_df = existing_table.to_pandas()
+                except Exception:
+                    existing_df = None
+
+        if existing_df is not None:
             if "cite_count" not in existing_df.columns:
                 existing_df["cite_count"] = 0
             if "source" not in existing_df.columns:

@@ -147,7 +147,8 @@ class QueueConsumer:
                 if success:
                     ch.basic_ack(delivery_tag=method.delivery_tag)
                 else:
-                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                    logger.warning("[Worker] Processing failed for paper payload. Discarding to prevent loop.")
+                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
             except Exception as e:
                 logger.error(f"[Worker] Error handling message: {e}")
                 ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
