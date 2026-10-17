@@ -16,7 +16,7 @@ import json
 import logging
 from typing import Dict, Any, List
 import pandas as pd
-import duckdb
+from src.mining.lake_access import duck_connect, put_artifact
 from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import fpgrowth, association_rules
 
@@ -61,7 +61,7 @@ class AssociationRuleMiner:
     def _extract_transactions(self) -> List[List[str]]:
         """Constructs market-basket transactions per paper (categories, topics, concepts)."""
         logger.info("[PILLAR 1] Loading papers for basket encoding from: %s", self.parquet_path)
-        con = duckdb.connect()
+        con = duck_connect()
 
         # Discover available schema columns
         cols_df = con.execute(f"DESCRIBE SELECT * FROM read_parquet('{self.parquet_path}')").fetchdf()
@@ -236,9 +236,7 @@ class AssociationRuleMiner:
         return result
 
     def save_rules(self, output_path: str, min_support: float = 0.02, min_lift: float = 1.2) -> None:
-        """Runs association rule mining and writes formatted JSON to disk."""
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        """Runs association rule mining and publishes the JSON artifact to MinIO (gold/mining/) using the basename of output_path."""
         results = self.mine_rules(min_support=min_support, min_lift=min_lift)
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-        logger.info("[PILLAR 1] [SUCCESS] Saved rules to: %s", output_path)
+        uri = put_artifact(os.path.basename(output_path), results)
+        logger.info("[PILLAR 1] [SUCCESS] Saved rules to: %s", uri)

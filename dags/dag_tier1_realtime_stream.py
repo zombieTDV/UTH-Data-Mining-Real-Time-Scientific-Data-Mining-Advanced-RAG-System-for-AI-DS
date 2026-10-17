@@ -10,14 +10,13 @@ Gold and the dedup registry, so duplicates published here are dropped there.
 """
 
 import logging
-import re
 from datetime import datetime, timedelta, timezone
 
 import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-from _common import categories, ensure_published, http_headers, ping_infrastructure, publish_paper
+from _common import categories, ensure_published, fetch_recent, ping_infrastructure, publish_paper
 
 logger = logging.getLogger("airflow.task")
 local_tz = pendulum.timezone("Asia/Ho_Chi_Minh")
@@ -34,26 +33,21 @@ default_args = {
 
 
 def harvest_tier1_realtime(**_context):
-    import feedparser
-
     harvested = queued = 0
     for cat in categories():
-        feed = feedparser.parse(f"https://export.arxiv.org/rss/{cat}", request_headers=http_headers())
-        logger.info("[TIER 1] %s: %d entries", cat, len(feed.entries))
-        for entry in feed.entries[:PER_CATEGORY]:
-            m = re.search(r"(\d{4}\.\d{4,5})", entry.link)
-            pid = m.group(1) if m else entry.link.split("/")[-1]
+        for item in fetch_recent(cat, PER_CATEGORY):
+            pid = item["paper_id"]
             paper = {
                 "paper_id": pid,
-                "title": re.sub(r"\s+", " ", entry.title).strip(),
-                "abstract": re.sub(r"\s+", " ", entry.summary).strip(),
-                "authors": [a.name for a in getattr(entry, "authors", []) if hasattr(a, "name")],
+                "title": item["title"],
+                "abstract": item["abstract"],
+                "authors": item["authors"],
                 "categories": [cat],
                 "primary_category": cat,
-                "link": entry.link,
+                "link": f"https://arxiv.org/abs/{pid}",
                 "pdf_url": f"https://arxiv.org/pdf/{pid}.pdf",
                 "html_url": f"https://arxiv.org/html/{pid}",
-                "published_date": getattr(entry, "published", datetime.now(timezone.utc).isoformat()),
+                "published_date": item["published"] or datetime.now(timezone.utc).isoformat(),
                 "crawled_at": datetime.now(timezone.utc).isoformat(),
                 "source": "arxiv_rss_realtime",
                 "tier": "tier1",

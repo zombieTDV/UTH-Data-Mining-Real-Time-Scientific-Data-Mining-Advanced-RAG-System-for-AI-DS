@@ -29,7 +29,7 @@ FREE_TIER_QUOTA_GB = 10.0
 CACHE_TTL_SECONDS = 300
 
 ROW_COUNT_KEYS = {
-    "tier1": "silver/tier1/landmark_papers.parquet",
+    "tier3": "silver/tier3/landmark_papers.parquet",
     "tier2": "silver/tier2/near_past_papers.parquet",
     "cvf": "silver/cvf/cvpr2024.parquet",
     "openreview": "silver/openreview/openreview_all.parquet",
@@ -122,9 +122,9 @@ class StorageService:
             cvf=rows["cvf"],
             zenodo=rows["zenodo"],
             total_deduplicated=snap["dedup_hashes"],
-            tier1_landmark=rows["tier1"],
+            tier1_landmark=rows["tier3"],  # field name kept for the frontend contract: it is the Tier 3 historical archive
             tier2_near_past=rows["tier2"],
-            active_rag_papers=rows["tier1"] + rows["tier2"] + snap["silver_papers_rows"],
+            active_rag_papers=rows["tier3"] + rows["tier2"] + snap["silver_papers_rows"],
             active_rag_vectors=snap["vectors"],
         )
 

@@ -23,7 +23,7 @@ from src.utils.hasher import compute_sha256
 class ArxivHarvester:
     """Automated harvester for arXiv preprints."""
 
-    BASE_RSS_URL = "http://export.arxiv.org/rss"
+    BASE_RSS_URL = "https://rss.arxiv.org/rss"
     BASE_API_URL = "http://export.arxiv.org/api/query"
     BASE_HTML_URL = "https://arxiv.org/html"
 

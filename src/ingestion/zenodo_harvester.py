@@ -31,7 +31,6 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.config.settings import settings
 from src.storage.lakehouse_io import LakehouseIO
 from src.storage.minio_client import StorageClient as R2Client
-from src.transformation.marker_extractor import MarkerPdfExtractor
 from src.transformation.silver_writer import SilverLakehouseWriter
 from src.utils.logger import setup_pipeline_logging
 
@@ -55,7 +54,6 @@ class ZenodoHarvester:
 
         self.access_token = access_token or settings.ZENODO_ACCESS_TOKEN
         self.silver_writer = SilverLakehouseWriter(r2_client=self.r2)
-        self.marker_extractor = MarkerPdfExtractor()
 
         headers = {
             "User-Agent": settings.ARXIV_USER_AGENT,
@@ -192,35 +190,11 @@ class ZenodoHarvester:
 
         markdown_content = ""
         latex_count = 0
-        record_key = str(record_id).replace("zenodo:", "").replace("/", "_")
-        md_key = f"bronze/zenodo/markdowns/{record_key}.md"
-        pdf_bytes = b""
-
-        if pdf_url:
-            try:
-                logger.info("[ZENODO] Downloading PDF for %s from %s...", record_id, pdf_url)
-                with self.http_client.stream("GET", pdf_url) as r:
-                    if r.status_code == 200:
-                        pdf_bytes = b"".join(r.iter_bytes(chunk_size=65536))  # held in memory only
-                        logger.info("[ZENODO] Downloaded PDF (%d bytes) for %s", len(pdf_bytes), record_id)
-            except Exception as e:
-                logger.warning("[ZENODO] Failed to download PDF for %s: %s", record_id, e)
-
-        if len(pdf_bytes) > 1024:
-            try:
-                logger.info("[ZENODO MARKER] Executing Marker PDF extraction on %s...", record_id)
-                markdown_content, marker_meta = self.marker_extractor.convert_pdf_bytes_to_markdown(pdf_bytes, name=record_key)
-                latex_count = marker_meta.get("latex_formulas_detected", 0)
-                if markdown_content:
-                    self.r2.upload_text(markdown_content, md_key, content_type="text/markdown; charset=utf-8")
-                    logger.info("[ZENODO MARKER] Extracted %d chars with %d LaTeX formulas for %s", len(markdown_content), latex_count, record_id)
-            except Exception as e:
-                logger.error("[ZENODO MARKER] Error executing Marker on %s: %s", record_id, e)
-
+        # Zenodo records are not on arXiv and have no HTML full text: abstract-level content only (no PDF download)
         return {
-            "has_pdf": len(pdf_bytes) > 1024,
+            "has_pdf": False,
             "pdf_path": None,
-            "markdown_path": f"s3://{self.r2.bucket_name}/{md_key}" if markdown_content else None,
+            "markdown_path": None,
             "markdown_content": markdown_content,
             "latex_formulas_count": latex_count,
         }

@@ -7,8 +7,10 @@ re-published with an incremented retry counter and moved to the dead-letter
 queue after RABBITMQ_MAX_RETRIES, so nothing is silently lost. No local files are written.
 """
 
+import collections
 import json
 import logging
+import re
 import signal
 import time
 
@@ -22,6 +24,7 @@ from src.indexing.qdrant_manager import QdrantManager
 from src.storage.minio_client import StorageClient
 from src.transformation.html_parser import AcademicHTMLParser
 from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
+from src.transformation.unified_content_resolver import UnifiedContentResolver
 from src.transformation.silver_writer import SilverLakehouseWriter
 
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL, logging.INFO), format="[%(asctime)s] %(levelname)s [%(name)s] %(message)s")
@@ -60,6 +63,7 @@ class QueueConsumer:
         self.html_parser = AcademicHTMLParser()
         self.silver_writer = SilverLakehouseWriter(storage_client=self.storage)
         self.last_ingested: List[Dict[str, Any]] = []
+        self.resolver = UnifiedContentResolver(storage_client=self.storage)
         self.chunker = AcademicChunker(max_chunk_words=450, overlap_words=50)
 
     @property
@@ -77,12 +81,37 @@ class QueueConsumer:
         if raw_html:
             self.storage.upload_text(raw_html, f"bronze/papers/{year}/{paper_id}.html", content_type="text/html; charset=utf-8")
 
-    def _silver_record(self, paper: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def _resolver_input(paper: Dict[str, Any], year: str) -> Dict[str, Any]:
+        """Shape a harvested message the way UnifiedContentResolver expects it."""
+        pid = str(paper.get("paper_id", ""))
+        m = re.fullmatch(r"(\d{4}\.\d{4,5})(v\d+)?", pid)
+        return {
+            "paper_id": pid,
+            "title": paper.get("title", ""),
+            "abstract": paper.get("abstract", ""),
+            "source": "arxiv" if m else str(paper.get("source", "arxiv")),
+            "year": year,
+            "arxiv_id": m.group(1) if m else None,
+        }
+
+    def _silver_record(self, paper: Dict[str, Any], resolved: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         raw_html = paper.get("raw_html") or paper.get("html_content")
+        abstract = paper.get("abstract", "")
         if raw_html:
             parsed = self.html_parser.parse(raw_html)
+        elif resolved and resolved.get("content_origin") not in (None, "abstract_fallback"):
+            sections = json.loads(resolved.get("sections_json") or "[]")
+            parsed = {
+                "parsed_title": paper.get("title", ""),
+                "parsed_abstract": abstract,
+                "sections": sections,
+                "total_sections": resolved.get("total_sections", len(sections)),
+                "total_math_count": resolved.get("total_math_count", 0),
+                "total_words": resolved.get("total_words", 0),
+                "content_origin": resolved["content_origin"],
+            }
         else:
-            abstract = paper.get("abstract", "")
             parsed = {
                 "parsed_title": paper.get("title", ""),
                 "parsed_abstract": abstract,
@@ -100,6 +129,7 @@ class QueueConsumer:
         failed: List[Tuple[Dict[str, Any], str]] = []
         fresh: List[Tuple[Dict[str, Any], Dict[str, Any], str, str]] = []  # paper, silver_rec, year, hash
 
+        todo: List[Tuple[Dict[str, Any], str, str, str]] = []  # paper, paper_id, year, hash
         for paper in papers:
             paper_id = str(paper.get("paper_id", "")).strip()
             if not paper_id:
@@ -110,10 +140,20 @@ class QueueConsumer:
                 logger.info("[Worker][Dedup] Skipping duplicate %s", paper_id)
                 ok.append(paper)
                 continue
-            year = _year_of(paper)
+            todo.append((paper, paper_id, _year_of(paper), abs_hash))
+
+        # Full text: arXiv HTML5 -> ar5iv -> abstract (HTML only, no PDFs); raw HTML is vaulted to Bronze by the resolver
+        need = [self._resolver_input(p, y) for p, pid, y, _ in todo if not (p.get("raw_html") or p.get("html_content"))]
+        resolved: Dict[str, Dict[str, Any]] = {}
+        if need:
+            for r in self.resolver.resolve_batch_concurrent(need, max_workers=4):
+                resolved[str(r["paper_id"])] = r
+            logger.info("[Worker][Content] %s", dict(collections.Counter(r.get("content_origin") for r in resolved.values())))
+
+        for paper, paper_id, year, abs_hash in todo:
             try:
                 self._bronze(paper, paper_id, year)
-                fresh.append((paper, self._silver_record(paper), year, abs_hash))
+                fresh.append((paper, self._silver_record(paper, resolved.get(paper_id)), year, abs_hash))
             except Exception as e:
                 failed.append((paper, f"bronze/silver prep: {e}"))
 

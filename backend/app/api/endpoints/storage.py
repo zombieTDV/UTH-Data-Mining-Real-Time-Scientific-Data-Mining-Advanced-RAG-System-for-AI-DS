@@ -45,7 +45,7 @@ MAX_QUERY_ROWS = 10000
 DUCKDB_VIEWS = {
     "papers": None,  # resolved to settings.SILVER_PRIMARY_KEY
     "scientific_papers_gold": None,  # legacy alias of papers
-    "tier1_papers": "silver/tier1/landmark_papers.parquet",
+    "tier3_papers": "silver/tier3/landmark_papers.parquet",
     "tier2_papers": "silver/tier2/near_past_papers.parquet",
 }
 
@@ -54,7 +54,7 @@ DUCKDB_VIEWS = {
 async def execute_duckdb_query(req: DuckDbQueryRequest):
     """Read-only DuckDB SQL over the Silver Parquet tables stored in MinIO.
 
-    Available tables: papers, tier1_papers, tier2_papers. Only a single SELECT/WITH statement is accepted and
+    Available tables: papers, tier2_papers, tier3_papers. Only a single SELECT/WITH statement is accepted and
     DuckDB's file/network access is disabled once the MinIO-backed tables are registered.
     """
     cleaned_sql = req.sql.strip().rstrip(";").strip()

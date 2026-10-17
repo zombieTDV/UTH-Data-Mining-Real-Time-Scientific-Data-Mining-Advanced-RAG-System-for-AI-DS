@@ -96,7 +96,7 @@ class SilverLakehouseWriter:
             "clean_full_text": clean_full_text,
             "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "cite_count": int(raw_meta.get("cite_count") or raw_meta.get("citation_count") or 0),
-            "source": str(raw_meta.get("source") or "openalex"),
+            "source": str(raw_meta.get("source") or "arxiv"),
             "tier": str(raw_meta.get("tier") or "tier1"),
             "content_origin": str(parsed_html.get("content_origin") or raw_meta.get("content_origin") or "unknown"),
         }
@@ -116,7 +116,7 @@ class SilverLakehouseWriter:
         if "cite_count" not in df.columns:
             df["cite_count"] = 0
         df["cite_count"] = df["cite_count"].fillna(0).astype("int64")
-        for col, default in (("source", "openalex"), ("tier", "tier1"), ("content_origin", "unknown")):
+        for col, default in (("source", "arxiv"), ("tier", "tier1"), ("content_origin", "unknown")):
             if col not in df.columns:
                 df[col] = default
         for col in self.SCHEMA.names:
@@ -146,6 +146,19 @@ class SilverLakehouseWriter:
         res = self.io.upsert_parquet(self.year_key(year), new_df, subset=["abstract_hash"], schema=self.SCHEMA)
         self.storage.delete_objects_batch(part_keys)  # only after the merged object is safely written
         return {"status": "SUCCESS", "parts": len(part_keys), "rows": res["rows"], "s3_uri": res["uri"]}
+
+    def compact_all(self) -> Dict[str, Any]:
+        """Fold every year's parts/ objects into that year's papers.parquet. Safe next to a running consumer:
+        only the part keys listed here are merged and deleted; parts written meanwhile are picked up next time."""
+        import re
+
+        years = sorted({
+            m.group(1)
+            for k in self.io.list_keys("silver/papers/")
+            if (m := re.match(r"silver/papers/year=([^/]+)/parts/.+\.parquet$", k))
+        })
+        results = {y: self.compact_year(y) for y in years}
+        return {"years": years, "results": results, "parts": sum(r.get("parts", 0) for r in results.values())}
 
     def save_and_upload_parquet(self, records: List[Dict[str, Any]], year: str = "2026") -> Dict[str, Any]:
         """Batch write: upsert records (by abstract_hash) into silver/papers/year=<year>/papers.parquet."""

@@ -70,5 +70,58 @@ def publish_paper(paper: Dict[str, Any]) -> bool:
 
 def ensure_published(harvested: int, queued: int) -> None:
     """Make the task fail loudly when papers were harvested but none reached the queue."""
-    if harvested and not queued:
+    if not harvested:
+        raise RuntimeError("Harvested 0 papers: the source returned nothing (feed outage or wrong endpoint)")
+    if not queued:
         raise RuntimeError(f"Harvested {harvested} papers but queued 0: RabbitMQ publish is failing")
+
+
+def _clean(text: str) -> str:
+    import re
+
+    return re.sub(r"\s+", " ", text or "").strip()
+
+
+def fetch_recent(cat: str, limit: int) -> List[Dict[str, Any]]:
+    """Newest papers of a category as normalized dicts.
+
+    Tries the daily RSS (new + cross-listed only, abstract prefix stripped). rss.arxiv.org returns an empty feed
+    on non-announcement days, so it falls back to the arXiv API sorted by submission date.
+    """
+    import re
+
+    import feedparser
+
+    out: List[Dict[str, Any]] = []
+    feed = feedparser.parse(f"https://rss.arxiv.org/rss/{cat}", request_headers=http_headers())
+    for e in feed.entries:
+        if e.get("arxiv_announce_type", "new") not in ("new", "cross"):
+            continue
+        text = _clean(e.summary)
+        m = re.search(r"(\d{4}\.\d{4,5})", e.link)
+        out.append({
+            "paper_id": m.group(1) if m else e.link.split("/")[-1],
+            "title": _clean(e.title),
+            "abstract": text.split("Abstract:", 1)[1].strip() if "Abstract:" in text else text,
+            "authors": [a.name for a in getattr(e, "authors", []) if hasattr(a, "name")],
+            "published": getattr(e, "published", ""),
+        })
+        if len(out) >= limit:
+            return out
+
+    if not out:
+        logger.info("RSS empty for %s; falling back to the arXiv API", cat)
+        url = (
+            "https://export.arxiv.org/api/query?"
+            f"search_query=cat:{cat}&sortBy=submittedDate&sortOrder=descending&max_results={limit}"
+        )
+        for e in feedparser.parse(url, request_headers=http_headers()).entries:
+            m = re.search(r"(\d{4}\.\d{4,5})", e.id)
+            out.append({
+                "paper_id": m.group(1) if m else e.id.rsplit("/", 1)[-1],
+                "title": _clean(e.title),
+                "abstract": _clean(e.summary),
+                "authors": [a.name for a in getattr(e, "authors", []) if hasattr(a, "name")],
+                "published": getattr(e, "published", ""),
+            })
+    return out

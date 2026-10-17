@@ -9,7 +9,8 @@ Executes the comprehensive analytical suite over the academic papers in Lakehous
 - Pillar 3: Graph Mining & Scientific Network Analysis (Citation Network / PageRank).
 - Pillar 4: Trend Velocity & Anomaly Outlier Detection (Isolation Forest).
 
-Persists all artifacts locally to data/gold/mining/ and optionally syncs to Cloudflare R2 gold/mining/.
+Reads Silver Parquet from MinIO (DuckDB over S3) and vectors from Qdrant; publishes every artifact to MinIO gold/mining/.
+Nothing is read from or written to the local disk.
 Adheres strictly to docs/agents/rules/LOGGING_CHECKPOINT_RULES.md (Strictly NO emojis/icons).
 """
 
@@ -26,6 +27,7 @@ from typing import Dict, Any, Optional
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from src.config.settings import settings
+from src.mining.lake_access import MINING_PREFIX, SILVER_PRIMARY_KEY, put_artifact, s3_uri
 from src.utils.logger import setup_pipeline_logging
 from src.mining.eda_engine import EdaEngine
 from src.mining.association_rules import AssociationRuleMiner
@@ -39,53 +41,30 @@ logger, log_file = setup_pipeline_logging("mining_engine")
 class MiningEngine:
     """Master orchestrator for scientific data mining and exploratory analytics."""
 
-    def __init__(
-        self,
-        parquet_path: Optional[str] = None,
-        lancedb_uri: Optional[str] = None,
-        output_dir: str = "data/gold/mining",
-    ):
-        # Auto-detect best parquet file
-        if parquet_path is None:
-            if os.path.exists("data/silver/year=2026/papers.parquet"):
-                self.parquet_path = "data/silver/year=2026/papers.parquet"
-            elif os.path.exists("data/silver/papers.parquet"):
-                self.parquet_path = "data/silver/papers.parquet"
-            else:
-                self.parquet_path = f"s3://{settings.R2_BUCKET_NAME}/silver/papers/year=2026/papers.parquet"
-        else:
-            self.parquet_path = parquet_path
+    def __init__(self, parquet_path: Optional[str] = None, **_ignored):
+        # Silver source as an s3:// URI inside the MinIO bucket
+        self.parquet_path = parquet_path or s3_uri(SILVER_PRIMARY_KEY)
+        self.vector_source = f"qdrant://{settings.QDRANT_COLLECTION}"
 
-        # Auto-detect LanceDB URI
-        if lancedb_uri is None:
-            env_uri = getattr(settings, "LANCEDB_URI", None)
-            if env_uri:
-                self.lancedb_uri = env_uri
-            elif os.path.exists("data/gold/lancedb"):
-                self.lancedb_uri = "data/gold/lancedb"
-            else:
-                self.lancedb_uri = f"s3://{settings.R2_BUCKET_NAME}/gold/lancedb"
-        else:
-            self.lancedb_uri = lancedb_uri
+    def run_all(self, upload_to_r2: bool = True) -> Dict[str, Any]:
+        """Runs EDA and all 4 Data Mining pillars in sequential checkpoints (artifacts go to MinIO).
 
-        self.output_dir = output_dir
-
-    def run_all(self, upload_to_r2: bool = False) -> Dict[str, Any]:
-        """Runs EDA and all 4 Data Mining pillars in sequential checkpoints."""
+        `upload_to_r2` is accepted for backward compatibility; artifacts are always published to MinIO.
+        """
         start_time = time.time()
-        os.makedirs(self.output_dir, exist_ok=True)
 
         logger.info("================================================================================")
         logger.info("[MINING ENGINE] STARTING MASTER DATA MINING & MODELING EXECUTION")
         logger.info("[MINING ENGINE] Parquet source: %s", self.parquet_path)
-        logger.info("[MINING ENGINE] LanceDB source: %s", self.lancedb_uri)
-        logger.info("[MINING ENGINE] Target artifact directory: %s", self.output_dir)
+        logger.info("[MINING ENGINE] Vector source: %s", self.vector_source)
+        logger.info("[MINING ENGINE] Artifact target: %s", s3_uri(MINING_PREFIX))
         logger.info("================================================================================")
 
         manifest: Dict[str, Any] = {
             "execution_timestamp": datetime.now().isoformat(),
             "parquet_source": self.parquet_path,
-            "lancedb_source": self.lancedb_uri,
+            "vector_source": self.vector_source,
+            "lancedb_source": self.vector_source,  # legacy key still read by the dashboard
             "modules": {},
             "status": "RUNNING",
         }
@@ -97,9 +76,7 @@ class MiningEngine:
         logger.info("[CHECKPOINT 1/5] Executing Real-Time Exploratory Data Analysis (EDA)...")
         eda_engine = EdaEngine(self.parquet_path)
         eda_results = eda_engine.run_full_eda()
-        eda_file = os.path.join(self.output_dir, "eda_summary.json")
-        with open(eda_file, "w", encoding="utf-8") as f:
-            json.dump(eda_results, f, indent=2, ensure_ascii=False)
+        eda_file = put_artifact("eda_summary.json", eda_results)
         manifest["modules"]["eda"] = {
             "elapsed_seconds": round(time.time() - t0, 2),
             "file": eda_file,
@@ -114,9 +91,7 @@ class MiningEngine:
         logger.info("[CHECKPOINT 2/5] Executing Pillar 1: Association Rule Mining (FP-Growth)...")
         rule_miner = AssociationRuleMiner(self.parquet_path)
         rule_results = rule_miner.mine_rules(min_support=0.02, min_lift=1.2)
-        rules_file = os.path.join(self.output_dir, "association_rules.json")
-        with open(rules_file, "w", encoding="utf-8") as f:
-            json.dump(rule_results, f, indent=2, ensure_ascii=False)
+        rules_file = put_artifact("association_rules.json", rule_results)
         manifest["modules"]["association_rules"] = {
             "elapsed_seconds": round(time.time() - t0, 2),
             "file": rules_file,
@@ -129,11 +104,9 @@ class MiningEngine:
         # ----------------------------------------------------------------------
         t0 = time.time()
         logger.info("[CHECKPOINT 3/5] Executing Pillar 2: Semantic Topic Clustering...")
-        cluster_analyzer = SemanticClusterAnalyzer(self.lancedb_uri, table_name="scientific_papers_gold")
+        cluster_analyzer = SemanticClusterAnalyzer()
         cluster_results = cluster_analyzer.run_clustering_benchmarks(sample_size=3000, n_clusters=6)
-        clusters_file = os.path.join(self.output_dir, "clusters.json")
-        with open(clusters_file, "w", encoding="utf-8") as f:
-            json.dump(cluster_results, f, indent=2, ensure_ascii=False)
+        clusters_file = put_artifact("clusters.json", cluster_results)
         manifest["modules"]["clusters"] = {
             "elapsed_seconds": round(time.time() - t0, 2),
             "file": clusters_file,
@@ -148,14 +121,12 @@ class MiningEngine:
         logger.info("[CHECKPOINT 4/5] Executing Pillar 3: Scientific Network & Citation Graph Mining...")
         graph_miner = ScientificGraphMiner(self.parquet_path)
         graph_results = graph_miner.analyze_network(top_hubs_limit=40)
-        graph_file = os.path.join(self.output_dir, "graph_coauthorship.json")
-        with open(graph_file, "w", encoding="utf-8") as f:
-            json.dump(graph_results, f, indent=2, ensure_ascii=False)
+        graph_file = put_artifact("graph_coauthorship.json", graph_results)
         manifest["modules"]["graph"] = {
             "elapsed_seconds": round(time.time() - t0, 2),
             "file": graph_file,
-            "total_nodes": graph_results["network_summary"]["total_nodes"],
-            "total_edges": graph_results["network_summary"]["total_edges"],
+            "total_nodes": graph_results["network_summary"].get("total_nodes", graph_results["network_summary"].get("total_authors", 0)),
+            "total_edges": graph_results["network_summary"].get("total_edges", graph_results["network_summary"].get("total_collaborations", 0)),
         }
         logger.info("[CHECKPOINT 4/5] [SUCCESS] Pillar 3 completed in %.2fs.", manifest["modules"]["graph"]["elapsed_seconds"])
 
@@ -166,9 +137,7 @@ class MiningEngine:
         logger.info("[CHECKPOINT 5/5] Executing Pillar 4: Trend Velocity & Structural Anomaly Mining...")
         trend_miner = TrendAnomalyMiner(self.parquet_path)
         trend_results = trend_miner.run_mining(contamination=0.02)
-        trend_file = os.path.join(self.output_dir, "trends_anomalies.json")
-        with open(trend_file, "w", encoding="utf-8") as f:
-            json.dump(trend_results, f, indent=2, ensure_ascii=False)
+        trend_file = put_artifact("trends_anomalies.json", trend_results)
         manifest["modules"]["trends_anomalies"] = {
             "elapsed_seconds": round(time.time() - t0, 2),
             "file": trend_file,
@@ -183,27 +152,7 @@ class MiningEngine:
         manifest["total_execution_seconds"] = total_time
         manifest["status"] = "COMPLETED"
 
-        manifest_file = os.path.join(self.output_dir, "mining_manifest.json")
-        with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2, ensure_ascii=False)
-
-        # ----------------------------------------------------------------------
-        # Sync to Cloudflare R2 if requested
-        # ----------------------------------------------------------------------
-        if upload_to_r2:
-            try:
-                from src.storage.minio_client import StorageClient as R2Client
-                r2_client = R2Client()
-                logger.info("[MINING ENGINE] Syncing mining artifacts to Cloudflare R2 bucket: %s...", settings.R2_BUCKET_NAME)
-                artifact_files = [eda_file, rules_file, clusters_file, graph_file, trend_file, manifest_file]
-                for local_path in artifact_files:
-                    if os.path.exists(local_path):
-                        filename = os.path.basename(local_path)
-                        r2_key = f"gold/mining/{filename}"
-                        r2_client.upload_file(local_path, r2_key)
-                        logger.info("[MINING ENGINE] [R2 SYNC] Uploaded %s -> s3://%s/%s", filename, settings.R2_BUCKET_NAME, r2_key)
-            except Exception as e:
-                logger.warning("[MINING ENGINE] [WARNING] Could not sync artifacts to R2: %s", str(e))
+        manifest_file = put_artifact("mining_manifest.json", manifest)
 
         logger.info("================================================================================")
         logger.info("[MINING ENGINE] [SUMMARY] All 4 Pillars and EDA executed successfully in %.2fs.", total_time)
@@ -212,19 +161,10 @@ class MiningEngine:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Execute full Data Mining & EDA Engine.")
-    parser.add_argument("--parquet", type=str, default=None, help="Path to Silver Parquet")
-    parser.add_argument("--lancedb", type=str, default=None, help="Path to Gold LanceDB")
-    parser.add_argument("--output", type=str, default="data/gold/mining", help="Output directory for mining artifacts")
-    parser.add_argument("--upload-r2", action="store_true", help="Sync artifacts to Cloudflare R2")
+    parser = argparse.ArgumentParser(description="Execute full Data Mining & EDA Engine (MinIO + Qdrant).")
+    parser.add_argument("--parquet", type=str, default=None, help="s3:// URI of the Silver Parquet (default: primary Silver year file)")
     args = parser.parse_args()
-
-    engine = MiningEngine(
-        parquet_path=args.parquet,
-        lancedb_uri=args.lancedb,
-        output_dir=args.output,
-    )
-    engine.run_all(upload_to_r2=args.upload_r2)
+    MiningEngine(parquet_path=args.parquet).run_all()
 
 
 if __name__ == "__main__":

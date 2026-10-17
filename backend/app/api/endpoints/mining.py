@@ -1,4 +1,6 @@
 from typing import Dict, Any
+import logging
+import threading
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sse_starlette.sse import EventSourceResponse
 from backend.app.schemas.mining import (
@@ -10,6 +12,7 @@ from backend.app.schemas.mining import (
 )
 from backend.app.services.mining_service import mining_service
 
+logger = logging.getLogger("mining_api")
 router = APIRouter(prefix="/mining", tags=["Data Mining & Modeling"])
 
 
@@ -70,13 +73,25 @@ async def telemetry_event_stream():
     return EventSourceResponse(mining_service.stream_telemetry())
 
 
-@router.post("/trigger")
-async def trigger_mining_execution() -> Dict[str, str]:
-    """Mining re-execution is disabled until src/mining is ported to MinIO + Qdrant.
+_mining_lock = threading.Lock()
 
-    The engine still reads local Parquet paths and the removed LanceDB table, so queuing it would only fail in the
-    background. The served artifacts (gold/mining/*.json in MinIO) are unaffected."""
-    raise HTTPException(
-        status_code=501,
-        detail="Mining engine is not yet ported to MinIO/Qdrant; artifacts are served from the last published run.",
-    )
+
+def _run_mining() -> None:
+    try:
+        from src.mining.mining_engine import MiningEngine
+
+        MiningEngine().run_all()
+    except Exception:
+        logger.exception("[MINING] Background mining run failed")
+    finally:
+        _mining_lock.release()
+
+
+@router.post("/trigger")
+async def trigger_mining_execution(background_tasks: BackgroundTasks) -> Dict[str, str]:
+    """Re-runs EDA and the four mining pillars in the background (Silver from MinIO, vectors from Qdrant,
+    artifacts published to MinIO gold/mining/). Only one run at a time."""
+    if not _mining_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="A mining run is already in progress.")
+    background_tasks.add_task(_run_mining)
+    return {"status": "QUEUED", "message": "Data Mining pipeline has been triggered in the background."}

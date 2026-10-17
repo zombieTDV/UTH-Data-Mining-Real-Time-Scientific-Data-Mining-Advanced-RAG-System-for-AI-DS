@@ -22,7 +22,6 @@ import httpx
 from src.config.settings import settings
 from src.storage.minio_client import StorageClient
 from src.transformation.html_parser import AcademicHTMLParser
-from src.transformation.marker_extractor import MarkerPdfExtractor
 from src.utils.hasher import compute_sha256
 
 logger = logging.getLogger("unified_content_resolver")
@@ -31,14 +30,14 @@ logger = logging.getLogger("unified_content_resolver")
 class UnifiedContentResolver:
     """Waterfall content resolution engine prioritizing HTML5 over binary PDFs."""
 
+    MIN_FULLTEXT_WORDS = 300
+
     def __init__(
         self,
         storage_client: Optional[StorageClient] = None,
         sync_storage: bool = False,
         r2_client: Optional[Any] = None,
         sync_r2: bool = False,
-        use_marker_fallback: bool = True,
-        max_pdf_pages: int = 15,
         **_ignored,
     ):
         # MinIO is the only store: always on, the sync flags are kept for call-site compatibility.
@@ -46,8 +45,6 @@ class UnifiedContentResolver:
         self.r2 = self.storage
         self.sync_r2 = True
         self.html_parser = AcademicHTMLParser()
-
-        self.marker_extractor = MarkerPdfExtractor(use_marker=use_marker_fallback, max_pages=max_pdf_pages)
 
         self.headers = {"User-Agent": settings.ARXIV_USER_AGENT}
 
@@ -123,7 +120,9 @@ class UnifiedContentResolver:
                 html_text = self.storage.get_text(html_key)
                 if len(html_text) > 1000:
                     parsed = self.html_parser.parse(html_text)
-                    return self._enrich_record_from_parsed(paper, parsed, content_type="cached_html")
+                    if parsed.get("total_words", 0) >= self.MIN_FULLTEXT_WORDS and parsed.get("total_sections", 0) >= 2:
+                        return self._enrich_record_from_parsed(paper, parsed, content_type="cached_html")
+                    logger.warning("[HTML RESOLVER] Cached Bronze HTML for %s is a stub (%d words); refetching", paper_id, parsed.get("total_words", 0))
         except Exception as err:
             logger.debug("[HTML RESOLVER] Bronze cache miss for %s: %s", paper_id, err)
 
@@ -136,42 +135,13 @@ class UnifiedContentResolver:
                 html_text, subtype = html_result
                 self.vault_html_to_bronze(html_text, paper_id, source, year)
                 parsed = self.html_parser.parse(html_text)
-                return self._enrich_record_from_parsed(paper, parsed, content_type=subtype)
+                # A page that parses to (almost) nothing is a stub (e.g. an ar5iv placeholder): fall through to the abstract fallback
+                if parsed.get("total_words", 0) >= self.MIN_FULLTEXT_WORDS and parsed.get("total_sections", 0) >= 2:
+                    return self._enrich_record_from_parsed(paper, parsed, content_type=subtype)
+                logger.warning("[HTML RESOLVER] %s parsed to %d words / %d sections via %s; using the abstract",
+                               paper_id, parsed.get("total_words", 0), parsed.get("total_sections", 0), subtype)
 
-        # 2. Tier B: PDF download held in memory + Marker/pypdf extraction
-        pdf_urls = paper.get("pdf_urls", [])
-        if pdf_urls:
-            pdf_bytes = None
-            for u in pdf_urls:
-                try:
-                    resp = client.get(u, timeout=10.0)
-                    if resp.status_code == 200 and len(resp.content) > 1000:
-                        header = resp.content[:200].lower()
-                        if resp.content.startswith(b"%PDF") and b"<!doctype" not in header and b"<html" not in header:
-                            pdf_bytes = resp.content
-                            break
-                except Exception:
-                    continue
-
-            if pdf_bytes:
-                md_text, meta = "", {}
-                try:
-                    md_text, meta = self.marker_extractor.convert_pdf_bytes_to_markdown(pdf_bytes, name=safe_id)
-                except Exception as e:
-                    logger.debug("[PDF EXTRACT ERROR] %s: %s", paper_id, e)
-
-                if md_text and len(md_text) > 200:
-                    paper["markdown_content"] = md_text
-                    paper["clean_full_text"] = md_text
-                    paper["total_math_count"] = meta.get("latex_formulas_detected", 0)
-                    paper["total_sections"] = 5
-                    paper["total_words"] = len(md_text.split())
-                    paper["sections_json"] = json.dumps([{"section_title": "Full Text", "content": md_text}], ensure_ascii=False)
-                    paper["content_origin"] = meta.get("engine", "pdf_marker_fallback")
-                    paper["crawled_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                    return paper
-
-        # 3. Tier C: Rich Abstract Fallback
+        # 2. Abstract fallback (no HTML available: the paper is paywalled, brand new, or not on arXiv)
         abstract = paper.get("abstract", "")
         title = paper.get("title", "")
         fallback_md = f"# {title}\n\n## Abstract\n\n{abstract}\n"

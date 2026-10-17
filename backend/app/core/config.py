@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # Lakehouse object keys (inside the MinIO bucket)
     SILVER_PRIMARY_KEY: str = "silver/papers/year=2026/papers.parquet"
     SILVER_CATALOG_KEYS: str = (
-        "silver/tier1/landmark_papers.parquet,"
+        "silver/tier3/landmark_papers.parquet,"
         "silver/tier2/near_past_papers.parquet,"
         "silver/papers/year=2026/papers.parquet"
     )

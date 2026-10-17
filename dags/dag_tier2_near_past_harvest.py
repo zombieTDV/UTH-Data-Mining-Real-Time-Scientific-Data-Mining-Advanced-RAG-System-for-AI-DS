@@ -1,10 +1,10 @@
-"""Apache Airflow DAG: Tier 2 - Near-Past Trending Ingestion (incremental, 10k papers/run).
+"""Apache Airflow DAG: Tier 2 - Near-Past Ingestion (present -> past, 10k papers/run).
 
 Schedule: daily 02:10 ICT.
-Walks arXiv forward in time per category (oldest first, from 2024-01-01) and remembers a
-per-category cursor in an Airflow Variable, so each run continues where the last one stopped
-instead of re-harvesting the same newest papers. Papers go to RabbitMQ; the queue consumer
-writes Bronze / Silver / Gold.
+Walks arXiv BACKWARDS in time per category (newest first, down to 2024-01-01). A per-category cursor in an
+Airflow Variable remembers the oldest submission reached, so each run continues deeper into the past instead of
+re-harvesting the same papers. Papers go to RabbitMQ; the queue consumer writes Bronze / Silver / Gold.
+(Tier 1 = the live stream at 02:00; Tier 3 = the historical archive, already harvested and never crawled again.)
 """
 
 import logging
@@ -25,7 +25,7 @@ local_tz = pendulum.timezone("Asia/Ho_Chi_Minh")
 
 TARGET_PAPERS = 10000
 BATCH_SIZE = 100
-INITIAL_CURSOR = "202401010000"  # arXiv submittedDate format YYYYMMDDHHMM
+FLOOR = "202401010000"  # oldest submission date to reach (arXiv format YYYYMMDDHHMM)
 MAX_FETCH_FAILURES = 3
 CURSOR_VAR = "tier2_cursor_{cat}"
 
@@ -44,25 +44,27 @@ def _to_arxiv_stamp(iso_ts: str) -> str:
     return re.sub(r"\D", "", iso_ts)[:12]
 
 
-def harvest_tier2_batch_10k(**_context):
+def harvest_tier2_batch_10k(**context):
     import xmltodict
 
+    conf = (context.get("dag_run") and context["dag_run"].conf) or {}
+    # Per-run override: --conf '{"target": 100}', else the Airflow Variable tier2_target_papers, else 10,000
+    target = int(conf.get("target") or Variable.get("tier2_target_papers", default_var=TARGET_PAPERS))
     cats = categories()
-    per_cat = TARGET_PAPERS // len(cats)
+    per_cat = target // len(cats)
     ingested = queued = 0
 
     for cat in cats:
-        cursor = Variable.get(CURSOR_VAR.format(cat=cat), default_var=INITIAL_CURSOR)
-        now_stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
+        upper = Variable.get(CURSOR_VAR.format(cat=cat), default_var=datetime.now(timezone.utc).strftime("%Y%m%d%H%M"))
         got = start = failures = 0
-        newest = cursor
-        logger.info("[TIER 2] %s: continuing from cursor %s (budget %d)", cat, cursor, per_cat)
+        oldest = upper
+        logger.info("[TIER 2] %s: walking back from %s (budget %d)", cat, upper, per_cat)
 
         while got < per_cat:
             url = (
                 "https://export.arxiv.org/api/query?"
-                f"search_query=cat:{cat}+AND+submittedDate:[{cursor}+TO+{now_stamp}]"
-                f"&start={start}&max_results={BATCH_SIZE}&sortBy=submittedDate&sortOrder=ascending"
+                f"search_query=cat:{cat}+AND+submittedDate:[{FLOOR}+TO+{upper}]"
+                f"&start={start}&max_results={min(BATCH_SIZE, per_cat - got)}&sortBy=submittedDate&sortOrder=descending"
             )
             try:
                 resp = requests.get(url, headers=http_headers(), timeout=30)
@@ -80,7 +82,7 @@ def harvest_tier2_batch_10k(**_context):
             if isinstance(entries, dict):
                 entries = [entries]
             if not entries:
-                logger.info("[TIER 2] %s: caught up", cat)
+                logger.info("[TIER 2] %s: reached the floor (%s)", cat, FLOOR)
                 break
 
             for entry in entries:
@@ -109,15 +111,15 @@ def harvest_tier2_batch_10k(**_context):
                 ingested += 1
                 got += 1
                 if published:
-                    newest = max(newest, _to_arxiv_stamp(published))
+                    oldest = min(oldest, _to_arxiv_stamp(published))
 
             start += len(entries)
             logger.info("[TIER 2] %s: %d/%d (total %d)", cat, got, per_cat, ingested)
             time.sleep(3.0)  # arXiv API terms: be polite
 
-        # Advance the cursor only after the batch reached the queue
-        if newest > cursor:
-            Variable.set(CURSOR_VAR.format(cat=cat), newest)
+        # Move the cursor back only after the batch reached the queue
+        if oldest < upper:
+            Variable.set(CURSOR_VAR.format(cat=cat), oldest)
 
     logger.info("[TIER 2 COMPLETE] ingested=%d queued=%d", ingested, queued)
     ensure_published(ingested, queued)
@@ -127,7 +129,7 @@ def harvest_tier2_batch_10k(**_context):
 with DAG(
     dag_id="dag_tier2_near_past_harvest",
     default_args=default_args,
-    description="Tier 2: incremental near-past arXiv ingestion (10k papers/run, 02:10 AM ICT daily)",
+    description="Tier 2: near-past arXiv ingestion, present -> past (10k papers/run, 02:10 AM ICT daily)",
     schedule_interval="10 2 * * *",
     start_date=datetime(2025, 1, 1, tzinfo=local_tz),
     catchup=False,

@@ -80,7 +80,16 @@ class LakehouseIO:
         combined = new_df if existing is None else pd.concat([existing, new_df], ignore_index=True)
         usable = [c for c in subset if c in combined.columns]
         if usable:
-            combined = combined.drop_duplicates(subset=usable, keep="last")
+            key_col = "__dedup_key__"
+            if "abstract_hash" in usable and "paper_id" in combined.columns:
+                # Rows without a hash must not collapse into one another: fall back to the paper id
+                hashes = combined["abstract_hash"]
+                missing = hashes.isna() | (hashes.astype(str).str.strip() == "")
+                combined[key_col] = hashes.astype(str).where(~missing, "pid:" + combined["paper_id"].astype(str))
+                others = [c for c in usable if c != "abstract_hash"]
+                combined = combined.drop_duplicates(subset=[key_col] + others, keep="last").drop(columns=[key_col])
+            else:
+                combined = combined.drop_duplicates(subset=usable, keep="last")
         if schema is not None:
             for col in schema.names:
                 if col not in combined.columns:

@@ -17,7 +17,7 @@ import logging
 from typing import Dict, Any, List
 import numpy as np
 import pandas as pd
-import duckdb
+from src.mining.lake_access import duck_connect, put_artifact
 from sklearn.ensemble import IsolationForest
 
 logger = logging.getLogger("trend_anomaly_mining")
@@ -32,7 +32,7 @@ class TrendAnomalyMiner:
     def run_mining(self, contamination: float = 0.02) -> Dict[str, Any]:
         """Runs structural anomaly detection and share-normalized trend velocity modeling."""
         logger.info("[PILLAR 4] Loading paper features from: %s...", self.parquet_path)
-        con = duckdb.connect()
+        con = duck_connect()
 
         cols_df = con.execute(f"DESCRIBE SELECT * FROM read_parquet('{self.parquet_path}')").fetchdf()
         available_cols = set(cols_df["column_name"].tolist())
@@ -206,9 +206,7 @@ class TrendAnomalyMiner:
         return results
 
     def save_trends(self, output_path: str, contamination: float = 0.02) -> None:
-        """Runs trend and anomaly mining and writes formatted JSON to disk."""
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        """Runs trend and anomaly mining and publishes the JSON artifact to MinIO (gold/mining/) using the basename of output_path."""
         results = self.run_mining(contamination=contamination)
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-        logger.info("[PILLAR 4] [SUCCESS] Saved trend anomalies to: %s", output_path)
+        uri = put_artifact(os.path.basename(output_path), results)
+        logger.info("[PILLAR 4] [SUCCESS] Saved trend anomalies to: %s", uri)

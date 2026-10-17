@@ -5,7 +5,9 @@ API Endpoints for Real-Time Streaming Ingestion & Change Data Capture (CDC).
 """
 
 from typing import Any, Dict
-from fastapi import APIRouter, BackgroundTasks, Query
+import threading
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from sse_starlette.sse import EventSourceResponse
 from backend.app.services.streaming_service import streaming_service
 
@@ -60,3 +62,21 @@ async def get_real_pipeline_logs(limit: int = 150) -> Dict[str, Any]:
     return {"status": "SUCCESS", "count": len(logs), "logs": logs}
 
 
+
+
+_compact_lock = threading.Lock()
+
+
+@router.post("/compact-silver")
+async def compact_silver_parts() -> Dict[str, Any]:
+    """Folds the streaming Silver parts (silver/papers/year=*/parts/) into each year's papers.parquet in MinIO.
+
+    Runs synchronously and returns what was merged. One compaction at a time."""
+    if not _compact_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="A Silver compaction is already running.")
+    try:
+        from src.transformation.silver_writer import SilverLakehouseWriter
+
+        return await run_in_threadpool(lambda: SilverLakehouseWriter().compact_all())
+    finally:
+        _compact_lock.release()

@@ -3,7 +3,7 @@ backend/app/services/streaming_service.py
 -----------------------------------------
 Real-time ingestion monitor. Broadcasts the pulses that the harvesters and the queue consumer POST to
 /ingestion/broadcast to every connected SSE client. Nothing here is simulated: "start" runs the real
-Tier 3 harvest (arXiv RSS -> RabbitMQ), and the consumer reports each paper it lands in the lakehouse.
+Tier 1 harvest (arXiv RSS -> RabbitMQ), and the consumer reports each paper it lands in the lakehouse.
 Session counters are persisted in MinIO (state/session_state.json); there are no local files.
 """
 
@@ -151,7 +151,7 @@ class StreamingService:
 
     # ------------------------------------------------------------ real harvest
     async def start_streaming(self, target: int = 100, delay: float = 60.0):
-        """Run the real Tier 3 harvest (arXiv RSS -> RabbitMQ) until `target` new papers are enqueued."""
+        """Run the real Tier 1 harvest (arXiv RSS -> RabbitMQ) until `target` new papers are enqueued."""
         if self.status == "STREAMING":
             return {"status": "ALREADY_RUNNING", "message": "Streaming ingestion is already active."}
         self._load_persisted_state()
@@ -160,7 +160,7 @@ class StreamingService:
         self.stop_signal.clear()
         self.start_time = time.time()
         self._task = asyncio.create_task(self._run_streaming_loop(target, delay))
-        return {"status": "STARTED", "target": target, "message": f"Tier 3 harvest started for up to {target} new preprints."}
+        return {"status": "STARTED", "target": target, "message": f"Tier 1 harvest started for up to {target} new preprints."}
 
     async def stop_streaming(self):
         if self.status != "STREAMING":
@@ -172,13 +172,13 @@ class StreamingService:
         return {"status": "STOPPED", "message": "Streaming ingestion stopped."}
 
     async def _run_streaming_loop(self, target: int, delay: float):
-        """Poll arXiv RSS via the Tier 3 streamer in a worker thread; stop when the target is met or the feed is dry."""
-        from src.pipelines.run_tier3_realtime_stream import Tier3RealtimeStreamer
+        """Poll arXiv RSS via the Tier 1 streamer in a worker thread; stop when the target is met or the feed is dry."""
+        from src.pipelines.run_tier1_realtime_stream import Tier1RealtimeStreamer
 
         enqueued_total = 0
         dry_rounds = 0
         try:
-            streamer = await asyncio.to_thread(Tier3RealtimeStreamer)
+            streamer = await asyncio.to_thread(Tier1RealtimeStreamer)
             while enqueued_total < target and not self.stop_signal.is_set():
                 remaining = target - enqueued_total
                 summary = await asyncio.to_thread(streamer.process_batch, min(remaining, 50))
@@ -190,7 +190,7 @@ class StreamingService:
                 await self.broadcast_event({
                     "type": "STAGE_CHANGE",
                     "stage": "harvest",
-                    "title": f"Tier 3 harvest: {got} enqueued, {summary.get('dedup_skipped', 0)} duplicates",
+                    "title": f"Tier 1 harvest: {got} enqueued, {summary.get('dedup_skipped', 0)} duplicates",
                     "enqueued_total": enqueued_total,
                     "speed_ppm": self.current_speed_ppm,
                 })
@@ -198,7 +198,7 @@ class StreamingService:
                     break  # the feed has nothing new right now
                 await asyncio.sleep(delay)
             self.status = "COMPLETED" if enqueued_total >= target or dry_rounds >= 2 else "PAUSED"
-            await self.broadcast_event({"type": "STAGE_CHANGE", "stage": "completed", "title": f"Tier 3 harvest finished: {enqueued_total} enqueued"})
+            await self.broadcast_event({"type": "STAGE_CHANGE", "stage": "completed", "title": f"Tier 1 harvest finished: {enqueued_total} enqueued"})
         except asyncio.CancelledError:
             self.status = "PAUSED"
         except Exception as e:
