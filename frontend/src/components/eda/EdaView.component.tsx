@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo, useRef, type FC } from 'react';
 import type { EdaResponse, CategoryDistItem } from '../../types';
-import { fetchEdaSummary, triggerMiningPipeline, executeDuckDbQuery, syncMiningFromR2 } from '../../services';
-import { useLakehouseStreamStore, appendStreamLog } from '../../store';
+import { fetchEdaSummary, executeDuckDbQuery } from '../../services';
+import { useLakehouseStreamStore } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
-import { MiningTelemetryStepper } from '../common';
 
 import { ThreeLensesDiagnosticView } from './ThreeLensesDiagnosticView.component';
 import { CollectionEdaView } from './CollectionEdaView.component';
@@ -422,11 +421,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
   // Ergonomic Visual & Viewport Expansion States
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
-  const [showTelemetry, setShowTelemetry] = useState<boolean>(false);
-
 
   const { totalCorpus, isStreaming, streamSpeed, sessionIngested, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
-  const [isSyncingMining, setIsSyncingMining] = useState<boolean>(false);
   const [streamedPapers, setStreamedPapers] = useState<ScatterPaperPoint[]>([]);
 
   // Dynamically ingest live streaming papers into the EDA scatter space
@@ -448,50 +444,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
       });
     }
   }, [lastIngestedPaper]);
-
-  const handleSyncLakehouseMining = async (forceRecompute: boolean = false) => {
-    setIsSyncingMining(true);
-    setFeedbackToast(
-      language === 'vi'
-        ? 'Đang đồng bộ hóa dữ liệu EDA từ Cloudflare R2...'
-        : 'Synchronizing EDA metrics from Cloudflare R2...'
-    );
-    appendStreamLog({
-      time: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      level: 'EXEC',
-      tag: 'EDA/SYNC',
-      msg: `Triggered EDA sync from Cloudflare R2 across ${totalCorpus.toLocaleString()} Lakehouse papers`,
-    });
-    try {
-      if (forceRecompute) {
-        await triggerMiningPipeline();
-      } else {
-        await syncMiningFromR2();
-      }
-      const updated = await fetchEdaSummary();
-      setData(updated);
-      setFeedbackToast(
-        language === 'vi'
-          ? 'Đồng bộ EDA từ Cloudflare R2 thành công!'
-          : 'EDA synchronized from Cloudflare R2 successfully!'
-      );
-    } catch (e: any) {
-      console.warn('Failed to sync EDA from R2:', e);
-      try {
-        const fallback = await fetchEdaSummary();
-        setData(fallback);
-      } catch {}
-      setFeedbackToast(
-        language === 'vi'
-          ? 'Đã làm mới số liệu EDA!'
-          : 'EDA metrics refreshed!'
-      );
-    } finally {
-      setTimeout(() => {
-        setIsSyncingMining(false);
-      }, 1500);
-    }
-  };
 
 
   useEffect(() => {
@@ -1134,77 +1086,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
               <span style={{ color: themeStyles.textMuted }}>Σ TỪ: </span>
               <strong style={{ color: '#2563eb' }}>{(overview.total_words / 1_000_000).toFixed(1)}M</strong>
             </div>
-            <div style={{ width: '1px', height: '10px', backgroundColor: themeStyles.border }} />
-            <button
-              type="button"
-              onClick={() => setShowTelemetry((v) => !v)}
-              style={{
-                padding: '1px 6px',
-                borderRadius: '3px',
-                fontSize: '9px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                backgroundColor: showTelemetry ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#d1fae5') : (isDark ? 'rgba(16, 185, 129, 0.12)' : '#ecfdf5'),
-                color: '#10b981',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span>{showTelemetry ? '▲' : '▼'}</span>
-              <span>5/5 Telemetry</span>
-            </button>
           </div>
         </div>
       </div>
-
-      {/* Floating Popover Telemetry Stepper (Zero-Push Overlay) */}
-      {!isFocusMode && showTelemetry && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '64px',
-            left: '12px',
-            right: '12px',
-            zIndex: 40,
-            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.98)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '8px',
-            border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.4)' : '#a7f3d0'}`,
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
-            padding: '10px 14px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
-              ● QUY TRÌNH 5 TRẠM KHAI PHÁ DỮ LIỆU KHOA HỌC (MINING TELEMETRY)
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowTelemetry(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: themeStyles.textMuted,
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: 800,
-                padding: '0 4px',
-              }}
-            >
-              ✕
-            </button>
-          </div>
-          <MiningTelemetryStepper
-            isExecuting={isSyncingMining}
-            onTriggerMining={handleSyncLakehouseMining}
-            theme={theme}
-          />
-        </div>
-      )}
 
       {/* ============================================================== */}
       {/* 5. ACTIVE SUB-DECK VIEWPORT AREA (FLEX 1 // ZERO-SCROLL)        */}
