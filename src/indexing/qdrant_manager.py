@@ -182,25 +182,23 @@ class QdrantManager:
             query_vector = query_vector.tolist()
 
         # Build Qdrant filter
-        qdrant_filter: Optional[Dict[str, Any]] = None
+        must_clauses = []
         target_category = category_filter
 
-        if not target_category and filter_expr:
-            # Parse simple 'primary_category = X' if passed via filter_expr
+        if filter_expr:
             import re
-            m = re.search(r"primary_category\s*=\s*['\"]([^'\"]+)['\"]", filter_expr)
-            if m:
-                target_category = m.group(1)
+            m_cat = re.search(r"primary_category\s*=\s*['\"]([^'\"]+)['\"]", filter_expr)
+            if m_cat and not target_category:
+                target_category = m_cat.group(1)
+
+            m_pid = re.search(r"paper_id\s*=\s*['\"]([^'\"]+)['\"]", filter_expr)
+            if m_pid:
+                must_clauses.append({"key": "paper_id", "match": {"value": m_pid.group(1)}})
 
         if target_category:
-            qdrant_filter = {
-                "must": [
-                    {
-                        "key": "primary_category",
-                        "match": {"value": target_category},
-                    }
-                ]
-            }
+            must_clauses.append({"key": "primary_category", "match": {"value": target_category}})
+
+        qdrant_filter: Optional[Dict[str, Any]] = {"must": must_clauses} if must_clauses else None
 
         search_payload = {
             "query": query_vector,
@@ -250,3 +248,112 @@ class QdrantManager:
         except Exception as e:
             logger.error("[Qdrant] vector_search error: %s", e)
             return pd.DataFrame()
+
+    def get_paper_chunks(self, paper_id: str, limit: int = 50) -> pd.DataFrame:
+        """Retrieves chunks of a specific paper via Qdrant scroll."""
+        clean_pid = str(paper_id).strip()
+        payload = {
+            "filter": {
+                "must": [{"key": "paper_id", "match": {"value": clean_pid}}]
+            },
+            "limit": limit,
+            "with_payload": True,
+        }
+        try:
+            resp = requests.post(
+                f"{self.url}/collections/{self.collection_name}/points/scroll",
+                json=payload,
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                pts = resp.json().get("result", {}).get("points", [])
+                rows = [p.get("payload", {}) for p in pts]
+                return pd.DataFrame(rows)
+        except Exception as e:
+            logger.error("[Qdrant] get_paper_chunks error: %s", e)
+        return pd.DataFrame()
+
+    def open_table(self, table_name: Optional[str] = None) -> "QdrantTableCompat":
+        """Returns a LanceDB-compatible table wrapper over Qdrant."""
+        return QdrantTableCompat(self, table_name=table_name or self.collection_name)
+
+
+class QdrantQueryBuilder:
+    """LanceDB-compatible QueryBuilder chaining .where(), .limit(), .select(), .to_pandas()."""
+
+    def __init__(self, qdrant: QdrantManager, query: Any = None, collection: str = "scientific_papers_gold"):
+        self.qdrant = qdrant
+        self.query = query
+        self.collection = collection
+        self._filter_expr = None
+        self._limit = 10
+        self._select_cols = None
+
+    def where(self, expr: str) -> "QdrantQueryBuilder":
+        self._filter_expr = expr
+        return self
+
+    def limit(self, n: int) -> "QdrantQueryBuilder":
+        self._limit = n
+        return self
+
+    def select(self, cols: List[str]) -> "QdrantQueryBuilder":
+        self._select_cols = cols
+        return self
+
+    def nprobes(self, n: int) -> "QdrantQueryBuilder":
+        return self
+
+    def refine_factor(self, r: int) -> "QdrantQueryBuilder":
+        return self
+
+    def metric(self, m: str) -> "QdrantQueryBuilder":
+        return self
+
+    def to_pandas(self) -> pd.DataFrame:
+        # Check if searching by paper_id directly without query vector
+        import re
+        if self._filter_expr:
+            m_pid = re.search(r"paper_id\s*=\s*['\"]([^'\"]+)['\"]", self._filter_expr)
+            if m_pid and (self.query is None or isinstance(self.query, str) or (isinstance(self.query, list) and sum(self.query) == 0)):
+                df = self.qdrant.get_paper_chunks(paper_id=m_pid.group(1), limit=self._limit)
+                if not df.empty and self._select_cols:
+                    avail = [c for c in self._select_cols if c in df.columns]
+                    df = df[avail]
+                return df
+
+        # Otherwise perform vector search
+        vec = self.query if isinstance(self.query, (list, tuple)) else [0.0] * 768
+        df = self.qdrant.vector_search(
+            query_vector=vec,
+            limit=self._limit,
+            filter_expr=self._filter_expr,
+            table_name=self.collection,
+        )
+        if not df.empty and self._select_cols:
+            avail = [c for c in self._select_cols if c in df.columns]
+            df = df[avail]
+        return df
+
+
+class QdrantTableCompat:
+    """LanceDB Table drop-in wrapper over QdrantManager."""
+
+    def __init__(self, qdrant: QdrantManager, table_name: str = "scientific_papers_gold"):
+        self.qdrant = qdrant
+        self.table_name = table_name
+        self.schema = type("Schema", (), {
+            "names": [
+                "vector", "chunk_id", "paper_id", "title", "authors",
+                "primary_category", "section_title", "section_type",
+                "text", "context_text", "doi", "published_date"
+            ],
+            "field": lambda self, name: type("Field", (), {"type": type("Type", (), {"list_size": 768})()})(),
+        })()
+
+    def __len__(self) -> int:
+        return self.qdrant.count(self.table_name)
+
+    def search(self, query: Any = None, vector_column_name: str = "vector") -> QdrantQueryBuilder:
+        return QdrantQueryBuilder(self.qdrant, query=query, collection=self.table_name)
+

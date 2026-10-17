@@ -432,12 +432,12 @@ async def trigger_manual_sync_from_r2() -> R2TreeResponse:
     categorizes them into Medallion zones, updates data/lakehouse/r2_manifest_cache.json,
     and returns fresh inventory.
     """
-    from src.storage.r2_client import R2Client
+    from src.storage.minio_client import StorageClient
 
-    logger.info("[R2 EXPLORER] Manual sync triggered by user. Querying Cloudflare R2...")
+    logger.info("[R2 EXPLORER] Manual sync triggered by user. Querying MinIO Lakehouse...")
     t0 = time.time()
     try:
-        r2 = R2Client()
+        r2 = StorageClient()
         # Scan key prefixes
         prefixes = ["silver/", "gold/", "bronze/", "data/"]
         scanned_objects = []
@@ -532,15 +532,15 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
         if not target_parquet or not target_parquet.exists():
             # If not local, try downloading from R2 and cache locally
             try:
-                from src.storage.r2_client import R2Client
-                r2 = R2Client()
+                from src.storage.minio_client import StorageClient
+                r2 = StorageClient()
                 cached_file = CACHE_DIR / "files" / key_clean
                 cached_file.parent.mkdir(parents=True, exist_ok=True)
-                logger.info("[R2 EXPLORER] Downloading preview copy of %s from R2...", key_clean)
+                logger.info("[R2 EXPLORER] Downloading preview copy of %s from MinIO...", key_clean)
                 r2.s3.download_file(r2.bucket_name, key_clean, str(cached_file))
                 target_parquet = cached_file
             except Exception as dl_err:
-                logger.warning("[R2 EXPLORER] Could not download from R2: %s, falling back to Silver Parquet", dl_err)
+                logger.warning("[R2 EXPLORER] Could not download from MinIO: %s, falling back to Silver Parquet", dl_err)
                 target_parquet = settings.SILVER_PARQUET
 
         if target_parquet and target_parquet.exists():
@@ -600,14 +600,14 @@ async def get_file_preview(key: str = Query(..., description="S3 Key of file to 
         target_json = local_path
         if not target_json or not target_json.exists():
             try:
-                from src.storage.r2_client import R2Client
-                r2 = R2Client()
+                from src.storage.minio_client import StorageClient
+                r2 = StorageClient()
                 cached_file = CACHE_DIR / "files" / key_clean
                 cached_file.parent.mkdir(parents=True, exist_ok=True)
                 r2.s3.download_file(r2.bucket_name, key_clean, str(cached_file))
                 target_json = cached_file
             except Exception as dl_err:
-                logger.warning("[R2 EXPLORER] Could not download JSON from R2: %s", dl_err)
+                logger.warning("[R2 EXPLORER] Could not download JSON from MinIO: %s", dl_err)
 
         if target_json and target_json.exists():
             try:

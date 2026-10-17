@@ -120,20 +120,14 @@ class StorageService:
         except Exception as e:
             logger.warning(f"[STORAGE] Bootstrap conferences error: {e}")
 
-        # Gold vectors from local LanceDB
+        # Gold vectors from Qdrant
         try:
-            from src.indexing.lancedb_manager import LanceDBManager
-            l_mgr = LanceDBManager()
-            tbl_res = l_mgr.db.list_tables()
-            table_names = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
-            gold_rows = 0
-            if "scientific_papers_gold" in table_names:
-                gold_rows += len(l_mgr.db.open_table("scientific_papers_gold"))
-            if "academic_chunks" in table_names:
-                gold_rows += len(l_mgr.db.open_table("academic_chunks"))
+            from src.indexing.qdrant_manager import QdrantManager
+            q_mgr = QdrantManager()
+            gold_rows = q_mgr.count()
             if gold_rows > 0:
                 self.base_active_gold_vectors = max(gold_rows, self.base_active_gold_vectors)
-                logger.info(f"[STORAGE] Bootstrap gold vectors from LanceDB: {self.base_active_gold_vectors}")
+                logger.info(f"[STORAGE] Bootstrap gold vectors from Qdrant: {self.base_active_gold_vectors}")
         except Exception as e:
             logger.warning(f"[STORAGE] Bootstrap gold vectors error: {e}")
 
@@ -151,39 +145,13 @@ class StorageService:
         tier1_count = 3000
 
         try:
-            from src.indexing.lancedb_manager import LanceDBManager
-            l_mgr = LanceDBManager()
-            tbl_res = l_mgr.db.list_tables()
-            table_names = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
-            if "scientific_papers_gold" in table_names:
-                tbl = l_mgr.db.open_table("scientific_papers_gold")
-                active_rag_vectors = len(tbl)
-                arrow_data = tbl.search().select(["paper_id"]).to_arrow()
-                import duckdb
-                con_l = duckdb.connect()
-                df = con_l.execute("""
-                    SELECT 
-                        CASE 
-                            WHEN paper_id LIKE 'cvf_%' THEN 'cvf'
-                            WHEN paper_id LIKE 'openreview_%' THEN 'openreview'
-                            WHEN paper_id LIKE 'doi_%' THEN 'doi'
-                            WHEN paper_id LIKE 'zenodo_%' THEN 'zenodo'
-                            WHEN paper_id LIKE 'oa_%' THEN 'openalex'
-                            ELSE 'arxiv'
-                        END as src_clean,
-                        count(distinct paper_id) as cnt
-                    FROM arrow_data
-                    GROUP BY src_clean
-                """).df()
-                src_map = dict(zip(df["src_clean"], df["cnt"]))
-                arxiv_ft = int(src_map.get("arxiv", 11630))
-                cvf_ft = int(src_map.get("cvf", 9389))
-                doi_ft = int(src_map.get("doi", 8890))
-                openreview_ft = int(src_map.get("openreview", 0))
-                zenodo_ft = int(src_map.get("zenodo", 2))
-                total_fulltext_papers = arxiv_ft + cvf_ft + doi_ft + openreview_ft + zenodo_ft
+            from src.indexing.qdrant_manager import QdrantManager
+            q_mgr = QdrantManager()
+            q_count = q_mgr.count()
+            if q_count > 0:
+                active_rag_vectors = q_count
         except Exception as e:
-            logger.warning(f"[STORAGE] Error querying LanceDB paper breakdown: {e}")
+            logger.warning(f"[STORAGE] Error querying Qdrant paper breakdown: {e}")
 
         return SourceBreakdownDto(
             arxiv=arxiv_ft,
@@ -225,8 +193,8 @@ class StorageService:
     def sync_live_from_r2(self) -> Dict[str, Any]:
         """Performs a background live scan of Cloudflare R2 bucket and updates manifest cache."""
         try:
-            from src.storage.r2_client import R2Client
-            client = R2Client()
+            from src.storage.minio_client import StorageClient
+            client = StorageClient()
             paginator = client.s3.get_paginator("list_objects_v2")
 
             arxiv_html = 0
@@ -262,7 +230,7 @@ class StorageService:
                                     logger.info(f"[STORAGE R2 SYNC] Synced peer shard from R2: {k} -> {peer_local.name}")
                                 except Exception as e_dl:
                                     logger.debug(f"[STORAGE R2 SYNC] Shard download note: {e_dl}")
-                    elif k.startswith("gold/lancedb/"):
+                    elif k.startswith("gold/lancedb/") or k.startswith("gold/qdrant/"):
                         backup_gold_bytes += sz
 
             if total_bucket_objects > 0:
@@ -317,13 +285,12 @@ class StorageService:
         delta_ingested = streaming_service.session_ingested
         delta_bytes = streaming_service.accumulated_bytes_delta
 
-        # Check actual live LanceDB vector count if available
+        # Check actual live Qdrant vector count if available
         manifest_dirty = False
         try:
-            from src.indexing.lancedb_manager import LanceDBManager
-            l_mgr = LanceDBManager()
-            tbl = l_mgr.db.open_table("scientific_papers_gold")
-            live_rows = len(tbl)
+            from src.indexing.qdrant_manager import QdrantManager
+            q_mgr = QdrantManager()
+            live_rows = q_mgr.count()
             if live_rows > 0 and live_rows != self.base_active_gold_vectors:
                 self.base_active_gold_vectors = live_rows
                 manifest_dirty = True

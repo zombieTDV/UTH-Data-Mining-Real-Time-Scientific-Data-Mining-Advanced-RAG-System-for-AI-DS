@@ -9,10 +9,12 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
+    is_ready = retrieval_service.is_ready()
     return HealthResponse(
-        status="ok",
+        status="ok" if is_ready else "degraded",
         timestamp=datetime.now(timezone.utc).isoformat(),
         version=settings.VERSION,
-        lancedb_ready=retrieval_service.is_ready(),
+        qdrant_ready=is_ready,
+        lancedb_ready=is_ready,
         parquet_ready=settings.SILVER_PARQUET.exists(),
     )

@@ -25,11 +25,26 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api"
     FRONTEND_ORIGIN: str = "http://localhost:5173"
 
-    # Cloudflare R2 Credentials
-    R2_ENDPOINT_URL: str = ""
-    R2_ACCESS_KEY_ID: str = ""
-    R2_SECRET_ACCESS_KEY: str = ""
+    # MinIO S3 Lakehouse Credentials
+    MINIO_ENDPOINT_URL: str = "http://localhost:9000"
+    MINIO_ACCESS_KEY: str = "admin"
+    MINIO_SECRET_KEY: str = "password123"
+    MINIO_BUCKET_NAME: str = "uth-scientific-lakehouse"
+    STORAGE_PROVIDER: str = "minio"
+
+    # Backward compatibility aliases for frontend/legacy code
+    R2_ENDPOINT_URL: str = "http://localhost:9000"
+    R2_ACCESS_KEY_ID: str = "admin"
+    R2_SECRET_ACCESS_KEY: str = "password123"
     R2_BUCKET_NAME: str = "uth-scientific-lakehouse"
+
+    # Qdrant Vector Database
+    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_COLLECTION: str = "scientific_papers_gold"
+
+    # RabbitMQ Message Broker
+    RABBITMQ_URL: str = "amqp://admin:password123@localhost:5672/"
+    RABBITMQ_QUEUE_INGEST: str = "scientific_paper_ingest"
 
     # Lakehouse Local Paths
     PROJECT_ROOT_DIR: Path = PROJECT_ROOT

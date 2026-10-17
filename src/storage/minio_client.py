@@ -200,6 +200,9 @@ class MinIOClient:
         tmp_target.rename(target)
         return target
 
+    # Alias for compatibility with standard S3/R2 client interface
+    download_file = download_file_safe
+
     def get_text(self, key: str) -> str:
         """Đọc nội dung văn bản từ MinIO object."""
         response = self.s3.get_object(Bucket=self.bucket_name, Key=self.sanitize_key(key))

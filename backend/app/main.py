@@ -14,7 +14,6 @@ from backend.app.api.endpoints import health
 from backend.app.api.router import api_router
 
 from backend.app.services.llm_client import llm_client
-from src.scheduler.adaptive_scheduler import scheduler_instance
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,7 +29,8 @@ async def lifespan(app: FastAPI):
     logger.info("[STARTUP] Server running on: http://%s:%d", settings.HOST, settings.PORT)
     logger.info("[STARTUP] Interactive OpenAPI Docs: http://localhost:%d/docs", settings.PORT)
     logger.info("[STARTUP] Parquet Path: %s (Exists: %s)", settings.SILVER_PARQUET, settings.SILVER_PARQUET.exists())
-    logger.info("[STARTUP] LanceDB URI: %s", settings.LANCEDB_URI)
+    logger.info("[STARTUP] Qdrant URL: %s (Collection: %s)", settings.QDRANT_HOST, settings.QDRANT_COLLECTION)
+    logger.info("[STARTUP] MinIO S3: %s (Bucket: %s)", settings.MINIO_ENDPOINT_URL, settings.MINIO_BUCKET_NAME)
     logger.info("[STARTUP] Context Window: %d tokens", settings.LLM_CONTEXT_WINDOW)
 
     # Preload LLM model into Apple Silicon Metal GPU memory immediately on startup
@@ -39,7 +39,6 @@ async def lifespan(app: FastAPI):
     logger.info("================================================================================")
     yield
     logger.info("[SHUTDOWN] Stopping FastAPI Backend.")
-    scheduler_instance.stop_daemon(cancel_running=True)
     llm_client.close()
 
 

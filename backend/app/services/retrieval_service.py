@@ -6,10 +6,10 @@ Vector and Full-Text Retrieval Service wrapping LanceDB Gold Table.
 
 import logging
 from typing import Any, Dict, List, Optional, Set, Tuple
-import lancedb
 from backend.app.core.config import settings
 from backend.app.schemas.search import ChunkDto, SearchRequest
 from backend.app.services.embedder_service import embedder_service
+from src.indexing.qdrant_manager import QdrantManager
 
 logger = logging.getLogger("retrieval_service")
 
@@ -184,60 +184,14 @@ class RetrievalService:
 
     def _init_db(self):
         try:
-            self.vector_dim = None
-            self.table_name = settings.LANCEDB_TABLE
-
-            # Check local Lakehouse Gold LanceDB first for sub-second retrieval
-            local_gold = settings.PROJECT_ROOT_DIR / "data" / "gold" / "lancedb"
-            if local_gold.exists():
-                try:
-                    logger.info("[RETRIEVAL] Checking local LanceDB at: %s", local_gold)
-                    local_conn = lancedb.connect(str(local_gold))
-                    tbl_list = local_conn.list_tables()
-                    table_names = tbl_list.tables if hasattr(tbl_list, "tables") else list(tbl_list)
-                    
-                    target_table = None
-                    if settings.LANCEDB_TABLE in table_names:
-                        target_table = settings.LANCEDB_TABLE
-                    elif settings.LANCEDB_URI.startswith("s3://"):
-                        logger.info("[RETRIEVAL] Target table '%s' not found locally. Connecting to remote Cloudflare R2...", settings.LANCEDB_TABLE)
-                    elif "scientific_papers_gold" in table_names:
-                        target_table = "scientific_papers_gold"
-                    elif "academic_chunks" in table_names:
-                        target_table = "academic_chunks"
-                    elif table_names:
-                        target_table = table_names[0]
-
-                    if target_table:
-                        self.db = local_conn
-                        self.table = self.db.open_table(target_table)
-                        self.table_name = target_table
-                        self._ready = True
-                        if "vector" in self.table.schema.names:
-                            self.vector_dim = getattr(self.table.schema.field("vector").type, "list_size", None)
-                        logger.info("[RETRIEVAL] [SUCCESS] Opened local LanceDB table: %s (%d rows, vector_dim=%s)", target_table, len(self.table), self.vector_dim)
-                        return
-                except Exception as local_err:
-                    logger.warning("[RETRIEVAL] Local LanceDB open failed (%s), falling back to remote config.", str(local_err))
-
-            logger.info("[RETRIEVAL] Connecting to LanceDB at: %s", settings.LANCEDB_URI)
-            storage_options = None
-            if settings.LANCEDB_URI.startswith("s3://"):
-                storage_options = {
-                    "endpoint": settings.R2_ENDPOINT_URL,
-                    "aws_access_key_id": settings.R2_ACCESS_KEY_ID,
-                    "aws_secret_access_key": settings.R2_SECRET_ACCESS_KEY,
-                    "region": "auto",
-                }
-            self.db = lancedb.connect(settings.LANCEDB_URI, storage_options=storage_options)
-            self.table = self.db.open_table(settings.LANCEDB_TABLE)
-            self.table_name = settings.LANCEDB_TABLE
-            if "vector" in self.table.schema.names:
-                self.vector_dim = getattr(self.table.schema.field("vector").type, "list_size", None)
+            self.qdrant = QdrantManager(url=settings.QDRANT_URL, collection_name=settings.QDRANT_COLLECTION)
+            self.table = self.qdrant.open_table(settings.QDRANT_COLLECTION)
+            self.table_name = settings.QDRANT_COLLECTION
+            self.vector_dim = 768
             self._ready = True
-            logger.info("[RETRIEVAL] [SUCCESS] Opened LanceDB table: %s (%d rows, vector_dim=%s)", settings.LANCEDB_TABLE, len(self.table), self.vector_dim)
+            logger.info("[RETRIEVAL] [SUCCESS] Connected to Qdrant collection: %s (%d vectors)", settings.QDRANT_COLLECTION, len(self.table))
         except Exception as e:
-            logger.error("[RETRIEVAL] [ERROR] Failed to connect to LanceDB: %s", str(e))
+            logger.error("[RETRIEVAL] [ERROR] Failed to connect to Qdrant: %s", str(e))
             self._ready = False
 
     def is_ready(self) -> bool:
@@ -382,7 +336,7 @@ class RetrievalService:
                                     section_title=str(r.get("section_title", "")),
                                     doi=str(meta.get("doi")) if meta.get("doi") else (str(r.get("doi")) if r.get("doi") else None),
                                     score=c_score,
-                                    source=f"lancedb://{getattr(self, 'table_name', settings.LANCEDB_TABLE)}",
+                                    source=f"qdrant://{getattr(self, 'table_name', settings.QDRANT_COLLECTION)}",
                                     rule_expansions=rule_expansions if rule_expansions else None,
                                 )
                             )
@@ -442,7 +396,7 @@ class RetrievalService:
                                     section_title=str(tr.get("section_title", "")),
                                     doi=str(th.get("doi")) if th.get("doi") else (str(tr.get("doi")) if tr.get("doi") else None),
                                     score=0.96,
-                                    source=f"lancedb://{getattr(self, 'table_name', settings.LANCEDB_TABLE)}",
+                                    source=f"qdrant://{getattr(self, 'table_name', settings.QDRANT_COLLECTION)}",
                                     authority_score=round(norm_pr, 4) if norm_pr > 0 else None,
                                     authority_author=auth_author,
                                     rule_expansions=rule_expansions if rule_expansions else None,
@@ -543,7 +497,7 @@ class RetrievalService:
                         primary_category=str(r.get("primary_category", "")) if r.get("primary_category") else None,
                         section_title=str(r.get("section_title", "")) if r.get("section_title") else None,
                         score=clamped_score,
-                        source=f"lancedb://{getattr(self, 'table_name', settings.LANCEDB_TABLE)}",
+                        source=f"qdrant://{getattr(self, 'table_name', settings.QDRANT_COLLECTION)}",
                         authority_score=round(norm_pr, 4) if norm_pr > 0 else None,
                         authority_author=auth_author,
                         rule_expansions=rule_expansions if rule_expansions else None,

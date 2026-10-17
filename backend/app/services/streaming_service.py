@@ -82,15 +82,14 @@ class StreamingService:
         elapsed = time.time() - self.start_time if self.start_time else 0
         storage = self.get_current_storage()
         
-        # Query true corpus count from LanceDB
+        # Query true corpus count from Qdrant
         real_corpus = self.base_corpus_count
         try:
-            from src.indexing.lancedb_manager import LanceDBManager
-            l_mgr = LanceDBManager()
-            if "scientific_papers_gold" in l_mgr.db.table_names():
-                tbl = l_mgr.db.open_table("scientific_papers_gold")
-                arr = tbl.search().select(["paper_id"]).to_arrow()
-                real_corpus = len(set(arr["paper_id"].to_pylist()))
+            from src.indexing.qdrant_manager import QdrantManager
+            q_mgr = QdrantManager()
+            points_count = q_mgr.count()
+            if points_count > 0:
+                real_corpus = points_count
         except Exception:
             pass
 
