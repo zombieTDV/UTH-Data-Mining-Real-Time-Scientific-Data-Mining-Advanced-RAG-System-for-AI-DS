@@ -19,12 +19,30 @@ class Settings:
     EMBEDDING_MODEL_PATH: Path = PROJECT_ROOT / os.getenv("EMBEDDING_MODEL_PATH", "models/nomic-embed-text-v1.5")
     LLM_MODEL_PATH: Path = PROJECT_ROOT / os.getenv("LLM_MODEL_PATH", "models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf")
 
+    # Storage Configuration (MinIO vs R2)
+    STORAGE_PROVIDER: str = os.getenv("STORAGE_PROVIDER", "minio").strip().lower()
+
+    # MinIO Local S3 Settings
+    MINIO_ENDPOINT_URL: str = os.getenv("MINIO_ENDPOINT_URL", "http://localhost:9000").strip()
+    MINIO_ACCESS_KEY_ID: str = os.getenv("MINIO_ACCESS_KEY_ID", "admin").strip()
+    MINIO_SECRET_ACCESS_KEY: str = os.getenv("MINIO_SECRET_ACCESS_KEY", "password123").strip()
+    MINIO_BUCKET_NAME: str = os.getenv("MINIO_BUCKET_NAME", "uth-scientific-lakehouse").strip()
+
     # Cloudflare R2 Credentials
     CLOUDFLARE_ACCOUNT_ID: str = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
     R2_ACCESS_KEY_ID: str = os.getenv("R2_ACCESS_KEY_ID", "").strip()
     R2_SECRET_ACCESS_KEY: str = os.getenv("R2_SECRET_ACCESS_KEY", "").strip()
     R2_BUCKET_NAME: str = os.getenv("R2_BUCKET_NAME", "uth-scientific-lakehouse").strip()
     R2_ENDPOINT_URL: str = os.getenv("R2_ENDPOINT_URL", "").strip()
+
+    # Vector Database Configuration (Qdrant vs LanceDB)
+    VECTOR_STORE_PROVIDER: str = os.getenv("VECTOR_STORE_PROVIDER", "qdrant").strip().lower()
+    QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333").strip()
+    QDRANT_COLLECTION: str = os.getenv("QDRANT_COLLECTION", "scientific_papers_gold").strip()
+
+    # RabbitMQ Message Broker Configuration
+    RABBITMQ_URL: str = os.getenv("RABBITMQ_URL", "amqp://admin:password123@localhost:5672").strip()
+    RABBITMQ_QUEUE_INGEST: str = os.getenv("RABBITMQ_QUEUE_INGEST", "scientific_paper_ingest").strip()
 
     # arXiv Harvesting Configuration
     ARXIV_CATEGORIES: List[str] = [
@@ -52,5 +70,29 @@ class Settings:
             url = f"https://{url}"
         return url
 
+    @classmethod
+    def get_active_storage_config(cls) -> dict:
+        """Trả về cấu hình storage dựa trên STORAGE_PROVIDER (minio hoặc r2)."""
+        if cls.STORAGE_PROVIDER == "minio":
+            return {
+                "provider": "minio",
+                "endpoint_url": cls.MINIO_ENDPOINT_URL,
+                "access_key_id": cls.MINIO_ACCESS_KEY_ID,
+                "secret_access_key": cls.MINIO_SECRET_ACCESS_KEY,
+                "bucket_name": cls.MINIO_BUCKET_NAME,
+                "addressing_style": "path",
+                "use_ssl": False,
+            }
+        return {
+            "provider": "r2",
+            "endpoint_url": cls.get_r2_endpoint(),
+            "access_key_id": cls.R2_ACCESS_KEY_ID,
+            "secret_access_key": cls.R2_SECRET_ACCESS_KEY,
+            "bucket_name": cls.R2_BUCKET_NAME,
+            "addressing_style": "auto",
+            "use_ssl": True,
+        }
+
 
 settings = Settings()
+

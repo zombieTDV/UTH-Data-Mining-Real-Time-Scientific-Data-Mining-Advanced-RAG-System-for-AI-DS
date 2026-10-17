@@ -17,23 +17,24 @@ class DuckDBEngine:
 
     def __init__(self, in_memory: bool = True, db_path: Optional[str] = None):
         self.con = duckdb.connect(database=":memory:" if in_memory else (db_path or "lakehouse.duckdb"))
-        self._configure_r2_httpfs()
+        self._configure_s3_httpfs()
 
-    def _configure_r2_httpfs(self):
-        """Cấu hình extension httpfs của DuckDB để query trực tiếp dữ liệu trên Cloudflare R2."""
-        endpoint = settings.get_r2_endpoint()
-        # Loại bỏ tiền tố https:// cho thiết lập DuckDB s3_endpoint
+    def _configure_s3_httpfs(self):
+        """Cấu hình extension httpfs của DuckDB để query trực tiếp dữ liệu trên MinIO hoặc Cloudflare R2."""
+        cfg = settings.get_active_storage_config()
+        endpoint = cfg["endpoint_url"]
         endpoint_clean = endpoint.replace("https://", "").replace("http://", "")
 
         try:
             self.con.execute("INSTALL httpfs; LOAD httpfs;")
-            if endpoint_clean and settings.R2_ACCESS_KEY_ID:
+            if endpoint_clean and cfg["access_key_id"]:
                 self.con.execute(f"SET s3_endpoint = '{endpoint_clean}';")
-                self.con.execute(f"SET s3_access_key_id = '{settings.R2_ACCESS_KEY_ID}';")
-                self.con.execute(f"SET s3_secret_access_key = '{settings.R2_SECRET_ACCESS_KEY}';")
+                self.con.execute(f"SET s3_access_key_id = '{cfg['access_key_id']}';")
+                self.con.execute(f"SET s3_secret_access_key = '{cfg['secret_access_key']}';")
                 self.con.execute("SET s3_url_style = 'path';")
-                self.con.execute("SET s3_use_ssl = true;")
-        except Exception as e:
+                use_ssl_str = "true" if cfg.get("use_ssl", True) else "false"
+                self.con.execute(f"SET s3_use_ssl = {use_ssl_str};")
+        except Exception:
             # Fallback nếu môi trường mạng chặn cài extension lúc khởi động
             pass
 

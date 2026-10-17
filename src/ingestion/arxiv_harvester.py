@@ -15,6 +15,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import settings
+from src.ingestion.queue_publisher import RabbitMQPublisher
 from src.storage.r2_client import R2Client
 from src.utils.hasher import compute_sha256
 
@@ -31,10 +32,19 @@ class ArxivHarvester:
         r2_client: Optional[R2Client] = None,
         categories: Optional[List[str]] = None,
         request_delay: Optional[float] = None,
+        enable_queue: bool = True,
+        queue_publisher: Optional[RabbitMQPublisher] = None,
     ):
         self.r2 = r2_client or R2Client()
         self.categories = categories or settings.ARXIV_CATEGORIES
         self.request_delay = request_delay or settings.ARXIV_REQUEST_DELAY_SECONDS
+        self.enable_queue = enable_queue
+        self.publisher = None
+        if self.enable_queue:
+            try:
+                self.publisher = queue_publisher or RabbitMQPublisher()
+            except Exception:
+                self.publisher = None
         self.http_client = httpx.Client(
             headers={
                 "User-Agent": "UTH-Scientific-DataMining-Harvester/1.0 (academic research; contact: data-mining@uth.edu.vn)"
@@ -42,6 +52,7 @@ class ArxivHarvester:
             timeout=30.0,
             follow_redirects=True,
         )
+
 
     def extract_clean_arxiv_id(self, raw_id_or_url: str) -> str:
         """Trích xuất ID arXiv chuẩn hóa dạng YYYY.NNNNN (bỏ URL prefix và version nếu cần)."""
@@ -159,6 +170,13 @@ class ArxivHarvester:
             metadata={"paper_id": paper_id},
         )
 
+        # 4. Đẩy paper vào RabbitMQ ingestion queue để worker embed bất đồng bộ
+        if self.enable_queue and self.publisher:
+            try:
+                self.publisher.publish_paper(paper_meta)
+            except Exception:
+                pass
+
         return {
             "paper_id": paper_id,
             "status": "INGESTED",
@@ -167,6 +185,7 @@ class ArxivHarvester:
             "html_uri": html_uri,
             "sha256": meta_res["sha256"],
         }
+
 
     def harvest_daily_papers(self, max_per_category: int = 5) -> List[Dict[str, Any]]:
         """Chạy harvest bài báo hàng ngày trên tất cả các danh mục được cấu hình."""

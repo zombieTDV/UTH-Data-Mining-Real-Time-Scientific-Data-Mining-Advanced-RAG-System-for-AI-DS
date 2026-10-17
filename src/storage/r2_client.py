@@ -13,7 +13,7 @@ from src.utils.hasher import compute_sha256
 
 
 class R2Client:
-    """Cloudflare R2 Storage Manager."""
+    """Unified S3-compatible Object Storage Manager (MinIO / Cloudflare R2)."""
 
     def __init__(
         self,
@@ -21,30 +21,38 @@ class R2Client:
         access_key_id: Optional[str] = None,
         secret_access_key: Optional[str] = None,
         bucket_name: Optional[str] = None,
+        provider: Optional[str] = None,
     ):
-        self.endpoint_url = endpoint_url or settings.get_r2_endpoint()
-        self.access_key_id = access_key_id or settings.R2_ACCESS_KEY_ID
-        self.secret_access_key = secret_access_key or settings.R2_SECRET_ACCESS_KEY
-        self.bucket_name = bucket_name or settings.R2_BUCKET_NAME
+        active_config = settings.get_active_storage_config()
+        self.provider = (provider or active_config["provider"]).lower()
+        self.endpoint_url = endpoint_url or active_config["endpoint_url"]
+        self.access_key_id = access_key_id or active_config["access_key_id"]
+        self.secret_access_key = secret_access_key or active_config["secret_access_key"]
+        self.bucket_name = bucket_name or active_config["bucket_name"]
 
         if not self.endpoint_url or not self.access_key_id or not self.secret_access_key:
             raise ValueError(
-                "Thiếu thông tin xác thực Cloudflare R2. Vui lòng kiểm tra file .env"
+                f"Thiếu thông tin xác thực Object Storage ({self.provider}). Vui lòng kiểm tra file .env"
             )
+
+        config_kwargs: Dict[str, Any] = {
+            "signature_version": "s3v4",
+            "retries": {"max_attempts": 3, "mode": "standard"},
+            "connect_timeout": 15,
+            "read_timeout": 30,
+        }
+        if self.provider == "minio" or active_config.get("addressing_style") == "path":
+            config_kwargs["s3"] = {"addressing_style": "path"}
 
         self.s3 = boto3.client(
             service_name="s3",
             endpoint_url=self.endpoint_url,
             aws_access_key_id=self.access_key_id,
             aws_secret_access_key=self.secret_access_key,
-            region_name="auto",
-            config=Config(
-                signature_version="s3v4",
-                retries={"max_attempts": 3, "mode": "standard"},
-                connect_timeout=15,
-                read_timeout=30,
-            ),
+            region_name="auto" if self.provider == "r2" else "us-east-1",
+            config=Config(**config_kwargs),
         )
+
 
     def object_exists(self, key: str) -> bool:
         """Kiểm tra xem object key đã tồn tại trong bucket hay chưa."""
@@ -227,3 +235,7 @@ class R2Client:
                     }
                 )
         return results
+
+
+# StorageClient alias for modern multi-provider lakehouse
+StorageClient = R2Client

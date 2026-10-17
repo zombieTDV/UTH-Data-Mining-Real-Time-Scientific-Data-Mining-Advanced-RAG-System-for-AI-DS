@@ -39,20 +39,22 @@ def main():
     args = parser.parse_args()
 
     print("=" * 75)
-    print("🚀 BẮT ĐẦU PIPELINE THU THẬP BÀI BÁO (ARXIV -> R2 BRONZE LAKEHOUSE)")
+    print(f"🚀 BẮT ĐẦU PIPELINE THU THẬP BÀI BÁO (ARXIV -> {settings.STORAGE_PROVIDER.upper()} BRONZE -> RABBITMQ)")
     print("=" * 75)
 
     categories = [args.category] if args.category else settings.ARXIV_CATEGORIES
     print(f"📌 Chuyên mục theo dõi: {', '.join(categories)}")
     print(f"📌 Giới hạn mỗi chuyên mục: {args.limit} bài")
-    print(f"📌 Bucket R2 mục tiêu: {settings.R2_BUCKET_NAME}")
+    print(f"📌 Storage Provider: {settings.STORAGE_PROVIDER.upper()} (Bucket: {settings.MINIO_BUCKET_NAME if settings.STORAGE_PROVIDER == 'minio' else settings.R2_BUCKET_NAME})")
+    print(f"📌 RabbitMQ Queue: {settings.RABBITMQ_QUEUE_INGEST}")
 
     try:
         r2 = R2Client()
         harvester = ArxivHarvester(r2_client=r2, categories=categories)
     except Exception as e:
-        print(f"❌ Lỗi khởi tạo R2 Client: {e}")
+        print(f"❌ Lỗi khởi tạo Storage Client: {e}")
         sys.exit(1)
+
 
     total_ingested = 0
     total_skipped = 0

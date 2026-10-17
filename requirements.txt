@@ -31,7 +31,9 @@ requests>=2.31.0
 feedparser>=6.0.11
 xmltodict>=0.13.0
 beautifulsoup4>=4.12.0
+pika>=1.3.0              # RabbitMQ AMQP client
 tenacity>=8.3.0
+
 tqdm>=4.66.0
 
 # ------------------------------------------------------------------------------
@@ -41,11 +43,13 @@ pymupdf>=1.24.0          # PyMuPDF (fitz) - high-speed academic PDF section & la
 pypdf>=4.2.0
 
 # ------------------------------------------------------------------------------
-# 5. Vector Lakehouse & Search (LanceDB + BM25)
+# 5. Vector Lakehouse & Search (Qdrant + LanceDB + BM25)
 # ------------------------------------------------------------------------------
+qdrant-client>=1.9.0     # Production Rust-based HNSW Vector Search Engine
 lancedb>=0.13.0          # Multi-modal / Vector Lakehouse on Arrow & S3/R2
 pylance>=0.10.0          # Columnar file format for vector/tabular search
 rank-bm25>=0.2.2         # Sparse keyword search for Hybrid Search
+
 
 # ------------------------------------------------------------------------------
 # 6. Deep Learning, Embeddings & Reranking
