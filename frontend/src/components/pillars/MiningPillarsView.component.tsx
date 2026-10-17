@@ -1138,7 +1138,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           ...(isTheaterMode
             ? {
                 position: 'fixed' as const,
-                top: '52px',
+                top: '56px',
                 left: '58px',
                 right: 0,
                 bottom: '32px',

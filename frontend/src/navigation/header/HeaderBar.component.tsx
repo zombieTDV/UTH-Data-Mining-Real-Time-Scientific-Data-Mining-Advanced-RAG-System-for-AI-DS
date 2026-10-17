@@ -60,24 +60,27 @@ export const HeaderBar: FC<HeaderBarProps> = ({
         backgroundColor: 'var(--header-bg)',
         backdropFilter: 'blur(12px)',
         borderBottom: '1px solid var(--header-border)',
-        padding: '0 20px',
+        padding: '0 16px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        zIndex: 40,
-        gap: '16px',
+        position: 'relative',
+        zIndex: 80,
+        gap: '12px',
+        minWidth: 0,
+        boxSizing: 'border-box',
       }}
     >
       {/* Brand & University Identity */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 900, letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
+            <span style={{ fontSize: '13px', fontWeight: 900, letterSpacing: '0.04em', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
               {language === 'vi' ? 'LAKEHOUSE DỮ LIỆU KHOA HỌC UTH' : 'UTH SCIENTIFIC LAKEHOUSE & MINING'}
             </span>
             <StatusPill backendStatus={backendStatus} lastTelemetryTick={lastTelemetryTick} />
           </div>
-          <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.02em' }}>
+          <span className="header-brand-sub" style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
             {language === 'vi'
               ? 'TRƯỜNG ĐẠI HỌC GIAO THÔNG VẬN TẢI TP.HCM (UTH)'
               : 'HO CHI MINH CITY UNIVERSITY OF TRANSPORT (UTH)'}
@@ -86,7 +89,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
       </div>
 
       {/* Real-time Synchronized Status Center (Mission Control: Data + R2 Infrastructure) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '1 1 auto', minWidth: 0, overflow: 'hidden' }}>
         <PipelineStatusPill
           pipelineStatus={pipelineStatus}
           streamActive={streamActive}
@@ -108,7 +111,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
           title={
             isSyncingR2
               ? (language === 'vi' ? 'Đang nhận tín hiệu đồng bộ từ Cloudflare R2 bucket: scientific-rag-lakehouse...' : 'Synchronizing with Cloudflare R2 bucket...')
-              : (language === 'vi' ? 'Đã kết nối trực tiếp với Cloudflare R2 Lakehouse. Bấm nút "Sync Live R2" để quét lại dung lượng & đối tượng.' : 'Directly connected to Cloudflare R2 Lakehouse.')
+              : (language === 'vi' ? `Cloudflare R2 Bucket: scientific-rag-lakehouse | Đồng bộ: ${lastSyncedR2 || 'Trực tiếp'}` : `Cloudflare R2 Bucket: scientific-rag-lakehouse | Synced: ${lastSyncedR2 || 'Live'}`)
           }
           style={{
             display: 'flex',
@@ -118,7 +121,7 @@ export const HeaderBar: FC<HeaderBarProps> = ({
             height: '32px',
             boxSizing: 'border-box',
             borderRadius: '6px',
-            fontSize: '9px',
+            fontSize: '9.5px',
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             backgroundColor: isSyncingR2
@@ -127,6 +130,8 @@ export const HeaderBar: FC<HeaderBarProps> = ({
             color: isSyncingR2 ? '#0284c7' : '#059669',
             border: `1px solid ${isSyncingR2 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(16, 185, 129, 0.3)'}`,
             letterSpacing: '0.02em',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
             transition: 'all 0.2s ease',
           }}
         >
@@ -137,14 +142,15 @@ export const HeaderBar: FC<HeaderBarProps> = ({
               borderRadius: '50%',
               backgroundColor: isSyncingR2 ? '#38bdf8' : '#10b981',
               animation: isSyncingR2 ? 'spin 0.8s linear infinite' : 'stageGlowEmerald 2s infinite',
+              flexShrink: 0,
             }}
           />
           <span>
             {isSyncingR2
-              ? (language === 'vi' ? 'ĐANG SYNC R2...' : 'SYNCING R2...')
+              ? (language === 'vi' ? 'SYNCING...' : 'SYNCING...')
               : lastSyncedR2
-              ? `R2 SYNCED: ${lastSyncedR2}`
-              : (language === 'vi' ? 'R2 LIVE CONNECTED' : 'R2 LIVE CONNECTED')}
+              ? (lastSyncedR2.includes(' ') ? lastSyncedR2.split(' ')[1] : lastSyncedR2)
+              : 'LIVE'}
           </span>
         </div>
 

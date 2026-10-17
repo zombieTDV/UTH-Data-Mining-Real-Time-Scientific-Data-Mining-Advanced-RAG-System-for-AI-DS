@@ -202,7 +202,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
         ...(isTheaterMode
           ? {
               position: 'fixed',
-              top: '52px',
+              top: '56px',
               left: '58px',
               right: 0,
               bottom: '32px',

@@ -799,3 +799,36 @@ button:active {
     transform: translateY(0);
   }
 }
+
+/* ========================================================================== */
+/* RESPONSIVE HEADER TELEMETRY & ANTI-COLLISION RULES                        */
+/* ========================================================================== */
+.header-pill-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--badge-bg);
+  padding: 0 10px;
+  height: 32px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid var(--badge-border);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  font-family: var(--font-mono);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 1;
+}
+
+@media (max-width: 1200px) {
+  .header-pill-formulas,
+  .header-pill-vectors {
+    display: none !important;
+  }
+  .header-brand-sub {
+    display: none !important;
+  }
+}
+
+

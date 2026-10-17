@@ -69,23 +69,10 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
   return (
     <div
       title={tooltipContent}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '9px',
-        backgroundColor: 'var(--badge-bg)',
-        padding: '0 12px',
-        height: '32px',
-        boxSizing: 'border-box',
-        borderRadius: '8px',
-        border: '1px solid var(--badge-border)',
-        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
-        fontFamily: 'var(--font-mono)',
-        transition: 'all 0.2s ease',
-      }}
+      className="header-pill-container"
     >
       {/* 1. Live Pipeline Status Indicator */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
         <span
           style={{
             width: '7px',
@@ -94,6 +81,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
             backgroundColor: statusColor,
             boxShadow: statusGlow,
             animation: isRunning || streamActive ? 'stageGlowOrange 1.2s infinite' : 'none',
+            flexShrink: 0,
           }}
         />
         <span
@@ -113,12 +101,12 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
         </span>
       </div>
 
-      <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-subtle)' }} />
+      <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-subtle)', flexShrink: 0 }} />
 
       {/* 2. Core Data Corpus Metric Chips */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '10.5px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '10.5px', flexShrink: 0 }}>
         {/* Papers / Works */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
@@ -147,10 +135,9 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
           )}
         </div>
 
-        <span style={{ color: 'var(--border-subtle)', fontSize: '9px' }}>•</span>
-
         {/* Math Formulas */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+        <div className="header-pill-formulas" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ color: 'var(--border-subtle)', fontSize: '9px', marginRight: '3px' }}>•</span>
           <span style={{ color: '#ea580c', fontWeight: 900, fontSize: '10.5px' }}>∑</span>
           <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
             <AnimatedCounter
@@ -163,10 +150,9 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
           </span>
         </div>
 
-        <span style={{ color: 'var(--border-subtle)', fontSize: '9px' }}>•</span>
-
         {/* LanceDB Vectors */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+        <div className="header-pill-vectors" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ color: 'var(--border-subtle)', fontSize: '9px', marginRight: '3px' }}>•</span>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="12 2 2 7 12 12 22 7 12 2" />
             <polyline points="2 17 12 22 22 17" />
@@ -180,55 +166,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
           </span>
         </div>
       </div>
-
-      <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-subtle)' }} />
-
-      {/* 3. Cloudflare R2 Lakehouse Infrastructure Micro-Telemetry */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '10px' }}>
-        {/* R2 Storage Footprint */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <span
-            style={{
-              fontSize: '8.5px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              color: '#38bdf8',
-              backgroundColor: 'rgba(56, 189, 248, 0.12)',
-              padding: '1px 4px',
-              borderRadius: '3px',
-            }}
-          >
-            R2
-          </span>
-          <span style={{ fontWeight: 800, color: '#10b981' }}>
-            {totalSizeGb.toFixed(2)} GB
-          </span>
-        </div>
-
-        <span style={{ color: 'var(--border-subtle)', fontSize: '9px' }}>•</span>
-
-        {/* Ingestion Rate PPM */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-          <span style={{ fontWeight: 800, color: '#ea580c' }}>
-            {ingestionPpm}
-          </span>
-          <span style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
-            PPM
-          </span>
-        </div>
-
-        <span style={{ color: 'var(--border-subtle)', fontSize: '9px' }}>•</span>
-
-        {/* Dedup Rate */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-          <span style={{ fontWeight: 800, color: '#8b5cf6' }}>
-            {dedupRatePct}%
-          </span>
-          <span style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
-            DEDUP
-          </span>
-        </div>
-      </div>
     </div>
   );
 };
+
