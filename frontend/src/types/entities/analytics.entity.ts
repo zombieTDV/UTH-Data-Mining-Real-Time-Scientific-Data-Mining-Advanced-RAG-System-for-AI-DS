@@ -74,6 +74,35 @@ export interface GmmClusterInfo {
   percentage: number;
 }
 
+export interface SourceCompositionItem {
+  source: string;
+  label: string;
+  paper_count: number;
+  percentage: number;
+  raw_format: string;
+  size_mb: number;
+  description: string;
+  color: string;
+}
+
+export interface MissingnessAuditItem {
+  field: string;
+  label: string;
+  total: number;
+  present: number;
+  missing: number;
+  completeness_pct: number;
+  status: string;
+}
+
+export interface HarvestTimelineItem {
+  year: string;
+  arxiv_count: number;
+  openreview_count: number;
+  cvf_count: number;
+  total: number;
+}
+
 export interface CollectionSourceItem {
   name: string;
   count: number;
@@ -100,13 +129,18 @@ export interface CollectionTimelineItem {
 }
 
 export interface CollectionEdaSummary {
-  sources: CollectionSourceItem[];
-  total_collected: number;
-  missingness: CollectionMissingnessItem[];
-  timeline: CollectionTimelineItem[];
-  collection_notes?: string;
   total_papers?: number;
   total_size_gb?: number;
+  ingestion_rate_ppm?: number;
+  active_dedup_rate_pct?: number;
+  sources_composition?: SourceCompositionItem[];
+  missingness_audit?: MissingnessAuditItem[];
+  harvest_timeline?: HarvestTimelineItem[];
+  sources?: CollectionSourceItem[];
+  total_collected?: number;
+  missingness?: CollectionMissingnessItem[];
+  timeline?: CollectionTimelineItem[];
+  collection_notes?: string;
 }
 
 export interface ProcessingCleaningStep {
@@ -118,7 +152,15 @@ export interface ProcessingCleaningStep {
 }
 
 export interface ProcessingEdaSummary {
-  metrics: {
+  fulltext_papers_count?: number;
+  total_math_formulas?: number;
+  total_words?: number;
+  avg_words_per_paper?: number;
+  avg_math_per_paper?: number;
+  avg_sections_per_paper?: number;
+  primary_clean_ratio?: number;
+  latex_preservation_pct?: number;
+  metrics?: {
     total_words_extracted: number;
     total_math_extracted: number;
     total_sections_extracted: number;
@@ -126,11 +168,8 @@ export interface ProcessingEdaSummary {
     avg_math_per_paper: number;
     avg_sections_per_paper: number;
   };
-  cleaning_steps: ProcessingCleaningStep[];
+  cleaning_steps?: ProcessingCleaningStep[];
   math_density_histogram?: Array<{ bin: string; count: number; pct: number }>;
-  fulltext_papers_count?: number;
-  total_math_formulas?: number;
-  total_words?: number;
 }
 
 export interface EdaResponse {
