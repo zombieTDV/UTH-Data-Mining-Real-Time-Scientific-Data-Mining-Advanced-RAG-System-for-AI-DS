@@ -22,6 +22,8 @@ class MinIOClient:
         secret_access_key: Optional[str] = None,
         bucket_name: Optional[str] = None,
     ):
+        if not endpoint_url:
+            settings.validate_storage()
         self.endpoint_url = endpoint_url or settings.MINIO_ENDPOINT_URL
         self.access_key_id = access_key_id or settings.MINIO_ACCESS_KEY_ID
         self.secret_access_key = secret_access_key or settings.MINIO_SECRET_ACCESS_KEY
@@ -203,10 +205,14 @@ class MinIOClient:
     # Alias for compatibility with standard S3/R2 client interface
     download_file = download_file_safe
 
+    def get_bytes(self, key: str) -> bytes:
+        """Đọc toàn bộ object vào bộ nhớ (không ghi ổ đĩa)."""
+        response = self.s3.get_object(Bucket=self.bucket_name, Key=self.sanitize_key(key))
+        return response["Body"].read()
+
     def get_text(self, key: str) -> str:
         """Đọc nội dung văn bản từ MinIO object."""
-        response = self.s3.get_object(Bucket=self.bucket_name, Key=self.sanitize_key(key))
-        return response["Body"].read().decode("utf-8")
+        return self.get_bytes(key).decode("utf-8")
 
     def get_json(self, key: str) -> Any:
         """Đọc và parse JSON từ MinIO object."""

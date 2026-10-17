@@ -2,7 +2,7 @@
 backend/app/services/mining_service.py
 --------------------------------------
 Data Mining & Exploratory Analytics Serving Service.
-Loads curated artifacts from data/gold/mining/ and streams live telemetry.
+Loads curated artifacts from MinIO (gold/mining/) and streams live telemetry.
 """
 
 import os
@@ -11,6 +11,7 @@ import asyncio
 import logging
 from typing import Dict, Any, AsyncGenerator
 from backend.app.core.config import settings
+from backend.app.services.lake import lake
 from backend.app.schemas.mining import (
     EdaResponse,
     AssociationRulesResponse,
@@ -24,27 +25,13 @@ logger = logging.getLogger("mining_service")
 
 class MiningService:
     def __init__(self):
-        self.artifacts_dir = settings.MINING_ARTIFACTS_DIR
-        self._cache: Dict[str, Any] = {}
+        self.prefix = settings.MINING_PREFIX
 
     def _load_json(self, filename: str) -> Dict[str, Any]:
-        file_path = self.artifacts_dir / filename
-        if not file_path.exists():
-            # Try root relative fallback
-            file_path = settings.PROJECT_ROOT_DIR / "data" / "gold" / "mining" / filename
-
-        if not file_path.exists():
-            raise FileNotFoundError(f"Mining artifact '{filename}' not found. Run Python mining engine first.")
-
-        mtime = file_path.stat().st_mtime
-        cache_entry = self._cache.get(filename)
-        if cache_entry and cache_entry.get("mtime") == mtime:
-            return cache_entry.get("data")
-
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            self._cache[filename] = {"mtime": mtime, "data": data}
-            return data
+        data = lake.get_json(f"{self.prefix}/{filename}", ttl=60)
+        if data is None:
+            raise FileNotFoundError(f"Mining artifact '{filename}' not found in MinIO ({self.prefix}/). Run the mining engine first.")
+        return data
 
     def get_eda(self) -> EdaResponse:
         raw = self._load_json("eda_summary.json")

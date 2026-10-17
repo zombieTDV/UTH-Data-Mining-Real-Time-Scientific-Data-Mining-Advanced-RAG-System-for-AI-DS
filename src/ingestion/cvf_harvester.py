@@ -24,6 +24,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config.settings import settings
+from src.storage.lakehouse_io import LakehouseIO
 from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.silver_writer import SilverLakehouseWriter
 from src.utils.logger import setup_pipeline_logging
@@ -39,12 +40,11 @@ class CvfHarvester:
     def __init__(
         self,
         r2_client: Optional[R2Client] = None,
-        bronze_dir: Optional[Path] = None,
+        bronze_dir: Optional[Path] = None,  # ignored: Bronze lives in MinIO
         request_delay: float = 0.5,
     ):
         self.r2 = r2_client or R2Client()
-        self.bronze_dir = bronze_dir or (settings.ROOT_DIR / "data" / "raw" / "cvf")
-        self.bronze_dir.mkdir(parents=True, exist_ok=True)
+        self.io = LakehouseIO(self.r2)
         self.silver_writer = SilverLakehouseWriter(r2_client=self.r2)
         self.request_delay = request_delay
 
@@ -58,15 +58,17 @@ class CvfHarvester:
 
     def fetch_papers_listing(self, venue: str = "CVPR2024") -> List[Dict[str, Any]]:
         """Scrapes the main conference proceedings directory with local disk caching and retries."""
-        cache_file = self.bronze_dir / f"{venue.lower()}_listing_cache.html"
+        cache_key = f"bronze/cvf/{venue.lower()}_listing_cache.html"
 
         html_content = ""
-        if cache_file.exists() and cache_file.stat().st_size > 100000:
-            logger.info("[CVF HARVESTER] Loading cached listing from: %s (%d bytes)", cache_file, cache_file.stat().st_size)
-            try:
-                html_content = cache_file.read_text(encoding="utf-8")
-            except Exception as e:
-                logger.warning("[CVF HARVESTER] Cache read failed (%s), will re-download.", e)
+        try:
+            if self.r2.object_exists(cache_key):
+                cached = self.r2.get_text(cache_key)
+                if len(cached) > 100000:
+                    logger.info("[CVF HARVESTER] Loaded cached listing from MinIO: %s (%d bytes)", cache_key, len(cached))
+                    html_content = cached
+        except Exception as e:
+            logger.warning("[CVF HARVESTER] Cache read failed (%s), will re-download.", e)
 
         if not html_content:
             url = f"{self.BASE_URL}/{venue}?day=all"
@@ -79,7 +81,7 @@ class CvfHarvester:
                         resp = client.get(url)
                         resp.raise_for_status()
                         html_content = resp.text
-                        cache_file.write_text(html_content, encoding="utf-8")
+                        self.r2.upload_text(html_content, cache_key, content_type="text/html; charset=utf-8")
                         logger.info("[CVF HARVESTER] Successfully downloaded and cached %d bytes.", len(html_content))
                         break
                 except Exception as e:
@@ -206,10 +208,9 @@ class CvfHarvester:
 
         # 1. Vault raw JSON to Bronze Layer
         timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        bronze_file = self.bronze_dir / f"{venue.lower()}_{timestamp_str}.json"
-        with open(bronze_file, "w", encoding="utf-8") as f:
-            json.dump(selected, f, ensure_ascii=False, indent=2)
-        logger.info("[BRONZE VAULT] Saved %d raw CVF papers to Bronze vault: %s", len(selected), bronze_file)
+        bronze_key = f"bronze/cvf/{venue.lower()}_{timestamp_str}.json"
+        self.io.put_json(bronze_key, selected)
+        logger.info("[BRONZE VAULT] Saved %d raw CVF papers to s3://%s/%s", len(selected), self.r2.bucket_name, bronze_key)
 
         # 2. Transform into Silver Canonical Records
         silver_records = []
@@ -248,12 +249,9 @@ class CvfHarvester:
             silver_records.append(rec)
 
         # 3. Save to Silver Parquet partition
-        silver_dest = settings.ROOT_DIR / "data" / "silver" / "cvf" / f"{venue.lower()}.parquet"
-        silver_dest.parent.mkdir(parents=True, exist_ok=True)
         import pandas as pd
-        df = pd.DataFrame(silver_records)
-        df.to_parquet(silver_dest, engine="pyarrow", compression="zstd")
-        logger.info("[SILVER LAKEHOUSE] Saved %d CVF papers to Silver Parquet: %s", len(silver_records), silver_dest)
+        res = self.io.write_parquet(f"silver/cvf/{venue.lower()}.parquet", pd.DataFrame(silver_records))
+        logger.info("[SILVER LAKEHOUSE] Saved %d CVF papers to %s", len(silver_records), res["uri"])
 
         return silver_records
 

@@ -5,13 +5,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from backend.app.core.config import settings
 from backend.app.schemas.storage import StorageStatsResponse
+from backend.app.services.lake import lake
 from backend.app.services.storage_service import storage_service
 
 router = APIRouter()
 
 
 class DuckDbQueryRequest(BaseModel):
-    sql: str = Field(..., examples=["SELECT primary_category, count(*) as count FROM read_parquet('data/silver/year=2026/papers.parquet') GROUP BY 1"])
+    sql: str = Field(..., examples=["SELECT primary_category, count(*) as count FROM papers GROUP BY 1"])
 
 
 class DuckDbQueryResponse(BaseModel):
@@ -28,7 +29,7 @@ async def get_storage_stats():
 
 @router.post("/storage/sync-r2", tags=["Storage & Lakehouse"])
 async def trigger_r2_sync():
-    """Triggers background live scan of Cloudflare R2 bucket and updates manifest cache."""
+    """Forces a fresh scan of the MinIO bucket."""
     return storage_service.sync_live_from_r2()
 
 
@@ -40,55 +41,39 @@ async def reset_streaming_session():
     return {"status": "SUCCESS", "message": "Streaming ingestion session reset to baseline."}
 
 
+MAX_QUERY_ROWS = 10000
+DUCKDB_VIEWS = {
+    "papers": None,  # resolved to settings.SILVER_PRIMARY_KEY
+    "scientific_papers_gold": None,  # legacy alias of papers
+    "tier1_papers": "silver/tier1/landmark_papers.parquet",
+    "tier2_papers": "silver/tier2/near_past_papers.parquet",
+}
+
+
 @router.post("/storage/query", response_model=DuckDbQueryResponse, tags=["Storage & Lakehouse"])
 async def execute_duckdb_query(req: DuckDbQueryRequest):
-    """Executes a vectorized DuckDB SQL query over the Parquet Lakehouse files."""
-    cleaned_sql = req.sql.strip().rstrip(";")
-    
-    # Prevent destructive queries
-    upper_sql = cleaned_sql.upper()
-    for forbidden in ["DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE"]:
-        if forbidden in upper_sql.split():
-            raise HTTPException(status_code=400, detail=f"Operation '{forbidden}' is not permitted.")
+    """Read-only DuckDB SQL over the Silver Parquet tables stored in MinIO.
 
-    # Discover available parquet file or provide graceful fallback
-    parquet_file = settings.SILVER_PARQUET
-    if not parquet_file.exists():
-        candidates = [
-            settings.PROJECT_ROOT_DIR / "data" / "silver" / "papers.parquet",
-            *list(settings.PROJECT_ROOT_DIR.glob("data_mining/**/papers.parquet")),
-        ]
-        for c in candidates:
-            if c.exists():
-                parquet_file = c
-                break
+    Available tables: papers, tier1_papers, tier2_papers. Only a single SELECT/WITH statement is accepted and
+    DuckDB's file/network access is disabled once the MinIO-backed tables are registered.
+    """
+    cleaned_sql = req.sql.strip().rstrip(";").strip()
+    if ";" in cleaned_sql:
+        raise HTTPException(status_code=400, detail="Only a single statement is allowed.")
+    if cleaned_sql.split(None, 1)[0].upper() not in ("SELECT", "WITH"):
+        raise HTTPException(status_code=400, detail="Only SELECT / WITH queries are permitted.")
 
     t0 = time.time()
     try:
         con = duckdb.connect(database=":memory:")
-        if not parquet_file.exists():
-            con.execute("""
-                CREATE VIEW papers AS 
-                SELECT '2402.10350' AS paper_id, 'cs.AI' AS primary_category, 'Scientific Title' AS title, 
-                       12 AS total_math_count, 2026 AS year, 'Sample paper text' AS text
-            """)
-        else:
-            parquet_path = str(parquet_file)
-            if "scientific_papers_gold" in cleaned_sql:
-                cleaned_sql = cleaned_sql.replace("scientific_papers_gold", f"read_parquet('{parquet_path}')")
-            elif "read_parquet(" not in cleaned_sql and "papers.parquet" not in cleaned_sql:
-                cleaned_sql = cleaned_sql.replace("papers", f"read_parquet('{parquet_path}')")
-
-        df = con.execute(cleaned_sql).df()
+        for view, key in DUCKDB_VIEWS.items():
+            con.register(view, lake.dataset(key or settings.SILVER_PRIMARY_KEY))
+        con.execute("SET enable_external_access=false")
+        df = con.execute(f"SELECT * FROM ({cleaned_sql}) AS q LIMIT {MAX_QUERY_ROWS}").df()
         elapsed_ms = round((time.time() - t0) * 1000.0, 2)
-        columns = list(df.columns)
-        # Convert non-serializable objects (like numpy types or timestamps) to python primitives
         records = df.to_dict(orient="records")
-        return DuckDbQueryResponse(
-            columns=columns,
-            rows=records,
-            row_count=len(records),
-            execution_time_ms=elapsed_ms,
-        )
+        return DuckDbQueryResponse(columns=list(df.columns), rows=records, row_count=len(records), execution_time_ms=elapsed_ms)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"DuckDB execution error: {str(e)}")

@@ -18,8 +18,8 @@ from airflow.operators.python import PythonOperator
 
 logger = logging.getLogger("airflow.task")
 
-MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT_URL", "http://host.docker.internal:9000")
-BUCKET_NAME = "uth-scientific-lakehouse"
+MINIO_ENDPOINT = os.environ["MINIO_ENDPOINT_URL"]
+BUCKET_NAME = os.environ["MINIO_BUCKET_NAME"]
 
 default_args = {
     "owner": "uth_data_mining",

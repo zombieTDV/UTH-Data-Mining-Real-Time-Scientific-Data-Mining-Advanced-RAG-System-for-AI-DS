@@ -40,76 +40,67 @@ from src.utils.logger import setup_pipeline_logging
 logger, log_file = setup_pipeline_logging("three_tier_master_pipeline")
 
 
+def _parquet_rows(fs, bucket: str, key: str) -> int:
+    """Row count from the Parquet footer only (S3 range reads, no full download)."""
+    import pyarrow.parquet as pq
+
+    try:
+        with fs.open_input_file(f"{bucket}/{key}") as f:
+            return pq.ParquetFile(f).metadata.num_rows
+    except Exception:
+        return 0
+
+
 def get_architecture_status() -> Dict[str, Any]:
-    """Inspects lakehouse volumes, unique hashes, and tier data partitions."""
-    dedup = LakehouseDeduplicator()
-    total_hashes = len(dedup)
+    """Inspects lakehouse volumes, unique hashes, and tier partitions directly in MinIO."""
+    from urllib.parse import urlparse
 
-    silver_dir = settings.ROOT_DIR / "data" / "silver"
-    raw_dir = settings.ROOT_DIR / "data" / "raw"
+    import pyarrow.fs as pafs
+    from src.storage.minio_client import StorageClient
 
-    t1_parquet = silver_dir / "tier1" / "landmark_papers.parquet"
-    t2_parquet = silver_dir / "tier2" / "near_past_papers.parquet"
-    t3_parquet = silver_dir / "tier3" / "realtime_papers.parquet"
+    storage = StorageClient()
+    bucket = storage.bucket_name
+    endpoint = urlparse(settings.MINIO_ENDPOINT_URL)
+    fs = pafs.S3FileSystem(
+        access_key=settings.MINIO_ACCESS_KEY_ID,
+        secret_key=settings.MINIO_SECRET_ACCESS_KEY,
+        endpoint_override=endpoint.netloc,
+        scheme=endpoint.scheme or "http",
+        region="us-east-1",
+    )
 
-    def count_parquet(path: Path) -> int:
-        if path.exists():
-            try:
-                import pyarrow.parquet as pq
-                return pq.read_metadata(path).num_rows
-            except Exception:
-                return 0
-        return 0
+    total_hashes = len(LakehouseDeduplicator())
 
-    def count_raw_json(path: Path) -> int:
-        if path.exists():
-            return len(list(path.glob("*.json")))
-        return 0
+    t1_silver = _parquet_rows(fs, bucket, "silver/tier1/landmark_papers.parquet")
+    t2_silver = _parquet_rows(fs, bucket, "silver/tier2/near_past_papers.parquet")
+    t3_silver = sum(
+        _parquet_rows(fs, bucket, o["key"])
+        for o in storage.list_objects("silver/papers/", max_keys=100000)
+        if o["key"].endswith(".parquet")
+    )
 
-    t1_silver_count = count_parquet(t1_parquet)
-    t2_silver_count = count_parquet(t2_parquet)
-    t3_silver_count = count_parquet(t3_parquet)
-
-    t1_raw_count = count_raw_json(raw_dir / "tier1")
-    t2_raw_count = count_raw_json(raw_dir / "tier2")
-    t3_raw_count = count_raw_json(raw_dir / "tier3")
-
-    # Global silver partitioned counts
-    total_silver_papers = 0
-    for p_file in silver_dir.glob("**/papers.parquet"):
-        total_silver_papers += count_parquet(p_file)
+    def count_json(prefix: str) -> int:
+        return sum(1 for o in storage.list_objects(prefix, max_keys=1000000) if o["key"].endswith(".json"))
 
     # Qdrant Gold Count
     qdrant_count = 0
     try:
         from src.indexing.qdrant_manager import QdrantManager
-        qm = QdrantManager()
-        qdrant_count = qm.count()
+
+        qdrant_count = QdrantManager().count()
     except Exception:
         pass
 
+    def tier(name: str, raw: int, silver: int) -> Dict[str, Any]:
+        return {"name": name, "raw_bronze": raw, "silver_parquet": silver, "status": "HEALTHY" if silver > 0 else "READY"}
+
     return {
         "total_unique_abstract_hashes": total_hashes,
-        "total_silver_papers": total_silver_papers,
+        "total_silver_papers": t1_silver + t2_silver + t3_silver,
         "qdrant_gold_vectors": qdrant_count,
-        "tier1": {
-            "name": "Tier 1: Historical Core (Landmarks)",
-            "raw_bronze": t1_raw_count,
-            "silver_parquet": t1_silver_count,
-            "status": "HEALTHY" if t1_silver_count > 0 else "READY",
-        },
-        "tier2": {
-            "name": "Tier 2: Near-Past Trending (2024-Present)",
-            "raw_bronze": t2_raw_count,
-            "silver_parquet": t2_silver_count,
-            "status": "HEALTHY" if t2_silver_count > 0 else "READY",
-        },
-        "tier3": {
-            "name": "Tier 3: Live Real-Time Forward Stream",
-            "raw_bronze": t3_raw_count,
-            "silver_parquet": t3_silver_count,
-            "status": "HEALTHY" if t3_silver_count > 0 else "READY",
-        },
+        "tier1": tier("Tier 1: Historical Core (Landmarks)", count_json("bronze/tier1/"), t1_silver),
+        "tier2": tier("Tier 2: Near-Past Trending (2024-Present)", count_json("bronze/tier2/"), t2_silver),
+        "tier3": tier("Tier 3: Live Real-Time Forward Stream (silver/papers/)", count_json("bronze/papers/"), t3_silver),
     }
 
 

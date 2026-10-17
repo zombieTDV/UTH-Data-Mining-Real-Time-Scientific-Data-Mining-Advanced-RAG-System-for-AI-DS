@@ -6,12 +6,15 @@ Allows the Frontend UI, Admin Dashboard, and background workers to:
 - Trigger manual immediate harvest for academic sources.
 """
 
+import logging
 from typing import Any, Dict, Optional
 import requests
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 from src.config.settings import settings
+
+logger = logging.getLogger("scheduler")
 
 router = APIRouter(prefix="/scheduler", tags=["Adaptive Ingestion Scheduler"])
 
@@ -69,22 +72,31 @@ class ToggleSourceRequest(BaseModel):
     enabled: Optional[bool] = Field(None, description="Explicit boolean state (True=ON, False=OFF).")
 
 
+def _queue_stats(name: str) -> Optional[Dict[str, Any]]:
+    url = f"{settings.RABBITMQ_MGMT_URL.rstrip('/')}/api/queues/%2f/{name}"
+    resp = requests.get(url, auth=(settings.RABBITMQ_USER, settings.RABBITMQ_PASSWORD), timeout=3)
+    if resp.status_code == 200:
+        return resp.json()
+    return None
+
+
 def _get_rabbitmq_status() -> Dict[str, Any]:
-    """Inspects RabbitMQ queue metrics via Management HTTP API."""
+    """Queue metrics from the RabbitMQ management API; OFFLINE when it cannot be reached."""
     try:
-        url = f"http://localhost:15672/api/queues/%2f/{settings.RABBITMQ_QUEUE_INGEST}"
-        resp = requests.get(url, auth=("admin", "password123"), timeout=3)
-        if resp.status_code == 200:
-            data = resp.json()
+        data = _queue_stats(settings.RABBITMQ_QUEUE_INGEST)
+        if data is not None:
+            dead = _queue_stats(f"{settings.RABBITMQ_QUEUE_INGEST}.dead") or {}
             return {
                 "status": "HEALTHY",
                 "messages_ready": data.get("messages_ready", 0),
                 "messages_unacknowledged": data.get("messages_unacknowledged", 0),
                 "consumers": data.get("consumers", 0),
+                "dead_letter_messages": dead.get("messages", 0),
             }
-    except Exception:
-        pass
-    return {"status": "ONLINE", "messages_ready": 0, "consumers": 0}
+        return {"status": "QUEUE_MISSING", "messages_ready": 0, "consumers": 0}
+    except Exception as e:
+        logger.warning("[SCHEDULER] RabbitMQ unreachable: %s", e)
+        return {"status": "OFFLINE", "messages_ready": 0, "consumers": 0}
 
 
 @router.get("/status")
@@ -143,8 +155,8 @@ def _run_harvest_task(source: str, limit: int):
         papers = harvester.fetch_rss_feed("cs.AI")
         for p in papers[:limit]:
             harvester.ingest_paper(p, download_html=False)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("[SCHEDULER] Manual harvest '%s' failed: %s", source, e)
 
 
 @router.post("/trigger/{source}")

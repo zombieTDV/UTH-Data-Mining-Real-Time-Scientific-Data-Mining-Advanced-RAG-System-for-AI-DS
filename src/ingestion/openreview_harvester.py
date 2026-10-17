@@ -26,6 +26,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config.settings import settings
+from src.storage.lakehouse_io import LakehouseIO
 from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.silver_writer import SilverLakehouseWriter
 from src.utils.logger import setup_pipeline_logging
@@ -51,16 +52,15 @@ class OpenReviewHarvester:
     def __init__(
         self,
         r2_client: Optional[R2Client] = None,
-        bronze_dir: Optional[Path] = None,
+        bronze_dir: Optional[Path] = None,  # ignored: Bronze lives in MinIO
     ):
         self.r2 = r2_client or R2Client()
-        self.bronze_dir = bronze_dir or (settings.ROOT_DIR / "data" / "raw" / "openreview")
-        self.bronze_dir.mkdir(parents=True, exist_ok=True)
+        self.io = LakehouseIO(self.r2)
         self.silver_writer = SilverLakehouseWriter(r2_client=self.r2)
 
         self.http_client = httpx.Client(
             headers={
-                "User-Agent": "UTH-DataMining-OpenReviewHarvester/2.5 (academic research; contact: data-mining@uth.edu.vn)"
+                "User-Agent": settings.ARXIV_USER_AGENT
             },
             timeout=30.0,
             follow_redirects=True,
@@ -175,7 +175,7 @@ class OpenReviewHarvester:
                     if papers_map:
                         p_sample = list(papers_map.values())[-1]
                         self.http_client.post(
-                            "http://localhost:8000/api/ingestion/broadcast",
+                            settings.BACKEND_BROADCAST_URL,
                             json={
                                 "type": "PAPER_INGESTED",
                                 "paper_id": str(p_sample.get("paper_id", "")),
@@ -308,10 +308,9 @@ class OpenReviewHarvester:
 
         # 3. Vault raw records to Bronze Layer
         timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        bronze_file = self.bronze_dir / f"openreview_{venue.lower()}_{timestamp_str}.json"
-        with open(bronze_file, "w", encoding="utf-8") as f:
-            json.dump(papers, f, ensure_ascii=False, indent=2)
-        logger.info("[BRONZE VAULT] Saved %d papers to Bronze vault: %s", len(papers), bronze_file)
+        bronze_key = f"bronze/openreview/openreview_{venue.lower()}_{timestamp_str}.json"
+        self.io.put_json(bronze_key, papers)
+        logger.info("[BRONZE VAULT] Saved %d papers to s3://%s/%s", len(papers), self.r2.bucket_name, bronze_key)
 
         # 4. Prepare Silver records with Consensus & Controversy Metrics
         silver_records = []
@@ -379,13 +378,9 @@ class OpenReviewHarvester:
             rec["review_count"] = int(len(p.get("reviews", [])))
             silver_records.append(rec)
 
-        # Save to local Silver Parquet partition
-        silver_dest = settings.ROOT_DIR / "data" / "silver" / "openreview" / f"openreview_{venue.lower()}.parquet"
-        silver_dest.parent.mkdir(parents=True, exist_ok=True)
         import pandas as pd
-        df = pd.DataFrame(silver_records)
-        df.to_parquet(silver_dest, engine="pyarrow", compression="zstd")
-        logger.info("[SILVER LAKEHOUSE] Saved %d peer-reviewed papers to Silver Parquet: %s", len(silver_records), silver_dest)
+        res = self.io.write_parquet(f"silver/openreview/openreview_{venue.lower()}.parquet", pd.DataFrame(silver_records))
+        logger.info("[SILVER LAKEHOUSE] Saved %d peer-reviewed papers to %s", len(silver_records), res["uri"])
 
         return silver_records
 

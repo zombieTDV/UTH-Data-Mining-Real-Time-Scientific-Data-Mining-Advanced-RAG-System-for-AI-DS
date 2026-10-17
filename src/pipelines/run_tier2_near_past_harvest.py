@@ -9,7 +9,7 @@ Harvests influential and trending papers published in the last 2 years (2024-01-
 - Deduplication via normalized SHA-256 abstract hashing (LakehouseDeduplicator).
 - HTML-First Waterfall extraction (arXiv HTML5 -> ar5iv HTML5 -> PDF via Marker -> Abstract).
 - Zero-Leak Guardrails: immediate temporary binary PDF purging with < 15 GB disk abort protection.
-- Lakehouse Vaulting: Bronze JSON -> Silver Parquet (tier2/near_past_papers.parquet) -> Gold LanceDB.
+- Lakehouse Vaulting: Bronze JSON -> Silver Parquet (tier2/near_past_papers.parquet) -> Gold Qdrant.
 - Zero-polling cost-shield telemetry via local FastAPI SSE bridge.
 
 Usage:
@@ -29,7 +29,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import httpx
 import pandas as pd
-import psutil
 import pyarrow as pa
 import pyarrow.parquet as pq
 
@@ -44,7 +43,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.indexing.embedder import NomicEmbedder
-from src.indexing.qdrant_manager import QdrantManager as LanceDBManager
+from src.indexing.qdrant_manager import QdrantManager
+from src.storage.lakehouse_io import LakehouseIO
 from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
 from src.transformation.silver_writer import SilverLakehouseWriter
@@ -66,7 +66,7 @@ CATEGORY_CONCEPTS = {
 def broadcast_telemetry(payload: dict):
     """Sends telemetry pulse to local FastAPI SSE bridge without querying R2."""
     try:
-        httpx.post("http://localhost:8000/api/ingestion/broadcast", json=payload, timeout=0.25)
+        httpx.post(settings.BACKEND_BROADCAST_URL, json=payload, timeout=0.25)
     except Exception:
         pass
 
@@ -88,7 +88,6 @@ class Tier2NearPastHarvester:
     """Orchestrates ingestion of trending papers from the 2-year timeline (2024 to present)."""
 
     OPENALEX_API_URL = "https://api.openalex.org/works"
-    MIN_FREE_DISK_GB = 15.0
 
     def __init__(
         self,
@@ -110,71 +109,31 @@ class Tier2NearPastHarvester:
         self.use_marker = use_marker
         self.sync_r2 = sync_r2
 
-        self.r2 = R2Client() if sync_r2 else None
+        self.r2 = R2Client()  # MinIO is always the sink; sync_r2 is kept only for CLI compatibility
+        self.io = LakehouseIO(self.r2)
         self.dedup = LakehouseDeduplicator()
         self.silver_writer = SilverLakehouseWriter(r2_client=self.r2)
-
-        self.bronze_dir = settings.ROOT_DIR / "data" / "raw" / "tier2"
-        self.pdf_dir = self.bronze_dir / "pdfs"
-        self.markdown_dir = self.bronze_dir / "markdowns"
-        self.bronze_dir.mkdir(parents=True, exist_ok=True)
-        self.pdf_dir.mkdir(parents=True, exist_ok=True)
-        self.markdown_dir.mkdir(parents=True, exist_ok=True)
-        self.checkpoint_file = settings.ROOT_DIR / "data" / "manifests" / "tier2_daily_checkpoint.json"
-        self.checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
-
-        self.temp_pdf_dir = self.bronze_dir / "temp_pdfs"
-        self.temp_pdf_dir.mkdir(parents=True, exist_ok=True)
+        self.checkpoint_key = "manifests/tier2_daily_checkpoint.json"
 
         self.content_resolver = UnifiedContentResolver(
             r2_client=self.r2,
-            sync_r2=self.sync_r2,
+            sync_r2=True,
             use_marker_fallback=self.use_marker,
-            local_cache_dir=self.markdown_dir,
-            temp_pdf_dir=self.temp_pdf_dir,
         )
 
         self.http_client = httpx.Client(
             headers={
-                "User-Agent": "UTH-DataMining-Tier2NearPast/2.0 (academic research; contact: datamining@uth.edu.vn)"
+                "User-Agent": settings.ARXIV_USER_AGENT
             },
             timeout=30.0,
             follow_redirects=True,
         )
 
-    def check_disk_space(self) -> float:
-        """Returns free disk space in GB; raises RuntimeError if below guardrail."""
-        free_bytes = psutil.disk_usage(str(settings.ROOT_DIR)).free
-        free_gb = free_bytes / (1024**3)
-        if free_gb < self.MIN_FREE_DISK_GB:
-            raise RuntimeError(
-                f"Disk space guardrail breached: {free_gb:.2f} GB free "
-                f"(min required: {self.MIN_FREE_DISK_GB:.2f} GB). Execution halted."
-            )
-        return free_gb
-
-    def purge_temp_pdfs(self):
-        """Zero-leak policy: cleans any residual temporary PDFs from buffer."""
-        if not self.pdf_dir.exists():
-            return
-        purged = 0
-        for f in self.pdf_dir.glob("*.pdf"):
-            try:
-                f.unlink(missing_ok=True)
-                purged += 1
-            except Exception:
-                pass
-        if purged > 0:
-            logger.debug("[TIER 2 ZERO LEAK] Purged %d residual PDFs from buffer.", purged)
-
     def load_checkpoint(self) -> Dict[str, Any]:
-        """Loads last processed timeline date from checkpoint."""
-        if self.checkpoint_file.exists():
-            try:
-                with open(self.checkpoint_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                pass
+        """Loads last processed timeline date from the MinIO checkpoint."""
+        data = self.io.get_json(self.checkpoint_key)
+        if isinstance(data, dict):
+            return data
         return {
             "last_processed_date": None,
             "total_days_processed": 0,
@@ -182,14 +141,13 @@ class Tier2NearPastHarvester:
         }
 
     def save_checkpoint(self, last_date: str, days_increment: int = 1, papers_increment: int = 0):
-        """Saves daily crawl progress to checkpoint."""
+        """Saves daily crawl progress to the MinIO checkpoint."""
         data = self.load_checkpoint()
         data["last_processed_date"] = last_date
         data["total_days_processed"] = data.get("total_days_processed", 0) + days_increment
         data["total_papers_harvested"] = data.get("total_papers_harvested", 0) + papers_increment
-        data["updated_at"] = datetime.datetime.now().isoformat()
-        with open(self.checkpoint_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        data["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        self.io.put_json(self.checkpoint_key, data)
 
     def harvest_near_past_candidates(self, num_days: int = 1) -> List[Dict[str, Any]]:
         """Harvests papers day-by-day backwards along the 2-year timeline."""
@@ -450,7 +408,7 @@ class Tier2NearPastHarvester:
 
         all_ingested: List[Dict[str, Any]] = []
         embedder = NomicEmbedder()
-        lancedb_mgr = LanceDBManager(r2_client=self.r2)
+        qdrant_mgr = QdrantManager(r2_client=self.r2)
 
         num_batches = (len(unique_candidates) + self.batch_size - 1) // self.batch_size
 
@@ -460,12 +418,10 @@ class Tier2NearPastHarvester:
             batch = unique_candidates[b_start:b_end]
 
             b_t0 = time.time()
-            free_disk = self.check_disk_space()
-            logger.info("\n>>> [TIER 2 BATCH %d/%d] Processing papers %d to %d (Disk Free: %.2f GB)...", b_idx + 1, num_batches, b_start + 1, b_end, free_disk)
+            logger.info("\n>>> [TIER 2 BATCH %d/%d] Processing papers %d to %d...", b_idx + 1, num_batches, b_start + 1, b_end)
 
             # 1. HTML-First Waterfall Resolution (arXiv HTML5 -> ar5iv -> PDF Marker Fallback -> Abstract)
             extracted_records = self.content_resolver.resolve_batch_concurrent(batch, max_workers=6)
-            self.purge_temp_pdfs()
 
             origins = {}
             for r in extracted_records:
@@ -480,15 +436,9 @@ class Tier2NearPastHarvester:
             # 3. Save Bronze JSONs
             for r in extracted_records:
                 safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", r["paper_id"])
-                b_file = self.bronze_dir / f"{safe_id}.json"
-                with open(b_file, "w", encoding="utf-8") as bf:
-                    json.dump(r, bf, ensure_ascii=False, indent=2)
+                self.io.put_json(f"bronze/tier2/{safe_id}.json", r)
 
             # 4. Append to Silver Parquet (Strict 23-column Lakehouse Schema)
-            tier2_silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier2"
-            tier2_silver_dir.mkdir(parents=True, exist_ok=True)
-            t2_file = tier2_silver_dir / "near_past_papers.parquet"
-
             silver_rows = []
             for r in extracted_records:
                 silver_rows.append({
@@ -517,36 +467,17 @@ class Tier2NearPastHarvester:
                     "content_origin": r.get("content_origin", "unknown"),
                 })
 
-            df_new = pd.DataFrame(silver_rows)
-            if t2_file.exists():
-                ex_df = pq.read_table(t2_file).to_pandas()
-                for c, d in [("source", "openalex"), ("tier", "tier2"), ("content_origin", "unknown")]:
-                    if c not in ex_df.columns:
-                        ex_df[c] = d
-                df_combined = pd.concat([ex_df, df_new], ignore_index=True).drop_duplicates(subset=["abstract_hash"], keep="last")
-            else:
-                df_combined = df_new
-            pq.write_table(pa.Table.from_pandas(df_combined, preserve_index=False), t2_file, compression="zstd")
+            self.io.upsert_parquet("silver/tier2/near_past_papers.parquet", pd.DataFrame(silver_rows), subset=["abstract_hash"])
 
-            if self.sync_r2 and self.r2:
-                try:
-                    self.r2.upload_file(
-                        t2_file,
-                        "silver/tier2/near_past_papers.parquet",
-                        content_type="application/vnd.apache.parquet",
-                    )
-                except Exception as e:
-                    logger.warning("[R2 SYNC] Could not upload near_past_papers.parquet to R2: %s", e)
-
-            # 5. Batch Chunking, Embedding, and LanceDB Upsert
+            # 5. Batch Chunking, Embedding, and Qdrant Upsert
             chunks = self.build_chunks(extracted_records)
             if chunks:
                 texts = [c["context_text"] for c in chunks]
                 embeddings = embedder.embed_documents(texts, batch_size=32)
                 for c, emb in zip(chunks, embeddings):
                     c["vector"] = emb
-                lancedb_mgr.insert_chunks(chunks)
-                logger.info("[TIER 2 BATCH %d/%d] Indexed %d vector chunks into LanceDB Gold.", b_idx + 1, num_batches, len(chunks))
+                qdrant_mgr.insert_chunks(chunks)
+                logger.info("[TIER 2 BATCH %d/%d] Indexed %d vector chunks into Qdrant Gold.", b_idx + 1, num_batches, len(chunks))
 
             all_ingested.extend(extracted_records)
             batch_duration = time.time() - b_t0
@@ -577,7 +508,6 @@ class Tier2NearPastHarvester:
                 "batch_papers": len(extracted_records),
                 "total_ingested": len(all_ingested),
                 "speed_ppm": speed_ppm,
-                "free_disk_gb": round(self.check_disk_space(), 2),
             })
 
             self.dedup.save()

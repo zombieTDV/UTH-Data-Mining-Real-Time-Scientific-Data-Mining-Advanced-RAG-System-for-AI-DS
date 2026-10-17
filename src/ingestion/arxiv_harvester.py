@@ -50,7 +50,7 @@ class ArxivHarvester:
                 self.publisher = None
         self.http_client = httpx.Client(
             headers={
-                "User-Agent": "UTH-Scientific-DataMining-Harvester/1.0 (academic research; contact: data-mining@uth.edu.vn)"
+                "User-Agent": settings.ARXIV_USER_AGENT
             },
             timeout=30.0,
             follow_redirects=True,

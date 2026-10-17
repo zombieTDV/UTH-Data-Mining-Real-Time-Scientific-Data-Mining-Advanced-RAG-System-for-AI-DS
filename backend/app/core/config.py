@@ -23,43 +23,41 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "UTH Scientific Data Mining & Real-Time RAG API"
     VERSION: str = "1.0.0"
     API_PREFIX: str = "/api"
-    FRONTEND_ORIGIN: str = "http://localhost:5173"
+    FRONTEND_ORIGIN: str
 
-    # MinIO S3 Lakehouse Credentials
-    MINIO_ENDPOINT_URL: str = "http://localhost:9000"
-    MINIO_ACCESS_KEY: str = "admin"
-    MINIO_SECRET_KEY: str = "password123"
-    MINIO_BUCKET_NAME: str = "uth-scientific-lakehouse"
+    # MinIO S3 Lakehouse (the only data store; credentials come from .env, no defaults)
+    MINIO_ENDPOINT_URL: str
+    MINIO_ACCESS_KEY_ID: str
+    MINIO_SECRET_ACCESS_KEY: str
+    MINIO_BUCKET_NAME: str
     STORAGE_PROVIDER: str = "minio"
 
-    # Backward compatibility aliases for frontend/legacy code
-    R2_ENDPOINT_URL: str = "http://localhost:9000"
-    R2_ACCESS_KEY_ID: str = "admin"
-    R2_SECRET_ACCESS_KEY: str = "password123"
-    R2_BUCKET_NAME: str = "uth-scientific-lakehouse"
-
     # Qdrant Vector Database
-    QDRANT_URL: str = "http://localhost:6333"
-    QDRANT_HOST: str = "http://localhost:6333"
+    QDRANT_URL: str
     QDRANT_COLLECTION: str = "scientific_papers_gold"
 
-    # RabbitMQ Message Broker
-    RABBITMQ_URL: str = "amqp://admin:password123@localhost:5672/"
+    # RabbitMQ Message Broker (management API used for queue stats)
+    RABBITMQ_USER: str
+    RABBITMQ_PASSWORD: str
+    RABBITMQ_MGMT_URL: str
     RABBITMQ_QUEUE_INGEST: str = "scientific_paper_ingest"
 
-    # Lakehouse Local Paths
+    # Lakehouse object keys (inside the MinIO bucket)
+    SILVER_PRIMARY_KEY: str = "silver/papers/year=2026/papers.parquet"
+    SILVER_CATALOG_KEYS: str = (
+        "silver/tier1/landmark_papers.parquet,"
+        "silver/tier2/near_past_papers.parquet,"
+        "silver/papers/year=2026/papers.parquet"
+    )
+    MINING_PREFIX: str = "gold/mining"
+    STATE_PREFIX: str = "state"
     PROJECT_ROOT_DIR: Path = PROJECT_ROOT
-    DATA_DIR: Path = PROJECT_ROOT / "data"
-    SILVER_PARQUET: Path = PROJECT_ROOT / "data" / "silver" / "year=2026" / "papers.parquet"
-    LANCEDB_URI: str = str(PROJECT_ROOT / "data" / "gold" / "lancedb")
-    LANCEDB_TABLE: str = "scientific_papers_gold"
-    MINING_ARTIFACTS_DIR: Path = PROJECT_ROOT / "data" / "gold" / "mining"
     EMBEDDING_MODEL_PATH: str = str(PROJECT_ROOT / "models" / "nomic-embed-text-v1.5")
 
     # LLM Settings
     LLM_MODE: str = "local"  # "local", "ollama", "groq", "mock"
-    LLM_SERVICE_URL: str = "http://localhost:9001/v1"
-    OLLAMA_SERVICE_URL: str = "http://localhost:11434/v1"
+    LLM_SERVICE_URL: str
+    OLLAMA_SERVICE_URL: str
     LLM_MODEL_PATH: str = "./models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf"
     LLM_CONTEXT_WINDOW: int = 16384
     LLM_MAX_TOKENS: int = 1536
@@ -68,7 +66,7 @@ class Settings(BaseSettings):
 
     # DeepEval Benchmarking Settings
     DEEPEVAL_JUDGE_MODEL: str = "local"  # "local", "deepseek", "groq", "openai"
-    DEEPEVAL_LOCAL_URL: str = "http://localhost:9001/v1"
+    DEEPEVAL_LOCAL_URL: str
     DEEPEVAL_LOCAL_MODEL: str = "qwen2.5-7b-instruct"
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"

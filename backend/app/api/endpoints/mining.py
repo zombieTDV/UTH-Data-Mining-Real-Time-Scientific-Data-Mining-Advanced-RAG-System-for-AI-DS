@@ -71,17 +71,12 @@ async def telemetry_event_stream():
 
 
 @router.post("/trigger")
-async def trigger_mining_execution(background_tasks: BackgroundTasks) -> Dict[str, str]:
-    """Triggers background re-execution of the Python Data Mining Engine across the 10,000 papers."""
-    def run_mining():
-        import sys, os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../../data_mining"))
-        from data_mining.src.mining.mining_engine import MiningEngine
-        engine = MiningEngine()
-        engine.run_all(upload_to_r2=True)
+async def trigger_mining_execution() -> Dict[str, str]:
+    """Mining re-execution is disabled until src/mining is ported to MinIO + Qdrant.
 
-    background_tasks.add_task(run_mining)
-    return {
-        "status": "QUEUED",
-        "message": "Data Mining pipeline has been triggered in the background.",
-    }
+    The engine still reads local Parquet paths and the removed LanceDB table, so queuing it would only fail in the
+    background. The served artifacts (gold/mining/*.json in MinIO) are unaffected."""
+    raise HTTPException(
+        status_code=501,
+        detail="Mining engine is not yet ported to MinIO/Qdrant; artifacts are served from the last published run.",
+    )

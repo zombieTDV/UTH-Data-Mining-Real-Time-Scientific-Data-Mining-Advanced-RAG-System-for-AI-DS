@@ -6,6 +6,7 @@ tables, and section headers for Advanced RAG and Scientific Data Mining.
 Includes fallback extraction via pypdf when GPU/model environments require it.
 """
 
+import io
 import logging
 import os
 import re
@@ -191,16 +192,40 @@ class MarkerPdfExtractor:
         # Attempt 2: Resilient Fallback using pypdf / regex LaTeX structuring
         return self._fallback_extract_markdown(pdf_path)
 
-    def _fallback_extract_markdown(self, pdf_path: Path) -> Tuple[str, Dict[str, Any]]:
+    def convert_pdf_bytes_to_markdown(self, pdf_bytes: bytes, name: str = "paper.pdf") -> Tuple[str, Dict[str, Any]]:
+        """Converts an in-memory PDF. Nothing is written under the project tree.
+
+        pypdf reads the bytes directly. Marker's neural converter only accepts a file path,
+        so that single path uses an OS-temp directory that is removed before returning.
+        """
+        head = pdf_bytes[:1024]
+        if not head.startswith(b"%PDF") or b"<HTML" in head.upper() or b"<!DOCTYPE" in head.upper():
+            logger.warning("[MARKER] %s is not a valid PDF. Using resilient extractor.", name)
+            return self._fallback_extract_markdown(None, stream=io.BytesIO(pdf_bytes), name=name)
+
+        if self._init_marker_models() is not None:
+            import tempfile
+
+            with tempfile.TemporaryDirectory(prefix="marker_") as tmp:
+                tmp_pdf = Path(tmp) / "input.pdf"
+                tmp_pdf.write_bytes(pdf_bytes)
+                return self.convert_pdf_to_markdown(tmp_pdf)
+        return self._fallback_extract_markdown(None, stream=io.BytesIO(pdf_bytes), name=name)
+
+    def _fallback_extract_markdown(
+        self, pdf_path: Optional[Path], stream: Optional[Any] = None, name: Optional[str] = None
+    ) -> Tuple[str, Dict[str, Any]]:
         """Fallback extractor when Marker neural weights are loading or unavailable."""
-        logger.info("[MARKER FALLBACK] Extracting text and structure from %s...", pdf_path.name)
+        name = name or (pdf_path.name if pdf_path else "paper.pdf")
+        logger.info("[MARKER FALLBACK] Extracting text and structure from %s...", name)
         text_pages = []
         page_count = 0
 
         try:
             from pypdf import PdfReader
-            with open(pdf_path, "rb") as f:
-                reader = PdfReader(f)
+            src = stream if stream is not None else open(pdf_path, "rb")
+            try:
+                reader = PdfReader(src)
                 total = len(reader.pages)
                 limit = min(total, self.max_pages) if self.max_pages else total
 
@@ -210,8 +235,11 @@ class MarkerPdfExtractor:
                     if page_text.strip():
                         text_pages.append(page_text)
                     page_count += 1
+            finally:
+                if stream is None:
+                    src.close()
         except Exception as e:
-            logger.error("[MARKER FALLBACK] Failed to read PDF %s: %s", pdf_path.name, e)
+            logger.error("[MARKER FALLBACK] Failed to read PDF %s: %s", name, e)
             return "", {"engine": "failed", "error": str(e), "page_count": 0}
 
         raw_text = "\n\n".join(text_pages)

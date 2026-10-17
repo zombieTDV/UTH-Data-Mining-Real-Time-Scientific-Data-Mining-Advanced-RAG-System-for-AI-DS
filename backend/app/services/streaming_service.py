@@ -1,103 +1,102 @@
 """
 backend/app/services/streaming_service.py
 -----------------------------------------
-Real-Time Streaming Ingestion & Change Data Capture (CDC) Manager.
-Broadcasts live arXiv paper ingestion pulses to Frontend clients via SSE.
+Real-time ingestion monitor. Broadcasts the pulses that the harvesters and the queue consumer POST to
+/ingestion/broadcast to every connected SSE client. Nothing here is simulated: "start" runs the real
+Tier 3 harvest (arXiv RSS -> RabbitMQ), and the consumer reports each paper it lands in the lakehouse.
+Session counters are persisted in MinIO (state/session_state.json); there are no local files.
 """
 
 import asyncio
+import collections
 import datetime
 import json
 import logging
-import re
 import time
-from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Deque, Dict, List, Optional
+
 from backend.app.core.config import settings
+from backend.app.services.lake import lake
 
 logger = logging.getLogger("streaming_service")
+
+LOG_BUFFER_SIZE = 500
+STATE_KEY = f"{settings.STATE_PREFIX}/session_state.json"
+
+
+def _now_hms() -> str:
+    return datetime.datetime.now().strftime("%H:%M:%S")
 
 
 class StreamingService:
     def __init__(self):
         self.status: str = "IDLE"  # IDLE | STREAMING | PAUSED | COMPLETED | ERROR
-        self.target_papers: int = 3000
+        self.target_papers: int = 0
         self.session_ingested: int = 0
-        self.base_corpus_count: int = 29911  # 29,911 deduplicated full-text papers embedded for RAG
+        self.accumulated_bytes_delta: int = 0
         self.current_speed_ppm: float = 0.0
         self.start_time: Optional[float] = None
         self.stop_signal = asyncio.Event()
         self.subscribers: List[asyncio.Queue] = []
         self._task: Optional[asyncio.Task] = None
         self.recent_events: List[Dict[str, Any]] = []
+        self.log_buffer: Deque[Dict[str, Any]] = collections.deque(maxlen=LOG_BUFFER_SIZE)
+        self._state_loaded = False
 
-        # Real-time active lakehouse storage tracking (8.184 GB active Lakehouse)
-        self.base_storage_bytes: int = 8787548614
-        self.accumulated_bytes_delta: int = 0
-        self.free_tier_quota_gb: float = 10.0
-
-        # State persistence file
-        self.state_file = settings.DATA_DIR / "lakehouse" / "session_state.json"
-        self._load_persisted_state()
-
-    def _load_persisted_state(self):
+    # ------------------------------------------------------------ state (MinIO)
+    def _load_persisted_state(self) -> None:
+        if self._state_loaded:
+            return
+        self._state_loaded = True
         try:
-            if self.state_file.exists():
-                with open(self.state_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.session_ingested = data.get("session_ingested", 0)
-                    self.accumulated_bytes_delta = data.get("accumulated_bytes_delta", 0)
-                    logger.info(f"[STREAMING] Loaded persistent session state: ingested={self.session_ingested}")
+            data = lake.get_json(STATE_KEY, ttl=0) or {}
+            self.session_ingested = int(data.get("session_ingested", 0))
+            self.accumulated_bytes_delta = int(data.get("accumulated_bytes_delta", 0))
         except Exception as e:
-            logger.warning(f"[STREAMING] Failed to load session state: {e}")
+            logger.warning("[STREAMING] Could not load session state from MinIO: %s", e)
 
-    def _save_persisted_state(self):
+    def _save_persisted_state(self) -> None:
         try:
-            self.state_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.state_file, "w", encoding="utf-8") as f:
-                json.dump({
-                    "session_ingested": self.session_ingested,
-                    "accumulated_bytes_delta": self.accumulated_bytes_delta,
-                    "updated_at": datetime.datetime.now().isoformat(),
-                }, f, indent=2)
+            lake.put_json(STATE_KEY, {
+                "session_ingested": self.session_ingested,
+                "accumulated_bytes_delta": self.accumulated_bytes_delta,
+                "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            })
         except Exception as e:
-            logger.warning(f"[STREAMING] Failed to save session state: {e}")
+            logger.warning("[STREAMING] Could not save session state to MinIO: %s", e)
 
-    def reset_session(self):
+    def reset_session(self) -> None:
         self.session_ingested = 0
         self.accumulated_bytes_delta = 0
         self._save_persisted_state()
 
+    # ------------------------------------------------------------ status
     def get_current_storage(self) -> Dict[str, Any]:
-        total_bytes = self.base_storage_bytes + self.accumulated_bytes_delta
-        total_gb = round(total_bytes / (1024**3), 3)
-        used_pct = round((total_gb / self.free_tier_quota_gb) * 100.0, 2)
-        return {
-            "total_bytes": total_bytes,
-            "total_gb": total_gb,
-            "used_pct": min(100.0, used_pct),
-        }
+        from backend.app.services.storage_service import storage_service
 
-    def get_status(self) -> Dict[str, Any]:
-        elapsed = time.time() - self.start_time if self.start_time else 0
-        storage = self.get_current_storage()
-        
-        # Query true corpus count from Qdrant
-        real_corpus = self.base_corpus_count
+        try:
+            return storage_service.get_current_totals()
+        except Exception as e:
+            logger.warning("[STREAMING] Storage totals unavailable: %s", e)
+            return {"total_bytes": 0, "total_gb": 0.0, "used_pct": 0.0}
+
+    def _corpus_count(self) -> int:
         try:
             from src.indexing.qdrant_manager import QdrantManager
-            q_mgr = QdrantManager()
-            points_count = q_mgr.count()
-            if points_count > 0:
-                real_corpus = points_count
-        except Exception:
-            pass
 
+            return int(QdrantManager().count())
+        except Exception:
+            return 0
+
+    def get_status(self) -> Dict[str, Any]:
+        self._load_persisted_state()
+        elapsed = time.time() - self.start_time if self.start_time else 0
+        storage = self.get_current_storage()
         return {
             "status": self.status,
             "target_papers": self.target_papers,
             "session_ingested": self.session_ingested,
-            "total_corpus": max(real_corpus, self.base_corpus_count + self.session_ingested),
+            "total_corpus": self._corpus_count(),
             "speed_ppm": self.current_speed_ppm,
             "elapsed_seconds": round(elapsed, 1),
             "subscribers_connected": len(self.subscribers),
@@ -107,241 +106,133 @@ class StreamingService:
         }
 
     def get_latest_pipeline_logs(self, limit: int = 150) -> List[Dict[str, Any]]:
-        """Reads and structures the latest real execution log lines directly from disk."""
-        logs_dir = getattr(settings, "PROJECT_ROOT_DIR", Path(__file__).resolve().parents[3]) / "logs"
-        if not logs_dir.exists():
-            return []
+        """Most recent pipeline events seen by this process (in-memory ring buffer)."""
+        return list(self.log_buffer)[-limit:]
 
-        matched_files = list(logs_dir.glob("streaming_html_embed_*.log"))
-        if not matched_files:
-            matched_files = list(logs_dir.glob("tier2_*.log"))
+    # ------------------------------------------------------------ events
+    def _log(self, event: Dict[str, Any]) -> None:
+        stage = str(event.get("stage", event.get("type", ""))).lower()
+        tag = {"harvest": "HARVEST", "bronze": "BRONZE-VAULT", "silver": "SILVER-VAULT", "gold": "GOLD-VECTOR"}.get(stage, "PIPELINE")
+        level = "WARN" if event.get("error") else "SUCCESS" if stage in ("gold", "completed") else "INFO"
+        msg = event.get("title") or event.get("message") or json.dumps({k: v for k, v in event.items() if k != "timestamp"})[:200]
+        self.log_buffer.append({
+            "id": f"log-{int(time.time() * 1000)}-{len(self.log_buffer)}",
+            "time": event.get("timestamp") or _now_hms(),
+            "level": level,
+            "tag": tag,
+            "msg": str(msg),
+        })
 
-        if not matched_files:
-            return []
-
-        latest_file = max(matched_files, key=lambda p: p.stat().st_mtime)
-        parsed_logs = []
-        try:
-            with open(latest_file, "r", encoding="utf-8", errors="ignore") as f:
-                lines = [line.strip() for line in f if line.strip()]
-
-            recent_lines = lines[-limit:]
-            for idx, raw in enumerate(recent_lines):
-                time_match = re.search(r"(\d{2}:\d{2}:\d{2})", raw)
-                t_str = time_match.group(1) if time_match else datetime.datetime.now().strftime("%H:%M:%S")
-
-                level = "INFO"
-                if "[ERROR]" in raw or "Traceback" in raw:
-                    level = "WARN"
-                elif "[SUCCESS]" in raw or "LANCEDB STREAM" in raw or "SILVER SAVED" in raw:
-                    level = "SUCCESS"
-
-                tag = "STREAM"
-                if "HTML ACCEPTED" in raw:
-                    tag = "HTML5-CRAWL"
-                elif "LANCEDB STREAM" in raw:
-                    tag = "GOLD-VECTOR"
-                elif "SILVER SAVED" in raw or "Parquet" in raw:
-                    tag = "SILVER-VAULT"
-                elif "R2" in raw:
-                    tag = "R2-SYNC"
-                elif "FILTER CACHE" in raw or "CANDIDATE" in raw or "STARTING" in raw:
-                    tag = "INIT"
-
-                clean_msg = re.sub(r"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:,\d+)?\s+\[[A-Z]+\]\s+", "", raw).strip()
-                parsed_logs.append({
-                    "id": f"log-disk-{idx}-{abs(hash(clean_msg)) % 1000000}",
-                    "time": t_str,
-                    "level": level,
-                    "tag": tag,
-                    "msg": clean_msg or raw,
-                })
-        except Exception as e:
-            logger.error(f"[LOGS] Failed reading log file {latest_file}: {e}")
-
-        return parsed_logs
-
-    async def broadcast_event(self, event: Dict[str, Any]):
-        """Dispatches an event to all active SSE subscribers."""
-        # Normalize external pipeline events
+    async def broadcast_event(self, event: Dict[str, Any]) -> None:
+        """Dispatch an event to all SSE subscribers and update session counters."""
+        self._load_persisted_state()
         stage = event.get("stage", "")
-        if stage == "STREAMING_HARVEST":
-            self.status = "STREAMING"
-            self.session_ingested = event.get("papers_harvested", self.session_ingested + 1)
-            event["type"] = "PAPER_INGESTED"
-            event["stage"] = "harvest"
-            event["category"] = event.get("category", "cs.AI")
-            event["timestamp"] = datetime.datetime.now().strftime("%H:%M:%S")
-            self._save_persisted_state()
-        elif stage == "LANCEDB_INSERT":
-            self.status = "STREAMING"
-            event["type"] = "PAPER_INGESTED"
-            event["stage"] = "gold"
-            event["vectors_synced"] = event.get("new_vectors", 64)
-            event["total_vectors"] = event.get("total_vectors")
-            event["category"] = "Gold Vector"
-            event["timestamp"] = datetime.datetime.now().strftime("%H:%M:%S")
-        elif stage in ("harvest", "bronze", "duckdb", "silver", "embedding", "parallel", "gold", "r2_sync", "completed"):
+        if stage in ("harvest", "bronze", "duckdb", "silver", "embedding", "parallel", "gold", "r2_sync", "completed"):
             self.status = "STREAMING" if stage != "completed" else "IDLE"
-            if not event.get("type"):
-                event["type"] = "STAGE_CHANGE"
-            event["timestamp"] = datetime.datetime.now().strftime("%H:%M:%S")
-        elif event.get("type") == "PAPER_INGESTED":
+            event.setdefault("type", "STAGE_CHANGE")
+        if event.get("type") == "PAPER_INGESTED":
             self.session_ingested += 1
             if event.get("speed_ppm"):
                 self.current_speed_ppm = float(event["speed_ppm"])
             if event.get("bronze_bytes_delta"):
                 self.accumulated_bytes_delta += int(event["bronze_bytes_delta"])
             self._save_persisted_state()
+        event["timestamp"] = _now_hms()
 
+        self._log(event)
         self.recent_events.append(event)
         if len(self.recent_events) > 50:
             self.recent_events.pop(0)
-
-        # Distribute to all connected queues
         for q in list(self.subscribers):
             try:
                 q.put_nowait(event)
             except Exception:
                 pass
 
-    async def start_streaming(self, target: int = 3000, delay: float = 2.5):
+    # ------------------------------------------------------------ real harvest
+    async def start_streaming(self, target: int = 100, delay: float = 60.0):
+        """Run the real Tier 3 harvest (arXiv RSS -> RabbitMQ) until `target` new papers are enqueued."""
         if self.status == "STREAMING":
             return {"status": "ALREADY_RUNNING", "message": "Streaming ingestion is already active."}
-
+        self._load_persisted_state()
         self.target_papers = target
         self.status = "STREAMING"
         self.stop_signal.clear()
         self.start_time = time.time()
-
-        # Launch background streaming loop
         self._task = asyncio.create_task(self._run_streaming_loop(target, delay))
-        return {
-            "status": "STARTED",
-            "target": target,
-            "message": f"Real-time streaming ingestion started for {target} preprints.",
-        }
+        return {"status": "STARTED", "target": target, "message": f"Tier 3 harvest started for up to {target} new preprints."}
 
     async def stop_streaming(self):
         if self.status != "STREAMING":
             return {"status": "NOT_RUNNING", "message": "Streaming ingestion is not running."}
-
         self.stop_signal.set()
         self.status = "PAUSED"
         if self._task:
             self._task.cancel()
-        return {"status": "STOPPED", "message": "Streaming ingestion stopped gracefully."}
+        return {"status": "STOPPED", "message": "Streaming ingestion stopped."}
 
     async def _run_streaming_loop(self, target: int, delay: float):
-        """Worker loop that fetches real or high-fidelity preprints and streams to Lakehouse."""
-        logger.info(f"[STREAMING] Ingestion worker started. Target: {target} papers.")
+        """Poll arXiv RSS via the Tier 3 streamer in a worker thread; stop when the target is met or the feed is dry."""
+        from src.pipelines.run_tier3_realtime_stream import Tier3RealtimeStreamer
 
-        sample_titles = [
-            ("Scalable State Space Models for Long-Context Mathematical Reasoning", "cs.AI", 24, 18),
-            ("Direct Preference Alignment over Latent Diffusion Trajectories", "cs.LG", 18, 14),
-            ("FlashAttention-3: Fast and Accurate Attention with FP8 Tensor Cores", "cs.CV", 32, 16),
-            ("Gated Sparse Autoencoders for Interpretable Knowledge Representation", "cs.CL", 12, 12),
-            ("Consistent Vector Quantization in High-Dimensional Manifolds", "stat.ML", 48, 15),
-            ("Zero-Shot Mathematical Theorem Proving with Hybrid Tree Search", "cs.AI", 56, 20),
-            ("Self-Distillation via Contrastive Gradient Descent", "cs.LG", 14, 12),
-            ("Diffusion-Based Monocular Depth Estimation with Geometric Priors", "cs.CV", 22, 16),
-            ("Retrieval-Augmented Diffusion for Scientific Literature Summarization", "cs.IR", 16, 14),
-            ("Asynchronous Decentralized Optimization over Dynamic Communication Graphs", "stat.ML", 38, 18),
-        ]
-
+        enqueued_total = 0
+        dry_rounds = 0
         try:
-            while self.session_ingested < target and not self.stop_signal.is_set():
-                t0 = time.time()
-                idx = self.session_ingested
-                title_template, cat, formulas, vectors = sample_titles[idx % len(sample_titles)]
-                paper_id = f"2602.{10001 + idx:05d}"
-                full_title = f"{title_template} [Part {idx + 1}]" if idx >= len(sample_titles) else title_template
-
-                # Simulate real processing latency (parsing + embedding)
-                await asyncio.sleep(min(delay, 2.0))
-
-                self.session_ingested += 1
-                elapsed = max(time.time() - self.start_time, 1)
-                self.current_speed_ppm = round((self.session_ingested / elapsed) * 60, 1)
-
-                latency_ms = round((time.time() - t0) * 1000, 1)
-
-                # Real-time bytes delta for paper (HTML bronze ~320KB + Parquet slice ~20KB + lance vectors ~40KB)
-                paper_bytes_delta = 380_000 + (formulas * 4_500)
-                self.accumulated_bytes_delta += paper_bytes_delta
-                self._save_persisted_state()
-                storage_state = self.get_current_storage()
-
-                event = {
-                    "type": "PAPER_INGESTED",
-                    "paper_id": paper_id,
-                    "title": full_title,
-                    "category": cat,
-                    "published_date": "2026-02-15",
-                    "math_count": formulas,
-                    "vectors_synced": vectors,
-                    "latency_ms": latency_ms,
-                    "session_ingested": self.session_ingested,
-                    "total_corpus": self.base_corpus_count + self.session_ingested,
+            streamer = await asyncio.to_thread(Tier3RealtimeStreamer)
+            while enqueued_total < target and not self.stop_signal.is_set():
+                remaining = target - enqueued_total
+                summary = await asyncio.to_thread(streamer.process_batch, min(remaining, 50))
+                got = int(summary.get("newly_ingested", 0))
+                enqueued_total += got
+                dry_rounds = dry_rounds + 1 if got == 0 else 0
+                elapsed = max(time.time() - (self.start_time or time.time()), 1)
+                self.current_speed_ppm = round(enqueued_total / elapsed * 60, 1)
+                await self.broadcast_event({
+                    "type": "STAGE_CHANGE",
+                    "stage": "harvest",
+                    "title": f"Tier 3 harvest: {got} enqueued, {summary.get('dedup_skipped', 0)} duplicates",
+                    "enqueued_total": enqueued_total,
                     "speed_ppm": self.current_speed_ppm,
-                    "bronze_bytes_delta": paper_bytes_delta,
-                    "storage_total_bytes": storage_state["total_bytes"],
-                    "storage_total_gb": storage_state["total_gb"],
-                    "storage_used_pct": storage_state["used_pct"],
-                    "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
-                }
-
-                await self.broadcast_event(event)
-
-            self.status = "COMPLETED" if self.session_ingested >= target else "PAUSED"
-            logger.info(f"[STREAMING] Ingestion finished. Total streamed: {self.session_ingested} papers.")
+                })
+                if dry_rounds >= 2:
+                    break  # the feed has nothing new right now
+                await asyncio.sleep(delay)
+            self.status = "COMPLETED" if enqueued_total >= target or dry_rounds >= 2 else "PAUSED"
+            await self.broadcast_event({"type": "STAGE_CHANGE", "stage": "completed", "title": f"Tier 3 harvest finished: {enqueued_total} enqueued"})
         except asyncio.CancelledError:
             self.status = "PAUSED"
-            logger.info("[STREAMING] Worker task cancelled.")
         except Exception as e:
             self.status = "ERROR"
-            logger.error(f"[STREAMING] Worker encountered error: {e}")
+            logger.error("[STREAMING] Harvest worker failed: %s", e)
+            await self.broadcast_event({"type": "STAGE_CHANGE", "stage": "harvest", "title": f"Harvest error: {e}", "error": True})
 
-    async def stream_events(self) -> AsyncGenerator[str, None]:
-        """SSE generator providing persistent event stream to browser clients."""
-        q = asyncio.Queue()
-        self.subscribers.append(q)
-
-        storage_state = self.get_current_storage()
-        # Send initial status
-        initial_payload = {
-            "type": "CONNECTION_ESTABLISHED",
+    # ------------------------------------------------------------ SSE
+    def _snapshot_payload(self, kind: str) -> Dict[str, Any]:
+        storage = self.get_current_storage()
+        return {
+            "type": kind,
             "status": self.status,
             "session_ingested": self.session_ingested,
-            "total_corpus": self.base_corpus_count + self.session_ingested,
-            "storage_total_bytes": storage_state["total_bytes"],
-            "storage_total_gb": storage_state["total_gb"],
-            "storage_used_pct": storage_state["used_pct"],
-            "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
+            "total_corpus": self._corpus_count(),
+            "speed_ppm": self.current_speed_ppm,
+            "storage_total_bytes": storage["total_bytes"],
+            "storage_total_gb": storage["total_gb"],
+            "storage_used_pct": storage["used_pct"],
+            "timestamp": _now_hms(),
         }
-        yield json.dumps(initial_payload)
 
+    async def stream_events(self) -> AsyncGenerator[str, None]:
+        """SSE generator: an initial snapshot, then events with a 5 s heartbeat."""
+        self._load_persisted_state()
+        q: asyncio.Queue = asyncio.Queue()
+        self.subscribers.append(q)
+        yield json.dumps(await asyncio.to_thread(self._snapshot_payload, "CONNECTION_ESTABLISHED"))
         try:
             while True:
-                # Wait for next event with a periodic 5s heartbeat
                 try:
-                    event = await asyncio.wait_for(q.get(), timeout=5.0)
-                    yield json.dumps(event)
+                    yield json.dumps(await asyncio.wait_for(q.get(), timeout=5.0))
                 except asyncio.TimeoutError:
-                    # Heartbeat pulse
-                    hb_storage = self.get_current_storage()
-                    heartbeat = {
-                        "type": "HEARTBEAT",
-                        "status": self.status,
-                        "session_ingested": self.session_ingested,
-                        "total_corpus": self.base_corpus_count + self.session_ingested,
-                        "speed_ppm": self.current_speed_ppm,
-                        "storage_total_bytes": hb_storage["total_bytes"],
-                        "storage_total_gb": hb_storage["total_gb"],
-                        "storage_used_pct": hb_storage["used_pct"],
-                        "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
-                    }
-                    yield json.dumps(heartbeat)
+                    yield json.dumps(await asyncio.to_thread(self._snapshot_payload, "HEARTBEAT"))
         finally:
             if q in self.subscribers:
                 self.subscribers.remove(q)

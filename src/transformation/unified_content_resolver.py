@@ -16,9 +16,7 @@ import hashlib
 import json
 import logging
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-import uuid
 import httpx
 
 from src.config.settings import settings
@@ -41,25 +39,17 @@ class UnifiedContentResolver:
         sync_r2: bool = False,
         use_marker_fallback: bool = True,
         max_pdf_pages: int = 15,
-        local_cache_dir: Optional[Path] = None,
-        temp_pdf_dir: Optional[Path] = None,
+        **_ignored,
     ):
-        self.storage = storage_client or r2_client or (StorageClient() if (sync_storage or sync_r2) else None)
+        # MinIO is the only store: always on, the sync flags are kept for call-site compatibility.
+        self.storage = storage_client or r2_client or StorageClient()
         self.r2 = self.storage
-        self.sync_r2 = (sync_storage or sync_r2) and (self.storage is not None)
+        self.sync_r2 = True
         self.html_parser = AcademicHTMLParser()
 
         self.marker_extractor = MarkerPdfExtractor(use_marker=use_marker_fallback, max_pages=max_pdf_pages)
 
-        self.cache_dir = local_cache_dir or (settings.ROOT_DIR / "data" / "raw" / "html")
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-
-        self.temp_pdf_dir = temp_pdf_dir or (settings.ROOT_DIR / "data" / "raw" / "temp_pdfs")
-        self.temp_pdf_dir.mkdir(parents=True, exist_ok=True)
-
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) UTH-Scientific-HTMLFirstResolver/2.0 (academic research; contact: datamining@uth.edu.vn)"
-        }
+        self.headers = {"User-Agent": settings.ARXIV_USER_AGENT}
 
     @staticmethod
     def get_r2_html_key(paper_id: str, source: str = "arxiv", year: str = "2024") -> str:
@@ -104,30 +94,19 @@ class UnifiedContentResolver:
         return None
 
     def vault_html_to_bronze(self, html_text: str, paper_id: str, source: str, year: str) -> Optional[str]:
-        """Saves raw HTML to local mirror and uploads to Cloudflare R2 Bronze Zone."""
-        safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", paper_id)
-        local_file = self.cache_dir / f"{safe_id}.html"
+        """Stores raw HTML in the MinIO Bronze zone (no local mirror)."""
+        r2_key = self.get_r2_html_key(paper_id=paper_id, source=source, year=year)
         try:
-            with open(local_file, "w", encoding="utf-8") as f:
-                f.write(html_text)
+            self.storage.upload_text(
+                text=html_text,
+                key=r2_key,
+                content_type="text/html; charset=utf-8",
+                metadata={"sha256": compute_sha256(html_text), "paper_id": paper_id},
+            )
+            return r2_key
         except Exception as err:
-            logger.debug("[HTML CACHE ERROR] Could not save local HTML for %s: %s", paper_id, err)
-
-        if self.sync_r2 and self.r2:
-            r2_key = self.get_r2_html_key(paper_id=paper_id, source=source, year=year)
-            html_hash = compute_sha256(html_text)
-            try:
-                self.r2.upload_text(
-                    text=html_text,
-                    key=r2_key,
-                    content_type="text/html; charset=utf-8",
-                    metadata={"sha256": html_hash, "paper_id": paper_id},
-                )
-                return r2_key
-            except Exception as r2_err:
-                logger.warning("[R2 BRONZE UPLOAD ERROR] Failed to vault %s to R2: %s", r2_key, r2_err)
-
-        return None
+            logger.warning("[BRONZE UPLOAD ERROR] Failed to vault %s: %s", r2_key, err)
+            return None
 
     def resolve_single_paper(self, paper: Dict[str, Any], client: httpx.Client) -> Dict[str, Any]:
         """Resolves content for a single paper via HTML-First waterfall."""
@@ -137,16 +116,16 @@ class UnifiedContentResolver:
         year = str(paper.get("year") or 2024)
         arxiv_id = paper.get("arxiv_id")
 
-        # 0. Check local HTML cache first
-        local_html = self.cache_dir / f"{safe_id}.html"
-        if local_html.exists() and local_html.stat().st_size > 1000:
-            try:
-                with open(local_html, "r", encoding="utf-8") as f:
-                    html_text = f.read()
-                parsed = self.html_parser.parse(html_text)
-                return self._enrich_record_from_parsed(paper, parsed, content_type="cached_html")
-            except Exception:
-                pass
+        # 0. Check the MinIO Bronze HTML first (acts as the cache)
+        html_key = self.get_r2_html_key(paper_id=paper_id, source=source, year=year)
+        try:
+            if self.storage.object_exists(html_key):
+                html_text = self.storage.get_text(html_key)
+                if len(html_text) > 1000:
+                    parsed = self.html_parser.parse(html_text)
+                    return self._enrich_record_from_parsed(paper, parsed, content_type="cached_html")
+        except Exception as err:
+            logger.debug("[HTML RESOLVER] Bronze cache miss for %s: %s", paper_id, err)
 
         # 1. Tier A: Try arXiv HTML if arXiv ID is available
         if arxiv_id:
@@ -159,38 +138,27 @@ class UnifiedContentResolver:
                 parsed = self.html_parser.parse(html_text)
                 return self._enrich_record_from_parsed(paper, parsed, content_type=subtype)
 
-        # 2. Tier B: PDF Download + Resilient Marker Fallback (Rolling buffer)
+        # 2. Tier B: PDF download held in memory + Marker/pypdf extraction
         pdf_urls = paper.get("pdf_urls", [])
         if pdf_urls:
-            unique_token = uuid.uuid4().hex[:8]
-            local_pdf = self.temp_pdf_dir / f"{safe_id}_{unique_token}.pdf"
-            pdf_downloaded = False
+            pdf_bytes = None
             for u in pdf_urls:
                 try:
                     resp = client.get(u, timeout=10.0)
                     if resp.status_code == 200 and len(resp.content) > 1000:
                         header = resp.content[:200].lower()
                         if resp.content.startswith(b"%PDF") and b"<!doctype" not in header and b"<html" not in header:
-                            with open(local_pdf, "wb") as pf:
-                                pf.write(resp.content)
-                            pdf_downloaded = True
+                            pdf_bytes = resp.content
                             break
                 except Exception:
                     continue
 
-            if pdf_downloaded and local_pdf.exists():
+            if pdf_bytes:
                 md_text, meta = "", {}
                 try:
-                    md_text, meta = self.marker_extractor.convert_pdf_to_markdown(local_pdf)
+                    md_text, meta = self.marker_extractor.convert_pdf_bytes_to_markdown(pdf_bytes, name=safe_id)
                 except Exception as e:
                     logger.debug("[PDF EXTRACT ERROR] %s: %s", paper_id, e)
-                finally:
-                    # Guaranteed Zero-Leak Purge (safely handled on Windows)
-                    try:
-                        if local_pdf.exists():
-                            local_pdf.unlink(missing_ok=True)
-                    except Exception:
-                        pass
 
                 if md_text and len(md_text) > 200:
                     paper["markdown_content"] = md_text
@@ -233,16 +201,7 @@ class UnifiedContentResolver:
         return paper
 
     def purge_temp_pdfs(self):
-        """Purges any lingering temporary PDFs in temp buffer."""
-        deleted = 0
-        for f in self.temp_pdf_dir.glob("*.pdf"):
-            try:
-                f.unlink()
-                deleted += 1
-            except Exception:
-                pass
-        if deleted > 0:
-            logger.debug("[ZERO LEAK] Purged %d temporary PDFs from buffer.", deleted)
+        """No-op: PDFs are processed in memory and never persisted."""
 
     def resolve_batch_concurrent(
         self, batch_papers: List[Dict[str, Any]], max_workers: int = 6

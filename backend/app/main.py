@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     logger.info("[STARTUP] Starting FastAPI Backend for Scientific Lakehouse & Data Mining")
     logger.info("[STARTUP] Server running on: http://%s:%d", settings.HOST, settings.PORT)
     logger.info("[STARTUP] Interactive OpenAPI Docs: http://localhost:%d/docs", settings.PORT)
-    logger.info("[STARTUP] Parquet Path: %s (Exists: %s)", settings.SILVER_PARQUET, settings.SILVER_PARQUET.exists())
+    logger.info("[STARTUP] Silver primary: s3://%s/%s", settings.MINIO_BUCKET_NAME, settings.SILVER_PRIMARY_KEY)
     logger.info("[STARTUP] Qdrant URL: %s (Collection: %s)", settings.QDRANT_URL, settings.QDRANT_COLLECTION)
     logger.info("[STARTUP] MinIO S3: %s (Bucket: %s)", settings.MINIO_ENDPOINT_URL, settings.MINIO_BUCKET_NAME)
     logger.info("[STARTUP] Context Window: %d tokens", settings.LLM_CONTEXT_WINDOW)
@@ -54,12 +54,7 @@ app = FastAPI(
 # CORS configuration for Frontend Dashboard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.FRONTEND_ORIGIN,
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "*",
-    ],
+    allow_origins=[o.strip() for o in settings.FRONTEND_ORIGIN.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

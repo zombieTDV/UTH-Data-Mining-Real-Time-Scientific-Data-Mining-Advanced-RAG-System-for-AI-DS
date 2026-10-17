@@ -104,9 +104,8 @@ def test_queue_consumer_three_tier_medallion_flow(tmp_path: Path, synthetic_html
     bronze_key = "bronze/papers/2026/2402.12345.json"
     assert consumer.storage.object_exists(bronze_key) is True
 
-    # 2. Verify Silver Parquet exists on MinIO
-    silver_key = "silver/papers/year=2026/papers.parquet"
-    assert consumer.storage.object_exists(silver_key) is True
+    # 2. Verify a Silver Parquet part was written to MinIO (compact_year folds parts into papers.parquet)
+    assert consumer.storage.list_objects("silver/papers/year=2026/parts/", max_keys=1000)
 
     # 3. Verify Gold vector indexing in Qdrant
     q_vec = mock_embedder.embed_query("diffusion models reverse drift")

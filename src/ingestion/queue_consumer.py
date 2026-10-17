@@ -1,16 +1,19 @@
 """RabbitMQ Ingestion Worker / Consumer.
 
-Consumes academic paper ingestion tasks from RabbitMQ,
-extracts text chunks, generates 768-D dense embeddings,
-upserts into Qdrant Vector Store, and archives raw metadata to MinIO Bronze.
+Single gate into the Medallion lakehouse. For each micro-batch of messages:
+  dedup (abstract SHA-256) -> Bronze (MinIO) -> Silver (MinIO Parquet part) -> Gold (Qdrant)
+Messages are acked only after the whole batch is durable. A failing message is
+re-published with an incremented retry counter and moved to the dead-letter
+queue after RABBITMQ_MAX_RETRIES, so nothing is silently lost. No local files are written.
 """
 
 import json
 import logging
 import signal
-import sys
 import time
-from typing import Any, Dict, Optional
+
+import httpx
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.config.settings import settings
 from src.indexing.chunker import AcademicChunker
@@ -18,158 +21,260 @@ from src.indexing.embedder import NomicEmbedder
 from src.indexing.qdrant_manager import QdrantManager
 from src.storage.minio_client import StorageClient
 from src.transformation.html_parser import AcademicHTMLParser
+from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
 from src.transformation.silver_writer import SilverLakehouseWriter
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] %(levelname)s [%(name)s] %(message)s",
-)
+logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL, logging.INFO), format="[%(asctime)s] %(levelname)s [%(name)s] %(message)s")
+logging.getLogger("pika").setLevel(logging.WARNING)
 logger = logging.getLogger("QueueConsumer")
+
+RETRY_HEADER = "x-retries"
+
+
+def _year_of(paper: Dict[str, Any]) -> str:
+    year = str(paper.get("published_date") or "")[:4]
+    return year if year.isdigit() else str(time.gmtime().tm_year)
 
 
 class QueueConsumer:
-    """Consumes and processes papers from RabbitMQ."""
+    """Consumes and processes papers from RabbitMQ in micro-batches."""
 
-    def __init__(self, storage_client: Optional[StorageClient] = None, qdrant_client: Optional[QdrantManager] = None):
+    def __init__(
+        self,
+        storage_client: Optional[StorageClient] = None,
+        qdrant_client: Optional[QdrantManager] = None,
+        batch_size: int = 16,
+        idle_flush_seconds: float = 5.0,
+    ):
         self.storage = storage_client or StorageClient()
         self.qdrant = qdrant_client or QdrantManager()
+        self.dedup = LakehouseDeduplicator()
         self._embedder = None
         self.queue_name = settings.RABBITMQ_QUEUE_INGEST
+        self.dead_queue = settings.RABBITMQ_QUEUE_DEAD
         self.amqp_url = settings.RABBITMQ_URL
+        self.max_retries = settings.RABBITMQ_MAX_RETRIES
+        self.batch_size = batch_size
+        self.idle_flush_seconds = idle_flush_seconds
         self._running = True
         self.html_parser = AcademicHTMLParser()
         self.silver_writer = SilverLakehouseWriter(storage_client=self.storage)
+        self.last_ingested: List[Dict[str, Any]] = []
         self.chunker = AcademicChunker(max_chunk_words=450, overlap_words=50)
 
     @property
     def embedder(self) -> NomicEmbedder:
-        """Lazy load embedder on first message to keep startup lightweight."""
         if self._embedder is None:
             logger.info("[Worker] Loading NomicEmbedder...")
             self._embedder = NomicEmbedder()
         return self._embedder
 
-    def process_paper(self, paper: Dict[str, Any]) -> bool:
-        """Processes a single paper payload strictly across the 3 Medallion Tiers:
-        1. 🥉 Bronze: Raw metadata JSON & raw HTML archived into MinIO.
-        2. 🥈 Silver: HTML section parsing, schema normalization, and columnar Parquet sync.
-        3. 🥇 Gold: Section-aware chunking & 768-D dense vector embedding into Qdrant.
-        """
-        paper_id = str(paper.get("paper_id", "unknown")).strip()
-        title = paper.get("title", "")
-        year = str(paper.get("published_date", "")[:4]) if paper.get("published_date") else "2026"
-        if not year.isdigit():
-            year = "2026"
-
-        logger.info(f"[Worker] Processing paper {paper_id}: {title[:60]}...")
-
-        # -------------------------------------------------------------
-        # 1. 🥉 TẦNG BRONZE: Lưu trữ nguyên bản raw JSON & raw HTML lên MinIO
-        # -------------------------------------------------------------
+    # ------------------------------------------------------------------ stages
+    def _bronze(self, paper: Dict[str, Any], paper_id: str, year: str) -> None:
+        """Raw archive. Failure aborts the paper: Bronze is the immutable source of truth."""
+        self.storage.upload_json(paper, f"bronze/papers/{year}/{paper_id}.json")
         raw_html = paper.get("raw_html") or paper.get("html_content")
-        try:
-            bronze_meta_key = f"bronze/papers/{year}/{paper_id}.json"
-            self.storage.upload_json(paper, bronze_meta_key)
-            if raw_html:
-                bronze_html_key = f"bronze/papers/{year}/{paper_id}.html"
-                self.storage.upload_text(raw_html, bronze_html_key, content_type="text/html; charset=utf-8")
-            logger.info(f"[Worker][Bronze] Archived raw paper {paper_id} to MinIO ({bronze_meta_key})")
-        except Exception as e:
-            logger.warning(f"[Worker][Bronze] Non-fatal MinIO Bronze archive warning: {e}")
+        if raw_html:
+            self.storage.upload_text(raw_html, f"bronze/papers/{year}/{paper_id}.html", content_type="text/html; charset=utf-8")
 
-        # -------------------------------------------------------------
-        # 2. 🥈 TẦNG SILVER: Bóc tách cấu trúc, chuẩn hóa Schema & ghi Parquet
-        # -------------------------------------------------------------
-        try:
-            if raw_html:
-                parsed_html = self.html_parser.parse(raw_html)
+    def _silver_record(self, paper: Dict[str, Any]) -> Dict[str, Any]:
+        raw_html = paper.get("raw_html") or paper.get("html_content")
+        if raw_html:
+            parsed = self.html_parser.parse(raw_html)
+        else:
+            abstract = paper.get("abstract", "")
+            parsed = {
+                "parsed_title": paper.get("title", ""),
+                "parsed_abstract": abstract,
+                "sections": [{"section_title": "Abstract", "section_type": "abstract", "content": abstract}],
+                "total_sections": 1,
+                "total_math_count": 0,
+                "total_words": len(str(abstract).split()),
+                "content_origin": "abstract_only",
+            }
+        return self.silver_writer.prepare_record(raw_meta=paper, parsed_html=parsed)
+
+    def process_batch(self, papers: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Tuple[Dict[str, Any], str]]]:
+        """Process a micro-batch. Returns (succeeded_or_skipped, [(failed_paper, reason)])."""
+        ok: List[Dict[str, Any]] = []
+        failed: List[Tuple[Dict[str, Any], str]] = []
+        fresh: List[Tuple[Dict[str, Any], Dict[str, Any], str, str]] = []  # paper, silver_rec, year, hash
+
+        for paper in papers:
+            paper_id = str(paper.get("paper_id", "")).strip()
+            if not paper_id:
+                failed.append((paper, "missing paper_id"))
+                continue
+            is_dup, abs_hash = self.dedup.is_duplicate(paper.get("abstract", ""), paper.get("title", ""))
+            if is_dup:
+                logger.info("[Worker][Dedup] Skipping duplicate %s", paper_id)
+                ok.append(paper)
+                continue
+            year = _year_of(paper)
+            try:
+                self._bronze(paper, paper_id, year)
+                fresh.append((paper, self._silver_record(paper), year, abs_hash))
+            except Exception as e:
+                failed.append((paper, f"bronze/silver prep: {e}"))
+
+        if not fresh:
+            return ok, failed
+
+        # Silver: one immutable part per year in this batch
+        by_year: Dict[str, List[Dict[str, Any]]] = {}
+        for _, rec, year, _ in fresh:
+            by_year.setdefault(year, []).append(rec)
+        silver_failed_years = set()
+        for year, recs in by_year.items():
+            try:
+                self.silver_writer.append_part(recs, year=year)
+            except Exception as e:
+                silver_failed_years.add(year)
+                logger.error("[Worker][Silver] Failed writing year=%s part: %s", year, e)
+
+        good = []
+        for paper, rec, year, abs_hash in fresh:
+            if year in silver_failed_years:
+                failed.append((paper, "silver write failed"))
             else:
-                # Nếu chưa có HTML đầy đủ, tạo cấu trúc tối thiểu từ abstract
-                parsed_html = {
-                    "parsed_title": title,
-                    "parsed_abstract": paper.get("abstract", ""),
-                    "sections": [
-                        {
-                            "section_title": "Abstract",
-                            "section_type": "abstract",
-                            "content": paper.get("abstract", ""),
-                        }
-                    ],
-                    "total_sections": 1,
-                    "total_math_count": 0,
-                    "total_words": len(str(paper.get("abstract", "")).split()),
-                    "content_origin": "abstract_only",
-                }
+                good.append((paper, rec, abs_hash))
 
-            silver_record = self.silver_writer.prepare_record(raw_meta=paper, parsed_html=parsed_html)
-            self.silver_writer.save_and_upload_parquet([silver_record], year=year)
-            logger.info(f"[Worker][Silver] Standardized & synced paper {paper_id} into Silver Parquet")
-        except Exception as e:
-            logger.error(f"[Worker][Silver] Failed to transform to Silver: {e}")
-            return False
+        # Gold: chunk + embed + upsert, per paper so one bad paper does not poison the batch
+        landed: List[Dict[str, Any]] = []
+        for paper, rec, abs_hash in good:
+            pid = str(rec["paper_id"])
+            try:
+                chunks = self.chunker.chunk_paper(rec)
+                if chunks:
+                    vectors = self.embedder.embed_documents([c.get("context_text") or c.get("text", "") for c in chunks])
+                    for c, vec in zip(chunks, vectors):
+                        c["vector"] = vec
+                    self.qdrant.insert_chunks(chunks)
+                self.dedup.record(abs_hash, pid)  # only after Bronze+Silver+Gold are durable
+                ok.append(paper)
+                landed.append(rec)
+            except Exception as e:
+                failed.append((paper, f"gold: {e}"))
 
-        # -------------------------------------------------------------
-        # 3. 🥇 TẦNG GOLD: Sinh Chunk ngữ cảnh từ Silver & Upsert Vector vào Qdrant
-        # -------------------------------------------------------------
-        try:
-            # Chỉ sinh chunk từ bản ghi Silver đã chuẩn hóa
-            chunks = self.chunker.chunk_paper(silver_record)
-            if not chunks:
-                logger.warning(f"[Worker][Gold] No valid chunks generated for paper {paper_id}")
-                return True
+        self.dedup.save()
+        self.last_ingested = landed
+        self._broadcast(landed)
+        return ok, failed
 
-            texts = [c.get("context_text") or c.get("text", "") for c in chunks]
-            vectors = self.embedder.embed_documents(texts)
-            for c, vec in zip(chunks, vectors):
-                c["vector"] = vec
+    @staticmethod
+    def _broadcast(landed: List[Dict[str, Any]]) -> None:
+        """Best-effort telemetry to the backend (one pulse per paper); disabled when BACKEND_BROADCAST_URL is empty."""
+        if not settings.BACKEND_BROADCAST_URL:
+            return
+        for rec in landed:
+            try:
+                httpx.post(settings.BACKEND_BROADCAST_URL, timeout=0.5, json={
+                    "type": "PAPER_INGESTED",
+                    "stage": "gold",
+                    "paper_id": rec.get("paper_id"),
+                    "title": str(rec.get("title", ""))[:120],
+                    "category": rec.get("primary_category", ""),
+                    "source": rec.get("source", ""),
+                    "tier": rec.get("tier", ""),
+                })
+            except Exception:
+                return  # backend not running: skip the rest of this batch's pulses
 
-            inserted = self.qdrant.insert_chunks(chunks)
-            logger.info(f"[Worker][Gold] Upserted {inserted} section vectors for paper {paper_id} into Qdrant")
-            return True
-        except Exception as e:
-            logger.error(f"[Worker][Gold] Failed to index paper {paper_id} into Qdrant: {e}")
-            return False
+    def process_paper(self, paper: Dict[str, Any]) -> bool:
+        """Single-paper convenience wrapper around process_batch (used by tests/scripts)."""
+        _, failed = self.process_batch([paper])
+        return not failed
 
-    def run_pika(self):
-        """Native AMQP consumer loop using pika."""
+    # ------------------------------------------------------------------ AMQP
+    def _requeue_or_bury(self, channel, paper: Dict[str, Any], retries: int, reason: str) -> None:
         import pika
-        params = pika.URLParameters(self.amqp_url)
-        conn = pika.BlockingConnection(params)
+
+        body = json.dumps(paper, ensure_ascii=False).encode("utf-8")
+        if retries + 1 > self.max_retries:
+            dead = dict(paper)
+            dead["_dead_reason"] = reason
+            channel.basic_publish(
+                exchange="", routing_key=self.dead_queue, body=json.dumps(dead, ensure_ascii=False).encode("utf-8"),
+                properties=pika.BasicProperties(delivery_mode=2, content_type="application/json"),
+            )
+            logger.error("[Worker] Paper %s dead-lettered after %d retries: %s", paper.get("paper_id"), retries, reason)
+        else:
+            channel.basic_publish(
+                exchange="", routing_key=self.queue_name, body=body,
+                properties=pika.BasicProperties(delivery_mode=2, content_type="application/json", headers={RETRY_HEADER: retries + 1}),
+            )
+            logger.warning("[Worker] Paper %s requeued (retry %d/%d): %s", paper.get("paper_id"), retries + 1, self.max_retries, reason)
+
+    def run_pika(self) -> None:
+        import pika
+
+        conn = pika.BlockingConnection(pika.URLParameters(self.amqp_url))
         channel = conn.channel()
         channel.queue_declare(queue=self.queue_name, durable=True)
-        channel.basic_qos(prefetch_count=1)
+        channel.queue_declare(queue=self.dead_queue, durable=True)
+        channel.basic_qos(prefetch_count=self.batch_size)
 
-        def callback(ch, method, properties, body):
+        def stop(*_):
+            self._running = False
+
+        signal.signal(signal.SIGINT, stop)
+        signal.signal(signal.SIGTERM, stop)
+        logger.info("[*] Listening on '%s' (batch=%d, dead-letter='%s'). Ctrl+C to exit.", self.queue_name, self.batch_size, self.dead_queue)
+
+        pending: List[Tuple[int, Dict[str, Any], int]] = []  # (delivery_tag, paper, retries)
+
+        def flush() -> None:
+            if not pending:
+                return
+            papers = [p for _, p, _ in pending]
             try:
-                data = json.loads(body.decode("utf-8"))
-                success = self.process_paper(data)
-                if success:
-                    ch.basic_ack(delivery_tag=method.delivery_tag)
-                else:
-                    logger.warning("[Worker] Processing failed for paper payload. Discarding to prevent loop.")
-                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-            except Exception as e:
-                logger.error(f"[Worker] Error handling message: {e}")
-                ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+                ok, failed = self.process_batch(papers)
+            except Exception as e:  # whole-batch crash: treat every paper as failed
+                ok, failed = [], [(p, f"batch crash: {e}") for p in papers]
+            failed_ids = {id(p): r for p, r in failed}
+            for tag, paper, retries in pending:
+                reason = failed_ids.get(id(paper))
+                if reason is not None:
+                    self._requeue_or_bury(channel, paper, retries, reason)
+                channel.basic_ack(delivery_tag=tag)  # ack after re-publish/dead-letter -> never lost
+            logger.info("[Worker] Batch done: %d ok/skipped, %d failed", len(ok), len(failed))
+            pending.clear()
 
-        channel.basic_consume(queue=self.queue_name, on_message_callback=callback)
-        logger.info(f"[*] RabbitMQ Consumer listening on '{self.queue_name}'... Press Ctrl+C to exit.")
         try:
-            channel.start_consuming()
-        except KeyboardInterrupt:
-            channel.stop_consuming()
-            conn.close()
+            for method, props, body in channel.consume(self.queue_name, inactivity_timeout=self.idle_flush_seconds):
+                if not self._running:
+                    break
+                if method is None:  # idle: flush whatever is buffered
+                    flush()
+                    continue
+                try:
+                    paper = json.loads(body.decode("utf-8"))
+                except Exception as e:
+                    logger.error("[Worker] Unparseable message sent to dead-letter: %s", e)
+                    channel.basic_publish(exchange="", routing_key=self.dead_queue, body=body, properties=pika.BasicProperties(delivery_mode=2))
+                    channel.basic_ack(delivery_tag=method.delivery_tag)
+                    continue
+                retries = int((props.headers or {}).get(RETRY_HEADER, 0)) if props else 0
+                pending.append((method.delivery_tag, paper, retries))
+                if len(pending) >= self.batch_size:
+                    flush()
+        finally:
+            flush()
+            self.dedup.save()
+            try:
+                channel.cancel()
+                conn.close()
+            except Exception:
+                pass
 
-    def run(self):
-        """Starts consumer."""
+    def run(self) -> None:
         try:
-            import pika
-            self.run_pika()
+            import pika  # noqa: F401
         except ImportError:
-            logger.error("[Worker] pika is required for queue consumer. Please install pika: pip install pika")
+            logger.error("pika is required for the queue consumer: pip install pika")
+            return
+        self.run_pika()
 
 
 if __name__ == "__main__":
-    consumer = QueueConsumer()
-    consumer.run()
+    QueueConsumer().run()

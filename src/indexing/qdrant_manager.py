@@ -2,7 +2,7 @@
 
 Stores contextual chunks and 768-dimensional dense vectors (Nomic v1.5)
 in Qdrant with HNSW indexing, cosine similarity, and payload keyword filtering.
-Drop-in compatible with LanceDBManager interface.
+Exposes a vector_search/insert_chunks interface.
 """
 
 import logging
@@ -177,7 +177,7 @@ class QdrantManager:
     ) -> pd.DataFrame:
         """Tìm kiếm lân cận gần đúng (ANN) trên vector embeddings trong Qdrant.
 
-        Trả về Pandas DataFrame tương thích với LanceDBManager.vector_search.
+        Trả về Pandas DataFrame cho vector_search.
         """
         col = table_name or self.collection_name
 

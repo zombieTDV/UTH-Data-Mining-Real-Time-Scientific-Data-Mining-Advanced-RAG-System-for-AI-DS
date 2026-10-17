@@ -9,7 +9,7 @@ Ingests seminal, most-cited AI and Data Science milestone papers in history:
 - Harvested across 4 canonical sources: arXiv, OpenReview, CVF, Zenodo.
 - Deduplication via normalized SHA-256 abstract hashing (LakehouseDeduplicator).
 - PDF extraction powered by Marker (marker-pdf) with LaTeX math preservation ($ ... $, $$ ... $$).
-- Lakehouse Vaulting: Bronze JSON -> Silver Parquet -> Gold LanceDB (Nomic-Embed 768-D).
+- Lakehouse Vaulting: Bronze JSON -> Silver Parquet -> Gold Qdrant (Nomic-Embed 768-D).
 - Zero-polling cost-shield telemetry via local FastAPI SSE bridge.
 
 Usage:
@@ -38,7 +38,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.indexing.embedder import NomicEmbedder
-from src.indexing.qdrant_manager import QdrantManager as LanceDBManager
+from src.indexing.qdrant_manager import QdrantManager
+from src.storage.lakehouse_io import LakehouseIO
 from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
 from src.transformation.marker_extractor import MarkerPdfExtractor
@@ -61,7 +62,7 @@ CATEGORY_CONCEPTS = {
 def broadcast_telemetry(payload: dict):
     """Sends telemetry pulse to local FastAPI SSE bridge without querying R2."""
     try:
-        httpx.post("http://localhost:8000/api/ingestion/broadcast", json=payload, timeout=0.25)
+        httpx.post(settings.BACKEND_BROADCAST_URL, json=payload, timeout=0.25)
     except Exception:
         pass
 
@@ -94,21 +95,15 @@ class Tier1HistoricalHarvester:
         self.use_marker = use_marker
         self.sync_r2 = sync_r2
 
-        self.r2 = R2Client() if sync_r2 else None
+        self.r2 = R2Client()  # MinIO is always the sink; sync_r2 is kept only for CLI compatibility
+        self.io = LakehouseIO(self.r2)
         self.dedup = LakehouseDeduplicator()
         self.marker_extractor = MarkerPdfExtractor(use_marker=use_marker, max_pages=15)
         self.silver_writer = SilverLakehouseWriter(r2_client=self.r2)
 
-        self.bronze_dir = settings.ROOT_DIR / "data" / "raw" / "tier1"
-        self.pdf_dir = self.bronze_dir / "pdfs"
-        self.markdown_dir = self.bronze_dir / "markdowns"
-        self.bronze_dir.mkdir(parents=True, exist_ok=True)
-        self.pdf_dir.mkdir(parents=True, exist_ok=True)
-        self.markdown_dir.mkdir(parents=True, exist_ok=True)
-
         self.http_client = httpx.Client(
             headers={
-                "User-Agent": "UTH-DataMining-Tier1Core/2.0 (academic research; contact: datamining@uth.edu.vn)"
+                "User-Agent": settings.ARXIV_USER_AGENT
             },
             timeout=30.0,
             follow_redirects=True,
@@ -242,52 +237,45 @@ class Tier1HistoricalHarvester:
         paper_id = paper["paper_id"]
         pdf_url = paper.get("pdf_url", "")
         safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", paper_id)
-        local_pdf = self.pdf_dir / f"{safe_id}.pdf"
-        local_md = self.markdown_dir / f"{safe_id}.md"
+        md_key = f"bronze/tier1/markdowns/{safe_id}.md"
 
-        # Check existing markdown cache
-        if local_md.exists() and local_md.stat().st_size > 100:
-            try:
-                with open(local_md, "r", encoding="utf-8") as f:
-                    content = f.read()
-                return content, {"extractor": "marker_cache", "cached": True}
-            except Exception:
-                pass
+        # Markdown cache lives in MinIO
+        try:
+            if self.r2.object_exists(md_key):
+                content = self.r2.get_text(md_key)
+                if len(content) > 100:
+                    return content, {"extractor": "marker_cache", "cached": True}
+        except Exception:
+            pass
 
         if not pdf_url:
             return "", {"status": "NO_PDF_URL"}
 
-        # Download PDF if not present
-        if not local_pdf.exists() or local_pdf.stat().st_size < 1000:
-            try:
-                # If paper has arXiv ID, prefer official arXiv export PDF
-                download_urls = []
-                if "arxiv_id" in paper and paper["arxiv_id"]:
-                    download_urls.append(f"https://arxiv.org/pdf/{paper['arxiv_id']}.pdf")
-                if pdf_url and pdf_url not in download_urls:
-                    download_urls.append(pdf_url)
-
-                downloaded = False
-                for target_url in download_urls:
-                    resp = self.http_client.get(target_url, timeout=45.0)
-                    if resp.status_code == 200 and len(resp.content) > 1000:
-                        if resp.content.startswith(b"%PDF"):
-                            with open(local_pdf, "wb") as f:
-                                f.write(resp.content)
-                            downloaded = True
-                            break
-
-                if not downloaded:
-                    return "", {"status": "NO_VALID_PDF_STREAM"}
-            except Exception as e:
-                logger.debug("[TIER 1] Could not download PDF for %s: %s", paper_id, e)
-                return "", {"status": "DOWNLOAD_EXCEPTION", "error": str(e)}
-
-        # Execute Marker PDF extraction
+        # Download PDF into memory (never persisted)
+        pdf_bytes = None
         try:
-            markdown_text, meta = self.marker_extractor.convert_pdf_to_markdown(local_pdf)
-            with open(local_md, "w", encoding="utf-8") as f:
-                f.write(markdown_text)
+            download_urls = []
+            if "arxiv_id" in paper and paper["arxiv_id"]:
+                download_urls.append(f"https://arxiv.org/pdf/{paper['arxiv_id']}.pdf")
+            if pdf_url and pdf_url not in download_urls:
+                download_urls.append(pdf_url)
+
+            for target_url in download_urls:
+                resp = self.http_client.get(target_url, timeout=45.0)
+                if resp.status_code == 200 and len(resp.content) > 1000 and resp.content.startswith(b"%PDF"):
+                    pdf_bytes = resp.content
+                    break
+
+            if pdf_bytes is None:
+                return "", {"status": "NO_VALID_PDF_STREAM"}
+        except Exception as e:
+            logger.debug("[TIER 1] Could not download PDF for %s: %s", paper_id, e)
+            return "", {"status": "DOWNLOAD_EXCEPTION", "error": str(e)}
+
+        try:
+            markdown_text, meta = self.marker_extractor.convert_pdf_bytes_to_markdown(pdf_bytes, name=safe_id)
+            if markdown_text:
+                self.r2.upload_text(markdown_text, md_key, content_type="text/markdown; charset=utf-8")
             return markdown_text, meta
         except Exception as e:
             logger.warning("[TIER 1] Marker conversion error for %s: %s", paper_id, e)
@@ -388,9 +376,7 @@ class Tier1HistoricalHarvester:
 
             # Save Bronze Raw JSON
             safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", p_id)
-            bronze_file = self.bronze_dir / f"{safe_id}.json"
-            with open(bronze_file, "w", encoding="utf-8") as f:
-                json.dump(paper, f, ensure_ascii=False, indent=2)
+            self.io.put_json(f"bronze/tier1/{safe_id}.json", paper)
 
             ingested_records.append(paper)
             new_papers_count += 1
@@ -449,14 +435,7 @@ class Tier1HistoricalHarvester:
                 })
 
             # Save to tier1 silver partition and year partition
-            tier1_silver_dir = settings.ROOT_DIR / "data" / "silver" / "tier1"
-            tier1_silver_dir.mkdir(parents=True, exist_ok=True)
-            df_tier1 = pd.DataFrame(transformed_rows)
-            t1_file = tier1_silver_dir / "landmark_papers.parquet"
-            if t1_file.exists():
-                ex_df = pq.read_table(t1_file).to_pandas()
-                df_tier1 = pd.concat([ex_df, df_tier1], ignore_index=True).drop_duplicates(subset=["abstract_hash"], keep="last")
-            pq.write_table(pa.Table.from_pandas(df_tier1, preserve_index=False), t1_file, compression="zstd")
+            self.io.upsert_parquet("silver/tier1/landmark_papers.parquet", pd.DataFrame(transformed_rows), subset=["abstract_hash"])
 
             # Also upsert into year partitions via silver_writer
             by_year: Dict[str, List[Dict[str, Any]]] = {}
@@ -466,8 +445,8 @@ class Tier1HistoricalHarvester:
             for y, rows in by_year.items():
                 self.silver_writer.save_and_upload_parquet(rows, year=y)
 
-            # Gold Layer LanceDB Indexing
-            logger.info("[TIER 1] Generating embeddings & indexing chunks into LanceDB Gold...")
+            # Gold Layer Qdrant Indexing
+            logger.info("[TIER 1] Generating embeddings & indexing chunks into Qdrant Gold...")
             chunks = self.build_chunks(ingested_records)
             if chunks:
                 embedder = NomicEmbedder()
@@ -476,9 +455,9 @@ class Tier1HistoricalHarvester:
                 for c, emb in zip(chunks, embeddings):
                     c["vector"] = emb
 
-                lancedb_mgr = LanceDBManager(r2_client=self.r2)
-                lancedb_mgr.insert_chunks(chunks)
-                logger.info("[TIER 1] Indexed %d vector chunks into LanceDB Gold table 'scientific_papers_gold'.", len(chunks))
+                qdrant_mgr = QdrantManager(r2_client=self.r2)
+                qdrant_mgr.insert_chunks(chunks)
+                logger.info("[TIER 1] Indexed %d vector chunks into Qdrant Gold table 'scientific_papers_gold'.", len(chunks))
 
         duration = round(time.time() - start_time, 2)
         summary = {
