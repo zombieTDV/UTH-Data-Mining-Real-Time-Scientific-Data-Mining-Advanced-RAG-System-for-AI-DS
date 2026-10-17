@@ -10,7 +10,6 @@ import {
 import { useLakehouseStreamStore, appendStreamLog, clearStreamLogs, resetSessionInStore } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { AnimatedCounter } from '../common/AnimatedCounter.component';
-import { PipelineExecutionStepper } from './PipelineExecutionStepper.component';
 import { AdaptiveSchedulerControl } from './AdaptiveSchedulerControl.component';
 import type { AppTab } from '../../types';
 
@@ -248,7 +247,6 @@ export interface InteractiveWorkflowCanvasProps {
 export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   onNavigateTab,
   isPipelineRunning = false,
-  onTriggerPipeline,
   theme = 'dark',
   language = 'vi',
   inspectNodeTrigger,
@@ -700,18 +698,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   }, [isPipelineRunning]);
 
   const effectiveStage = (activePipelineStage && activePipelineStage !== 'idle') ? activePipelineStage : simulationStage;
-  const normalizedStage: PipelineStageKey = useMemo(() => {
-    if (!isPipelineRunning && !isStreaming) {
-      return (effectiveStage === 'completed') ? 'completed' : 'idle';
-    }
-    if (effectiveStage === 'completed') return 'completed';
-    if (effectiveStage === 'harvest') return 'harvest';
-    if (effectiveStage === 'bronze' || effectiveStage === 'r2_sync') return 'bronze';
-    if (effectiveStage === 'duckdb') return 'duckdb';
-    if (effectiveStage === 'parallel' || effectiveStage === 'silver' || effectiveStage === 'gold' || effectiveStage === 'embedding') return 'parallel';
-    if (simulationStage !== 'idle') return simulationStage;
-    return 'idle';
-  }, [effectiveStage, simulationStage, isPipelineRunning, isStreaming]);
+
 
   const isStageActive = (stage: string) => {
     // When live streaming ingestion is running, data flows down the entire Lakehouse:
@@ -1068,31 +1055,6 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
       }}
     >
 
-      {/* Top Floating Pipeline Execution Stepper (HUD) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '12px',
-          left: '20px',
-          right: '20px',
-          zIndex: 35,
-          pointerEvents: 'auto',
-          display: 'flex',
-          justifyContent: 'center',
-        }}
-      >
-        <PipelineExecutionStepper
-          currentStage={normalizedStage}
-          isPipelineRunning={isPipelineRunning}
-          onTriggerPipeline={onTriggerPipeline}
-          onSelectStageNode={handleOpenInspector}
-          selectedNodeId={selectedNodeId}
-          theme={theme}
-          language={language}
-          isStreaming={isStreaming}
-        />
-      </div>
-
       {/* ============================================================== */}
       {/* HORIZONTAL DATA MINING PIPELINE (Centered in Viewport & Zoomable) */}
       {/* ============================================================== */}
@@ -1102,7 +1064,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          paddingTop: '60px',
+          paddingTop: '16px',
         }}
       >
         <div
