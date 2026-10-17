@@ -81,6 +81,21 @@ class ClusterProfileItem(BaseModel):
     topic_subtitle: Optional[str] = None
 
 
+class GmmEllipseItem(BaseModel):
+    cluster_id: int
+    name: str
+    short_title: str
+    color: str
+    weight: float
+    cx: float
+    cy: float
+    rx_1sigma: float
+    ry_1sigma: float
+    rx_2sigma: float
+    ry_2sigma: float
+    angle_deg: float
+
+
 class ScatterPointItem(BaseModel):
     x: float
     y: float
@@ -88,6 +103,10 @@ class ScatterPointItem(BaseModel):
     category: str
     title: str
     paper_id: str
+    confidence: Optional[float] = 1.0
+    all_probs: Optional[List[float]] = None
+    is_cross_domain: Optional[bool] = False
+    secondary_cluster: Optional[int] = None
 
 
 class ClustersResponse(BaseModel):
@@ -95,6 +114,7 @@ class ClustersResponse(BaseModel):
     validity_metrics: Dict[str, float]
     cluster_profiles: List[ClusterProfileItem]
     scatter_2d: List[ScatterPointItem]
+    gmm_ellipses: Optional[List[GmmEllipseItem]] = None
 
 
 class GraphNodeItem(BaseModel):

@@ -303,6 +303,21 @@ export interface ClusterProfileItem {
   sample_titles: string[];
 }
 
+export interface GmmEllipseItem {
+  cluster_id: number;
+  name: string;
+  short_title: string;
+  color: string;
+  weight: number;
+  cx: number;
+  cy: number;
+  rx_1sigma: number;
+  ry_1sigma: number;
+  rx_2sigma: number;
+  ry_2sigma: number;
+  angle_deg: number;
+}
+
 export interface ScatterPointItem {
   x: number;
   y: number;
@@ -310,12 +325,21 @@ export interface ScatterPointItem {
   category: string;
   title: string;
   paper_id: string;
+  confidence?: number;
+  all_probs?: number[];
+  is_cross_domain?: boolean;
+  secondary_cluster?: number;
 }
 
 export interface ClusterValidityMetrics {
   silhouette_score: number;
   davies_bouldin_index: number;
   calinski_harabasz_index: number;
+  bic_score?: number;
+  aic_score?: number;
+  log_likelihood?: number;
+  soft_separation_margin?: number;
+  cross_domain_ratio?: number;
 }
 
 export interface ClustersSummary {
@@ -324,6 +348,8 @@ export interface ClustersSummary {
   optimal_k: number;
   dbscan_clusters_found: number;
   dbscan_noise_ratio: number;
+  model_type?: string;
+  covariance_type?: string;
 }
 
 export interface ClustersResponse {
@@ -331,6 +357,7 @@ export interface ClustersResponse {
   validity_metrics: ClusterValidityMetrics;
   cluster_profiles: ClusterProfileItem[];
   scatter_2d: ScatterPointItem[];
+  gmm_ellipses?: GmmEllipseItem[];
 }
 
 export interface GraphNodeItem {

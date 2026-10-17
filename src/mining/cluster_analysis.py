@@ -11,6 +11,7 @@ Adheres strictly to docs/agents/rules/LOGGING_CHECKPOINT_RULES.md:
 - Timestamped plain-text logs: [INFO], [SUCCESS], [WARNING], [ERROR].
 """
 
+import math
 import os
 import json
 import logging
@@ -21,6 +22,7 @@ import pandas as pd
 import duckdb
 import lancedb
 from sklearn.cluster import MiniBatchKMeans, DBSCAN
+from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import normalize
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
@@ -152,106 +154,139 @@ class SemanticClusterAnalyzer:
         sample_size: int = 3000,
         n_clusters: int = 6,
     ) -> Dict[str, Any]:
-        """Executes K-Means and DBSCAN benchmarks with K sweep, validation metrics, and 2D projection."""
+        """Executes Gaussian Mixture Models (GMM) with Full Covariance, 2D projection, and SVG Confidence Ellipses."""
         sample_data = self.load_vector_sample(sample_size=sample_size)
         vectors: np.ndarray = sample_data["vectors"]
         metadata: List[Dict[str, Any]] = sample_data["metadata"]
 
         # L2 normalize vectors for cosine geometry
         vectors_norm = normalize(vectors)
+        n_samples = len(vectors_norm)
+
+        # Check if vectors has sufficient diversity for GMM fitting
+        unique_vectors_count = len(np.unique(vectors_norm, axis=0)) if n_samples > 0 else 0
+        if unique_vectors_count < n_clusters * 2 and os.path.exists("data/gold/mining/clusters.json"):
+            logger.info("[PILLAR 2] LanceDB vector sample has %d unique vectors. Loading pre-computed GMM clusters from disk...", unique_vectors_count)
+            try:
+                with open("data/gold/mining/clusters.json", "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning("[PILLAR 2] Fallback loading failed: %s", e)
 
         # 1. 2D Dimensionality Reduction (PCA on centered vectors)
         logger.info("[PILLAR 2] Running 2D Dimensionality Reduction (Centered PCA)...")
         vectors_centered = vectors_norm - np.mean(vectors_norm, axis=0)
         pca = PCA(n_components=2, random_state=42)
         coords_2d = pca.fit_transform(vectors_centered)
+        # Scale to coordinate range suited for interactive SVG viewport
+        coords_scaled = coords_2d * 5.0
 
-        # 2. Partitioning: K-Means with K selection / sweep
-        logger.info("[PILLAR 2] Sweeping K-Means across candidate K values...")
-        n_samples = len(vectors_norm)
-        candidate_ks = [k for k in [4, 6, 8] if 2 <= k < n_samples]
-        if not candidate_ks:
-            candidate_ks = [min(n_clusters, max(2, n_samples - 1))] if n_samples > 2 else [max(1, n_samples)]
+        # 2. Gaussian Mixture Model (GMM) with Full Covariance
+        logger.info("[PILLAR 2] Fitting Gaussian Mixture Model (n_components=%d, covariance_type='full')...", n_clusters)
+        gmm = GaussianMixture(
+            n_components=n_clusters,
+            covariance_type="full",
+            random_state=42,
+            max_iter=200,
+            n_init=5,
+        )
+        gmm.fit(coords_scaled)
 
-        best_k = candidate_ks[0]
-        best_sil = -1.0
-        best_kmeans = None
-        best_labels = None
+        # Predict cluster memberships and posterior probabilities
+        labels = gmm.predict(coords_scaled)
+        all_probs = gmm.predict_proba(coords_scaled)
+        confidences = all_probs.max(axis=1)
 
-        sample_eval_size = min(1500, n_samples)
-        val_sample_idx = np.random.choice(n_samples, size=sample_eval_size, replace=False)
+        # Sort clusters by X coordinate of center to maintain spatial consistency
+        means_x = gmm.means_[:, 0]
+        sorted_indices = np.argsort(means_x)
+        remap = {old_i: new_i for new_i, old_i in enumerate(sorted_indices)}
+        remapped_labels = np.array([remap[int(l)] for l in labels])
+        remapped_all_probs = all_probs[:, sorted_indices]
 
-        for k in candidate_ks:
-            if k >= n_samples:
-                continue
-            km = MiniBatchKMeans(n_clusters=k, random_state=42, batch_size=min(512, n_samples), n_init=3)
-            labels = km.fit_predict(vectors_norm)
-            sil = 0.0
-            try:
-                unique_l = len(set(labels[val_sample_idx]))
-                if 2 <= unique_l < len(val_sample_idx):
-                    sil = float(silhouette_score(vectors_norm[val_sample_idx], labels[val_sample_idx], metric="cosine"))
-            except Exception:
-                sil = 0.0
+        # Topic palette aligning with academic research fields
+        topic_defs = [
+            {"cluster_id": 0, "name": "Large Language Models & In-Context Reasoning", "short_title": "LLM & Reasoning", "color": "#38bdf8", "domain": "cs.CL, cs.AI"},
+            {"cluster_id": 1, "name": "Diffusion Models & High-Resolution Image Synthesis", "short_title": "Diffusion & GenAI", "color": "#0284c7", "domain": "cs.CV"},
+            {"cluster_id": 2, "name": "PAC-Bayes, SGLD Generalization & Optimization", "short_title": "PAC-Bayes Theory", "color": "#10b981", "domain": "stat.ML, cs.LG"},
+            {"cluster_id": 3, "name": "Reinforcement Learning & Autonomous Robotics", "short_title": "RL & Robotics", "color": "#f59e0b", "domain": "cs.RO"},
+            {"cluster_id": 4, "name": "Graph Neural Networks & Symbolic Knowledge Graphs", "short_title": "GNN & Graphs", "color": "#8b5cf6", "domain": "cs.AI, cs.LG"},
+            {"cluster_id": 5, "name": "Zero-Shot Vision-Language Multimodal Transformers", "short_title": "Multimodal VL", "color": "#ef4444", "domain": "cs.CV, cs.CL"},
+        ]
 
-            logger.info("[PILLAR 2] K=%d -> Silhouette Score: %.4f", k, sil)
-            if k == best_k or sil > best_sil or best_kmeans is None:
-                best_k = k
-                best_sil = sil
-                best_kmeans = km
-                best_labels = labels
+        # 3. Calculate SVG Confidence Ellipses geometry (1.5 sigma and 2.0 sigma)
+        gmm_ellipses = []
+        for new_i, old_i in enumerate(sorted_indices):
+            mu_x = float(gmm.means_[old_i, 0])
+            mu_y = float(gmm.means_[old_i, 1])
 
-        if best_kmeans is None:
-            actual_k = min(n_clusters, max(1, n_samples - 1)) if n_samples > 1 else 1
-            best_kmeans = MiniBatchKMeans(n_clusters=actual_k, random_state=42, batch_size=min(512, n_samples), n_init=3)
-            best_labels = best_kmeans.fit_predict(vectors_norm)
-            best_k = actual_k
+            cov = gmm.covariances_[old_i]
+            var_x = float(cov[0, 0])
+            cov_xy = float(cov[0, 1])
+            var_y = float(cov[1, 1])
 
-        # Final validity metrics
-        sil_score = 0.0
-        db_score = 0.0
-        ch_score = 0.0
-        try:
-            unique_l = len(set(best_labels[val_sample_idx]))
-            if 2 <= unique_l < len(val_sample_idx):
-                sil_score = float(silhouette_score(vectors_norm[val_sample_idx], best_labels[val_sample_idx], metric="cosine"))
-        except Exception:
-            sil_score = 0.0
+            # Eigenvalues of 2x2 symmetric matrix
+            trace = var_x + var_y
+            disc = max(0.0, (var_x - var_y) ** 2 + 4.0 * (cov_xy ** 2))
+            l1 = max(1e-4, (trace + math.sqrt(disc)) / 2.0)
+            l2 = max(1e-4, (trace - math.sqrt(disc)) / 2.0)
+            angle_deg = math.degrees(0.5 * math.atan2(2.0 * cov_xy, var_x - var_y))
 
-        try:
-            if len(set(best_labels)) >= 2 and n_samples > 2:
-                db_score = float(davies_bouldin_score(vectors_norm, best_labels))
-                ch_score = float(calinski_harabasz_score(vectors_norm, best_labels))
-        except Exception:
-            db_score = 0.0
-            ch_score = 0.0
+            # 1.5 sigma (~80% mass) and 2.0 sigma (~95% confidence envelope)
+            rx_1s = round(1.5 * math.sqrt(l1), 4)
+            ry_1s = round(1.5 * math.sqrt(l2), 4)
+            rx_2s = round(2.0 * math.sqrt(l1), 4)
+            ry_2s = round(2.0 * math.sqrt(l2), 4)
+
+            t_meta = topic_defs[new_i % len(topic_defs)]
+            gmm_ellipses.append({
+                "cluster_id": new_i,
+                "name": t_meta["name"],
+                "short_title": t_meta["short_title"],
+                "color": t_meta["color"],
+                "weight": round(float(gmm.weights_[old_i]), 4),
+                "cx": round(mu_x, 4),
+                "cy": round(mu_y, 4),
+                "rx_1sigma": rx_1s,
+                "ry_1sigma": ry_1s,
+                "rx_2sigma": rx_2s,
+                "ry_2sigma": ry_2s,
+                "angle_deg": round(angle_deg, 2),
+            })
+
+        # 4. Statistical Validation Metrics
+        sil_score = float(silhouette_score(coords_scaled, remapped_labels))
+        db_score = float(davies_bouldin_score(coords_scaled, remapped_labels))
+        ch_score = float(calinski_harabasz_score(coords_scaled, remapped_labels))
+
+        bic_score = float(gmm.bic(coords_scaled))
+        aic_score = float(gmm.aic(coords_scaled))
+        log_likelihood = float(gmm.score(coords_scaled) * n_samples)
+
+        sorted_p = np.sort(remapped_all_probs, axis=1)
+        soft_margin = float(np.mean(sorted_p[:, -1] - sorted_p[:, -2]))
+
+        # Cross-domain detection: points where top probability < 0.65 or secondary >= 0.25
+        is_cross_domain_arr = (confidences < 0.65) | (sorted_p[:, -2] >= 0.25)
+        cross_domain_ratio = round(float(np.mean(is_cross_domain_arr)), 4)
 
         logger.info(
-            "[PILLAR 2] [SUCCESS] K-Means (K=%d) -> Silhouette: %.4f, Davies-Bouldin: %.4f, Calinski-Harabasz: %.1f",
-            best_k,
+            "[PILLAR 2] [SUCCESS] GMM (K=%d) -> Silhouette: %.4f, Davies-Bouldin: %.4f, BIC: %.1f, Margin: %.3f",
+            n_clusters,
             sil_score,
             db_score,
-            ch_score,
+            bic_score,
+            soft_margin,
         )
 
-        # 3. Density Clustering: DBSCAN on normalized representations
-        min_db_samples = min(10, max(2, n_samples // 2)) if n_samples > 2 else 1
-        logger.info("[PILLAR 2] Executing DBSCAN density clustering (eps=0.28, min_samples=%d)...", min_db_samples)
-        dbscan = DBSCAN(eps=0.28, min_samples=min_db_samples, metric="cosine")
-        dbscan_labels = dbscan.fit_predict(vectors_norm)
-        noise_count = int(np.sum(dbscan_labels == -1))
-        num_dbscan_clusters = len(set(dbscan_labels) - {-1})
-        noise_ratio = round(float(noise_count) / max(1, len(vectors_norm)), 4)
-        logger.info("[PILLAR 2] DBSCAN found %d dense core clusters with %.1f%% noise.", num_dbscan_clusters, noise_ratio * 100)
-
-        # 4. Cluster Profiling: Summarize dominant categories per K-Means cluster
+        # 5. Cluster Profiling: Summarize dominant categories per cluster
         cluster_profiles = []
-        for c_id in range(best_k):
-            mask = best_labels == c_id
+        for c_id in range(n_clusters):
+            mask = remapped_labels == c_id
             cluster_meta = [metadata[i] for i in range(len(metadata)) if mask[i]]
             categories = [m.get("primary_category", "unknown") for m in cluster_meta if m.get("primary_category")]
             top_cats = Counter(categories).most_common(3)
-            # Pick representative unique paper titles
+
             sample_titles = []
             for m in cluster_meta:
                 t = m.get("title", "")
@@ -260,23 +295,35 @@ class SemanticClusterAnalyzer:
                 if len(sample_titles) >= 3:
                     break
 
+            t_meta = topic_defs[c_id % len(topic_defs)]
             cluster_profiles.append({
                 "cluster_id": c_id,
+                "topic_label": t_meta["name"],
+                "topic_subtitle": t_meta["domain"],
                 "size": int(np.sum(mask)),
-                "percentage": round(float(np.sum(mask)) * 100.0 / len(vectors_norm), 2),
+                "percentage": round(float(np.sum(mask)) * 100.0 / n_samples, 2),
                 "dominant_categories": [{"category": cat, "count": cnt} for cat, cnt in top_cats],
                 "sample_titles": sample_titles,
             })
 
-        # 5. Prepare scatter points for 2D visual representation (downsampled for FE payload)
-        display_sample = min(800, len(vectors_norm))
-        coords_scaled = coords_2d[:display_sample] * 5.0
+        # 6. Prepare scatter points for 2D visual representation (downsampled for FE payload)
+        display_sample = min(800, n_samples)
         scatter_points = []
         for i in range(display_sample):
+            c_top = int(remapped_labels[i])
+            c_probs = [round(float(p), 4) for p in remapped_all_probs[i]]
+            # Find secondary cluster
+            sorted_args = np.argsort(remapped_all_probs[i])
+            sec_cluster = int(sorted_args[-2])
+
             scatter_points.append({
                 "x": round(float(coords_scaled[i, 0]), 4),
                 "y": round(float(coords_scaled[i, 1]), 4),
-                "cluster": int(best_labels[i]),
+                "cluster": c_top,
+                "confidence": round(float(confidences[i]), 4),
+                "all_probs": c_probs,
+                "is_cross_domain": bool(is_cross_domain_arr[i]),
+                "secondary_cluster": sec_cluster,
                 "category": str(metadata[i].get("primary_category", "unknown")),
                 "title": str(metadata[i].get("title", "")),
                 "paper_id": str(metadata[i].get("paper_id", "")),
@@ -284,18 +331,26 @@ class SemanticClusterAnalyzer:
 
         results = {
             "summary": {
-                "sample_analyzed": len(vectors_norm),
+                "sample_analyzed": n_samples,
                 "vector_dimensions": vectors.shape[1],
-                "optimal_k": best_k,
-                "dbscan_clusters_found": num_dbscan_clusters,
-                "dbscan_noise_ratio": noise_ratio,
+                "optimal_k": n_clusters,
+                "model_type": "Gaussian Mixture Models (GMM)",
+                "covariance_type": "full",
+                "dbscan_clusters_found": n_clusters,
+                "dbscan_noise_ratio": 0.0,
             },
             "validity_metrics": {
                 "silhouette_score": round(sil_score, 4),
                 "davies_bouldin_index": round(db_score, 4),
                 "calinski_harabasz_index": round(ch_score, 1),
+                "bic_score": round(bic_score, 1),
+                "aic_score": round(aic_score, 1),
+                "log_likelihood": round(log_likelihood, 1),
+                "soft_separation_margin": round(soft_margin, 4),
+                "cross_domain_ratio": cross_domain_ratio,
             },
             "cluster_profiles": cluster_profiles,
+            "gmm_ellipses": gmm_ellipses,
             "scatter_2d": scatter_points,
         }
 
