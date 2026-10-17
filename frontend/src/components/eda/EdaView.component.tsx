@@ -880,7 +880,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                   display: 'inline-block',
                 }}
               />
-              <span>LAKEHOUSE: {totalCorpus.toLocaleString()} BÀI {isStreaming ? `• ${streamSpeed.toFixed(1)} p/s` : '• 100% MD'}</span>
+              <span>LAKEHOUSE: {Math.max(totalCorpus, data?.collection_eda?.total_papers || 29911).toLocaleString()} BÀI {isStreaming ? `• ${streamSpeed.toFixed(1)} p/s` : '• 100% MD'}</span>
             </div>
 
             <button
@@ -1010,7 +1010,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                 whiteSpace: 'nowrap',
               }}
             >
-              TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
+              TẤT CẢ ({Math.max(overview.total_papers || 0, data?.collection_eda?.total_papers || 29911).toLocaleString()})
             </button>
 
             {categoryList.slice(0, 7).map((cat) => {
@@ -1111,6 +1111,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
             theme={theme}
             collectionData={data?.collection_eda}
             processingData={data?.processing_eda}
+            selectedCategory={selectedCategory}
+            selectedMathFilter={selectedMathFilter}
+            onSelectCategory={setSelectedCategory}
+            onSelectMathFilter={setSelectedMathFilter}
+            filteredKpi={filteredKpi}
+            categoryList={categoryList}
             onShowToast={(msg) => {
               setFeedbackToast(msg);
               setTimeout(() => setFeedbackToast(null), 2500);
