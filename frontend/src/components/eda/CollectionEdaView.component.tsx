@@ -866,38 +866,40 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
             {/* Interactive SVG Donut */}
             <div style={{ width: '120px', height: '120px', position: 'relative', flexShrink: 0 }}>
               <svg viewBox="0 0 88 88" style={{ width: '100%', height: '100%' }}>
-                {donutGeometry.map((s) => {
-                  const isHovered = hoveredSource === s.key;
-                  const isFiltered = selectedSource !== 'ALL' && selectedSource !== s.key;
-                  const isSelected = selectedSource === s.key;
+                <g transform="rotate(-90 44 44)">
+                  {donutGeometry.map((s) => {
+                    const isHovered = hoveredSource === s.key;
+                    const isFiltered = selectedSource !== 'ALL' && selectedSource !== s.key;
+                    const isSelected = selectedSource === s.key;
 
-                  return (
-                    <circle
-                      key={s.key}
-                      cx="44"
-                      cy="44"
-                      r={s.radius}
-                      fill="none"
-                      stroke={s.color}
-                      strokeWidth={isHovered ? 13 : isSelected ? 12 : 9.5}
-                      strokeDasharray={s.dasharray}
-                      strokeDashoffset={s.offset}
-                      style={{
-                        cursor: 'pointer',
-                        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                        opacity: isFiltered ? 0.22 : 1,
-                        filter: isHovered || isSelected ? `drop-shadow(0 0 6px ${s.color})` : 'none',
-                      }}
-                      onMouseEnter={() => setHoveredSource(s.key)}
-                      onMouseLeave={() => setHoveredSource(null)}
-                      onClick={() => {
-                        const next = selectedSource === s.key ? 'ALL' : s.key;
-                        setSelectedSource(next);
-                        onShowToast?.(`Đã lọc nguồn: ${s.name}`);
-                      }}
-                    />
-                  );
-                })}
+                    return (
+                      <circle
+                        key={s.key}
+                        cx="44"
+                        cy="44"
+                        r={s.radius}
+                        fill="none"
+                        stroke={s.color}
+                        strokeWidth={isHovered ? 13 : isSelected ? 12 : 9.5}
+                        strokeDasharray={s.dasharray}
+                        strokeDashoffset={s.offset}
+                        style={{
+                          cursor: 'pointer',
+                          transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                          opacity: isFiltered ? 0.22 : 1,
+                          filter: isHovered || isSelected ? `drop-shadow(0 0 6px ${s.color})` : 'none',
+                        }}
+                        onMouseEnter={() => setHoveredSource(s.key)}
+                        onMouseLeave={() => setHoveredSource(null)}
+                        onClick={() => {
+                          const next = selectedSource === s.key ? 'ALL' : s.key;
+                          setSelectedSource(next);
+                          onShowToast?.(`Đã lọc nguồn: ${s.name}`);
+                        }}
+                      />
+                    );
+                  })}
+                </g>
 
                 {/* Dynamic Center Telemetry */}
                 <text

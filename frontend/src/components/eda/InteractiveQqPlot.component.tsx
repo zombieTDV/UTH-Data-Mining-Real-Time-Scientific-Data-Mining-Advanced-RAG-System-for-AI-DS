@@ -287,7 +287,7 @@ export const InteractiveQqPlot: FC<InteractiveQqPlotProps> = ({
         <div>
           {transformMode === 'raw' ? (
             <span style={{ color: '#ea580c', fontWeight: 800 }}>
-              ⚠️ Bác bỏ H0: Lệch phải (S = +{univariate.skewness})
+              ⚠️ Bác bỏ H0: {univariate.skewness >= 0 ? `Lệch phải (S = +${univariate.skewness})` : `Lệch trái (S = ${univariate.skewness})`}
             </span>
           ) : (
             <span style={{ color: '#10b981', fontWeight: 800 }}>
@@ -428,8 +428,10 @@ export const InteractiveQqPlot: FC<InteractiveQqPlotProps> = ({
             const cy = toY(targetEmpirical);
 
             // Compute actual vs expected values in native units for tooltip probe (non-negative for count metrics)
-            const rawActual = univariate.mean + pt.empirical * univariate.std;
-            const rawExpected = univariate.mean + z * univariate.std;
+            const mean = typeof univariate?.mean === 'number' && !isNaN(univariate.mean) ? univariate.mean : 0;
+            const std = typeof univariate?.std === 'number' && !isNaN(univariate.std) && univariate.std > 0 ? univariate.std : 1;
+            const rawActual = mean + pt.empirical * std;
+            const rawExpected = mean + z * std;
             const actualVal = Math.max(0, Math.round(rawActual * 10) / 10);
             const expectedVal = Math.max(0, Math.round(rawExpected * 10) / 10);
 

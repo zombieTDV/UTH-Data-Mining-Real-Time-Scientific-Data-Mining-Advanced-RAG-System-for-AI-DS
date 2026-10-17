@@ -838,11 +838,12 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               onMouseMove={(e: MouseEvent<SVGSVGElement>) => {
                 if (!isLensActive) return;
                 const rect = e.currentTarget.getBoundingClientRect();
-                const scaleX = 940 / rect.width;
-                const scaleY = 340 / rect.height;
+                const [vx, vy, vw, vh] = scatterPanZoom.viewBox.split(' ').map(Number);
+                const scaleX = (vw || 940) / rect.width;
+                const scaleY = (vh || 340) / rect.height;
                 setLensPos({
-                  x: (e.clientX - rect.left) * scaleX,
-                  y: (e.clientY - rect.top) * scaleY,
+                  x: (vx || 0) + (e.clientX - rect.left) * scaleX,
+                  y: (vy || 0) + (e.clientY - rect.top) * scaleY,
                 });
               }}
               onMouseLeave={() => {
