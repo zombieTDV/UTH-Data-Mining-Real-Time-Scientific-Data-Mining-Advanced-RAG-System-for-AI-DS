@@ -10,36 +10,53 @@ export interface StatusPillProps {
 export const StatusPill: FC<StatusPillProps> = ({ backendStatus, lastTelemetryTick }) => {
   const { language } = useTranslation();
   const isOnline = backendStatus === 'ONLINE';
-  const statusText = isOnline
-    ? (language === 'vi' ? 'TRỰC TUYẾN' : 'ONLINE')
-    : (language === 'vi' ? 'MẤT KẾT NỐI' : 'OFFLINE');
+
+  const tooltipText = isOnline
+    ? (language === 'vi'
+        ? `FastAPI Backend đang trực tuyến (Nhịp phản hồi: ${lastTelemetryTick || 'vừa xong'})`
+        : `FastAPI Backend Online (Heartbeat: ${lastTelemetryTick || 'now'})`)
+    : (language === 'vi'
+        ? 'Mất kết nối với FastAPI Backend'
+        : 'FastAPI Backend Offline');
 
   return (
-    <span
+    <div
+      title={tooltipText}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: '5px',
+        padding: '2px 8px',
+        height: '22px',
+        boxSizing: 'border-box',
+        borderRadius: '6px',
         fontSize: '9.5px',
         fontFamily: 'var(--font-mono)',
-        color: isOnline ? 'var(--accent-emerald)' : '#ef4444',
-        backgroundColor: isOnline ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-        padding: '2px 7px',
-        borderRadius: '5px',
-        border: `1px solid ${isOnline ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
         fontWeight: 800,
+        backgroundColor: isOnline ? 'rgba(16, 185, 129, 0.10)' : 'rgba(239, 68, 68, 0.10)',
+        color: isOnline ? '#059669' : '#dc2626',
+        border: `1px solid ${isOnline ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+        letterSpacing: '0.02em',
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        transition: 'all 0.2s ease',
       }}
     >
       <span
         style={{
-          width: '5px',
-          height: '5px',
+          width: '6px',
+          height: '6px',
           borderRadius: '50%',
-          backgroundColor: isOnline ? 'var(--accent-emerald)' : '#ef4444',
-          boxShadow: isOnline ? '0 0 6px var(--accent-emerald)' : 'none',
+          backgroundColor: isOnline ? '#10b981' : '#ef4444',
+          animation: isOnline ? 'stageGlowEmerald 2s infinite' : 'none',
+          flexShrink: 0,
         }}
       />
-      FASTAPI {statusText} {lastTelemetryTick ? `[${lastTelemetryTick}]` : ''}
-    </span>
+      <span>
+        {isOnline
+          ? (lastTelemetryTick ? `FASTAPI: ${lastTelemetryTick}` : 'FASTAPI LIVE')
+          : (language === 'vi' ? 'FASTAPI MẤT KẾT NỐI' : 'FASTAPI OFFLINE')}
+      </span>
+    </div>
   );
 };
