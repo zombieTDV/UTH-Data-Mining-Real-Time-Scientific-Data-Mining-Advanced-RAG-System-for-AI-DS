@@ -3,6 +3,7 @@ import type { Diagnostic3Lenses } from '../../types';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
+import { InteractiveQqPlot } from './InteractiveQqPlot.component';
 
 export interface ScatterPaperPoint {
   id: string;
@@ -1388,68 +1389,12 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               </div>
             </div>
 
-            {/* Q-Q Plot (Normal Quantile-Quantile) */}
-            <div
-              style={{
-                backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.01)',
-                borderRadius: '6px',
-                border: `1px solid ${themeStyles.border}`,
-                padding: '8px',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                  Q-Q PLOT (NORMAL QUANTILE-QUANTILE)
-                </span>
-                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#dc2626' }}>
-                  Độ lệch khỏi đường chéo 45°
-                </span>
-              </div>
-              <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-                <svg
-                  ref={qqSvgRef}
-                  viewBox="0 0 400 240"
-                  preserveAspectRatio="xMidYMid meet"
-                  style={{ width: '100%', height: '100%' }}
-                >
-                  {/* Grid Lines */}
-                  <line x1="40" y1="20" x2="40" y2="200" stroke={themeStyles.axisLine} strokeWidth="1" />
-                  <line x1="40" y1="200" x2="380" y2="200" stroke={themeStyles.axisLine} strokeWidth="1" />
-
-                  {/* 45-degree Reference Line (Red Dashed) */}
-                  <line x1="60" y1="180" x2="360" y2="40" stroke="#dc2626" strokeWidth="2" strokeDasharray="5 3" />
-                  <text x="365" y="45" fontSize="9" fontFamily="var(--font-mono)" fill="#dc2626" fontWeight="700">
-                    Phân phối chuẩn N(0,1)
-                  </text>
-
-                  {/* Q-Q Points */}
-                  {activeUnivariate.qq_points &&
-                    activeUnivariate.qq_points.map((pt, idx) => {
-                      // Map theoretical (-2.5 to 2.5) to X (60 to 360)
-                      const cx = 210 + (pt.theoretical / 2.5) * 150;
-                      // Map empirical (-2.5 to 4.5) to Y (180 to 30)
-                      const cy = 180 - Math.min(160, Math.max(0, ((pt.empirical + 2.5) / 7.0) * 160));
-                      return (
-                        <circle
-                          key={idx}
-                          cx={cx}
-                          cy={cy}
-                          r="4"
-                          fill="#3b82f6"
-                          stroke={isDark ? '#0f172a' : '#ffffff'}
-                          strokeWidth="1.2"
-                        />
-                      );
-                    })}
-
-                  <text x="210" y="225" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                    Phân vị chuẩn lý thuyết (Theoretical Normal Quantiles)
-                  </text>
-                </svg>
-              </div>
-            </div>
+            {/* Interactive Q-Q Plot with 95% CI Band, Log1p Mode Switcher, and Diagnostic Callout */}
+            <InteractiveQqPlot
+              univariate={activeUnivariate}
+              theme={theme}
+              svgRef={qqSvgRef}
+            />
           </div>
         </div>
       )}
