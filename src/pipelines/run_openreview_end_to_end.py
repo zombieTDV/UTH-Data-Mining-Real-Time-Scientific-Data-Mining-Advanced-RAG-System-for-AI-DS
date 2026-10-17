@@ -27,7 +27,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.indexing.embedder import NomicEmbedder
-from src.indexing.lancedb_manager import LanceDBManager
+from src.indexing.qdrant_manager import QdrantManager as LanceDBManager
 from src.ingestion.openreview_harvester import OpenReviewHarvester
 from src.utils.logger import setup_pipeline_logging
 
@@ -238,7 +238,7 @@ def main():
             "title": "Synchronizing Bronze, Silver, Gold Parquet & LanceDB to Cloudflare R2",
             "timestamp": datetime.datetime.now().strftime("%H:%M:%S"),
         })
-        from src.storage.r2_client import R2Client
+        from src.storage.minio_client import StorageClient as R2Client
         r2 = R2Client()
 
         # 1. Bronze JSON vault upload

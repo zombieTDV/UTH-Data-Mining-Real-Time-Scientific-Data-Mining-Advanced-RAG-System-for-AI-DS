@@ -20,7 +20,7 @@ import httpx
 import xmltodict
 
 from src.config.settings import settings
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.silver_writer import SilverLakehouseWriter
 
 

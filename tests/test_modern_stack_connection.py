@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config.settings import settings
-from src.storage.r2_client import StorageClient
+from src.storage.minio_client import StorageClient
 from src.indexing import get_vector_manager
 from src.indexing.qdrant_manager import QdrantManager
 from src.ingestion.queue_publisher import RabbitMQPublisher
@@ -24,8 +24,9 @@ from src.ingestion.queue_publisher import RabbitMQPublisher
 def test_minio_connection():
     """Verify MinIO connection, write, read, and delete."""
     print("\n--- Testing MinIO Connection ---")
-    client = StorageClient(provider="minio")
+    client = StorageClient()
     test_key = "tests/health_check.json"
+
     payload = {"test": "ok", "timestamp": time.time()}
 
     # 1. Upload

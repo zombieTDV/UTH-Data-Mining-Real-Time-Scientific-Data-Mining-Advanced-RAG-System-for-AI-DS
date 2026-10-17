@@ -30,7 +30,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.indexing.embedder import NomicEmbedder
-from src.indexing.lancedb_manager import LanceDBManager
+from src.indexing.qdrant_manager import QdrantManager as LanceDBManager
 from src.ingestion.zenodo_harvester import ZenodoHarvester
 from src.utils.logger import setup_pipeline_logging
 
@@ -211,7 +211,7 @@ def main():
 
     # Optional R2 Sync
     if args.sync_r2:
-        from src.storage.r2_client import R2Client
+        from src.storage.minio_client import StorageClient as R2Client
         r2 = R2Client()
         if r2.is_configured:
             silver_file = settings.ROOT_DIR / "data" / "silver" / "zenodo" / "zenodo_all.parquet"

@@ -1,7 +1,7 @@
 # ==============================================================================
 # UTH Data Mining & Real-Time Scientific Advanced RAG Pipeline — Requirements
 # ==============================================================================
-# Architecture: ELT + Medallion Data Lakehouse (R2, DuckDB, LanceDB, Hybrid RAG)
+# Architecture: ELT + Medallion Data Lakehouse (MinIO, DuckDB, Qdrant, RabbitMQ, Airflow)
 # Python Compatibility: >=3.11, <3.13
 # ==============================================================================
 
@@ -15,8 +15,9 @@ polars>=1.0.0
 scipy>=1.13.0
 
 # ------------------------------------------------------------------------------
-# 2. Data Lakehouse, SQL Engine & Cloud Storage (Cloudflare R2 / S3)
+# 2. Data Lakehouse, SQL Engine & Object Storage (MinIO S3)
 # ------------------------------------------------------------------------------
+
 duckdb>=1.0.0
 boto3>=1.34.0
 botocore>=1.34.0
@@ -43,12 +44,11 @@ pymupdf>=1.24.0          # PyMuPDF (fitz) - high-speed academic PDF section & la
 pypdf>=4.2.0
 
 # ------------------------------------------------------------------------------
-# 5. Vector Lakehouse & Search (Qdrant + LanceDB + BM25)
+# 5. Vector Lakehouse & Search (Qdrant + BM25)
 # ------------------------------------------------------------------------------
 qdrant-client>=1.9.0     # Production Rust-based HNSW Vector Search Engine
-lancedb>=0.13.0          # Multi-modal / Vector Lakehouse on Arrow & S3/R2
-pylance>=0.10.0          # Columnar file format for vector/tabular search
 rank-bm25>=0.2.2         # Sparse keyword search for Hybrid Search
+
 
 
 # ------------------------------------------------------------------------------

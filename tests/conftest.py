@@ -27,10 +27,10 @@ needs_data = pytest.mark.skipif(
 def pytest_addoption(parser):
     """Adds CLI opt-in flags for live external services and heavy neural weights."""
     parser.addoption(
-        "--run-live-r2",
+        "--run-live-storage",
         action="store_true",
         default=False,
-        help="Run tests that execute physical operations against live Cloudflare R2 bucket",
+        help="Run tests that execute physical operations against live MinIO S3 bucket",
     )
     parser.addoption(
         "--run-heavy-models",
@@ -41,18 +41,19 @@ def pytest_addoption(parser):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Auto-skips live_r2 and heavy_model tests unless explicit opt-in flags are passed."""
-    run_live_r2 = config.getoption("--run-live-r2")
-    run_heavy_models = config.getoption("--run-heavy-models")
+    """Auto-skips live_storage and heavy_model tests unless explicit opt-in flags are passed."""
+    run_live_storage = config.getoption("--run-live-storage", default=False)
+    run_heavy_models = config.getoption("--run-heavy-models", default=False)
 
-    skip_live_r2 = pytest.mark.skip(reason="Need --run-live-r2 option to run physical Cloudflare R2 tests")
+    skip_live_storage = pytest.mark.skip(reason="Need --run-live-storage option to run physical MinIO S3 tests")
     skip_heavy_models = pytest.mark.skip(reason="Need --run-heavy-models option to run heavy neural model tests")
 
     for item in items:
-        if "live_r2" in item.keywords and not run_live_r2:
-            item.add_marker(skip_live_r2)
+        if ("live_r2" in item.keywords or "live_storage" in item.keywords) and not run_live_storage:
+            item.add_marker(skip_live_storage)
         if "heavy_model" in item.keywords and not run_heavy_models:
             item.add_marker(skip_heavy_models)
+
 
 
 @pytest.fixture(autouse=True)

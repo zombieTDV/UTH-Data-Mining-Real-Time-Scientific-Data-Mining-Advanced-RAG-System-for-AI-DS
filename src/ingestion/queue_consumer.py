@@ -15,7 +15,8 @@ from typing import Any, Dict
 from src.config.settings import settings
 from src.indexing.embedder import NomicEmbedder
 from src.indexing.qdrant_manager import QdrantManager
-from src.storage.r2_client import StorageClient
+from src.storage.minio_client import StorageClient
+
 
 logging.basicConfig(
     level=logging.INFO,

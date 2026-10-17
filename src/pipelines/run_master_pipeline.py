@@ -30,14 +30,15 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.config.settings import settings
 from src.indexing.chunker import AcademicChunker
 from src.indexing.embedder import NomicEmbedder
-from src.indexing.lancedb_manager import LanceDBManager
+from src.indexing.qdrant_manager import QdrantManager
 from src.ingestion.arxiv_batch_harvester import ArxivBatchHarvester
 from src.storage.duckdb_engine import DuckDBEngine
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient
 from src.transformation.html_parser import AcademicHTMLParser
 from src.transformation.silver_writer import SilverLakehouseWriter
 from src.utils.hasher import compute_sha256
 from src.utils.logger import setup_pipeline_logging
+
 
 
 def broadcast_telemetry(payload: dict):
@@ -310,50 +311,40 @@ def run_phase3_gold_indexing(
         print(f"[ERROR] {err_msg}")
         return {"chunks": len(all_chunks), "vectors": 0, "errors": 1}
 
-    # 3. Ghi vao LanceDB Table
+    # 3. Ghi vao Qdrant Collection
     try:
-        lancedb_mgr = LanceDBManager(r2_client=r2)
-        inserted = lancedb_mgr.insert_chunks(all_chunks)
-        print(f"[INFO] Da nap {inserted:,} ban ghi vao LanceDB Table '{lancedb_mgr.DEFAULT_TABLE_NAME}'.")
+        qdrant_mgr = QdrantManager()
+        inserted = qdrant_mgr.insert_chunks(all_chunks)
+        print(f"[INFO] Da nap {inserted:,} ban ghi vao Qdrant Collection '{qdrant_mgr.collection_name}'.")
         broadcast_telemetry({
             "type": "PAPER_INGESTED",
             "stage": "gold",
             "vectors_synced": inserted,
-            "title": f"Upserted {inserted:,} vectors into LanceDB Gold",
+            "title": f"Upserted {inserted:,} vectors into Qdrant Gold",
         })
     except Exception as e:
-        err_msg = f"Loi ghi vao LanceDB: {e}\n{traceback.format_exc()}"
+        err_msg = f"Loi ghi vao Qdrant: {e}\n{traceback.format_exc()}"
         logger.error(err_msg)
         print(f"[ERROR] {err_msg}")
         return {"chunks": len(all_chunks), "vectors": len(embeddings), "errors": 1}
 
-    # 4. Dong bo R2 Gold
-    if not skip_r2_sync:
-        try:
-            print("[STORAGE] Dong bo LanceDB Table len Cloudflare R2 Gold Zone...")
-            sync_res = lancedb_mgr.sync_to_r2(r2_prefix="gold/lancedb/")
-            print(f"[STORAGE] Dong bo thanh cong {sync_res['synced_files']} files len {sync_res['r2_destination']}")
-        except Exception as e:
-            err_msg = f"Loi dong bo LanceDB len R2: {e}"
-            logger.error(err_msg)
-            print(f"[ERROR] {err_msg}")
-
-    # 5. Kiem thu Semantic Search
-    print("\n[VERIFICATION] Kiem thu Semantic Vector Search tren Tang Gold:")
+    # 4. Kiem thu Semantic Search tren Qdrant
+    print("\n[VERIFICATION] Kiem thu Semantic Vector Search tren Tang Gold (Qdrant):")
     sample_query = "How to improve OCR faithfulness and reduce hallucination in vision-language models?"
     print(f"[QUERY] \"{sample_query}\"")
     try:
         q_vec = embedder.embed_query(sample_query)
-        results = lancedb_mgr.vector_search(query_vector=q_vec, limit=4)
+        results = qdrant_mgr.vector_search(query_vector=q_vec, limit=4)
         display = []
         for _, r in results.iterrows():
             sim = 1.0 - r.get("_distance", 0.0)
             display.append({
                 "Score (Sim)": f"{sim:.4f}",
-                "Paper ID": r["paper_id"],
-                "Section": f"{r['section_title']} ({r['section_type']})",
-                "Snippet": r["text"][:100] + "...",
+                "Paper ID": r.get("paper_id", ""),
+                "Section": f"{r.get('section_title', '')} ({r.get('section_type', '')})",
+                "Snippet": r.get("text", "")[:100] + "...",
             })
+
         print(tabulate(display, headers="keys", tablefmt="pipe", showindex=False))
     except Exception as e:
         logger.error(f"Loi kiem thu semantic search: {e}")
@@ -451,12 +442,13 @@ def main():
     print("=" * 80)
 
     try:
-        r2 = R2Client()
+        r2 = StorageClient()
         engine = DuckDBEngine()
     except Exception as e:
-        logger.error(f"[ERROR] Khoi tao ket noi R2/DuckDB that bai: {e}\n{traceback.format_exc()}")
+        logger.error(f"[ERROR] Khoi tao ket noi Storage/DuckDB that bai: {e}\n{traceback.format_exc()}")
         print(f"[ERROR] Khoi tao ket noi that bai: {e}")
         sys.exit(1)
+
 
     # 1. Chay Phase 1
     if not args.skip_phase1:

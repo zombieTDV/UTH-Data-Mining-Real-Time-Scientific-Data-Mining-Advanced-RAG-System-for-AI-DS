@@ -1,8 +1,8 @@
 """
 src/storage/calibrate_storage_cache.py
 --------------------------------------
-Updates r2_manifest.json, r2_manifest_cache.json, and scratch/r2_inventory.json
-with live metrics from Cloudflare R2 after safe optimization.
+Updates lakehouse manifest and inventory cache
+with live metrics from MinIO S3 Object Storage after safe optimization.
 """
 
 import datetime
@@ -14,17 +14,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.config.settings import settings
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import MinIOClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("calibrate_cache")
 
 
 def calibrate():
-    r2 = R2Client()
-    logger.info("[CALIBRATE] Querying live Cloudflare R2 bucket '%s'...", r2.bucket_name)
+    storage = MinIOClient()
+    logger.info("[CALIBRATE] Querying live MinIO S3 bucket '%s'...", storage.bucket_name)
 
-    paginator = r2.s3.get_paginator("list_objects_v2")
+
+    paginator = storage.s3.get_paginator("list_objects_v2")
     all_objects = []
     total_bytes = 0
 
@@ -39,7 +40,7 @@ def calibrate():
     conf_count = 0
     conf_bytes = 0
 
-    for page in paginator.paginate(Bucket=r2.bucket_name):
+    for page in paginator.paginate(Bucket=storage.bucket_name):
         for obj in page.get("Contents", []):
             k = obj["Key"]
             s = obj["Size"]

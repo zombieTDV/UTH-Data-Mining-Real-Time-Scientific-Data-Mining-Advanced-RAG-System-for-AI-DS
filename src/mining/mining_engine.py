@@ -192,7 +192,7 @@ class MiningEngine:
         # ----------------------------------------------------------------------
         if upload_to_r2:
             try:
-                from src.storage.r2_client import R2Client
+                from src.storage.minio_client import StorageClient as R2Client
                 r2_client = R2Client()
                 logger.info("[MINING ENGINE] Syncing mining artifacts to Cloudflare R2 bucket: %s...", settings.R2_BUCKET_NAME)
                 artifact_files = [eda_file, rules_file, clusters_file, graph_file, trend_file, manifest_file]

@@ -20,7 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.storage.duckdb_engine import DuckDBEngine
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.html_parser import AcademicHTMLParser
 from src.transformation.silver_writer import SilverLakehouseWriter
 

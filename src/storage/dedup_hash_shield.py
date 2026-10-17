@@ -22,7 +22,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from src.config.settings import settings
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("dedup_shield")
@@ -64,7 +64,7 @@ class DedupHashShield:
     R2_KEY = "manifests/openalex_dedup_hashes.parquet"
 
     def __init__(self):
-        self.r2 = R2Client()
+        self.r2 = StorageClient()
         self._title_hashes: Set[str] = set()
         self._dois: Set[str] = set()
         self._paper_ids: Set[str] = set()

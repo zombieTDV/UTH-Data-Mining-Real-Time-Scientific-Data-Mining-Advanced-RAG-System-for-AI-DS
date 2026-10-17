@@ -1,4 +1,4 @@
-"""CLI Entry point for arXiv Data Ingestion into Cloudflare R2 Bronze Lakehouse.
+"""CLI Entry point for arXiv Data Ingestion into MinIO Bronze Lakehouse.
 
 Usage:
     python -m src.pipelines.run_ingest --limit 3
@@ -17,12 +17,12 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.ingestion.arxiv_harvester import ArxivHarvester
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Ingest arXiv AI/DS preprints (Metadata + HTML) into Cloudflare R2 Bronze Lakehouse."
+        description="Ingest arXiv AI/DS preprints (Metadata + HTML) into MinIO Bronze Lakehouse."
     )
     parser.add_argument(
         "--category",
@@ -45,16 +45,15 @@ def main():
     categories = [args.category] if args.category else settings.ARXIV_CATEGORIES
     print(f"📌 Chuyên mục theo dõi: {', '.join(categories)}")
     print(f"📌 Giới hạn mỗi chuyên mục: {args.limit} bài")
-    print(f"📌 Storage Provider: {settings.STORAGE_PROVIDER.upper()} (Bucket: {settings.MINIO_BUCKET_NAME if settings.STORAGE_PROVIDER == 'minio' else settings.R2_BUCKET_NAME})")
+    print(f"📌 Storage Provider: {settings.STORAGE_PROVIDER.upper()} (Bucket: {settings.MINIO_BUCKET_NAME})")
     print(f"📌 RabbitMQ Queue: {settings.RABBITMQ_QUEUE_INGEST}")
 
     try:
-        r2 = R2Client()
-        harvester = ArxivHarvester(r2_client=r2, categories=categories)
+        storage = StorageClient()
+        harvester = ArxivHarvester(storage_client=storage, categories=categories)
     except Exception as e:
         print(f"❌ Lỗi khởi tạo Storage Client: {e}")
         sys.exit(1)
-
 
     total_ingested = 0
     total_skipped = 0
@@ -83,12 +82,12 @@ def main():
                 total_ingested += 1
                 if res.get("has_html"):
                     total_html_saved += 1
-                    print(f"       ✅ Đã lưu Metadata & HTML lên R2 (SHA-256: {res['sha256'][:10]}...)")
+                    print(f"       ✅ Đã lưu Metadata & HTML lên MinIO (SHA-256: {res['sha256'][:10]}...)")
                 else:
                     print(f"       ℹ️ Đã lưu Metadata (Bài này chưa có bản HTML trên arXiv)")
             elif status == "SKIPPED_EXISTING":
                 total_skipped += 1
-                print(f"       ⏭️ Đã tồn tại trên R2 Bronze, bỏ qua để tránh trùng lặp.")
+                print(f"       ⏭️ Đã tồn tại trên MinIO Bronze, bỏ qua để tránh trùng lặp.")
 
             # Nghỉ lịch sự giữa các request
             time.sleep(settings.ARXIV_REQUEST_DELAY_SECONDS)
@@ -97,7 +96,7 @@ def main():
     print("\n" + "=" * 75)
     print("📊 TỔNG KẾT PIPELINE THU THẬP DỮ LIỆU:")
     print(f"   - Thời gian thực thi: {duration:.2f} giây")
-    print(f"   - Bài báo mới được nạp vào R2 Bronze: {total_ingested}")
+    print(f"   - Bài báo mới được nạp vào MinIO Bronze: {total_ingested}")
     print(f"   - Bản Full-text HTML thu thập thành công: {total_html_saved}")
     print(f"   - Bài báo đã có sẵn (bỏ qua): {total_skipped}")
     print("=" * 75)

@@ -33,7 +33,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config.settings import settings
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.silver_writer import SilverLakehouseWriter
 from src.utils.hasher import compute_abstract_hash
 from src.utils.logger import setup_pipeline_logging

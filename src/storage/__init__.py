@@ -1,5 +1,5 @@
 """Storage module exports."""
 
-from src.storage.r2_client import R2Client, StorageClient
+from src.storage.minio_client import MinIOClient, StorageClient
 
-__all__ = ["R2Client", "StorageClient"]
+__all__ = ["MinIOClient", "StorageClient"]

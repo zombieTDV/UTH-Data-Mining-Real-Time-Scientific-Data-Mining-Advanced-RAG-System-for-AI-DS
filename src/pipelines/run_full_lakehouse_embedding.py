@@ -36,8 +36,8 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.config.settings import settings
 from src.indexing.chunker import AcademicChunker
 from src.indexing.embedder import NomicEmbedder
-from src.indexing.lancedb_manager import LanceDBManager
-from src.storage.r2_client import R2Client
+from src.indexing.qdrant_manager import QdrantManager as LanceDBManager
+from src.storage.minio_client import StorageClient as R2Client
 from src.utils.logger import setup_pipeline_logging
 
 logger, log_file = setup_pipeline_logging("deep_multisection_embedding")

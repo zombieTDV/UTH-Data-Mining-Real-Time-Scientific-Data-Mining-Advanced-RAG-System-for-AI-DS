@@ -38,8 +38,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.indexing.embedder import NomicEmbedder
-from src.indexing.lancedb_manager import LanceDBManager
-from src.storage.r2_client import R2Client
+from src.indexing.qdrant_manager import QdrantManager as LanceDBManager
+from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
 from src.transformation.marker_extractor import MarkerPdfExtractor
 from src.transformation.silver_writer import SilverLakehouseWriter

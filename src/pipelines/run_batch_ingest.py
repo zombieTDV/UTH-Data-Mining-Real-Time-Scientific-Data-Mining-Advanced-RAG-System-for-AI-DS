@@ -17,7 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.config.settings import settings
 from src.ingestion.arxiv_batch_harvester import ArxivBatchHarvester
 from src.storage.duckdb_engine import DuckDBEngine
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient as R2Client
 from src.utils.logger import setup_pipeline_logging
 
 

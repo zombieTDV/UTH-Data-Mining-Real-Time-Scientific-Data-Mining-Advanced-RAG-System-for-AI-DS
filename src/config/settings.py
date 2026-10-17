@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -19,21 +19,18 @@ class Settings:
     EMBEDDING_MODEL_PATH: Path = PROJECT_ROOT / os.getenv("EMBEDDING_MODEL_PATH", "models/nomic-embed-text-v1.5")
     LLM_MODEL_PATH: Path = PROJECT_ROOT / os.getenv("LLM_MODEL_PATH", "models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf")
 
-    # Storage Configuration (MinIO vs R2)
+    # Object Storage Configuration (MinIO Local S3)
     STORAGE_PROVIDER: str = os.getenv("STORAGE_PROVIDER", "minio").strip().lower()
-
-    # MinIO Local S3 Settings
     MINIO_ENDPOINT_URL: str = os.getenv("MINIO_ENDPOINT_URL", "http://localhost:9000").strip()
     MINIO_ACCESS_KEY_ID: str = os.getenv("MINIO_ACCESS_KEY_ID", "admin").strip()
     MINIO_SECRET_ACCESS_KEY: str = os.getenv("MINIO_SECRET_ACCESS_KEY", "password123").strip()
     MINIO_BUCKET_NAME: str = os.getenv("MINIO_BUCKET_NAME", "uth-scientific-lakehouse").strip()
 
-    # Cloudflare R2 Credentials
-    CLOUDFLARE_ACCOUNT_ID: str = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
-    R2_ACCESS_KEY_ID: str = os.getenv("R2_ACCESS_KEY_ID", "").strip()
-    R2_SECRET_ACCESS_KEY: str = os.getenv("R2_SECRET_ACCESS_KEY", "").strip()
-    R2_BUCKET_NAME: str = os.getenv("R2_BUCKET_NAME", "uth-scientific-lakehouse").strip()
-    R2_ENDPOINT_URL: str = os.getenv("R2_ENDPOINT_URL", "").strip()
+    # S3 generic aliases
+    S3_ENDPOINT_URL: str = MINIO_ENDPOINT_URL
+    S3_ACCESS_KEY_ID: str = MINIO_ACCESS_KEY_ID
+    S3_SECRET_ACCESS_KEY: str = MINIO_SECRET_ACCESS_KEY
+    S3_BUCKET_NAME: str = MINIO_BUCKET_NAME
 
     # Vector Database Configuration (Qdrant vs LanceDB)
     VECTOR_STORE_PROVIDER: str = os.getenv("VECTOR_STORE_PROVIDER", "qdrant").strip().lower()
@@ -60,39 +57,17 @@ class Settings:
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
 
     @classmethod
-    def get_r2_endpoint(cls) -> str:
-        """Trả về endpoint R2 chuẩn hóa có tiền tố https://."""
-        url = cls.R2_ENDPOINT_URL
-        if not url:
-            if cls.CLOUDFLARE_ACCOUNT_ID:
-                url = f"https://{cls.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
-        if url and not url.startswith("http://") and not url.startswith("https://"):
-            url = f"https://{url}"
-        return url
-
-    @classmethod
-    def get_active_storage_config(cls) -> dict:
-        """Trả về cấu hình storage dựa trên STORAGE_PROVIDER (minio hoặc r2)."""
-        if cls.STORAGE_PROVIDER == "minio":
-            return {
-                "provider": "minio",
-                "endpoint_url": cls.MINIO_ENDPOINT_URL,
-                "access_key_id": cls.MINIO_ACCESS_KEY_ID,
-                "secret_access_key": cls.MINIO_SECRET_ACCESS_KEY,
-                "bucket_name": cls.MINIO_BUCKET_NAME,
-                "addressing_style": "path",
-                "use_ssl": False,
-            }
+    def get_active_storage_config(cls) -> Dict[str, str]:
+        """Trả về cấu hình Object Storage cho MinIO cục bộ."""
         return {
-            "provider": "r2",
-            "endpoint_url": cls.get_r2_endpoint(),
-            "access_key_id": cls.R2_ACCESS_KEY_ID,
-            "secret_access_key": cls.R2_SECRET_ACCESS_KEY,
-            "bucket_name": cls.R2_BUCKET_NAME,
-            "addressing_style": "auto",
-            "use_ssl": True,
+            "provider": "minio",
+            "endpoint_url": cls.MINIO_ENDPOINT_URL,
+            "access_key_id": cls.MINIO_ACCESS_KEY_ID,
+            "secret_access_key": cls.MINIO_SECRET_ACCESS_KEY,
+            "bucket_name": cls.MINIO_BUCKET_NAME,
+            "addressing_style": "path",
+            "use_ssl": False,
         }
 
 
 settings = Settings()
-

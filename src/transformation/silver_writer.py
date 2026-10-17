@@ -13,16 +13,18 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from src.config.settings import settings
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient
 
 
 class SilverLakehouseWriter:
     """Manages the creation, schema validation, and upload of Silver Parquet datasets."""
 
-    def __init__(self, r2_client: Optional[R2Client] = None, local_silver_dir: Optional[Path] = None):
-        self.r2 = r2_client or R2Client()
+    def __init__(self, storage_client: Optional[StorageClient] = None, local_silver_dir: Optional[Path] = None, r2_client: Optional[Any] = None):
+        self.storage = storage_client or r2_client or StorageClient()
+        self.r2 = self.storage
         self.local_dir = local_silver_dir or (settings.ROOT_DIR / "data" / "silver")
         self.local_dir.mkdir(parents=True, exist_ok=True)
+
 
     def prepare_record(self, raw_meta: Dict[str, Any], parsed_html: Dict[str, Any]) -> Dict[str, Any]:
         """Gộp metadata thô và kết quả bóc tách HTML thành 1 bản ghi Silver chuẩn hóa."""
@@ -174,11 +176,11 @@ class SilverLakehouseWriter:
 
         pq.write_table(table, local_parquet_path, compression="zstd")
 
-        # Tải lên Cloudflare R2 Silver Zone
-        r2_key = f"silver/papers/year={year}/papers.parquet"
-        res = self.r2.upload_file(
+        # Tải lên MinIO S3 Silver Zone
+        s3_key = f"silver/papers/year={year}/papers.parquet"
+        res = self.storage.upload_file(
             file_path=local_parquet_path,
-            key=r2_key,
+            key=s3_key,
             content_type="application/vnd.apache.parquet",
         )
 
@@ -186,7 +188,9 @@ class SilverLakehouseWriter:
             "status": "SUCCESS",
             "count": len(table),
             "local_path": str(local_parquet_path),
+            "s3_uri": res["uri"],
             "r2_uri": res["uri"],
             "size_bytes": res["size_bytes"],
             "sha256": res["sha256"],
         }
+

@@ -22,7 +22,7 @@ import uuid
 import httpx
 
 from src.config.settings import settings
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient
 from src.transformation.html_parser import AcademicHTMLParser
 from src.transformation.marker_extractor import MarkerPdfExtractor
 from src.utils.hasher import compute_sha256
@@ -35,16 +35,20 @@ class UnifiedContentResolver:
 
     def __init__(
         self,
-        r2_client: Optional[R2Client] = None,
+        storage_client: Optional[StorageClient] = None,
+        sync_storage: bool = False,
+        r2_client: Optional[Any] = None,
         sync_r2: bool = False,
         use_marker_fallback: bool = True,
         max_pdf_pages: int = 15,
         local_cache_dir: Optional[Path] = None,
         temp_pdf_dir: Optional[Path] = None,
     ):
-        self.r2 = r2_client or (R2Client() if sync_r2 else None)
-        self.sync_r2 = sync_r2 and (self.r2 is not None)
+        self.storage = storage_client or r2_client or (StorageClient() if (sync_storage or sync_r2) else None)
+        self.r2 = self.storage
+        self.sync_r2 = (sync_storage or sync_r2) and (self.storage is not None)
         self.html_parser = AcademicHTMLParser()
+
         self.marker_extractor = MarkerPdfExtractor(use_marker=use_marker_fallback, max_pages=max_pdf_pages)
 
         self.cache_dir = local_cache_dir or (settings.ROOT_DIR / "data" / "raw" / "html")

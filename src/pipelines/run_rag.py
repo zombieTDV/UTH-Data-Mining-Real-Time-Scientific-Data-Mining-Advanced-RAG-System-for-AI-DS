@@ -1,6 +1,6 @@
 """Scientific Literature RAG Pipeline Runner.
 
-Executes academic research Q&A using Nomic Embeddings over Gold LanceDB
+Executes academic research Q&A using Nomic Embeddings over Qdrant Vector Store
 and Qwen2.5-7B-Instruct GGUF inference on Apple Silicon Metal.
 
 Usage:
@@ -39,8 +39,9 @@ def parse_args():
         "--top-k",
         type=int,
         default=5,
-        help="Number of relevant chunks to retrieve from LanceDB (default: 5).",
+        help="Number of relevant chunks to retrieve from Qdrant (default: 5).",
     )
+
     parser.add_argument(
         "--category",
         type=str,
@@ -64,8 +65,9 @@ def parse_args():
 
 def display_retrieved_chunks(chunks):
     print("\n" + "=" * 80)
-    print(f"[RETRIEVED CONTEXT] Found {len(chunks)} relevant chunks in Gold Lakehouse:")
+    print(f"[RETRIEVED CONTEXT] Found {len(chunks)} relevant chunks in Qdrant Vector Store:")
     print("=" * 80)
+
     for idx, c in enumerate(chunks, 1):
         dist = c.get("_distance", 0.0)
         sim = 1.0 - dist

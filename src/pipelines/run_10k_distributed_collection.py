@@ -31,11 +31,11 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.indexing.embedder import NomicEmbedder
-from src.indexing.lancedb_manager import LanceDBManager
+from src.indexing.qdrant_manager import QdrantManager as LanceDBManager
 from src.ingestion.arxiv_batch_harvester import ArxivBatchHarvester
 from src.ingestion.cvf_harvester import CvfHarvester
 from src.ingestion.openreview_harvester import OpenReviewHarvester
-from src.storage.r2_client import R2Client
+from src.storage.minio_client import StorageClient as R2Client
 from src.utils.logger import setup_pipeline_logging
 
 logger, log_file = setup_pipeline_logging("10k_distributed_collection")
