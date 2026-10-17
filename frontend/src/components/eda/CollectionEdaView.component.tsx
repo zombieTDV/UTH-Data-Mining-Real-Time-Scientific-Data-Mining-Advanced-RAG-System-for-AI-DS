@@ -577,40 +577,66 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
               </span>
             )}
             {isFilteredByCategory && (
-              <span style={{ backgroundColor: '#2563eb', color: '#ffffff', padding: '1px 6px', borderRadius: '3px', fontWeight: 800 }}>
-                CHUYÊN NGÀNH: {selectedCategory} ({displayedTotalPapers.toLocaleString()} bài • {activeCategoryData ? `${activeCategoryData.percentage.toFixed(1)}%` : `${filteredKpi?.sharePercent || '23.8'}%`})
+              <span style={{ backgroundColor: '#2563eb', color: '#ffffff', padding: '1px 6px', borderRadius: '3px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                CHUYÊN NGÀNH: {selectedCategory} {activeCategoryData ? `(${activeCategoryData.percentage.toFixed(1)}%)` : ''} ({displayedTotalPapers.toLocaleString()} bài)
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectCategory?.('ALL');
+                    onShowToast?.('Đã xóa lọc chuyên ngành');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontWeight: 900,
+                    fontSize: '10px',
+                  }}
+                  title="Xóa lọc chuyên ngành"
+                >
+                  ✕
+                </button>
               </span>
             )}
             {isFilteredByMath && (
-              <span style={{ backgroundColor: '#ea580c', color: '#ffffff', padding: '1px 6px', borderRadius: '3px', fontWeight: 800 }}>
-                MẬT ĐỘ TOÁN: {selectedMathFilter === 'HIGH' ? '>300 công thức' : selectedMathFilter === 'MED' ? '100-300 công thức' : '<100 công thức'}
+              <span style={{ backgroundColor: '#ea580c', color: '#ffffff', padding: '1px 6px', borderRadius: '3px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                MẬT ĐỘ TOÁN: {selectedMathFilter === 'HIGH' ? '>300 eq' : selectedMathFilter === 'MED' ? '100-300 eq' : '<100 eq'}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectMathFilter?.('ALL');
+                    onShowToast?.('Đã xóa lọc toán');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontWeight: 900,
+                    fontSize: '10px',
+                  }}
+                  title="Xóa lọc toán"
+                >
+                  ✕
+                </button>
               </span>
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedSource('ALL');
-              onSelectCategory?.('ALL');
-              onSelectMathFilter?.('ALL');
-              onShowToast?.('Đã đặt lại toàn bộ bộ lọc Slicer & Nguồn');
-            }}
+          <span
             style={{
-              padding: '1px 6px',
-              borderRadius: '3px',
               fontSize: '8.5px',
               fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              color: '#ef4444',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
+              color: themeStyles.textMuted,
             }}
           >
-            ✕ ĐẶT LẠI TẤT CẢ ({baselineLakehousePapers.toLocaleString()} bài)
-          </button>
+            Đồng bộ với Lakehouse Slicer
+          </span>
         </div>
       )}
 

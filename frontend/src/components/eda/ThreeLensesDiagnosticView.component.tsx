@@ -241,7 +241,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               flexShrink: 0,
             }}
           >
-            {activeTab === 'lens3_bivariate' ? '[EDA-03]' : '[EDA-02]'}
+            {activeTab === 'lens3_bivariate' ? '[EDA-04]' : '[EDA-03]'}
           </span>
           <h3
             style={{
@@ -1189,6 +1189,22 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   </button>
                 );
               })}
+            {selectedCategory !== 'ALL' && (
+              <span
+                style={{
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  backgroundColor: '#2563eb',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  marginLeft: 'auto',
+                }}
+              >
+                LỌC THEO: {selectedCategory}
+              </span>
+            )}
           </div>
 
           {/* Diagnostic KPI Cards (§6.2 Skewness, Kurtosis, D'Agostino) */}

@@ -388,18 +388,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
     handleRunExplorerQuery('SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers LIMIT 20;');
   }, []);
 
-  // Focus / Zen Mode state (toggle via button or hotkey 'F')
-  const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
-
   // Slide-over Paper Detail Drawer state
   const [selectedPaperForDrawer, setSelectedPaperForDrawer] = useState<ScatterPaperPoint | null>(null);
 
   // PowerBI Interactive Slicers / Filters
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedMathFilter, setSelectedMathFilter] = useState<'ALL' | 'HIGH' | 'MED' | 'LOW'>('ALL');
-
-  // Live Anomaly Toast notifications
-  const [activeAnomalies, setActiveAnomalies] = useState<AnomalyNotification[]>([]);
 
   // Toast feedback message (e.g. for Copy LaTeX, Copy BibTeX)
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
@@ -422,7 +416,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
 
-  const { totalCorpus, isStreaming, streamSpeed, sessionIngested, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
+  const { totalCorpus, isStreaming, sessionIngested, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
   const [streamedPapers, setStreamedPapers] = useState<ScatterPaperPoint[]>([]);
 
   // Dynamically ingest live streaming papers into the EDA scatter space
@@ -470,8 +464,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
   }, [isStreaming]);
 
   // Keyboard shortcut listener:
-  // - '1' to '5': Switch Deck
-  // - 'F' or 'f': Toggle Focus Mode
+  // - '1' to '8': Switch Deck
+  // - 'F' or 'f': Toggle Theater Mode
   // - 'Escape': Close Slide-over Drawer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -486,7 +480,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
       else if (e.key === '6') setActiveDeck('correlations');
       else if (e.key === '7') setActiveDeck('explorer');
       else if (e.key === '8') setActiveDeck('rag_audit');
-      else if (e.key === 'f' || e.key === 'F') setIsFocusMode((prev) => !prev);
+      else if (e.key === 'f' || e.key === 'F') setIsTheaterMode((prev) => !prev);
       else if (e.key === 'Escape') setSelectedPaperForDrawer(null);
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -637,30 +631,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
     setSelectedQuadrant('ALL');
   };
 
-  const handleSimulateOutlier = () => {
-    const mockAnomaly: AnomalyNotification = {
-      id: `anomaly-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      paperId: 'arXiv:2603.18942',
-      title: 'Foundational Survey on Ultra-Scale Multimodal Reasoning: 200 Benchmarks',
-      category: 'cs.AI',
-      score: 0.985,
-      wordCount: 52400,
-      mathCount: 890,
-      authorCount: 64,
-      reasons: [
-        'WORD_COUNT_P99_EXCEEDED (52,400 > 14,200 words)',
-        'AUTHOR_COUNT_SPIKE (64 authors > threshold 15)',
-        'MATH_DENSITY_SURGE (890 LaTeX equations)',
-      ],
-    };
-    setActiveAnomalies((prev) => [mockAnomaly, ...prev.slice(0, 2)]);
-  };
-
-  const handleDismissAnomaly = (id: string) => {
-    setActiveAnomalies((prev) => prev.filter((a) => a.id !== id));
-  };
-
   const handleCopyLatexTable = () => {
     if (!data) return;
     const { math_quantiles: mq, word_quantiles: wq } = data.math_and_content_stats;
@@ -763,7 +733,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
         flexDirection: 'column',
         height: '100%',
         maxHeight: '100%',
-        gap: isFocusMode ? '4px' : '6px',
+        gap: '6px',
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
@@ -852,81 +822,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
             </div>
           </div>
 
-          {/* Right: Lakehouse Live Badge, Outlier Test, Focus & Selected */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <div
-              title={language === 'vi' ? 'Lakehouse Corpus: 13,000 bài khoa học tinh chế từ 29,911 bài Bronze ban đầu (Loại bỏ tài liệu ngắn/thiếu văn bản)' : 'Lakehouse Corpus: 13,000 refined papers from initial 29,911 Bronze harvest'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : '#f0fdf4',
-                border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.25)' : '#bbf7d0'}`,
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '9.5px',
-                fontFamily: 'var(--font-mono)',
-                color: isDark ? '#4ade80' : '#166534',
-                fontWeight: 700,
-                cursor: 'help',
-              }}
-            >
-              <span
-                style={{
-                  width: '5px',
-                  height: '5px',
-                  borderRadius: '50%',
-                  backgroundColor: isStreaming ? '#22c55e' : '#38bdf8',
-                  display: 'inline-block',
-                }}
-              />
-              <span>LAKEHOUSE: {Math.max(totalCorpus, data?.collection_eda?.total_papers || 29911).toLocaleString()} BÀI {isStreaming ? `• ${streamSpeed.toFixed(1)} p/s` : '• 100% MD'}</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSimulateOutlier}
-              style={{
-                backgroundColor: isDark ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed',
-                border: `1px solid ${isDark ? 'rgba(234, 88, 12, 0.35)' : '#fed7aa'}`,
-                borderRadius: '4px',
-                padding: '2px 6px',
-                fontSize: '9.5px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                color: '#ea580c',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-              }}
-            >
-              <span>⚡ OUTLIER</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsFocusMode((prev) => !prev)}
-              style={{
-                backgroundColor: isFocusMode ? '#2563eb' : themeStyles.cardSubtle,
-                border: `1px solid ${isFocusMode ? '#1d4ed8' : themeStyles.border}`,
-                borderRadius: '4px',
-                padding: '2px 6px',
-                fontSize: '9.5px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                color: isFocusMode ? '#ffffff' : themeStyles.textSecondary,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-              }}
-              title="Nhấn F để phóng to / thu nhỏ"
-            >
-              <span>{isFocusMode ? '⤡' : '⤢'}</span>
-              <span>FOCUS (F)</span>
-            </button>
-
+          {/* Right: Active Scope KPI & Reset Action */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             {(selectedCategory !== 'ALL' || selectedMathFilter !== 'ALL') && (
               <button
                 type="button"
@@ -935,15 +832,19 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                   backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#fee2e2',
                   border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.35)' : '#fca5a5'}`,
                   borderRadius: '4px',
-                  padding: '2px 6px',
+                  padding: '2px 8px',
                   fontSize: '9.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 800,
                   color: '#ef4444',
                   cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
-                &times; ĐẶT LẠI
+                <span>✕</span>
+                <span>{language === 'vi' ? 'ĐẶT LẠI LỌC' : 'RESET FILTERS'}</span>
               </button>
             )}
 
@@ -953,12 +854,23 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                 fontFamily: 'var(--font-mono)',
                 color: themeStyles.textSecondary,
                 backgroundColor: themeStyles.cardSubtle,
-                padding: '2px 6px',
-                borderRadius: '4px',
+                padding: '3px 8px',
+                borderRadius: '5px',
                 border: `1px solid ${themeStyles.border}`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
               }}
             >
-              Đang chọn: <strong style={{ color: themeStyles.textPrimary }}>{filteredKpi.totalPapers.toLocaleString()}</strong> ({filteredKpi.sharePercent}%)
+              <span style={{ color: themeStyles.textMuted }}>{language === 'vi' ? 'Quy mô:' : 'Scope:'}</span>
+              <strong style={{ color: selectedCategory !== 'ALL' ? '#38bdf8' : themeStyles.textPrimary }}>
+                {filteredKpi.totalPapers.toLocaleString()} bài
+              </strong>
+              {selectedCategory !== 'ALL' && (
+                <span style={{ fontSize: '8.5px', color: '#38bdf8' }}>
+                  ({filteredKpi.sharePercent}%)
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1146,7 +1058,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: '#38bdf8' }}>
-                    [EDA-REAL-PARQUET]
+                    [EDA-SQL]
                   </span>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
                     {language === 'vi' ? 'TRA CỨU BÀI BÁO THẬT TỪ SILVER LAKEHOUSE & DUCKDB OLAP' : 'REAL PAPER EXPLORER FROM SILVER LAKEHOUSE & DUCKDB OLAP'}
@@ -1199,8 +1111,14 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                 </div>
 
                 {/* SQL Presets */}
-                <div style={{ display: 'flex', gap: '5px' }}>
+                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                   {[
+                    ...(selectedCategory !== 'ALL'
+                      ? [{
+                          label: `${selectedCategory} ONLY`,
+                          sql: `SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers WHERE primary_category = '${selectedCategory}' LIMIT 20;`,
+                        }]
+                      : []),
                     { label: 'TOP PAPERS', sql: 'SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers LIMIT 20;' },
                     { label: 'HEAVY MATH', sql: 'SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers ORDER BY total_math_count DESC LIMIT 20;' },
                     { label: 'cs.AI ONLY', sql: "SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers WHERE primary_category = 'cs.AI' LIMIT 20;" },
@@ -1441,10 +1359,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                 <div style={{ flexShrink: 0, marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
-                      [EDA-04] {language === 'vi' ? 'CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)' : 'DISCIPLINE DISTRIBUTION (TAXONOMY DONUT)'}
+                      [EDA-05] {language === 'vi' ? 'CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)' : 'DISCIPLINE DISTRIBUTION (TAXONOMY DONUT)'}
                     </h3>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                      Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'} bài báo
+                      Tỷ lệ phần trăm phân bố {(overview.total_papers || data?.collection_eda?.total_papers || 29911).toLocaleString()} bài báo
                     </div>
                   </div>
 
@@ -1469,52 +1387,84 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                   {/* SVG Donut */}
                   <div style={{ width: '150px', height: '150px', flexShrink: 0 }}>
                     <svg ref={donutSvgRef} viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-                      {donutSlices.map((slice) => (
-                        <circle
-                          key={slice.category}
-                          cx="50"
-                          cy="50"
-                          r="38"
-                          fill="none"
-                          stroke={slice.color}
-                          strokeWidth="16"
-                          strokeDasharray={slice.dashArray}
-                          strokeDashoffset={slice.dashOffset}
-                          style={{ transition: 'stroke-dasharray 0.3s ease, stroke-dashoffset 0.3s ease' }}
-                        />
-                      ))}
+                      {donutSlices.map((slice) => {
+                        const isSliceActive = selectedCategory === 'ALL' || slice.category === selectedCategory;
+                        return (
+                          <circle
+                            key={slice.category}
+                            cx="50"
+                            cy="50"
+                            r="38"
+                            fill="none"
+                            stroke={slice.color}
+                            strokeWidth={selectedCategory === slice.category ? '18' : '16'}
+                            strokeDasharray={slice.dashArray}
+                            strokeDashoffset={slice.dashOffset}
+                            opacity={isSliceActive ? 1 : 0.28}
+                            style={{
+                              transition: 'all 0.3s ease',
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => {
+                              setSelectedCategory((prev) => (prev === slice.category ? 'ALL' : slice.category));
+                            }}
+                          >
+                            <title>{slice.category}: {slice.percentage.toFixed(1)}% (Click để lọc)</title>
+                          </circle>
+                        );
+                      })}
 
                       <text x="50" y="48" textAnchor="middle" fontSize="12" fontFamily="var(--font-mono)" fontWeight="800" fill={themeStyles.textPrimary}>
-                        {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'}
+                        {selectedCategory !== 'ALL' && activeCategoryData
+                          ? activeCategoryData.count.toLocaleString()
+                          : (overview.total_papers || data?.collection_eda?.total_papers || 29911).toLocaleString()}
                       </text>
-                      <text x="50" y="60" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textMuted}>
-                        PAPERS
+                      <text x="50" y="60" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textMuted}>
+                        {selectedCategory !== 'ALL' ? selectedCategory : 'PAPERS'}
                       </text>
                     </svg>
                   </div>
 
                   {/* Legend list with internal micro-scrolling */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', flex: 1, overflowY: 'auto', maxHeight: '100%', paddingRight: '4px' }}>
-                    {categoryList.map((cat) => (
-                      <div key={cat.category} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 7px', borderRadius: '4px', backgroundColor: themeStyles.cardSubtle }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                          <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: getCategoryColor(cat.category) }} />
-                          <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>{cat.category}</span>
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: themeStyles.textMuted, fontSize: '10px' }}>
-                            {cat.count.toLocaleString()} {language === 'vi' ? 'bài' : 'papers'}
+                    {categoryList.map((cat) => {
+                      const isSelected = selectedCategory === cat.category;
+                      return (
+                        <div
+                          key={cat.category}
+                          onClick={() => setSelectedCategory((prev) => (prev === cat.category ? 'ALL' : cat.category))}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '4px 7px',
+                            borderRadius: '4px',
+                            backgroundColor: isSelected ? (isDark ? 'rgba(56, 189, 248, 0.15)' : '#e0f2fe') : themeStyles.cardSubtle,
+                            border: `1px solid ${isSelected ? '#38bdf8' : 'transparent'}`,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                          title={`Click để ${isSelected ? 'bỏ lọc' : 'lọc theo'} chuyên ngành ${cat.category}`}
+                        >
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: getCategoryColor(cat.category) }} />
+                            <span style={{ fontWeight: 700, color: isSelected ? '#0284c7' : themeStyles.textPrimary }}>{cat.category}</span>
                           </span>
-                          <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>{cat.percentage.toFixed(1)}%</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ color: themeStyles.textMuted, fontSize: '10px' }}>
+                              {cat.count.toLocaleString()} {language === 'vi' ? 'bài' : 'papers'}
+                            </span>
+                            <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>{cat.percentage.toFixed(1)}%</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* CHART 5: INTERDISCIPLINARY CO-OCCURRENCE HEATMAP MATRIX */}
+            {/* CHART 6: INTERDISCIPLINARY CO-OCCURRENCE HEATMAP MATRIX */}
             <div
               style={{
                 backgroundColor: themeStyles.cardBg,
@@ -1532,7 +1482,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                    [EDA-05] {language === 'vi' ? 'MA TRẬN GIAO THOA LIÊN NGÀNH' : 'CROSS-DISCIPLINE CO-OCCURRENCE MATRIX'}
+                    [EDA-06] {language === 'vi' ? 'MA TRẬN GIAO THOA LIÊN NGÀNH' : 'CROSS-DISCIPLINE CO-OCCURRENCE MATRIX'}
                   </h3>
                 </div>
 
@@ -1892,10 +1842,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                    [EDA-06] {language === 'vi' ? 'TOP TÁC GIẢ NĂNG SUẤT CAO NHẤT' : 'TOP PRODUCTIVE AUTHORS'}
+                    [EDA-08] {language === 'vi' ? 'TOP TÁC GIẢ NĂNG SUẤT CAO NHẤT' : 'TOP PRODUCTIVE AUTHORS'}
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#2563eb' }}>
-                    CORE: TOP {top_authors.length} AUTHORS n={data?.dataset_overview.total_papers?.toLocaleString() || '100,000'}
+                    CORE: TOP {top_authors.length} AUTHORS n={(data?.dataset_overview.total_papers || data?.collection_eda?.total_papers || 29911).toLocaleString()}{selectedCategory !== 'ALL' ? ` [${selectedCategory}]` : ''}
                   </span>
                 </div>
 
@@ -2075,7 +2025,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                 <div style={{ flexShrink: 0, marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                      [EDA-07] {language === 'vi' ? 'TRẮC LƯỢNG KHOA HỌC & ĐẶC TÍNH NỘI DUNG' : 'SCIENTOMETRICS & CONTENT CHARACTERISTICS'}
+                      [EDA-08B] {language === 'vi' ? 'TRẮC LƯỢNG KHOA HỌC & ĐẶC TÍNH NỘI DUNG' : 'SCIENTOMETRICS & CONTENT CHARACTERISTICS'}
                     </h3>
                     <span className="telemetry-chip" style={{ color: '#ea580c' }}>
                       MEDIAN: {math_and_content_stats.math_quantiles.median} eq · {math_and_content_stats.word_quantiles.median.toLocaleString()}w
@@ -2354,7 +2304,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0, flexWrap: 'wrap', gap: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)' }}>
-                    [EDA-06]
+                    [EDA-07]
                   </span>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
                     {language === 'vi' ? 'MA TRẬN TƯƠNG QUAN ĐA BIẾN (CORRELATION MATRIX)' : 'MULTIVARIATE CORRELATION MATRIX'}
@@ -2878,7 +2828,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                    RAG VECTOR LAKEHOUSE &amp; CONTEXT CHUNKING
+                    [EDA-09] RAG VECTOR LAKEHOUSE &amp; CONTEXT CHUNKING
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#7c3aed' }}>
                     LANCEDB GOLD · {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()} VECTORS (IVF-PQ)
@@ -3061,7 +3011,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                 <div style={{ flexShrink: 0, marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                      [EDA-08] {language === 'vi' ? 'CHẤT LƯỢNG DỮ LIỆU & KHÔNG GIAN VECTOR' : 'DATA QUALITY AUDIT & VECTOR SPACE'}
+                      [EDA-10] {language === 'vi' ? 'CHẤT LƯỢNG DỮ LIỆU & KHÔNG GIAN VECTOR' : 'DATA QUALITY AUDIT & VECTOR SPACE'}
                     </h3>
                     <span className="telemetry-chip" style={{ color: '#059669' }}>
                       ZERO CONTAMINATION · 768-D
@@ -3375,71 +3325,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
       </div>
 
 
-      {/* ============================================================== */}
-      {/* FLOATING LIVE ANOMALY TOAST ALERT BANNER                       */}
-      {/* ============================================================== */}
-      {activeAnomalies.length > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '40px',
-            right: selectedPaperForDrawer ? '444px' : '24px',
-            transition: 'right 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-            maxWidth: '380px',
-            backgroundColor: themeStyles.cardBg,
-            color: themeStyles.textPrimary,
-            borderRadius: '8px',
-            border: '1px solid #ea580c',
-            boxShadow: 'var(--card-shadow)',
-            padding: '12px 14px',
-            zIndex: 70,
-            fontFamily: 'var(--font-mono)',
-            animation: 'fadeIn 0.2s ease-out',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${themeStyles.borderSubtle}`, paddingBottom: '6px', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
-              <span style={{ fontSize: '10px', fontWeight: 800, color: '#f97316' }}>
-                LIVE ANOMALY DETECTED (Z-SCORE &gt; 3.5)
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleDismissAnomaly(activeAnomalies[0].id)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: themeStyles.textMuted,
-                cursor: 'pointer',
-                fontSize: '14px',
-                lineHeight: 1,
-                padding: '0 2px',
-              }}
-            >
-              &times;
-            </button>
-          </div>
-
-          <div style={{ fontSize: '11px', fontWeight: 700, color: themeStyles.textPrimary, marginBottom: '4px' }}>
-            {activeAnomalies[0].title}
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
-            <span>ID: <strong style={{ color: 'var(--accent-silver)' }}>{activeAnomalies[0].paperId}</strong></span>
-            <span>{language === 'vi' ? 'Ngành:' : 'Field:'} <strong style={{ color: 'var(--accent-violet)' }}>{activeAnomalies[0].category}</strong></span>
-            <span>Score: <strong style={{ color: '#ef4444' }}>{activeAnomalies[0].score}</strong></span>
-          </div>
-
-          <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '4px', padding: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            {activeAnomalies[0].reasons.map((reason, idx) => (
-              <div key={idx} style={{ fontSize: '10px', color: '#fb923c' }}>
-                &bull; {reason}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ============================================================== */}
       {/* FLOATING ACTION FEEDBACK TOAST (Copy LaTeX, BibTeX, etc.)      */}
