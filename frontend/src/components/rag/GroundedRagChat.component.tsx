@@ -24,6 +24,7 @@ interface ChatMessage {
   authority_boosted?: boolean;
   top_influencer_author?: string;
   rule_expansions?: string[];
+  userQueryForRegen?: string;
 }
 
 interface InspectedPaperData {
@@ -38,34 +39,53 @@ interface InspectedPaperData {
   doi?: string;
 }
 
+export const extractCleanPaperId = (rawId: string): string => {
+  if (!rawId) return '';
+  let clean = rawId.trim();
+  clean = clean.replace(/^(?:Paper(?:\s*ID)?|Citation|arXiv):\s*/i, '');
+  clean = clean.split(/[,|]/)[0].trim();
+  return clean;
+};
+
+export const getExternalPaperUrl = (paperId: string, doi?: string): string => {
+  if (doi) return doi.startsWith('http') ? doi : `https://doi.org/${doi}`;
+  const clean = extractCleanPaperId(paperId);
+  if (/^openalex:/i.test(clean) || /^W\d+$/i.test(clean)) {
+    const oId = clean.replace(/^openalex:/i, '');
+    return `https://openalex.org/${oId}`;
+  }
+  if (/^10\.\d{4,9}\//i.test(clean) || /^doi_/i.test(clean)) {
+    const doiPart = clean.replace(/^doi_/i, '').replace(/_/g, '/');
+    return `https://doi.org/${doiPart}`;
+  }
+  const arx = clean.replace(/^arxiv:/i, '');
+  return `https://arxiv.org/abs/${arx}`;
+};
+
 const getResearchPromptSuggestions = (lang: 'en' | 'vi') => [
   {
     label: 'Diffusion Distillation',
     query: lang === 'vi'
       ? 'Vai trò của việc lấy mẫu z_t trong conditional diffusion distillation theo bài báo CoDi 2310.01407 là gì?'
       : 'What is the role of sampling z_t in conditional diffusion distillation according to CoDi paper 2310.01407?',
-    category: 'cs.CV',
   },
   {
     label: 'LoRA Efficiency',
     query: lang === 'vi'
       ? 'Phương pháp Low-Rank Adaptation (LoRA) giảm tham số huấn luyện như thế nào mà vẫn đảm bảo độ hội tụ cross-entropy?'
       : 'How does low-rank adaptation (LoRA) reduce trainable parameters while preserving cross-entropy convergence?',
-    category: 'cs.CL',
   },
   {
     label: 'SGLD Generalization',
     query: lang === 'vi'
       ? 'Các chặn hội tụ thực nghiệm cho tối ưu hóa Stochastic Gradient Langevin Dynamics (SGLD) là gì?'
       : 'What are the empirical convergence bounds for Stochastic Gradient Langevin Dynamics (SGLD) optimization?',
-    category: 'stat.ML',
   },
   {
     label: 'FlashAttention-2',
     query: lang === 'vi'
       ? 'FlashAttention-2 tối ưu hóa bố cục bộ nhớ thread block như thế nào để giảm thiểu lưu lượng HBM IO?'
       : 'How does FlashAttention-2 optimize thread block memory layout to minimize HBM IO traffic?',
-    category: 'cs.AI',
   },
 ];
 
@@ -101,6 +121,8 @@ const getInitialGreeting = (
   return `Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **${worksStr} verified full-text papers**, **${formulasMillion}M formulas** (${formulasStr} LaTeX equations), and **${vectorsStr} LanceDB vector embeddings** (IVF-PQ K=1024, M=192, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?`;
 };
 
+const LOCAL_STORAGE_CHAT_KEY = 'uth_rag_chat_history_v2';
+
 export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   theme = 'dark',
   initialQuery = '',
@@ -122,36 +144,34 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     storageStats?.goldVectorLakehouse?.vectorCount ||
     164750;
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'msg-0',
-      sender: 'assistant',
-      text: getInitialGreeting(language, liveWorksCount, liveVectorsCount),
-      timestamp: '12:00:00',
-    },
-  ]);
+  // Initialize messages from LocalStorage if available
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(LOCAL_STORAGE_CHAT_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+    return [
+      {
+        id: 'msg-0',
+        sender: 'assistant',
+        text: getInitialGreeting(language, liveWorksCount, liveVectorsCount),
+        timestamp: '12:00:00',
+      },
+    ];
+  });
+
   const [inputText, setInputText] = useState<string>(initialQuery);
   const [loading, setLoading] = useState<boolean>(false);
-  const [useStreaming, setUseStreaming] = useState<boolean>(true);
+  const useStreaming = true;
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [streamingStepIndex, setStreamingStepIndex] = useState<number>(0);
-
-  // Update initial greeting when language or live counts change if only welcome message is present
-  useEffect(() => {
-    setMessages((prev) => {
-      if (prev.length === 1 && prev[0].id === 'msg-0') {
-        return [
-          {
-            id: 'msg-0',
-            sender: 'assistant',
-            text: getInitialGreeting(language, liveWorksCount, liveVectorsCount),
-            timestamp: '12:00:00',
-          },
-        ];
-      }
-      return prev;
-    });
-  }, [language, liveWorksCount, liveVectorsCount]);
 
   // Paper Dossier Drawer State
   const [inspectedPaper, setInspectedPaper] = useState<InspectedPaperData | null>(null);
@@ -159,8 +179,20 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortStreamRef = useRef<(() => void) | null>(null);
 
   const streamingStatuses = getStreamingStatuses(language, liveVectorsCount);
+
+  // Persist messages to LocalStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && messages.length > 0) {
+      try {
+        // Strip isStreaming flag from storage
+        const clean = messages.map((m) => ({ ...m, isStreaming: false }));
+        localStorage.setItem(LOCAL_STORAGE_CHAT_KEY, JSON.stringify(clean));
+      } catch {}
+    }
+  }, [messages]);
 
   // Cycle streaming status text when waiting for the first token
   useEffect(() => {
@@ -177,6 +209,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     return () => clearInterval(interval);
   }, [messages, streamingStatuses.length]);
 
+  // Handle Initial Query from Router/State
   useEffect(() => {
     if (initialQuery && initialQuery.trim()) {
       setInputText(initialQuery);
@@ -184,6 +217,14 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       textareaRef.current?.focus();
     }
   }, [initialQuery, onClearInitialQuery]);
+
+  // Auto-resize textarea as user types
+  const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const el = e.target;
+    setInputText(el.value);
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -193,64 +234,79 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     scrollToBottom();
   }, [messages, loading]);
 
-  const handleInspectCitation = async (paperId: string, sectionTitle?: string) => {
+  const handleInspectCitation = async (rawPaperId: string, sectionTitle?: string) => {
+    const cleanPaperId = extractCleanPaperId(rawPaperId);
+    if (!cleanPaperId) return;
+
     setIsDossierLoading(true);
     setInspectedPaper({
-      paperId,
-      title: `Academic Paper ${paperId}`,
-      authors: ['Research Author Group'],
-      category: 'cs.AI',
-      abstract: 'Retrieving canonical paper abstract and chunks from LanceDB Gold Lakehouse...',
-      sectionTitle: sectionTitle || 'Main Methodology',
-      score: '0.8510',
+      paperId: cleanPaperId,
+      title: `${language === 'vi' ? 'Bài báo' : 'Academic Paper'} ${cleanPaperId}`,
+      authors: [],
+      category: '...',
+      abstract: language === 'vi'
+        ? 'Đang truy vấn tóm tắt bài báo và chunks từ LanceDB Gold Lakehouse...'
+        : 'Retrieving canonical paper abstract and chunks from LanceDB Gold Lakehouse...',
+      sectionTitle: sectionTitle || (language === 'vi' ? 'Toàn văn tài liệu' : 'Main Methodology'),
+      score: '...',
       chunkText: '',
     });
 
     try {
-      const chunks = await fetchPaper(paperId);
+      const chunks = await fetchPaper(cleanPaperId);
       if (chunks && chunks.length > 0) {
         const first = chunks[0];
         const targetSection = sectionTitle?.toLowerCase();
         const matchedChunk = targetSection
-          ? chunks.find(c => c.section_title && c.section_title.toLowerCase().includes(targetSection))
+          ? chunks.find((c) => c.section_title && c.section_title.toLowerCase().includes(targetSection))
           : undefined;
-        const displayChunk = matchedChunk || chunks.find(c => c.section_title && c.section_title.toLowerCase() !== 'abstract') || first;
+        const displayChunk = matchedChunk || chunks.find((c) => c.section_title && c.section_title.toLowerCase() !== 'abstract') || first;
 
-        const abstractChunk = chunks.find(c => c.section_title?.toLowerCase() === 'abstract' || c.chunk_id?.includes('_c000'));
-        const resolvedAbstract = first.abstract || abstractChunk?.text || displayChunk.abstract || 'Abstract content indexed in LanceDB Lakehouse.';
+        const abstractChunk = chunks.find((c) => c.section_title?.toLowerCase() === 'abstract' || c.chunk_id?.includes('_c000'));
+        const resolvedAbstract = first.abstract || abstractChunk?.text || displayChunk.abstract || (language === 'vi' ? 'Nội dung tóm tắt trong LanceDB Lakehouse.' : 'Abstract content indexed in LanceDB Lakehouse.');
 
         setInspectedPaper({
-          paperId,
-          title: first.title || `Paper ${paperId}`,
-          authors: (first.authors && first.authors.length > 0) ? first.authors : ['Academic Authors'],
-          category: first.primary_category || 'cs.AI',
+          paperId: cleanPaperId,
+          title: first.title || `Paper ${cleanPaperId}`,
+          authors: first.authors && first.authors.length > 0 ? first.authors : [],
+          category: first.primary_category || (language === 'vi' ? 'Chưa phân loại' : 'Uncategorized'),
           abstract: resolvedAbstract,
-          sectionTitle: displayChunk.section_title || sectionTitle || 'Main Methodology',
-          score: displayChunk.score ? displayChunk.score.toFixed(4) : (first.score ? first.score.toFixed(4) : '0.8510'),
+          sectionTitle: displayChunk.section_title || sectionTitle || (language === 'vi' ? 'Toàn văn tài liệu' : 'Main Methodology'),
+          score: displayChunk.score ? displayChunk.score.toFixed(4) : first.score ? first.score.toFixed(4) : 'N/A',
           chunkText: displayChunk.text ? (displayChunk.text.length > 350 ? displayChunk.text.slice(0, 350) + '...' : displayChunk.text) : '',
-          doi: first.doi || (paperId.startsWith('doi_') ? `https://doi.org/${paperId.replace(/^doi_/, '').replace(/_/g, '/')}` : undefined),
+          doi: first.doi || (cleanPaperId.startsWith('doi_') ? `https://doi.org/${cleanPaperId.replace(/^doi_/, '').replace(/_/g, '/')}` : undefined),
         });
       }
-    } catch (err) {
+    } catch {
       setInspectedPaper({
-        paperId,
-        title: `Paper ID: ${paperId}`,
-        authors: ['Scientific Research Group'],
-        category: 'cs.AI',
-        abstract: 'Unable to retrieve abstract details for this record from Lakehouse.',
-        sectionTitle: sectionTitle || 'Full Document Text',
-        score: '0.8500',
-        chunkText: 'Chunk content is currently unavailable or updating.',
+        paperId: cleanPaperId,
+        title: `Paper ${cleanPaperId}`,
+        authors: [],
+        category: 'N/A',
+        abstract: language === 'vi'
+          ? 'Không tìm thấy toàn văn hoặc tóm tắt của bài báo này trong kho lưu trữ dữ liệu Silver/Gold cục bộ.'
+          : 'No full text or abstract found for this paper in the local lakehouse repository.',
+        sectionTitle: sectionTitle || (language === 'vi' ? 'Toàn văn tài liệu' : 'Full Document Text'),
+        score: 'N/A',
+        chunkText: '',
       });
     } finally {
-
       setIsDossierLoading(false);
     }
   };
 
   const updateAssistantMessage = (msgId: string, patch: Partial<ChatMessage>) => {
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, ...patch } : m)));
+  };
+
+  const handleStopGenerating = () => {
+    if (abortStreamRef.current) {
+      abortStreamRef.current();
+      abortStreamRef.current = null;
+    }
+    setLoading(false);
     setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, ...patch } : m))
+      prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m))
     );
   };
 
@@ -270,102 +326,79 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
     setMessages((prev) => [...prev, newUserMsg]);
     setInputText('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
     setLoading(true);
 
-    if (useStreaming) {
-      return handleStreamingSend(query);
-    }
-    await handleNonStreamingSend(query);
+    return handleStreamingSend(query);
   };
 
   const handleStreamingSend = (query: string) => {
-      const startTime = Date.now();
-      const assistantMsgId = `ast-${Date.now()}`;
-      const newAssistantMsg: ChatMessage = {
-        id: assistantMsgId,
-        sender: 'assistant',
-        text: '',
-        citations: [],
-        similarity_score: '0.8500',
-        generation_time: '0.00s',
-        context_chunks_used: 5,
-        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-        isStreaming: true,
-      };
+    const startTime = Date.now();
+    const assistantMsgId = `ast-${Date.now()}`;
+    const newAssistantMsg: ChatMessage = {
+      id: assistantMsgId,
+      sender: 'assistant',
+      text: '',
+      citations: [],
+      similarity_score: '0.8500',
+      generation_time: '0.00s',
+      context_chunks_used: 5,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      isStreaming: true,
+      userQueryForRegen: query,
+    };
 
-      setMessages((prev) => [...prev, newAssistantMsg]);
+    setMessages((prev) => [...prev, newAssistantMsg]);
 
-      let accumulated = '';
-      const unsubscribe = streamChatQuery({
-        query,
-        onMeta: (meta) => {
-          updateAssistantMessage(assistantMsgId, {
-            similarity_score: meta.similarity_score ?? '0.8500',
-            context_chunks_used: meta.context_chunks_used ?? 5,
-            authority_boosted: meta.authority_boosted,
-            top_influencer_author: meta.top_influencer_author,
-            rule_expansions: meta.rule_expansions,
-          });
-        },
-        onToken: (token) => {
-          accumulated += token;
-          updateAssistantMessage(assistantMsgId, { text: accumulated });
-        },
-        onDone: () => {
-          const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
-          const citeMatches = Array.from(
-            accumulated.matchAll(/(?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*([^,\]|]+)(?:[|,]\s*(?:Section:\s*)?([^\]]+))?\](?:\*\*|`?)/gi)
-          ).map((m) => m[2] ? `Paper: ${m[1].trim()}, Section: ${m[2].trim()}` : `Paper: ${m[1].trim()}`);
-          updateAssistantMessage(assistantMsgId, {
-            isStreaming: false,
-            generation_time: `${elapsedSec}s`,
-            citations: citeMatches.length > 0 ? Array.from(new Set(citeMatches)) : ['Paper: 2505.18877, Section: Methodology'],
-          });
-          setLoading(false);
-          setTimeout(() => textareaRef.current?.focus(), 50);
-        },
-        onError: (_err) => handleStreamingOnError(_err, assistantMsgId, query, unsubscribe)
-      });
+    let accumulated = '';
+    let backendCitations: string[] = [];
 
-      // Cleanup ref if unmounted
-      return () => unsubscribe();
-  };
-
-  const handleNonStreamingSend = async (query: string) => {
-      const fallbackMsgId = `ast-${Date.now()}`;
-      const fallbackMsg: ChatMessage = {
-        id: fallbackMsgId,
-        sender: 'assistant',
-        text: '...',
-        citations: [],
-        similarity_score: '0.8510',
-        generation_time: '0.01s',
-        context_chunks_used: 5,
-        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      };
-      setMessages((prev) => [...prev, fallbackMsg]);
-      try {
-        const res: ChatResponse = await sendChatQuery(query);
-        updateAssistantMessage(fallbackMsgId, {
-          text: res.answer,
-          citations: res.citations ?? [],
-          similarity_score: res.similarity_score ?? '0.8510',
-          generation_time: res.generation_time ?? '0.01s',
-          authority_boosted: res.authority_boosted,
-          top_influencer_author: res.top_influencer_author,
-          rule_expansions: res.rule_expansions,
+    const unsubscribe = streamChatQuery({
+      query,
+      topK: 5,
+      onMeta: (meta) => {
+        if (meta.citations && Array.isArray(meta.citations)) {
+          backendCitations = meta.citations;
+        }
+        updateAssistantMessage(assistantMsgId, {
+          similarity_score: meta.similarity_score ?? '0.8500',
+          context_chunks_used: meta.context_chunks_used ?? 5,
+          authority_boosted: meta.authority_boosted,
+          top_influencer_author: meta.top_influencer_author,
+          rule_expansions: meta.rule_expansions,
+          citations: backendCitations.length > 0 ? backendCitations : undefined,
         });
-      } catch (err: any) {
-        updateAssistantMessage(fallbackMsgId, {
-          text: `**System Alert:** ${err?.message || 'Could not connect to the backend service'}. Please verify that the FastAPI backend is running on port 8000.`,
-          citations: [],
-          similarity_score: '0.0000',
-          generation_time: '0.00s',
-          context_chunks_used: 0,
+      },
+      onToken: (token) => {
+        accumulated += token;
+        updateAssistantMessage(assistantMsgId, { text: accumulated });
+      },
+      onDone: () => {
+        const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
+
+        // Parse inline citations
+        const inlineCiteMatches = Array.from(
+          accumulated.matchAll(/(?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*([^,\]|]+)(?:[|,]\s*(?:Section:\s*)?([^\]]+))?\](?:\*\*|`?)/gi)
+        ).map((m) => (m[2] ? `Paper: ${m[1].trim()}, Section: ${m[2].trim()}` : `Paper: ${m[1].trim()}`));
+
+        // Merge backend truth citations with inline matches
+        const combinedCitations = Array.from(new Set([...backendCitations, ...inlineCiteMatches]));
+
+        updateAssistantMessage(assistantMsgId, {
+          isStreaming: false,
+          generation_time: `${elapsedSec}s`,
+          citations: combinedCitations,
         });
-      }
-      setLoading(false);
-      setTimeout(() => textareaRef.current?.focus(), 50);
+        setLoading(false);
+        abortStreamRef.current = null;
+        setTimeout(() => textareaRef.current?.focus(), 50);
+      },
+      onError: (_err) => handleStreamingOnError(_err, assistantMsgId, query, unsubscribe),
+    });
+
+    abortStreamRef.current = unsubscribe;
   };
 
   const handleStreamingOnError = async (
@@ -375,8 +408,9 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     unsubscribe: () => void
   ) => {
     unsubscribe();
+    abortStreamRef.current = null;
     try {
-      const res: ChatResponse = await sendChatQuery(query);
+      const res: ChatResponse = await sendChatQuery(query, undefined, 5);
       updateAssistantMessage(assistantMsgId, {
         text: res.answer,
         citations: res.citations ?? [],
@@ -402,6 +436,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
+  const handleRegenerate = (msg: ChatMessage) => {
+    if (!msg.userQueryForRegen || loading) return;
+    handleSendMessage(msg.userQueryForRegen);
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     handleSendMessage();
@@ -420,50 +459,72 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleExportChat = () => {
+    let md = `# UTH Scientific RAG Conversation Export\n\nGenerated on: ${new Date().toISOString()}\nTotal Corpus: ${liveWorksCount.toLocaleString()} Papers | LanceDB: ${liveVectorsCount.toLocaleString()} Vectors\n\n---\n\n`;
+    for (const m of messages) {
+      const role = m.sender === 'user' ? '### 👤 Question (User)' : '### 🤖 Academic Synthesis (Qwen2.5-7B Grounded)';
+      md += `${role} [${m.timestamp}]\n\n${m.text}\n\n`;
+      if (m.citations && m.citations.length > 0) {
+        md += `**Verified Sources:**\n${m.citations.map((c) => `- ${c}`).join('\n')}\n\n`;
+      }
+      md += `---\n\n`;
+    }
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `uth_rag_conversation_${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleClearHistory = () => {
-    setMessages([
+    const welcome = [
       {
         id: 'msg-0',
-        sender: 'assistant',
-        text: getInitialGreeting(language),
+        sender: 'assistant' as const,
+        text: getInitialGreeting(language, liveWorksCount, liveVectorsCount),
         timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
       },
-    ]);
+    ];
+    setMessages(welcome);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(LOCAL_STORAGE_CHAT_KEY);
+      } catch {}
+    }
   };
 
   const formatCitationBadgeLabel = (paperId: string, sectionTitle?: string): string => {
-    let cleanId = paperId.trim();
+    const cleanId = extractCleanPaperId(paperId);
     let prefix = 'Paper';
 
     if (/^doi[_:]/i.test(cleanId) || /^10\.\d{4,9}\//i.test(cleanId)) {
       prefix = 'DOI';
-      cleanId = cleanId.replace(/^doi[_:]/i, '').replace(/_/g, '/');
     } else if (/^openalex:/i.test(cleanId) || /^W\d+$/i.test(cleanId)) {
-      prefix = 'DOI';
-      cleanId = cleanId.replace(/^openalex:/i, '');
+      prefix = 'OpenAlex';
     } else if (/^cvf[_:]/i.test(cleanId)) {
       prefix = 'CVF';
-      cleanId = cleanId.replace(/^cvf[_:]/i, '');
     } else if (/^openreview[_:]/i.test(cleanId)) {
       prefix = 'OpenReview';
-      cleanId = cleanId.replace(/^openreview[_:]/i, '');
     } else if (/^zenodo[_:]/i.test(cleanId)) {
       prefix = 'Zenodo';
-      cleanId = cleanId.replace(/^zenodo[_:]/i, '');
-    } else if (/^arxiv:/i.test(cleanId)) {
+    } else if (/^arxiv:/i.test(cleanId) || /^\d{4}\.\d{4,5}$/.test(cleanId)) {
       prefix = 'arXiv';
-      cleanId = cleanId.replace(/^arxiv:/i, '');
     }
 
-    const displayId = cleanId.length > 24 ? cleanId.slice(0, 22) + '…' : cleanId;
+    const shortId = cleanId.replace(/^(?:openalex|doi|arxiv|cvf|zenodo)[:_]/i, '');
+    const displayId = shortId.length > 20 ? shortId.slice(0, 18) + '…' : shortId;
     const cleanSec = sectionTitle ? sectionTitle.replace(/^Section\s*\d+:?\s*/i, '').trim() : '';
     const displaySec = cleanSec ? ` · ${cleanSec}` : '';
 
     return `${prefix}:${displayId}${displaySec}`;
   };
 
+  // Inline content renderer (handles bold, code, math, citations)
   const renderInlineContent = (rawText: string): React.ReactNode[] => {
-    const tokenRegex = /((?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*[^,\]|]+(?:[|,]\s*(?:Section:\s*)?[^\]]+)?\](?:\*\*|`?)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+`)/g;
+    const tokenRegex =
+      /((?:\*\*|`?)\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*[^,\]|]+(?:[|,]\s*(?:Section:\s*)?[^\]]+)?\](?:\*\*|`?)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\*\*[^*]+?\*\*|`[^`]+`)/g;
     const parts = rawText.split(tokenRegex);
 
     return parts.map((part, idx) => {
@@ -472,14 +533,14 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       const cleanPart = part.replace(/^(\*\*|`)|(\*\*|`)$/g, '').trim();
       const citeMatch = cleanPart.match(/^\[(?:Paper(?:\s*ID)?|Citation|arXiv):\s*([^,\]|]+)(?:[|,]\s*(?:Section:\s*)?([^\]]+))?\]$/i);
       if (citeMatch) {
-        const paperId = citeMatch[1].trim();
+        const rawPaperId = citeMatch[1].trim();
         const section = citeMatch[2]?.trim() || '';
-        const badgeLabel = formatCitationBadgeLabel(paperId, section);
+        const badgeLabel = formatCitationBadgeLabel(rawPaperId, section);
         return (
           <button
             key={`cite-${idx}`}
             type="button"
-            onClick={() => handleInspectCitation(paperId, section)}
+            onClick={() => handleInspectCitation(rawPaperId, section)}
             className="citation-chip"
             title={`Inspect Academic Dossier: ${badgeLabel}`}
             style={{
@@ -535,7 +596,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         );
       }
 
-      // Code text
+      // Inline Code
       if (part.startsWith('`') && part.endsWith('`')) {
         const inner = part.slice(1, -1);
         return (
@@ -560,87 +621,255 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     });
   };
 
+  // Structured Block Markdown Parser (handles Fenced Code Blocks, Block Math, Headings, Lists, Quotes)
   const renderMessageContent = (text: string) => {
-    let cleanedText = text.trim();
-    if (cleanedText.endsWith('and prevents')) {
-      cleanedText = cleanedText + ' mode collapse across high-dimensional latent spaces.';
+    const cleanedText = text.trim();
+    if (!cleanedText) return null;
+
+    // Split text into major blocks (Fenced Code, Block Math, Paragraphs)
+    const blocks: Array<{ type: 'code' | 'math' | 'blockquote' | 'heading' | 'list' | 'para'; content: string; meta?: string }> = [];
+    const lines = cleanedText.split('\n');
+    let inCode = false;
+    let codeLang = '';
+    let codeBuffer: string[] = [];
+    let inMath = false;
+    let mathBuffer: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Fenced Code Block Detection
+      if (trimmed.startsWith('```')) {
+        if (!inCode) {
+          inCode = true;
+          codeLang = trimmed.replace(/^```/, '').trim() || 'text';
+          codeBuffer = [];
+        } else {
+          inCode = false;
+          blocks.push({ type: 'code', content: codeBuffer.join('\n'), meta: codeLang });
+          codeBuffer = [];
+        }
+        continue;
+      }
+      if (inCode) {
+        codeBuffer.push(line);
+        continue;
+      }
+
+      // Multiline Block Math Detection ($$ ... $$)
+      if (trimmed === '$$' || (trimmed.startsWith('$$') && !trimmed.endsWith('$$', 2))) {
+        if (!inMath) {
+          inMath = true;
+          mathBuffer = [trimmed.replace(/^\$\$/, '')];
+        } else {
+          inMath = false;
+          mathBuffer.push(trimmed.replace(/\$\$$/, ''));
+          blocks.push({ type: 'math', content: mathBuffer.join('\n').trim() });
+          mathBuffer = [];
+        }
+        continue;
+      }
+      if (inMath) {
+        if (trimmed.endsWith('$$')) {
+          inMath = false;
+          mathBuffer.push(trimmed.replace(/\$\$$/, ''));
+          blocks.push({ type: 'math', content: mathBuffer.join('\n').trim() });
+          mathBuffer = [];
+        } else {
+          mathBuffer.push(line);
+        }
+        continue;
+      }
+
+      // Standalone single-line $$ ... $$
+      if (trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length > 4) {
+        blocks.push({ type: 'math', content: trimmed.slice(2, -2).trim() });
+        continue;
+      }
+
+      // Blockquotes
+      if (trimmed.startsWith('>')) {
+        blocks.push({ type: 'blockquote', content: trimmed.replace(/^>\s*/, '') });
+        continue;
+      }
+
+      // Headings
+      if (trimmed.startsWith('#')) {
+        blocks.push({ type: 'heading', content: trimmed });
+        continue;
+      }
+
+      // Bullet / Numbered Lists
+      if (/^[-*]\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed)) {
+        blocks.push({ type: 'list', content: trimmed });
+        continue;
+      }
+
+      // Regular line
+      if (trimmed) {
+        blocks.push({ type: 'para', content: trimmed });
+      }
     }
 
-    const lines = cleanedText.split('\n');
+    // Flush any open buffers
+    if (inCode && codeBuffer.length > 0) {
+      blocks.push({ type: 'code', content: codeBuffer.join('\n'), meta: codeLang });
+    }
+    if (inMath && mathBuffer.length > 0) {
+      blocks.push({ type: 'math', content: mathBuffer.join('\n').trim() });
+    }
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {lines.map((line, lineIdx) => {
-          const trimmed = line.trim();
-          if (!trimmed) return <div key={lineIdx} style={{ height: '4px' }} />;
-
-          const bulletMatch = trimmed.match(/^[-*]\s+\*\*([^*]+)\*\*:\s*(.*)$/);
-          if (bulletMatch) {
-            const heading = bulletMatch[1].trim();
-            const content = bulletMatch[2].trim();
+        {blocks.map((block, bIdx) => {
+          if (block.type === 'code') {
             return (
               <div
-                key={`bullet-${lineIdx}`}
+                key={`codeblk-${bIdx}`}
                 style={{
-                  display: 'flex',
-                  gap: '10px',
-                  alignItems: 'flex-start',
-                  padding: '8px 12px',
-                  margin: '2px 0',
+                  margin: '8px 0',
                   borderRadius: '8px',
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.025)' : '#f8fafc',
-                  border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : '#e2e8f0'}`,
-                  lineHeight: '1.7',
+                  overflow: 'hidden',
+                  border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1'}`,
+                  backgroundColor: isDark ? '#050811' : '#f8fafc',
                 }}
               >
-                <span
+                <div
                   style={{
-                    color: isDark ? '#38bdf8' : '#0284c7',
-                    fontSize: '11px',
-                    lineHeight: '22px',
-                    userSelect: 'none',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '4px 10px',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e2e8f0',
+                    fontSize: '10.5px',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-muted)',
                   }}
                 >
-                  ●
-                </span>
-                <div style={{ flex: 1 }}>
-                  <span
+                  <span style={{ textTransform: 'uppercase', fontWeight: 700 }}>{block.meta || 'CODE'}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(`code-${bIdx}`, block.content)}
                     style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: copiedId === `code-${bIdx}` ? '#10b981' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      fontSize: '10px',
                       fontWeight: 700,
-                      color: isDark ? '#38bdf8' : '#0369a1',
-                      marginRight: '6px',
                     }}
                   >
-                    {heading}:
-                  </span>
-                  <span>{renderInlineContent(content)}</span>
+                    {copiedId === `code-${bIdx}` ? '✓ COPIED' : '📋 COPY'}
+                  </button>
                 </div>
+                <pre
+                  style={{
+                    margin: 0,
+                    padding: '10px 12px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '12px',
+                    lineHeight: 1.55,
+                    color: isDark ? '#e2e8f0' : '#0f172a',
+                    overflowX: 'auto',
+                  }}
+                >
+                  <code>{block.content}</code>
+                </pre>
               </div>
             );
           }
 
-          if (trimmed.startsWith('###')) {
-            const title = trimmed.replace(/^###\s*/, '');
+          if (block.type === 'math') {
+            return <ScientificMath key={`mathblk-${bIdx}`} math={block.content} block theme={theme} />;
+          }
+
+          if (block.type === 'blockquote') {
             return (
-              <h4
-                key={`h4-${lineIdx}`}
+              <blockquote
+                key={`quote-${bIdx}`}
                 style={{
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: isDark ? '#f8fafc' : '#0f172a',
-                  margin: '8px 0 2px 0',
-                  borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
-                  paddingBottom: '4px',
+                  margin: '6px 0',
+                  padding: '6px 14px',
+                  borderLeft: `3px solid ${isDark ? '#38bdf8' : '#0284c7'}`,
+                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.06)' : 'rgba(2, 132, 199, 0.05)',
+                  borderRadius: '0 6px 6px 0',
+                  fontStyle: 'italic',
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.65,
                 }}
               >
-                {title}
-              </h4>
+                {renderInlineContent(block.content)}
+              </blockquote>
+            );
+          }
+
+          if (block.type === 'heading') {
+            const hText = block.content.replace(/^#+\s*/, '');
+            const level = (block.content.match(/^#+/) || ['###'])[0].length;
+            const fSize = level === 1 ? '16px' : level === 2 ? '14px' : '13px';
+            return (
+              <div
+                key={`h-${bIdx}`}
+                style={{
+                  fontSize: fSize,
+                  fontWeight: 800,
+                  color: isDark ? '#f8fafc' : '#0f172a',
+                  margin: '10px 0 2px 0',
+                  borderBottom: level <= 2 ? `1px solid var(--border-subtle)` : 'none',
+                  paddingBottom: level <= 2 ? '4px' : '0',
+                }}
+              >
+                {renderInlineContent(hText)}
+              </div>
+            );
+          }
+
+          if (block.type === 'list') {
+            const bulletMatch = block.content.match(/^[-*]\s+\*\*([^*]+)\*\*:\s*(.*)$/);
+            if (bulletMatch) {
+              const heading = bulletMatch[1].trim();
+              const content = bulletMatch[2].trim();
+              return (
+                <div
+                  key={`bullet-${bIdx}`}
+                  style={{
+                    display: 'flex',
+                    gap: '8px',
+                    alignItems: 'flex-start',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : '#f8fafc',
+                    border: `1px solid var(--border-subtle)`,
+                    lineHeight: '1.65',
+                  }}
+                >
+                  <span style={{ color: isDark ? '#38bdf8' : '#0284c7', fontSize: '11px', lineHeight: '20px' }}>●</span>
+                  <div style={{ flex: 1 }}>
+                    <strong style={{ color: isDark ? '#38bdf8' : '#0369a1', marginRight: '6px' }}>{heading}:</strong>
+                    <span>{renderInlineContent(content)}</span>
+                  </div>
+                </div>
+              );
+            }
+
+            const cleanListItem = block.content.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, '');
+            const isNumbered = /^\d+\./.test(block.content);
+            const numPrefix = isNumbered ? (block.content.match(/^\d+\./) || ['1.'])[0] : '•';
+
+            return (
+              <div key={`li-${bIdx}`} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', paddingLeft: '4px' }}>
+                <span style={{ color: isDark ? '#38bdf8' : '#0284c7', fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: '11px', flexShrink: 0 }}>
+                  {numPrefix}
+                </span>
+                <span style={{ flex: 1, lineHeight: 1.65 }}>{renderInlineContent(cleanListItem)}</span>
+              </div>
             );
           }
 
           return (
-            <p key={`p-${lineIdx}`} style={{ margin: 0, lineHeight: '1.75' }}>
-              {renderInlineContent(trimmed)}
+            <p key={`p-${bIdx}`} style={{ margin: 0, lineHeight: '1.75' }}>
+              {renderInlineContent(block.content)}
             </p>
           );
         })}
@@ -662,13 +891,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       }}
     >
       {/* ============================================================== */}
-      {/* 1. TOP FLOATING CONTROL PILL */}
+      {/* 1. TOP FLOATING CONTROL PILL WITH RAG HYPERPARAMETERS */}
       {/* ============================================================== */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'center',
-          padding: '14px 20px 8px',
+          padding: '10px 16px 6px',
           zIndex: 10,
           flexShrink: 0,
         }}
@@ -677,16 +906,18 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.90)' : 'rgba(255, 255, 255, 0.92)',
+            gap: '8px',
+            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.94)',
             backdropFilter: 'blur(16px)',
-            border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0'}`,
+            border: `1px solid var(--border-subtle)`,
             borderRadius: '9999px',
-            padding: '6px 16px',
-            boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.35)' : '0 4px 20px rgba(0, 0, 0, 0.05)',
+            padding: '5px 14px',
+            boxShadow: 'var(--card-shadow)',
+            flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+          {/* Status Indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span
               style={{
                 width: '7px',
@@ -697,53 +928,52 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
               }}
             />
             <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#38bdf8' : '#0f172a' }}>
-              {language === 'vi' ? 'RADAR RAG KHOA HỌC' : 'SCIENTIFIC RAG RADAR'}
+              {language === 'vi' ? 'RAG KHOA HỌC' : 'SCIENTIFIC RAG'}
             </span>
           </div>
 
-          <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
+          <span style={{ color: 'var(--border-subtle)' }}>|</span>
 
-          <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
+          <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
             {liveWorksCount.toLocaleString()} {language === 'vi' ? 'Bài báo' : 'Works'} · {liveVectorsCount.toLocaleString()} LanceDB Vectors (Nomic 768-D)
           </span>
 
-          <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
+          <span style={{ color: 'var(--border-subtle)' }}>|</span>
 
-          {/* Real-time Streaming Toggle */}
+          {/* Export Chat Button */}
           <button
             type="button"
-            onClick={() => setUseStreaming((prev) => !prev)}
-            title="Toggle token streaming vs direct response"
+            onClick={handleExportChat}
+            title={language === 'vi' ? 'Xuất toàn bộ đoạn chat ra tệp Markdown' : 'Export conversation as Markdown'}
             style={{
               fontSize: '10.5px',
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
-              backgroundColor: useStreaming ? (isDark ? 'rgba(16, 185, 129, 0.18)' : '#ecfdf5') : 'transparent',
-              color: useStreaming ? (isDark ? '#34d399' : '#059669') : (isDark ? '#64748b' : '#94a3b8'),
-              border: `1px solid ${useStreaming ? (isDark ? 'rgba(16, 185, 129, 0.35)' : '#a7f3d0') : 'transparent'}`,
-              borderRadius: '6px',
-              padding: '2px 8px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '3px',
             }}
           >
-            <span>SSE STREAM: {useStreaming ? (language === 'vi' ? 'BẬT' : 'ON') : (language === 'vi' ? 'TẮT' : 'OFF')}</span>
+            <span>📥 {language === 'vi' ? 'XUẤT MD' : 'EXPORT'}</span>
           </button>
 
-          <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
+          <span style={{ color: 'var(--border-subtle)' }}>|</span>
 
+          {/* Clear History Button */}
           <button
             type="button"
             onClick={handleClearHistory}
-            title={language === 'vi' ? 'Đặt lại đoạn hội thoại' : 'Reset conversation thread'}
+            title={language === 'vi' ? 'Xóa lịch sử chat và đặt lại' : 'Reset conversation history'}
             style={{
               fontSize: '11px',
               fontFamily: 'var(--font-mono)',
               backgroundColor: 'transparent',
               border: 'none',
-              color: isDark ? '#64748b' : '#94a3b8',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -766,11 +996,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           flex: 1,
           overflowY: 'auto',
           overflowX: 'hidden',
-          padding: '10px 24px 140px',
+          padding: '10px 20px 140px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          marginRight: inspectedPaper ? '430px' : '0',
+          marginRight: inspectedPaper ? '420px' : '0',
           transition: 'margin-right 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
@@ -792,7 +1022,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 style={{
                   display: 'flex',
                   flexDirection: isUser ? 'row-reverse' : 'row',
-                  gap: '14px',
+                  gap: '12px',
                   alignItems: 'flex-start',
                 }}
               >
@@ -810,9 +1040,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                     fontSize: '11px',
                     fontWeight: 800,
                     flexShrink: 0,
-                    boxShadow: isUser
-                      ? '0 3px 10px rgba(37, 99, 235, 0.35)'
-                      : '0 3px 10px rgba(255, 87, 34, 0.35)',
+                    boxShadow: isUser ? '0 3px 10px rgba(37, 99, 235, 0.35)' : '0 3px 10px rgba(255, 87, 34, 0.35)',
                   }}
                 >
                   {isUser ? 'ME' : 'RAG'}
@@ -821,7 +1049,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 {/* Message Body */}
                 <div
                   style={{
-                    maxWidth: '82%',
+                    maxWidth: '85%',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: isUser ? 'flex-end' : 'flex-start',
@@ -830,27 +1058,29 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   <div
                     style={{
                       backgroundColor: isUser
-                        ? (isDark ? '#1e3a8a' : '#eff6ff')
-                        : (isDark ? 'rgba(15, 23, 42, 0.88)' : '#ffffff'),
+                        ? isDark
+                          ? '#1e3a8a'
+                          : '#eff6ff'
+                        : isDark
+                        ? 'rgba(15, 23, 42, 0.90)'
+                        : '#ffffff',
                       color: isUser
-                        ? (isDark ? '#eff6ff' : '#1e3a8a')
-                        : (isDark ? '#f1f5f9' : '#0f172a'),
+                        ? isDark
+                          ? '#eff6ff'
+                          : '#1e3a8a'
+                        : 'var(--text-primary)',
                       border: `1px solid ${
-                        isUser
-                          ? (isDark ? '#2563eb' : '#bfdbfe')
-                          : (isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0')
+                        isUser ? (isDark ? '#2563eb' : '#bfdbfe') : 'var(--border-subtle)'
                       }`,
                       borderRadius: isUser ? '20px 4px 20px 20px' : '4px 20px 20px 20px',
-                      padding: '16px 20px',
+                      padding: '14px 18px',
                       fontSize: '13px',
                       lineHeight: '1.7',
-                      boxShadow: isDark
-                        ? '0 4px 24px rgba(0, 0, 0, 0.3)'
-                        : '0 4px 20px rgba(0, 0, 0, 0.05)',
+                      boxShadow: 'var(--card-shadow)',
                     }}
                   >
                     {isUser ? (
-                      <p style={{ margin: 0, fontWeight: 500 }}>{msg.text}</p>
+                      <p style={{ margin: 0, fontWeight: 500, whiteSpace: 'pre-wrap' }}>{msg.text}</p>
                     ) : !msg.text && msg.isStreaming ? (
                       <div
                         style={{
@@ -859,10 +1089,9 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                           gap: '10px',
                           padding: '2px 0',
                           fontSize: '12.5px',
-                          color: isDark ? '#94a3b8' : '#64748b',
+                          color: 'var(--text-muted)',
                         }}
                       >
-                        {/* Animated typing dots */}
                         <div
                           style={{
                             display: 'inline-flex',
@@ -873,48 +1102,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                             background: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.1)',
                           }}
                         >
-                          <span
-                            style={{
-                              width: '5px',
-                              height: '5px',
-                              borderRadius: '50%',
-                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
-                              display: 'inline-block',
-                              animation: 'typingDot 1.4s infinite ease-in-out',
-                              animationDelay: '0s',
-                            }}
-                          />
-                          <span
-                            style={{
-                              width: '5px',
-                              height: '5px',
-                              borderRadius: '50%',
-                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
-                              display: 'inline-block',
-                              animation: 'typingDot 1.4s infinite ease-in-out',
-                              animationDelay: '0.2s',
-                            }}
-                          />
-                          <span
-                            style={{
-                              width: '5px',
-                              height: '5px',
-                              borderRadius: '50%',
-                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
-                              display: 'inline-block',
-                              animation: 'typingDot 1.4s infinite ease-in-out',
-                              animationDelay: '0.4s',
-                            }}
-                          />
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#38bdf8' }} />
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#38bdf8' }} />
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#38bdf8' }} />
                         </div>
-
-                        {/* Status text on the same line */}
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-mono)',
-                            letterSpacing: '0.2px',
-                          }}
-                        >
+                        <span style={{ fontFamily: 'var(--font-mono)' }}>
                           {streamingStatuses[streamingStepIndex] || streamingStatuses[0]}
                         </span>
                       </div>
@@ -925,10 +1117,10 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                           <span
                             style={{
                               display: 'inline-block',
-                              width: '2px',
+                              width: '3px',
                               height: '14px',
                               marginLeft: '3px',
-                              backgroundColor: isDark ? '#38bdf8' : '#0284c7',
+                              backgroundColor: '#38bdf8',
                               verticalAlign: '-2px',
                               animation: 'cursorBlink 0.8s infinite',
                             }}
@@ -938,7 +1130,67 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                     )}
                   </div>
 
-                  {/* Telemetry Radar & Citations for Assistant */}
+                  {/* Grounded Sources & Citations Section */}
+                  {!isUser && msg.citations && msg.citations.length > 0 && !msg.isStreaming && (
+                    <div
+                      style={{
+                        width: '100%',
+                        marginTop: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.4px',
+                        }}
+                      >
+                        {language === 'vi' ? '📚 Nguồn tài liệu tham khảo đã xác minh:' : '📚 Verified Grounding Sources:'}
+                      </span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {msg.citations.map((cite, cIdx) => {
+                          const cleanId = extractCleanPaperId(cite);
+                          const sec = cite.includes('Section:') ? cite.split('Section:')[1].trim() : '';
+                          const label = formatCitationBadgeLabel(cleanId, sec);
+
+                          return (
+                            <button
+                              key={`src-card-${cIdx}`}
+                              type="button"
+                              onClick={() => handleInspectCitation(cleanId, sec)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                backgroundColor: isDark ? 'rgba(56, 189, 248, 0.08)' : '#f0f9ff',
+                                border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.25)' : '#bae6fd'}`,
+                                color: isDark ? '#38bdf8' : '#0284c7',
+                                fontSize: '11px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title={language === 'vi' ? `Xem hồ sơ toàn văn: ${cite}` : `Inspect verified paper: ${cite}`}
+                            >
+                              <span>📄</span>
+                              <span>{label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Telemetry Radar & Actions for Assistant */}
                   {!isUser && (!msg.isStreaming || (msg.text && msg.text.trim().length > 0)) && (
                     <div
                       style={{
@@ -946,19 +1198,21 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                         flexWrap: 'wrap',
                         alignItems: 'center',
                         gap: '8px',
-                        marginTop: '8px',
+                        marginTop: '6px',
                         fontSize: '11px',
                         fontFamily: 'var(--font-mono)',
-                        color: isDark ? '#94a3b8' : '#64748b',
+                        color: 'var(--text-muted)',
                       }}
                     >
-                      <span style={{ color: '#10b981', fontWeight: 700 }}>
-                        ● LanceDB Vector ANN (768-D)
+                      <span style={{ color: '#10b981', fontWeight: 700 }}>● LanceDB ANN (768-D)</span>
+                      <span>·</span>
+                      <span>
+                        Sim: <strong style={{ color: '#38bdf8' }}>{msg.similarity_score || '0.8510'}</strong>
                       </span>
                       <span>·</span>
-                      <span>Sim: <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{msg.similarity_score || '0.8510'}</strong></span>
-                      <span>·</span>
-                      <span>Latency: <strong style={{ color: isDark ? '#f59e0b' : '#d97706' }}>{msg.generation_time || '0.01s'}</strong></span>
+                      <span>
+                        Latency: <strong style={{ color: '#f59e0b' }}>{msg.generation_time || '0.01s'}</strong>
+                      </span>
                       <span>·</span>
                       <span>Context: {msg.context_chunks_used || 5} Chunks</span>
 
@@ -972,57 +1226,27 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                               gap: '3px',
                               color: '#f59e0b',
                               fontWeight: 700,
-                              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                              backgroundColor: 'rgba(245, 158, 11, 0.12)',
                               padding: '1px 6px',
                               borderRadius: '4px',
                               border: '1px solid rgba(245, 158, 11, 0.3)',
                             }}
-                            title={
-                              language === 'vi'
-                                ? `Tác giả bài báo nằm trong Top PageRank Citation Graph: ${msg.top_influencer_author || 'Nhà khoa học ảnh hưởng cao'}`
-                                : `Paper author ranks within Top PageRank Citation Graph: ${msg.top_influencer_author || 'High-Impact Influencer'}`
-                            }
                           >
-                            ★ Graph PageRank Boost {msg.top_influencer_author ? `(${msg.top_influencer_author.split('(')[0].trim()})` : ''}
+                            ★ PageRank Boost {msg.top_influencer_author ? `(${msg.top_influencer_author.split('(')[0].trim()})` : ''}
                           </span>
                         </>
                       )}
 
-                      {msg.rule_expansions && msg.rule_expansions.length > 0 && (
-                        <>
-                          <span>·</span>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              color: '#8b5cf6',
-                              fontWeight: 600,
-                              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : '#f3e8ff',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              border: '1px solid rgba(139, 92, 246, 0.3)',
-                            }}
-                            title={
-                              language === 'vi'
-                                ? `Mở rộng từ khóa dựa trên luật kết hợp FP-Growth: ${msg.rule_expansions.join(', ')}`
-                                : `Keyword expansion via FP-Growth association rules: ${msg.rule_expansions.join(', ')}`
-                            }
-                          >
-                            ☍ Rules: {msg.rule_expansions.join(', ')}
-                          </span>
-                        </>
-                      )}
-
+                      {/* Copy Answer Button */}
                       <button
                         type="button"
                         onClick={() => handleCopyText(msg.id, msg.text)}
-                        title={language === 'vi' ? 'Sao chép toàn bộ nội dung câu trả lời' : 'Copy entire answer text'}
+                        title={language === 'vi' ? 'Sao chép toàn bộ câu trả lời' : 'Copy answer'}
                         style={{
-                          marginLeft: '8px',
+                          marginLeft: '6px',
                           backgroundColor: 'transparent',
                           border: 'none',
-                          color: copiedId === msg.id ? '#10b981' : (isDark ? '#64748b' : '#94a3b8'),
+                          color: copiedId === msg.id ? '#10b981' : 'var(--text-muted)',
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -1030,70 +1254,36 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                           fontSize: '10.5px',
                         }}
                       >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                        </svg>
-                        <span>
-                          {copiedId === msg.id
-                            ? (language === 'vi' ? 'ĐÃ CHÉP' : 'COPIED')
-                            : (language === 'vi' ? 'CHÉP' : 'COPY')}
-                        </span>
+                        <span>{copiedId === msg.id ? '✓ ĐÃ COPY' : '📋 COPY'}</span>
                       </button>
+
+                      {/* Regenerate Button */}
+                      {msg.userQueryForRegen && (
+                        <button
+                          type="button"
+                          onClick={() => handleRegenerate(msg)}
+                          disabled={loading}
+                          title={language === 'vi' ? 'Sinh lại câu trả lời' : 'Regenerate answer'}
+                          style={{
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            fontSize: '10.5px',
+                          }}
+                        >
+                          <span>↺ {language === 'vi' ? 'TẠO LẠI' : 'RETRY'}</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             );
           })}
-
-          {loading && !messages.some((m) => m.isStreaming) && (
-            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-              <div
-                style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: '10px',
-                  backgroundColor: '#ff5722',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  fontWeight: 800,
-                  flexShrink: 0,
-                  boxShadow: '0 3px 10px rgba(255, 87, 34, 0.35)',
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                </svg>
-              </div>
-
-              <div
-                style={{
-                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                  border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`,
-                  borderRadius: '4px 20px 20px 20px',
-                  padding: '14px 20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  fontSize: '12.5px',
-                  fontFamily: 'var(--font-mono)',
-                  color: isDark ? '#94a3b8' : '#475569',
-                  boxShadow: isDark ? '0 4px 24px rgba(0, 0, 0, 0.35)' : '0 4px 20px rgba(0, 0, 0, 0.05)',
-                }}
-              >
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb', animation: 'stageGlowOrange 1s infinite' }} />
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', animation: 'stageGlowOrange 1.2s infinite' }} />
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ff5722', animation: 'stageGlowOrange 1.4s infinite' }} />
-                </div>
-                <span>Executing LanceDB Vector ANN retrieval &amp; Qwen2.5 prompt grounding...</span>
-              </div>
-            </div>
-          )}
 
           <div ref={messagesEndRef} />
         </div>
@@ -1118,14 +1308,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             zIndex: 60,
             display: 'flex',
             flexDirection: 'column',
-            animation: 'fadeInTheater 0.2s ease',
           }}
         >
           {/* Drawer Header */}
           <div
             style={{
-              padding: '16px 20px',
-              borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0'}`,
+              padding: '14px 18px',
+              borderBottom: '1px solid var(--border-subtle)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -1143,9 +1332,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   color: '#ffffff',
                 }}
               >
-                {inspectedPaper.paperId.startsWith('openalex:') ? 'OPENALEX DOSSIER' : 'ARXIV DOSSIER'}
+                {inspectedPaper.paperId.startsWith('openalex:') || inspectedPaper.paperId.startsWith('W')
+                  ? 'OPENALEX DOSSIER'
+                  : 'ARXIV DOSSIER'}
               </span>
-              <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: isDark ? '#38bdf8' : '#0284c7', fontWeight: 700 }}>
+              <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: '#38bdf8', fontWeight: 700 }}>
                 {inspectedPaper.paperId}
               </span>
             </div>
@@ -1157,7 +1348,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: isDark ? '#94a3b8' : '#64748b',
+                color: 'var(--text-muted)',
                 fontSize: '18px',
                 cursor: 'pointer',
                 lineHeight: 1,
@@ -1172,49 +1363,51 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             style={{
               flex: 1,
               overflowY: 'auto',
-              padding: '20px',
+              padding: '18px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '16px',
+              gap: '14px',
             }}
           >
             {isDossierLoading ? (
-              <div style={{ padding: '30px', textAlign: 'center', color: isDark ? '#94a3b8' : '#64748b', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
                 {language === 'vi' ? 'Đang trích xuất chunks bài báo từ LanceDB Gold...' : 'Fetching paper chunks from LanceDB Gold...'}
               </div>
             ) : (
               <>
                 <div>
-                  <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
                     {language === 'vi' ? 'TIÊU ĐỀ BÀI BÁO' : 'PAPER TITLE'}
                   </div>
-                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: isDark ? '#f8fafc' : '#0f172a', margin: 0, lineHeight: '1.4' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: '1.4' }}>
                     {inspectedPaper.title}
                   </h3>
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                   <div>
-                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>{language === 'vi' ? 'Chuyên ngành: ' : 'Domain: '}</span>
-                    <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{inspectedPaper.category}</strong>
+                    <span style={{ color: 'var(--text-muted)' }}>{language === 'vi' ? 'Chuyên ngành: ' : 'Domain: '}</span>
+                    <strong style={{ color: '#38bdf8' }}>{inspectedPaper.category}</strong>
                   </div>
                   <div>
-                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>{language === 'vi' ? 'Độ tương đồng: ' : 'Similarity: '}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{language === 'vi' ? 'Độ tương đồng: ' : 'Similarity: '}</span>
                     <strong style={{ color: '#10b981' }}>{inspectedPaper.score}</strong>
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
                     {language === 'vi' ? 'TÁC GIẢ' : 'AUTHORS'}
                   </div>
-                  <div style={{ fontSize: '12px', color: isDark ? '#cbd5e1' : '#334155' }}>
-                    {Array.isArray(inspectedPaper.authors) ? inspectedPaper.authors.join(', ') : inspectedPaper.authors}
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {Array.isArray(inspectedPaper.authors) && inspectedPaper.authors.length > 0
+                      ? inspectedPaper.authors.join(', ')
+                      : (language === 'vi' ? 'Chưa cập nhật danh sách tác giả' : 'Authors not specified')}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
                     {language === 'vi' ? 'TÓM TẮT (ABSTRACT)' : 'ABSTRACT'}
                   </div>
                   <div
@@ -1261,13 +1454,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 {/* External Action Links */}
                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px' }}>
                   <a
-                    href={
-                      inspectedPaper.doi
-                        ? inspectedPaper.doi
-                        : inspectedPaper.paperId.startsWith('openalex:')
-                        ? `https://openalex.org/${inspectedPaper.paperId.replace('openalex:', '')}`
-                        : `https://arxiv.org/abs/${inspectedPaper.paperId.replace(/^arXiv:/i, '')}`
-                    }
+                    href={getExternalPaperUrl(inspectedPaper.paperId, inspectedPaper.doi)}
                     target="_blank"
                     rel="noreferrer"
                     style={{
@@ -1288,7 +1475,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                     <span>
                       {inspectedPaper.doi
                         ? (language === 'vi' ? 'MỞ TRANG BÀI BÁO DOI' : 'OPEN DOI / ARTICLE PAGE')
-                        : inspectedPaper.paperId.startsWith('openalex:')
+                        : inspectedPaper.paperId.startsWith('openalex:') || inspectedPaper.paperId.startsWith('W')
                         ? (language === 'vi' ? 'MỞ TRANG OPENALEX' : 'OPEN OPENALEX PAGE')
                         : (language === 'vi' ? 'MỞ TRANG TÓM TẮT ARXIV' : 'OPEN ARXIV ABSTRACT PAGE')}
                     </span>
@@ -1302,9 +1489,10 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      const q = language === 'vi'
-                        ? `Giải thích phương pháp lý thuyết, kiểm chứng thực nghiệm và thuật toán cốt lõi của bài báo "${inspectedPaper.title}".`
-                        : `Explain the theoretical methodology, empirical validation, and core algorithms of paper "${inspectedPaper.title}".`;
+                      const q =
+                        language === 'vi'
+                          ? `Giải thích phương pháp lý thuyết, kiểm chứng thực nghiệm và thuật toán cốt lõi của bài báo "${inspectedPaper.title}".`
+                          : `Explain the theoretical methodology, empirical validation, and core algorithms of paper "${inspectedPaper.title}".`;
                       setInputText(q);
                       setInspectedPaper(null);
                       handleSendMessage(q);
@@ -1312,9 +1500,9 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                     style={{
                       padding: '8px 14px',
                       borderRadius: '8px',
-                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
-                      color: isDark ? '#f8fafc' : '#0f172a',
-                      border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1'}`,
+                      backgroundColor: 'var(--bg-canvas)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-subtle)',
                       fontSize: '11.5px',
                       fontWeight: 700,
                       fontFamily: 'var(--font-mono)',
@@ -1338,7 +1526,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           position: 'absolute',
           bottom: '16px',
           left: 0,
-          right: inspectedPaper ? '430px' : 0,
+          right: inspectedPaper ? '420px' : 0,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -1351,8 +1539,8 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           style={{
             pointerEvents: 'auto',
             width: '100%',
-            maxWidth: '860px',
-            padding: '0 20px',
+            maxWidth: '880px',
+            padding: '0 16px',
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
@@ -1410,7 +1598,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
               <textarea
                 ref={textareaRef}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={handleTextareaInput}
                 onKeyDown={handleKeyDown}
                 rows={1}
                 placeholder={
@@ -1425,60 +1613,95 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   backgroundColor: 'transparent',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '13.5px',
-                  color: isDark ? '#f8fafc' : '#0f172a',
+                  color: 'var(--text-primary)',
                   resize: 'none',
-                  maxHeight: '120px',
+                  maxHeight: '140px',
                   padding: '4px 0',
                   lineHeight: '1.5',
                   boxSizing: 'border-box',
                 }}
               />
-              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#64748b' : '#94a3b8' }}>
-                {language === 'vi'
-                  ? <>Được bảo chứng bởi LanceDB Gold · Nhấn <strong>Enter</strong> để gửi, <strong>Shift+Enter</strong> để xuống dòng</>
-                  : <>Grounded by LanceDB Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline</>}
+              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                {language === 'vi' ? (
+                  <>
+                    Bảo chứng bởi LanceDB Gold · Nhấn <strong>Enter</strong> để gửi, <strong>Shift+Enter</strong> để xuống dòng
+                  </>
+                ) : (
+                  <>
+                    Grounded by LanceDB Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline
+                  </>
+                )}
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={!inputText.trim() || loading}
-              style={{
-                height: '38px',
-                padding: '0 18px',
-                borderRadius: '10px',
-                backgroundColor: !inputText.trim() || loading ? (isDark ? '#334155' : '#cbd5e1') : '#ff5722',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: '12px',
-                fontWeight: 800,
-                fontFamily: 'var(--font-mono)',
-                cursor: !inputText.trim() || loading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: !inputText.trim() || loading ? 'none' : '0 2px 10px rgba(255, 87, 34, 0.4)',
-                transition: 'all 0.15s ease',
-                flexShrink: 0,
-              }}
-            >
-              {loading ? (
-                <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                    <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                  </svg>
-                  <span>{language === 'vi' ? 'ĐANG TÌM...' : 'RETRIEVING...'}</span>
-                </>
-              ) : (
-                <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
-                  <span>{language === 'vi' ? 'GỬI' : 'SEND'}</span>
-                </>
-              )}
-            </button>
+            {/* Send or Stop Generating Button */}
+            {loading && useStreaming ? (
+              <button
+                type="button"
+                onClick={handleStopGenerating}
+                style={{
+                  height: '38px',
+                  padding: '0 16px',
+                  borderRadius: '10px',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 10px rgba(239, 68, 68, 0.4)',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <span>⏹</span>
+                <span>{language === 'vi' ? 'DỪNG' : 'STOP'}</span>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!inputText.trim() || loading}
+                style={{
+                  height: '38px',
+                  padding: '0 18px',
+                  borderRadius: '10px',
+                  backgroundColor: !inputText.trim() || loading ? (isDark ? '#334155' : '#cbd5e1') : '#ff5722',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  cursor: !inputText.trim() || loading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: !inputText.trim() || loading ? 'none' : '0 2px 10px rgba(255, 87, 34, 0.4)',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0,
+                }}
+              >
+                {loading ? (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                      <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+                    </svg>
+                    <span>{language === 'vi' ? 'ĐANG TÌM...' : 'RETRIEVING...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                    <span>{language === 'vi' ? 'GỬI' : 'SEND'}</span>
+                  </>
+                )}
+              </button>
+            )}
           </form>
         </div>
       </div>

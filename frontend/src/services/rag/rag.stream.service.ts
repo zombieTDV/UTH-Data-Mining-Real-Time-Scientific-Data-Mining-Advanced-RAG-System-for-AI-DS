@@ -55,15 +55,23 @@ async function readStream(
   if (!reader) throw new Error("No readable stream available");
   const decoder = new TextDecoder();
   let buffer = "";
+  let isDoneCalled = false;
+  const safeDone = () => {
+    if (!isDoneCalled) {
+      isDoneCalled = true;
+      onDone();
+    }
+  };
+
   while (true) {
     const chunk = await reader.read();
     if (chunk.done) break;
     buffer += decoder.decode(chunk.value, { stream: true });
     const parts = buffer.split("\n");
     buffer = parts.pop() || "";
-    handleStreamLines(parts, onToken, onDone, onMeta);
+    handleStreamLines(parts, onToken, safeDone, onMeta);
   }
-  onDone();
+  safeDone();
 }
 
 function handleStreamLines(
@@ -82,7 +90,11 @@ function handleStreamLines(
       }
       try {
         const parsed = JSON.parse(dataStr);
-        if (parsed.similarity_score !== undefined || parsed.context_chunks_used !== undefined) {
+        if (
+          parsed.similarity_score !== undefined ||
+          parsed.context_chunks_used !== undefined ||
+          parsed.citations !== undefined
+        ) {
           if (onMeta) onMeta(parsed);
         } else if (parsed.token !== undefined) {
           onToken(parsed.token);

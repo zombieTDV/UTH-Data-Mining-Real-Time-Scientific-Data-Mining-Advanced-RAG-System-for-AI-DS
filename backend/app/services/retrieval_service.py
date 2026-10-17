@@ -590,7 +590,7 @@ class RetrievalService:
         if not self.is_ready():
             return []
         try:
-            clean_pid = paper_id.replace("arXiv:", "").strip()
+            clean_pid = re.sub(r"^(?:Paper|Citation|arXiv)\s*[:#\s]\s*", "", paper_id, flags=re.I).strip()
             rows = self.table.search().where(f"paper_id = '{clean_pid}'").limit(20).to_pandas()
             if rows.empty and clean_pid.startswith("W"):
                 rows = self.table.search().where(f"paper_id = 'openalex:{clean_pid}'").limit(20).to_pandas()
@@ -621,22 +621,7 @@ class RetrievalService:
                     )
                 ]
             elif rows.empty and not paper_meta:
-                return [
-                    ChunkDto(
-                        chunk_id=f"{clean_pid}_c000",
-                        paper_id=clean_pid,
-                        title=f"Scientific Paper {clean_pid}",
-                        text=f"Abstract and full text dossier for paper {clean_pid}.",
-                        abstract=f"Abstract for paper {clean_pid}.",
-                        authors=["Author et al."],
-                        year=2026,
-                        primary_category="cs.AI",
-                        section_title="Abstract",
-                        doi=None,
-                        score=0.8500,
-                        source="catalog://fallback",
-                    )
-                ]
+                return []
 
             # Extract fallback abstract from chunks if not in parquet
             abstract_text = paper_meta.get("abstract") if paper_meta else None

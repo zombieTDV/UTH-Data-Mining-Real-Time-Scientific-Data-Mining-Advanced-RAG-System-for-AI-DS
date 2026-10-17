@@ -180,7 +180,7 @@ class RagService:
 
     async def answer_query_stream(self, req: ChatRequest) -> AsyncIterator[Union[str, dict]]:
         """Streams LLM tokens generated for the grounded RAG query, yielding an initial metadata dict."""
-        messages, chunks, _ = self._build_prompt_and_context(req)
+        messages, chunks, citations = self._build_prompt_and_context(req)
 
         if not chunks:
             yield "No matching scientific literature found in the Gold lakehouse for the given query."
@@ -194,6 +194,7 @@ class RagService:
             "authority_boosted": bool(top_auth),
             "top_influencer_author": top_auth.authority_author if top_auth else None,
             "rule_expansions": chunks[0].rule_expansions if (chunks and chunks[0].rule_expansions) else None,
+            "citations": citations[:6],
         }
 
         has_tokens = False
