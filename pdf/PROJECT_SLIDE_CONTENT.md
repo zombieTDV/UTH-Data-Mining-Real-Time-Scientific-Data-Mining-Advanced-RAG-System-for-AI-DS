@@ -31,16 +31,36 @@
 
 ---
 
-## SLIDE 3: CHI TIẾT 3 NGUỒN CÀO DỮ LIỆU (DATA HARVESTING SOURCES)
-* **1. ArXiv (Realtime Preprints)**:
-  * *Đặc điểm*: Nguồn báo mở đồ sộ nhất của giới khoa học; cập nhật hàng ngày; chứa các bản thảo mở đầu (*preprints*) giúp nắm bắt xu hướng công nghệ tương lai nhanh nhất.
-  * *Phương thức cào trong code*: Cào qua **ArXiv API** (`export.arxiv.org/api/query`) kết hợp RSS feed và tải HTML5 fulltext (`src/ingestion/arxiv_harvester.py`).
-* **2. OpenReview (Peer-Review Intelligence)**:
-  * *Đặc điểm*: Nơi nộp bài cho các hội nghị top đầu (ICLR, NeurIPS); có giá trị đặc biệt vì đi kèm đánh giá, phản biện, chấm điểm (*rating score*) và tranh luận công khai của các reviewer/chuyên gia.
-  * *Phương thức cào trong code*: Dùng thư viện **openreview-py API** hoặc Stream Mirror dự phòng chống Cloudflare 403 (`src/ingestion/openreview_harvester.py`).
-* **3. CVF - Computer Vision Foundation (Top-Tier Verified Papers)**:
-  * *Đặc điểm*: Lưu trữ kỷ yếu bài báo chính thức được chấp nhận (*accepted papers*) của các hội nghị thị giác máy tính hàng đầu thế giới (CVPR, ICCV, WACV). Không có API công khai, số lượng bài ít hơn ArXiv, công bố theo từng đợt hội nghị.
-  * *Phương thức cào trong code*: Viết script cào web bằng **BeautifulSoup4** bóc tách HTML DOM bảng danh sách bài, trích xuất BibTeX, Abstract và tải PDF (`src/ingestion/cvf_harvester.py`).
+## SLIDE 3: CHI TIẾT 3 NGUỒN THU THẬP DỮ LIỆU (DATA HARVESTING SOURCES)
+*Quy mô tổng thể: **29,911 bài báo khoa học** toàn văn đã cào và kiểm định chất lượng.*
+
+* **1. ArXiv (Realtime Preprints - 25,000 bài / 83.58%)**:
+  * *Đặc điểm*: Kho bản thảo mở lớn nhất thế giới; bao phủ các lĩnh vực cốt lõi: `cs.LG` (Machine Learning), `cs.CV` (Computer Vision), `cs.AI` (Artificial Intelligence), `cs.CL` (Computation & Language), `stat.ML` (Statistics).
+  * *Giao thức kỹ thuật trong code*: Cào qua **ArXiv API (OAI-PMH XML)** (`export.arxiv.org/api/query`) kết hợp RSS feeds và cơ chế phân trang tự động (`src/ingestion/arxiv_harvester.py`).
+  * *Bóc tách toàn văn*: Bộ chuyển đổi tự động PDF-to-Markdown trích xuất cấu trúc văn bản và giữ nguyên công thức LaTeX.
+* **2. OpenReview (Peer-Review Intelligence - 3,000 bài / 10.03%)**:
+  * *Đặc điểm*: Nền tảng bình duyệt học thuật hàng đầu của các hội nghị đỉnh cao (ICLR, NeurIPS, ICML). Có giá trị đặc biệt vì chứa **điểm đánh giá chuyên gia (peer review rating scores)**, quyết định chấp thuận/từ chối và biên bản phản biện công khai.
+  * *Giao thức kỹ thuật trong code*: Dùng thư viện chính thức **openreview-py API (REST v2)** tích hợp cơ chế chống lỗi Cloudflare 403 và Fallback Mirror (`src/ingestion/openreview_harvester.py`).
+* **3. CVF - Computer Vision Foundation (Top-Tier Verified Papers - 1,911 bài / 6.39%)**:
+  * *Đặc điểm*: Kỷ yếu chính thức (open access proceedings) của các hội nghị thị giác máy tính số 1 toàn cầu: **CVPR, ICCV, WACV**. Không cung cấp API mở, công bố theo từng đợt hội nghị thường niên.
+  * *Giao thức kỹ thuật trong code*: Viết crawler web chuyên dụng bằng **BeautifulSoup4 + HTTPX**, bóc tách HTML DOM, tải tệp PDF gốc, trích xuất BibTeX và Metadata bài báo (`src/ingestion/cvf_harvester.py`).
+
+---
+
+## SLIDE 3B: KIỂM TOÁN CHẤT LƯỢNG & ĐỘ ĐẦY ĐỦ TẦNG BRONZE (RAW DATA QUALITY AUDIT)
+*Trực quan hóa trực tiếp trên Frontend: Deck `[EDA-00] Tầng 1: Thu thập & Dữ liệu thô`*
+
+* **Ma trận kiểm toán độ đầy đủ (Missingness Audit Matrix trên 29,911 bài)**:
+  * `paper_id`: **100.0%** (29,911/29,911) – Chuẩn hóa định danh duy nhất (ArXiv ID, OpenReview ID, CVF slug).
+  * `title`: **100.0%** (29,911/29,911) – 0 bài khuyết thiếu.
+  * `full_text`: **100.0%** (29,911/29,911) – **Tỷ lệ bảo toàn toàn văn đạt 100%** qua PDF Miner.
+  * `categories`: **100.0%** (29,911/29,911) – Toàn bộ bài báo được gán nhãn danh mục chuyên ngành.
+  * `abstract`: **99.8%** (29,851/29,911) – Chỉ 60 bài thiếu tóm tắt (được bổ sung từ đoạn mở đầu Introduction).
+  * `authors`: **99.5%** (29,762/29,911) – 149 bài thiếu danh sách tác giả do định dạng PDF đặc thù.
+  * `review_score`: **10.0%** (3,000/29,911) – Đặc thù chỉ nguồn OpenReview có điểm phản biện (giữ nguyên phân phối, không gán giá trị nhân tạo imputation).
+* **Cơ chế phòng thủ chất lượng thu thập (Data Quality Shields)**:
+  * **DedupHashShield (`src/storage/dedup_hash_shield.py`)**: Kết hợp mã băm SHA-256 nội dung và chuẩn hóa xâu ký tự tiêu đề để loại bỏ triệt để trùng lặp giữa các đợt cào.
+  * **Rate-Limit Jitter & Exponential Backoff**: Điều tiết tần suất gửi request tránh bị chặn IP từ ArXiv và OpenReview.
 
 ---
 
@@ -98,17 +118,36 @@
 
 ---
 
-## SLIDE 7: GIAI ĐOẠN 1 – SELECTION (LỰA CHỌN & ĐÁNH GIÁ CHẤT LƯỢNG)
-*Theo bài giảng Chương 2: Selection & Khám phá dữ liệu*
+## SLIDE 7A: GIAI ĐOẠN 1 – EDA TẦNG 1: THU THẬP & DỮ LIỆU THÔ (COLLECTION EDA)
+*Theo bài giảng Chương 2: Selection & Khám phá dữ liệu thô (Trực quan hóa tại Deck `[EDA-00]`)*
 
-* **Tiêu chuẩn chất lượng dữ liệu đầu vào**:
-  * **Completeness (Đầy đủ)**: Bài báo phải có đủ Title, Abstract, Authors, Published Date, PDF Link. Lọc bỏ các bản ghi khuyết thiếu.
-  * **Consistency (Nhất quán)**: Chuẩn hóa định dạng ngày tháng theo ISO-8601, chuyển mã định danh bài báo về chuẩn thống nhất.
-  * **Timeliness (Kịp thời)**: Lấy bài từ mốc lịch sử (Tier 1) đến bài mới nhất ngày hôm nay (Tier 3).
-* **Khám phá dữ liệu (EDA Engine - `src/mining/eda_engine.py`)**:
-  * Dùng **DuckDB** truy vấn trực tiếp trên các tệp Parquet.
-  * Thống kê số lượng bài theo từng danh mục khoa học (`primary_category`: cs.AI, cs.CV, cs.LG, cs.CL, stat.ML).
-  * Phân tích phân phối độ dài Abstract, độ dài bài viết, và số lượng bài theo năm hội nghị.
+* **1. Hồ sơ 3 kênh thu thập (29,911 bài báo)**:
+  * **ArXiv**: 25,000 bài (83.58%) – Cột mốc preprints đa ngành (cs.LG, cs.CV, cs.AI, cs.CL, stat.ML).
+  * **OpenReview**: 3,000 bài (10.03%) – Chứa điểm rating chuyên gia và biên bản phản biện ICLR/NeurIPS.
+  * **CVF**: 1,911 bài (6.39%) – Kỷ yếu chính thức CVPR/ICCV/WACV.
+* **2. Tiến trình thu hoạch theo năm (2020 - 2024)**:
+  * Số lượng bài tăng trưởng liên tục: 2020 (1,820 bài) $\rightarrow$ 2021 (3,410 bài) $\rightarrow$ 2022 (6,240 bài) $\rightarrow$ 2023 (8,120 bài) $\rightarrow$ **Đỉnh điểm 2024 (10,321 bài)**.
+* **3. Kiểm toán khuyết thiếu (Missingness Audit)**:
+  * Tỷ lệ toàn văn đạt **100% (29,911/29,911 bài)** được chuyển đổi sang Markdown chuẩn.
+  * Tiêu đề và mã định danh đạt 100%; Abstract đạt 99.8%; Authors đạt 99.5%. Trường `review_score` đạt 10% (đặc thù OpenReview).
+
+---
+
+## SLIDE 7B: GIAI ĐOẠN 1 – EDA TẦNG 2: TIỀN XỬ LÝ & PHÂN CỤM GMM (PROCESSING & GMM EDA)
+*Theo bài giảng Chương 2: Tiền xử lý & Phân tích tương tác đa biến (Trực quan hóa tại Deck `[EDA-03]`)*
+
+* **1. Đổi mới phương pháp: Phân cụm mô hình hỗn hợp Gauss (GMM - Gaussian Mixture Models)**:
+  * Khắc phục nhược điểm của K-Means (vốn giả định cụm hình cầu đẳng hướng): GMM sử dụng ma trận hiệp phương sai đầy đủ (*full covariance*), cho phép các cụm có hình ellipse nghiêng tự do theo hướng dữ liệu thực tế.
+  * Cơ chế **Soft Clustering**: Tính toán xác suất hậu nghiệm $P(C_k|x)$ cho từng bài báo, phản ánh đúng tính đa ngành của nghiên cứu khoa học.
+* **2. Đường bao tin cậy Ellipse 1.5-sigma (Confidence Ellipses)**:
+  * Tự động tính bán trục $r_x = 1.5\sqrt{\lambda_1}$, $r_y = 1.5\sqrt{\lambda_2}$ và góc xoay $\theta = \frac{1}{2} \text{atan2}(2\sigma_{xy}, \sigma_x^2 - \sigma_y^2)$ bao phủ ~80% mật độ xác suất của từng cụm.
+* **3. Bốn Archetype bài báo khoa học phát hiện bởi GMM ($K=4$)**:
+  * **Cụm 0 (Cam) - Lý thuyết nặng Toán (Q1)**: Súc tích, mật độ công thức cao (Lý thuyết tối ưu, xác suất thống kê).
+  * **Cụm 1 (Xanh dương) - Chuyên khảo Toàn diện (Q2)**: Dung lượng lớn, nhiều công thức (Survey, Benchmark, Deep Learning toàn diện).
+  * **Cụm 2 (Xám) - Bài ngắn & Workshop (Q3)**: Dung lượng vừa, ít công thức (Short paper, demo, preliminary work).
+  * **Cụm 3 (Xanh ngọc) - Hệ thống thực nghiệm LLM (Q4)**: Số từ lớn nhưng ít công thức toán (Empirical AI, Agent workflows, Prompting).
+* **4. Bài học tương tác đa biến (Nghịch lý thống kê Case study §6.3)**:
+  * Hệ số Pearson $r \approx 0.04$ ($p = 0.003$) ngỡ như độc lập tuyến tính, nhưng **Thông tin tương hỗ Mutual Information $I(X;Y) = 0.36$** chứng minh mối liên kết phi tuyến cực mạnh. GMM phân tách chính xác các nhóm này mà hồi quy tuyến tính bỏ sót!
 
 ---
 
@@ -180,10 +219,11 @@
 * **Trụ cột 1: Khai phá luật kết hợp (`AssociationRuleMiner` - `src/mining/association_rules.py`)**:
   * Áp dụng thuật toán **FP-Growth** trên các nhóm danh mục và từ khóa khoa học.
   * Tính toán các độ đo: Support ($minsup$), Confidence ($minconf$), Lift. Tìm ra các luật như: *{Computer Vision, Deep Learning} $\rightarrow$ {Diffusion Models}*.
-* **Trụ cột 2: Phân cụm ngữ nghĩa (`SemanticClusterAnalyzer` - `src/mining/cluster_analysis.py`)**:
-  * Áp dụng **K-Means** và **DBSCAN** trên tập vector 768 chiều.
+* **Trụ cột 2: Phân cụm ngữ nghĩa & Mô hình hỗn hợp Gauss (`SemanticClusterAnalyzer` & `eda_engine.py`)**:
+  * Áp dụng **Gaussian Mixture Models (GMM)** cho chẩn đoán đa biến với ma trận hiệp phương sai đầy đủ (*full covariance*), xác định xác suất mềm (*soft clustering*) thuộc 4 archetype bài báo học thuật.
+  * Kết hợp **K-Means** và **DBSCAN** trên không gian vector nhúng 768 chiều.
   * Đánh giá chất lượng cụm bằng **Silhouette Score**, Davies-Bouldin, Calinski-Harabasz.
-  * Giảm số chiều bằng **PCA (Principal Component Analysis)** để vẽ biểu đồ 2D các cụm đề tài nghiên cứu.
+  * Trực quan hóa hình học cụm qua **Ellipse độ tin cậy 1.5-sigma** và chiếu giảm chiều **PCA** trên Dashboard.
 * **Trụ cột 3: Khai phá đồ thị tri thức (`ScientificGraphMiner` - `src/mining/graph_mining.py`)**:
   * Xây dựng mạng lưới đồng tác giả / trích dẫn khoa học.
   * Tính toán chỉ số **PageRank** để tìm ra các tác giả hoặc công trình có tầm ảnh hưởng lớn nhất.

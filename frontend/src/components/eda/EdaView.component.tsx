@@ -8,8 +8,9 @@ import { ScientificMath } from '../common/ScientificMath.component';
 import { MiningTelemetryStepper } from '../common';
 
 import { ThreeLensesDiagnosticView } from './ThreeLensesDiagnosticView.component';
+import { CollectionEdaView } from './CollectionEdaView.component';
 
-export type DeckType = 'explorer' | 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
+export type DeckType = 'collection' | 'scatter' | 'combo' | 'taxonomy' | 'authors' | 'correlations' | 'explorer' | 'rag_audit';
 
 export interface ScatterPaperPoint {
   id: string;
@@ -342,7 +343,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   const [error, setError] = useState<string | null>(null);
 
   // Active Sub-Deck Switcher State (Zero-scroll Cockpit)
-  const [activeDeck, setActiveDeck] = useState<DeckType>('explorer');
+  const [activeDeck, setActiveDeck] = useState<DeckType>('collection');
 
   // Real Paper Explorer & DuckDB Runner State
   const [explorerQuery, setExplorerQuery] = useState<string>(
@@ -543,13 +544,14 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
         return;
       }
-      if (e.key === '1') setActiveDeck('explorer');
-      else if (e.key === '2') setActiveDeck('combo');
-      else if (e.key === '3') setActiveDeck('scatter');
+      if (e.key === '1') setActiveDeck('collection');
+      else if (e.key === '2') setActiveDeck('scatter');
+      else if (e.key === '3') setActiveDeck('combo');
       else if (e.key === '4') setActiveDeck('taxonomy');
       else if (e.key === '5') setActiveDeck('authors');
       else if (e.key === '6') setActiveDeck('correlations');
-      else if (e.key === '7') setActiveDeck('rag_audit');
+      else if (e.key === '7') setActiveDeck('explorer');
+      else if (e.key === '8') setActiveDeck('rag_audit');
       else if (e.key === 'f' || e.key === 'F') setIsFocusMode((prev) => !prev);
       else if (e.key === 'Escape') setSelectedPaperForDrawer(null);
     };
@@ -1272,17 +1274,86 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           flexShrink: 0,
         }}
       >
-        {/* Deck Capsules (6 Decks) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        {/* Deck Capsules (Tiered: Collection vs Processing) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+          {/* Tầng 1 Badge */}
+          <span
+            style={{
+              fontSize: '9px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 800,
+              padding: '2px 5px',
+              borderRadius: '3px',
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+              color: '#f59e0b',
+              border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.3)' : '#fde68a'}`,
+            }}
+          >
+            TẦNG 1
+          </span>
+
+          {/* Collection Deck */}
+          <button
+            type="button"
+            onClick={() => setActiveDeck('collection')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '3px 9px',
+              borderRadius: '5px',
+              border: activeDeck === 'collection' ? '1px solid #f59e0b' : '1px solid transparent',
+              backgroundColor: activeDeck === 'collection' ? (isDark ? 'rgba(245, 158, 11, 0.22)' : '#fffbeb') : 'transparent',
+              color: activeDeck === 'collection' ? '#f59e0b' : themeStyles.textSecondary,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                backgroundColor: activeDeck === 'collection' ? '#f59e0b' : (isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0'),
+                color: activeDeck === 'collection' ? '#000000' : themeStyles.textMuted,
+                padding: '1px 5px',
+                borderRadius: '3px',
+              }}
+            >
+              1
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: activeDeck === 'collection' ? 800 : 600, fontFamily: 'var(--font-mono)' }}>
+              {language === 'vi' ? 'THU THẬP & DỮ LIỆU THÔ' : 'COLLECTION & BRONZE AUDIT'}
+            </span>
+          </button>
+
+          {/* Visual Divider between Tier 1 and Tier 2 */}
+          <div style={{ width: '1px', height: '16px', backgroundColor: themeStyles.border, margin: '0 4px' }} />
+
+          {/* Tầng 2 Badge */}
+          <span
+            style={{
+              fontSize: '9px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 800,
+              padding: '2px 5px',
+              borderRadius: '3px',
+              backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#dbeafe',
+              color: isDark ? '#93c5fd' : '#1d4ed8',
+              border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.3)' : '#bfdbfe'}`,
+            }}
+          >
+            TẦNG 2
+          </span>
+
           {[
-            { id: 'explorer' as DeckType, label: language === 'vi' ? 'TRA CỨU BÀI BÁO & DUCKDB' : 'PAPER EXPLORER & DUCKDB', keyNum: '1' },
-            { id: 'combo' as DeckType, label: language === 'vi' ? 'COMBO & TIẾN TRÌNH' : 'COMBO & TIMELINE', keyNum: '2' },
-            { id: 'scatter' as DeckType, label: language === 'vi' ? 'CHẨN ĐOÁN 3 THẤU KÍNH' : '3-LENS DIAGNOSTIC', keyNum: '3' },
+            { id: 'scatter' as DeckType, label: language === 'vi' ? 'PHÂN CỤM GMM & 3 THẤU KÍNH' : 'GMM CLUSTERING & 3-LENS', keyNum: '2' },
+            { id: 'combo' as DeckType, label: language === 'vi' ? 'COMBO & TIẾN TRÌNH' : 'COMBO & TIMELINE', keyNum: '3' },
             { id: 'taxonomy' as DeckType, label: language === 'vi' ? 'PHÂN LOẠI & HEATMAP' : 'TAXONOMY & HEATMAP', keyNum: '4' },
             { id: 'authors' as DeckType, label: language === 'vi' ? 'TÁC GIẢ & PHÂN VỊ' : 'TOP AUTHORS & QUANTILES', keyNum: '5' },
             { id: 'correlations' as DeckType, label: language === 'vi' ? 'TƯƠNG QUAN & ANOVA' : 'CORRELATIONS & ANOVA', keyNum: '6' },
-            { id: 'rag_audit' as DeckType, label: language === 'vi' ? 'KIỂM TOÁN CHẤT LƯỢNG RAG' : 'RAG QUALITY AUDIT', keyNum: '7' },
-
+            { id: 'explorer' as DeckType, label: language === 'vi' ? 'TRA CỨU & DUCKDB' : 'EXPLORER & DUCKDB', keyNum: '7' },
+            { id: 'rag_audit' as DeckType, label: language === 'vi' ? 'KIỂM TOÁN RAG' : 'RAG QUALITY AUDIT', keyNum: '8' },
           ].map((deck) => {
             const isActive = activeDeck === deck.id;
             return (
@@ -1294,7 +1365,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   display: 'flex',
                   alignItems: 'center',
                   gap: '5px',
-                  padding: '3px 10px',
+                  padding: '3px 8px',
                   borderRadius: '5px',
                   border: isActive ? '1px solid #2563eb' : '1px solid transparent',
                   backgroundColor: isActive ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff') : 'transparent',
@@ -1338,6 +1409,20 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           position: 'relative',
         }}
       >
+        {/* ------------------------------------------------------------ */}
+        {/* SUB-DECK 1: TẦNG 1 - THU THẬP & DỮ LIỆU THÔ (COLLECTION EDA)  */}
+        {/* ------------------------------------------------------------ */}
+        {activeDeck === 'collection' && (
+          <CollectionEdaView
+            theme={theme}
+            collectionData={data?.collection_eda}
+            processingData={data?.processing_eda}
+            onShowToast={(msg) => {
+              setFeedbackToast(msg);
+              setTimeout(() => setFeedbackToast(null), 2500);
+            }}
+          />
+        )}
         {/* ------------------------------------------------------------ */}
         {/* SUB-DECK 0: REAL PAPER EXPLORER & DUCKDB IN-PROCESS QUERY     */}
         {/* ------------------------------------------------------------ */}

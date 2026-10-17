@@ -51,6 +51,8 @@ class EdaResponse(BaseModel):
     scatter_points: Optional[List[Dict[str, Any]]] = None
     diagnostic_3lenses: Optional[Dict[str, Any]] = None
     rag_audit_metrics: Optional[Dict[str, Any]] = None
+    collection_eda: Optional[Dict[str, Any]] = None
+    processing_eda: Optional[Dict[str, Any]] = None
 
 
 class AssociationRuleItem(BaseModel):

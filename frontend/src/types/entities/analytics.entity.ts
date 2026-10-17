@@ -53,6 +53,86 @@ export interface MathAndContentStats {
   };
 }
 
+export interface GmmClusterEllipse {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  angle_deg: number;
+}
+
+export interface GmmClusterInfo {
+  cluster_id: number;
+  name: string;
+  badge: string;
+  color: string;
+  mean: [number, number];
+  covariance: [[number, number], [number, number]];
+  ellipse: GmmClusterEllipse;
+  weight: number;
+  count: number;
+  percentage: number;
+}
+
+export interface CollectionSourceItem {
+  name: string;
+  count: number;
+  percentage: number;
+  color: string;
+  badge: string;
+  harvest_mode: string;
+}
+
+export interface CollectionMissingnessItem {
+  field: string;
+  display_name: string;
+  present: number;
+  missing: number;
+  pct_missing: number;
+  status: string;
+  color: string;
+}
+
+export interface CollectionTimelineItem {
+  year: string;
+  count: number;
+  sources: Record<string, number>;
+}
+
+export interface CollectionEdaSummary {
+  sources: CollectionSourceItem[];
+  total_collected: number;
+  missingness: CollectionMissingnessItem[];
+  timeline: CollectionTimelineItem[];
+  collection_notes?: string;
+  total_papers?: number;
+  total_size_gb?: number;
+}
+
+export interface ProcessingCleaningStep {
+  step: string;
+  reduction_pct?: number;
+  extraction_accuracy?: number;
+  coverage_pct?: number;
+  status: string;
+}
+
+export interface ProcessingEdaSummary {
+  metrics: {
+    total_words_extracted: number;
+    total_math_extracted: number;
+    total_sections_extracted: number;
+    avg_words_per_paper: number;
+    avg_math_per_paper: number;
+    avg_sections_per_paper: number;
+  };
+  cleaning_steps: ProcessingCleaningStep[];
+  math_density_histogram?: Array<{ bin: string; count: number; pct: number }>;
+  fulltext_papers_count?: number;
+  total_math_formulas?: number;
+  total_words?: number;
+}
+
 export interface EdaResponse {
   dataset_overview: AnalyticsOverview;
   category_distribution: CategoryDistItem[];
@@ -74,8 +154,12 @@ export interface EdaResponse {
     author: string;
     abstract?: string;
     sampleFormula?: string;
+    gmm_cluster?: number;
+    gmm_prob?: number;
   }>;
   diagnostic_3lenses?: Diagnostic3Lenses;
+  collection_eda?: CollectionEdaSummary;
+  processing_eda?: ProcessingEdaSummary;
   rag_audit_metrics?: {
     total_vectors: number;
     vector_dimension: number;
@@ -154,6 +238,7 @@ export interface Diagnostic3Lenses {
         title: string;
         text: string;
       };
+      gmm_clusters?: GmmClusterInfo[];
       scatter_samples: Array<{
         id: string;
         title: string;
@@ -163,6 +248,8 @@ export interface Diagnostic3Lenses {
         author: string;
         abstract?: string;
         sampleFormula?: string;
+        gmm_cluster?: number;
+        gmm_prob?: number;
       }>;
     }>;
     active_pair_default: string;

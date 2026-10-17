@@ -53,6 +53,11 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   // Category filter in 2D scatter
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
+  // GMM Clustering controls
+  const [colorMode, setColorMode] = useState<'gmm' | 'category'>('gmm');
+  const [selectedGmmCluster, setSelectedGmmCluster] = useState<number | 'ALL'>('ALL');
+  const [showGmmEllipses, setShowGmmEllipses] = useState<boolean>(true);
+
   // Hover states
   const [hoveredPoint, setHoveredPoint] = useState<{
     id: string;
@@ -63,6 +68,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
     author: string;
     abstract?: string;
     sampleFormula?: string;
+    gmm_cluster?: number;
+    gmm_prob?: number;
     screenX: number;
     screenY: number;
   } | null>(null);
@@ -71,7 +78,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   const [isLensActive, setIsLensActive] = useState<boolean>(false);
   const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
 
-  // SVG Refs
   // SVG Refs
   const scatterSvgRef = useRef<SVGSVGElement | null>(null);
   const histSvgRef = useRef<SVGSVGElement | null>(null);
@@ -96,17 +102,38 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   };
   const getCatColor = (cat: string) => categoryColors[cat] || (isDark ? '#94a3b8' : '#64748b');
 
+  const getPointColor = (pt: any) => {
+    if (colorMode === 'gmm') {
+      if (activePair?.gmm_clusters && pt.gmm_cluster !== undefined) {
+        const clusterInfo = activePair.gmm_clusters.find((c: any) => c.cluster_id === pt.gmm_cluster);
+        if (clusterInfo) return clusterInfo.color;
+      }
+      const gmmColors = ['#10b981', '#0284c7', '#f59e0b', '#8b5cf6'];
+      return gmmColors[(pt.gmm_cluster ?? 0) % gmmColors.length];
+    }
+    return getCatColor(pt.category);
+  };
+
   // Resolve current bivariate pair
   const activePair = useMemo(() => {
     if (!diagnosticData?.lens3_multivariate?.pairs) return null;
     return diagnosticData.lens3_multivariate.pairs[selectedPairKey] || null;
   }, [diagnosticData, selectedPairKey]);
 
+  // Extents for Scatter Plot axes
+  const { maxX, maxY } = useMemo(() => {
+    if (selectedPairKey === 'words_x_math_density') return { maxX: 12000, maxY: 180 };
+    if (selectedPairKey === 'math_x_authors') return { maxX: 16, maxY: 1200 };
+    if (selectedPairKey === 'words_x_math') return { maxX: 12000, maxY: 1200 };
+    if (selectedPairKey === 'words_x_citations') return { maxX: 12000, maxY: 400 };
+    return { maxX: 12000, maxY: 300 };
+  }, [selectedPairKey]);
+
   // Points to display in Bivariate Scatter
   const displayPoints = useMemo(() => {
     let pts = (activePair?.scatter_samples && activePair.scatter_samples.length > 0)
       ? activePair.scatter_samples
-      : fallbackPoints.map((p) => ({
+      : fallbackPoints.map((p, idx) => ({
           id: p.id,
           title: p.title,
           category: p.category,
@@ -115,25 +142,29 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
           author: p.author,
           abstract: p.abstract,
           sampleFormula: p.sampleFormula,
+          gmm_cluster: idx % 4,
+          gmm_prob: 0.92,
         }));
 
+    if (selectedQuadrant !== 'ALL') {
+      const midX = maxX / 2;
+      const midY = maxY / 2;
+      pts = pts.filter((p) => {
+        if (selectedQuadrant === 'Q1') return p.x < midX && p.y >= midY;
+        if (selectedQuadrant === 'Q2') return p.x >= midX && p.y >= midY;
+        if (selectedQuadrant === 'Q3') return p.x < midX && p.y < midY;
+        if (selectedQuadrant === 'Q4') return p.x >= midX && p.y < midY;
+        return true;
+      });
+    }
     if (selectedCategory !== 'ALL') {
       pts = pts.filter((p) => p.category === selectedCategory);
     }
+    if (selectedGmmCluster !== 'ALL') {
+      pts = pts.filter((p: any) => p.gmm_cluster === selectedGmmCluster);
+    }
     return pts;
-  }, [activePair, selectedCategory, fallbackPoints]);
-
-  // Extents for Scatter Plot axes
-  const { maxX, maxY } = useMemo(() => {
-    if (!activePair) return { maxX: 12000, maxY: 300 };
-    if (selectedPairKey === 'words_x_math_density') return { maxX: 12000, maxY: 180 };
-    if (selectedPairKey === 'math_x_authors') return { maxX: 16, maxY: 1200 };
-    if (selectedPairKey === 'words_x_math') return { maxX: 12000, maxY: 1200 };
-    if (selectedPairKey === 'words_x_citations') return { maxX: 12000, maxY: 400 };
-    const max_x = Math.max(...displayPoints.map((p) => p.x), 100);
-    const max_y = Math.max(...displayPoints.map((p) => p.y), 10);
-    return { maxX: max_x * 1.1, maxY: max_y * 1.1 };
-  }, [activePair, selectedPairKey, displayPoints]);
+  }, [activePair, selectedCategory, selectedGmmCluster, selectedQuadrant, maxX, maxY, fallbackPoints]);
 
   // Resolve current univariate feature
   const activeUnivariate = useMemo(() => {
@@ -549,6 +580,139 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             </div>
           </div>
 
+          {/* Row: GMM Clustering Controls & Ellipses */}
+          {activePair?.gmm_clusters && activePair.gmm_clusters.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '4px 8px',
+                borderRadius: '5px',
+                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(236, 253, 245, 0.7)',
+                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#a7f3d0'}`,
+                flexShrink: 0,
+                flexWrap: 'wrap',
+                gap: '6px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    padding: '1px 5px',
+                    borderRadius: '3px',
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                  }}
+                >
+                  GMM (K=4)
+                </span>
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                  Màu sắc:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setColorMode('gmm')}
+                  style={{
+                    padding: '1px 6px',
+                    borderRadius: '3px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: colorMode === 'gmm' ? 800 : 500,
+                    backgroundColor: colorMode === 'gmm' ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#d1fae5') : 'transparent',
+                    color: colorMode === 'gmm' ? '#10b981' : themeStyles.textSecondary,
+                    border: `1px solid ${colorMode === 'gmm' ? '#10b981' : themeStyles.border}`,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Theo GMM Cụm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setColorMode('category')}
+                  style={{
+                    padding: '1px 6px',
+                    borderRadius: '3px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: colorMode === 'category' ? 800 : 500,
+                    backgroundColor: colorMode === 'category' ? (isDark ? 'rgba(59, 130, 246, 0.3)' : '#dbeafe') : 'transparent',
+                    color: colorMode === 'category' ? '#3b82f6' : themeStyles.textSecondary,
+                    border: `1px solid ${colorMode === 'category' ? '#3b82f6' : themeStyles.border}`,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Theo Chủ đề cs.*
+                </button>
+
+                <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 4px' }} />
+
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                  Lọc Cụm:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedGmmCluster('ALL')}
+                  style={{
+                    padding: '1px 6px',
+                    borderRadius: '3px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: selectedGmmCluster === 'ALL' ? 800 : 500,
+                    backgroundColor: selectedGmmCluster === 'ALL' ? (isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0') : 'transparent',
+                    color: selectedGmmCluster === 'ALL' ? themeStyles.textPrimary : themeStyles.textSecondary,
+                    border: `1px solid ${selectedGmmCluster === 'ALL' ? themeStyles.textPrimary : themeStyles.border}`,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Tất cả cụm
+                </button>
+                {activePair.gmm_clusters.map((c) => {
+                  const isClusterActive = selectedGmmCluster === c.cluster_id;
+                  return (
+                    <button
+                      key={`gmm-btn-${c.cluster_id}`}
+                      type="button"
+                      onClick={() => setSelectedGmmCluster(isClusterActive ? 'ALL' : c.cluster_id)}
+                      style={{
+                        padding: '1px 6px',
+                        borderRadius: '3px',
+                        fontSize: '9px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: isClusterActive ? 800 : 500,
+                        backgroundColor: isClusterActive ? c.color : 'transparent',
+                        color: isClusterActive ? '#ffffff' : c.color,
+                        border: `1px solid ${c.color}`,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isClusterActive ? '#ffffff' : c.color }} />
+                      <span>{c.name} ({(c.weight * 100).toFixed(0)}%)</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={showGmmEllipses}
+                    onChange={(e) => setShowGmmEllipses(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span>Hiện Ellipse Độ Tin Cậy (1.5σ)</span>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Bivariate SVG Scatter & Spline Chart */}
           <div
             {...(isLensActive ? {} : scatterPanZoom.containerProps)}
@@ -678,8 +842,66 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 return (
                   <g key={ratio}>
                     <line x1={px} y1="20" x2={px} y2="295" stroke={themeStyles.gridLine} strokeWidth="1" />
-                    <text x={px} y="306" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                    <text x={px} y={306} textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
                       {xVal >= 1000 ? `${(xVal / 1000).toFixed(0)}k` : xVal} {activePair.x_unit}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* GMM Gaussian Mixture Model Confidence Ellipses (1.5-sigma envelope, ~80% mass) */}
+              {showGmmEllipses && activePair.gmm_clusters && activePair.gmm_clusters.map((c) => {
+                if (selectedGmmCluster !== 'ALL' && selectedGmmCluster !== c.cluster_id) return null;
+                const { cx, cy, rx, ry, angle_deg } = c.ellipse;
+                const safeRx = Math.max(8, isNaN(rx) ? 20 : rx);
+                const safeRy = Math.max(6, isNaN(ry) ? 15 : ry);
+                const safeAngle = isNaN(angle_deg) ? 0 : angle_deg;
+
+                return (
+                  <g key={`gmm-ellipse-${c.cluster_id}`} style={{ pointerEvents: 'none' }}>
+                    {/* Confidence Ellipse Area */}
+                    <ellipse
+                      cx={cx}
+                      cy={cy}
+                      rx={safeRx}
+                      ry={safeRy}
+                      transform={`rotate(${safeAngle} ${cx} ${cy})`}
+                      fill={c.color}
+                      fillOpacity={isDark ? 0.16 : 0.12}
+                      stroke={c.color}
+                      strokeWidth="2"
+                      strokeDasharray="5 3"
+                    />
+                    {/* Gaussian Component Center Centroid */}
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r="4"
+                      fill={c.color}
+                      stroke={isDark ? '#0f172a' : '#ffffff'}
+                      strokeWidth="1.5"
+                    />
+                    {/* Cluster Label Badge */}
+                    <rect
+                      x={cx - 60}
+                      y={cy - safeRy - 20}
+                      width="120"
+                      height="17"
+                      rx="3"
+                      fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)'}
+                      stroke={c.color}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={cx}
+                      y={cy - safeRy - 8}
+                      textAnchor="middle"
+                      fontSize="9"
+                      fontFamily="var(--font-mono)"
+                      fontWeight="800"
+                      fill={c.color}
+                    >
+                      {c.name} ({(c.weight * 100).toFixed(0)}%)
                     </text>
                   </g>
                 );
@@ -758,7 +980,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 const cy = 290 - Math.min(270, Math.max(0, (pt.y / maxY) * 270));
                 const isSelected = selectedPaperId === pt.id;
                 const isHovered = hoveredPoint?.id === pt.id;
-                const col = getCatColor(pt.category);
+                const col = getPointColor(pt);
 
                 return (
                   <circle
@@ -813,6 +1035,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   </g>
                 );
               })()}
+
               {/* Magnifier Lens 2.5x Tool */}
               {isLensActive && lensPos && (
                 <g style={{ pointerEvents: 'none' }}>
@@ -838,7 +1061,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     if (Math.hypot(magX - lensPos.x, magY - lensPos.y) > 70) return null;
                     return (
                       <g key={`lens-${pt.id}`}>
-                        <circle cx={magX} cy={magY} r="6.5" fill={getCatColor(pt.category)} stroke="#ffffff" strokeWidth="2" />
+                        <circle cx={magX} cy={magY} r="6.5" fill={getPointColor(pt)} stroke="#ffffff" strokeWidth="2" />
                         <text x={magX} y={magY - 8} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill={themeStyles.textPrimary}>
                           {pt.id.replace('arXiv:', '')}
                         </text>
@@ -856,7 +1079,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   position: 'absolute',
                   top: '12px',
                   right: '12px',
-                  maxWidth: '340px',
+                  maxWidth: '350px',
                   backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
                   border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
                   borderRadius: '6px',
@@ -884,6 +1107,31 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     {hoveredPoint.category}
                   </span>
                 </div>
+
+                {/* GMM Cluster Tag & Posterior Probability */}
+                {hoveredPoint.gmm_cluster !== undefined && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        padding: '1px 6px',
+                        borderRadius: '3px',
+                        backgroundColor: getPointColor(hoveredPoint),
+                        color: '#ffffff',
+                      }}
+                    >
+                      GMM Cụm {hoveredPoint.gmm_cluster}: {activePair?.gmm_clusters?.[hoveredPoint.gmm_cluster]?.name || `Cụm ${hoveredPoint.gmm_cluster}`}
+                    </span>
+                    {hoveredPoint.gmm_prob !== undefined && (
+                      <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                        Xác suất hậu nghiệm P(C|x) = <strong>{(hoveredPoint.gmm_prob * 100).toFixed(1)}%</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ fontSize: '11px', fontWeight: 700, color: themeStyles.textPrimary, marginBottom: '4px', lineHeight: 1.25 }}>
                   {hoveredPoint.title}
                 </div>
