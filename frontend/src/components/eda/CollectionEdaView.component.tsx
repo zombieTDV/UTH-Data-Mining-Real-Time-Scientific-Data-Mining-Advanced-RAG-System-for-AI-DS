@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, type FC } from 'react';
 import type { CollectionEdaSummary, ProcessingEdaSummary, CategoryDistItem } from '../../types';
 import { useLakehouseStreamStore } from '../../store';
-import { syncMiningFromR2 } from '../../services';
 
 interface CollectionEdaViewProps {
   theme?: 'dark' | 'light';
@@ -67,14 +66,22 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
   onShowToast,
 }) => {
   const isDark = theme === 'dark';
-  const { totalCorpus } = useLakehouseStreamStore();
+  const {
+    totalCorpus,
+    isStreaming,
+    streamSpeed,
+    sessionIngested,
+    storageStats,
+    storageUsedGb,
+    isSyncingR2,
+    lastSyncedR2,
+  } = useLakehouseStreamStore();
 
   // Interactive UI States
   const [selectedSource, setSelectedSource] = useState<string>('ALL');
   const [hoveredSource, setHoveredSource] = useState<string | null>(null);
   const [hoveredYear, setHoveredYear] = useState<string | null>(null);
   const [isAiInsightExpanded, setIsAiInsightExpanded] = useState<boolean>(false);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   // -------------------------------------------------------------------------
   // 1. SLICER & CATEGORY SYNCHRONIZATION
@@ -87,14 +94,19 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
   }, [categoryList, selectedCategory, isFilteredByCategory]);
 
   // -------------------------------------------------------------------------
-  // 2. DYNAMIC DATA NORMALIZATION DIRECTLY FROM CLOUDFLARE R2
+  // 2. DYNAMIC DATA NORMALIZATION DIRECTLY FROM CLOUDFLARE R2 & LIVE SSE
   // -------------------------------------------------------------------------
 
-  // 2.1 Total corpus papers
-  const baselineLakehousePapers = Math.max(
-    collectionData?.total_papers || collectionData?.total_collected || 29911,
-    totalCorpus || 29911
-  );
+  // 2.1 Total corpus papers (combines Lakehouse R2 manifest + real-time streaming CDC)
+  const liveSessionIngested = isStreaming ? sessionIngested : 0;
+  const r2TotalPapers =
+    storageStats?.sourceBreakdown?.total_deduplicated ||
+    collectionData?.total_papers ||
+    collectionData?.total_collected ||
+    totalCorpus ||
+    29911;
+
+  const baselineLakehousePapers = Math.max(29911, r2TotalPapers) + liveSessionIngested;
 
   const displayedTotalPapers = isFilteredByCategory && filteredKpi
     ? filteredKpi.totalPapers
@@ -102,34 +114,70 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
 
   const animatedTotalPapers = useCountUp(displayedTotalPapers, 750);
 
-  // 2.2 Lakehouse storage footprint (dynamic from R2 manifest)
-  const totalSizeGb = collectionData?.total_size_gb || 8.277;
-  const ingestionPpm = collectionData?.ingestion_rate_ppm || 32.4;
-  const dedupRatePct = collectionData?.active_dedup_rate_pct || 14.8;
+  // 2.2 Lakehouse storage footprint (dynamic from Cloudflare R2 manifest)
+  const totalSizeGb =
+    storageStats?.activeLakehouse?.totalSizeGb ??
+    storageStats?.total_size_gb ??
+    (storageUsedGb > 0 ? storageUsedGb : null) ??
+    collectionData?.total_size_gb ??
+    8.28;
 
-  // 2.3 Processing metrics (from processing_eda in R2)
-  const baselineMath = processingData?.total_math_formulas || 1469032;
+  const ingestionPpm = isStreaming && streamSpeed > 0
+    ? Number(streamSpeed.toFixed(1))
+    : collectionData?.ingestion_rate_ppm ?? 32.4;
+
+  const totalRawHarvested = storageStats?.sourceBreakdown
+    ? (storageStats.sourceBreakdown.arxiv || 25000) +
+      (storageStats.sourceBreakdown.openreview || 3000) +
+      (storageStats.sourceBreakdown.cvf || 1911)
+    : 34500;
+  const dedupRatePct = totalRawHarvested > baselineLakehousePapers
+    ? parseFloat((((totalRawHarvested - baselineLakehousePapers) / totalRawHarvested) * 100).toFixed(1))
+    : collectionData?.active_dedup_rate_pct ?? 14.8;
+
+  // 2.3 Processing metrics (from processing_eda in R2 + live session delta)
+  const baseMath = processingData?.total_math_formulas ?? 1469032;
+  const liveMathIncrement = isStreaming ? Math.round(liveSessionIngested * (processingData?.avg_math_per_paper || 49.1)) : 0;
+  const baselineMath = baseMath + liveMathIncrement;
+
   const displayedMath = isFilteredByCategory && filteredKpi
     ? filteredKpi.totalMath
     : baselineMath;
   const animatedMath = useCountUp(displayedMath, 800);
 
-  const totalWords = processingData?.total_words || 162117620;
-  const latexPreservation = processingData?.latex_preservation_pct || 99.7;
+  const baseWords = processingData?.total_words ?? 162117620;
+  const liveWordsIncrement = isStreaming ? Math.round(liveSessionIngested * (processingData?.avg_words_per_paper || 5420)) : 0;
+  const totalWords = baseWords + liveWordsIncrement;
+
+  const latexPreservation = processingData?.latex_preservation_pct ?? 99.7;
   const avgWordsPerPaper = isFilteredByCategory && filteredKpi
     ? parseInt(filteredKpi.avgWords, 10)
-    : (processingData?.avg_words_per_paper || 5420);
+    : (processingData?.avg_words_per_paper ?? 5420);
   const avgMathPerPaper = isFilteredByCategory && filteredKpi
     ? parseFloat(filteredKpi.avgMath)
-    : (processingData?.avg_math_per_paper || 49.1);
-  const avgSectionsPerPaper = processingData?.avg_sections_per_paper || 6.8;
+    : (processingData?.avg_math_per_paper ?? 49.1);
+  const avgSectionsPerPaper = processingData?.avg_sections_per_paper ?? 6.8;
 
-  // 2.4 Sources Composition (from R2 sources_composition with Slicer adjustments)
+  // 2.4 Sources Composition (from R2 storage stats and collection data with Slicer adjustments)
   const sources = useMemo(() => {
-    // Category-specific source weighting if category is filtered
-    let weightArxiv = 0.836;
-    let weightOR = 0.100;
-    let weightCVF = 0.064;
+    const rawArxiv = storageStats?.sourceBreakdown?.arxiv || 25000;
+    const rawOR = storageStats?.sourceBreakdown?.openreview || 3000;
+    const rawCVF = storageStats?.sourceBreakdown?.cvf || 1911;
+
+    const arxivMb = storageStats?.activeLakehouse?.arxivHtmlSizeBytes
+      ? parseFloat((storageStats.activeLakehouse.arxivHtmlSizeBytes / (1024 * 1024)).toFixed(1))
+      : 4810.5;
+    const orMb = storageStats?.activeLakehouse?.openreviewSizeBytes
+      ? parseFloat((storageStats.activeLakehouse.openreviewSizeBytes / (1024 * 1024)).toFixed(1))
+      : 2120.4;
+    const cvfMb = storageStats?.activeLakehouse?.cvfSizeBytes
+      ? parseFloat((storageStats.activeLakehouse.cvfSizeBytes / (1024 * 1024)).toFixed(1))
+      : 1346.9;
+
+    const sumRaw = rawArxiv + rawOR + rawCVF;
+    let weightArxiv = rawArxiv / sumRaw;
+    let weightOR = rawOR / sumRaw;
+    let weightCVF = rawCVF / sumRaw;
 
     if (isFilteredByCategory) {
       if (selectedCategory === 'cs.CV') {
@@ -152,10 +200,12 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
         const factor = s.source === 'cvf' ? weightCVF : s.source === 'openreview' ? weightOR : weightArxiv;
         const count = isFilteredByCategory
           ? Math.round(displayedTotalPapers * factor)
+          : s.source === 'arxiv'
+          ? s.paper_count + liveSessionIngested
           : s.paper_count;
         const pct = isFilteredByCategory
           ? parseFloat((factor * 100).toFixed(1))
-          : s.percentage;
+          : parseFloat(((count / displayedTotalPapers) * 100).toFixed(1));
 
         return {
           key: s.source.toLowerCase(),
@@ -171,46 +221,89 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
       });
     }
 
-    // Default R2 composition
+    const currentArxiv = isFilteredByCategory ? Math.round(displayedTotalPapers * weightArxiv) : rawArxiv + liveSessionIngested;
+    const currentOR = isFilteredByCategory ? Math.round(displayedTotalPapers * weightOR) : rawOR;
+    const currentCVF = isFilteredByCategory ? Math.round(displayedTotalPapers * weightCVF) : rawCVF;
+    const currentTotal = currentArxiv + currentOR + currentCVF;
+
     return [
       {
         key: 'arxiv',
         name: 'ArXiv Open Preprints',
         shortName: 'arXiv',
-        count: isFilteredByCategory ? Math.round(displayedTotalPapers * weightArxiv) : 25000,
-        percentage: isFilteredByCategory ? parseFloat((weightArxiv * 100).toFixed(1)) : 83.6,
+        count: currentArxiv,
+        percentage: parseFloat(((currentArxiv / currentTotal) * 100).toFixed(1)),
         color: '#f59e0b',
         badge: 'XML/Atom API & HTML5',
-        sizeMb: 4810.5,
+        sizeMb: arxivMb,
         description: 'Kho bản thảo mở quy mô lớn nhất thế giới; cào qua ArXiv OAI-PMH & HTML5 endpoint.',
       },
       {
         key: 'openreview',
         name: 'OpenReview Peer-Reviewed Papers',
         shortName: 'OpenReview',
-        count: isFilteredByCategory ? Math.round(displayedTotalPapers * weightOR) : 3000,
-        percentage: isFilteredByCategory ? parseFloat((weightOR * 100).toFixed(1)) : 10.0,
+        count: currentOR,
+        percentage: parseFloat(((currentOR / currentTotal) * 100).toFixed(1)),
         color: '#3b82f6',
         badge: 'REST API & PDF Vault',
-        sizeMb: 2120.4,
+        sizeMb: orMb,
         description: 'Bài nộp ICLR / NeurIPS với điểm phản biện công khai (Rating score 1-10) từ hội đồng.',
       },
       {
         key: 'cvf',
         name: 'Computer Vision Foundation (CVPR/ICCV)',
         shortName: 'CVF',
-        count: isFilteredByCategory ? Math.round(displayedTotalPapers * weightCVF) : 1911,
-        percentage: isFilteredByCategory ? parseFloat((weightCVF * 100).toFixed(1)) : 6.4,
+        count: currentCVF,
+        percentage: parseFloat(((currentCVF / currentTotal) * 100).toFixed(1)),
         color: '#10b981',
         badge: 'HTML Scraping & PDF',
-        sizeMb: 1346.9,
+        sizeMb: cvfMb,
         description: 'Kỷ yếu chính thức của các hội nghị hàng đầu thế giới về thị giác máy tính.',
       },
     ];
-  }, [collectionData, isFilteredByCategory, selectedCategory, displayedTotalPapers]);
+  }, [collectionData, isFilteredByCategory, selectedCategory, displayedTotalPapers, storageStats, liveSessionIngested]);
 
-  // 2.5 Missingness Audit (with schema types and SLA)
+  const sourceSharesSummary = useMemo(() => {
+    return sources.map((s) => `${s.shortName} ${s.percentage}%`).join(' • ');
+  }, [sources]);
+
+  // 2.5 Missingness Audit (dynamic with schema types and SLA from R2)
   const missingnessList = useMemo(() => {
+    if (collectionData?.missingness_audit && collectionData.missingness_audit.length > 0) {
+      return collectionData.missingness_audit.map((item) => {
+        const ratio = displayedTotalPapers / baselineLakehousePapers;
+        const present = Math.round(item.present * ratio);
+        const missing = Math.round(item.missing * ratio);
+        const completenessPct = displayedTotalPapers > 0
+          ? parseFloat(((present / displayedTotalPapers) * 100).toFixed(1))
+          : item.completeness_pct;
+        const schemaType =
+          item.field === 'title'
+            ? 'VARCHAR(512)'
+            : item.field === 'clean_full_text'
+            ? 'LONGTEXT (Markdown)'
+            : item.field === 'published_date'
+            ? 'DATE (YYYY-MM-DD)'
+            : item.field === 'abstract'
+            ? 'TEXT (Clean MD)'
+            : item.field === 'authors'
+            ? 'JSON ARRAY<VARCHAR>'
+            : 'FLOAT [1.0 - 10.0]';
+
+        return {
+          field: item.field,
+          displayName: item.label,
+          schemaType: schemaType,
+          total: displayedTotalPapers,
+          present: present,
+          missing: missing,
+          completenessPct: completenessPct,
+          slaStatus: item.status === 'OPTIMAL' ? 'OPTIMAL' : 'CHỈ OPENREVIEW',
+          statusColor: item.status === 'OPTIMAL' ? '#10b981' : '#f59e0b',
+        };
+      });
+    }
+
     return [
       {
         field: 'title',
@@ -279,15 +372,19 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
         statusColor: '#f59e0b',
       },
     ];
-  }, [displayedTotalPapers, isFilteredByCategory]);
+  }, [collectionData, displayedTotalPapers, baselineLakehousePapers, isFilteredByCategory]);
 
-  // 2.6 Harvest Timeline (from R2 harvest_timeline)
+  // 2.6 Harvest Timeline (from R2 harvest_timeline + live offsets)
   const timelineList = useMemo(() => {
     const rawTimeline = collectionData?.harvest_timeline && collectionData.harvest_timeline.length > 0
       ? collectionData.harvest_timeline.map((t) => ({
           year: t.year,
-          total: t.total,
-          sources: { arxiv: t.arxiv_count, openreview: t.openreview_count, cvf: t.cvf_count },
+          total: t.year === '2026' ? t.total + liveSessionIngested : t.total,
+          sources: {
+            arxiv: t.year === '2026' ? t.arxiv_count + liveSessionIngested : t.arxiv_count,
+            openreview: t.openreview_count,
+            cvf: t.cvf_count,
+          },
         }))
       : [
           { year: '2018', total: 1430, sources: { arxiv: 1250, openreview: 0, cvf: 180 } },
@@ -298,7 +395,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
           { year: '2023', total: 6250, sources: { arxiv: 5150, openreview: 720, cvf: 380 } },
           { year: '2024', total: 5621, sources: { arxiv: 4820, openreview: 620, cvf: 181 } },
           { year: '2025', total: 2140, sources: { arxiv: 1840, openreview: 300, cvf: 0 } },
-          { year: '2026', total: 600, sources: { arxiv: 600, openreview: 0, cvf: 0 } },
+          { year: '2026', total: 600 + liveSessionIngested, sources: { arxiv: 600 + liveSessionIngested, openreview: 0, cvf: 0 } },
         ];
 
     // Scale timeline proportionally if filtered by category
@@ -316,7 +413,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
     }
 
     return rawTimeline;
-  }, [collectionData, isFilteredByCategory, displayedTotalPapers, baselineLakehousePapers]);
+  }, [collectionData, isFilteredByCategory, displayedTotalPapers, baselineLakehousePapers, liveSessionIngested]);
 
   const maxTimelineTotal = Math.max(...timelineList.map((t) => t.total), 1);
 
@@ -326,7 +423,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
       step: '1. Khử Nhiễu Header, Footer & Số Trang Lặp',
       engine: 'Regex & Layout Engine',
       stat: '-3.8% nhiễu',
-      flow: 'PDF Raw (8.28 GB) ➔ Clean Text Segment',
+      flow: `PDF Raw (${totalSizeGb.toFixed(2)} GB) ➔ Clean Text Segment`,
       desc: 'Bóc tách loại bỏ 100% dòng lặp header, footer, số trang giữa các trang PDF; triệt tiêu ký tự điều khiển ASCII rác.',
       color: '#3b82f6',
     },
@@ -342,7 +439,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
       step: '3. Phân Đoạn Cây Bài Báo (Section Tree)',
       engine: 'Pandoc GFM Tree Parser',
       stat: `${avgSectionsPerPaper} mục/bài`,
-      flow: 'Linear Text ➔ Cây cấu trúc phân cấp (Hierarchical Tree)',
+      flow: `Cây cấu trúc phân cấp (${(displayedTotalPapers * avgSectionsPerPaper).toLocaleString()} sections)`,
       desc: 'Phân đoạn ngữ nghĩa: Tóm tắt (Abstract), Giới thiệu (Intro), Phương pháp (Method), Thực nghiệm (Exp) & Kết luận.',
       color: '#10b981',
     },
@@ -350,7 +447,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
       step: '4. Chuẩn Hóa Bảng Biểu & Ký Tự Unicode NFKC',
       engine: 'NFKC Normalizer',
       stat: '100% GFM Markdown',
-      flow: 'HTML/Table Elements ➔ GFM Markdown Bảng biểu',
+      flow: `${(totalWords / 1e6).toFixed(1)}M từ ngữ ➔ GFM Markdown Bảng biểu`,
       desc: 'Mã hóa UTF-8 chuẩn xác, chuẩn hóa bảng số liệu khoa học sang GitHub Flavored Markdown (GFM) sẵn sàng cho Vector Embedding.',
       color: '#8b5cf6',
     },
@@ -386,21 +483,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
     ? sources.find((s) => s.key === selectedSource)
     : null;
 
-  // -------------------------------------------------------------------------
-  // 4. CLOUDFLARE R2 LIVE SYNC HANDLER
-  // -------------------------------------------------------------------------
-  const handleSyncR2Now = async () => {
-    setIsSyncing(true);
-    onShowToast?.('Đang kết nối Cloudflare R2 bucket: scientific-rag-lakehouse...');
-    try {
-      const res = await syncMiningFromR2();
-      onShowToast?.(`Đã đồng bộ hóa thành công ${res.synced_files?.length || 6} tệp Lakehouse từ Cloudflare R2!`);
-    } catch {
-      onShowToast?.('Đã đồng bộ lại chỉ số phân tích từ Cloudflare R2 cache!');
-    } finally {
-      setTimeout(() => setIsSyncing(false), 800);
-    }
-  };
+
 
   // Theme Palette
   const themeStyles = {
@@ -510,37 +593,50 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={handleSyncR2Now}
-            disabled={isSyncing}
+          {/* Dynamic Master Sync Telemetry Pill (Đồng bộ trực tiếp với Master Sync R2 trên HeaderBar) */}
+          <div
+            title={
+              isSyncingR2
+                ? 'Đang nhận tín hiệu đồng bộ từ Master Sync trên thanh Header...'
+                : 'Đã kết nối trực tiếp với Cloudflare R2 Lakehouse. Bấm nút "Sync Live R2" trên HeaderBar để cập nhật tức thì toàn hệ thống.'
+            }
             style={{
-              padding: '2px 8px',
+              padding: '2px 9px',
               borderRadius: '4px',
-              fontSize: '9.5px',
+              fontSize: '9px',
               fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
-              color: '#10b981',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
-              cursor: isSyncing ? 'not-allowed' : 'pointer',
+              fontWeight: 800,
+              backgroundColor: isSyncingR2
+                ? 'rgba(56, 189, 248, 0.18)'
+                : isDark
+                ? 'rgba(16, 185, 129, 0.12)'
+                : '#ecfdf5',
+              color: isSyncingR2 ? '#0284c7' : '#059669',
+              border: `1px solid ${isSyncingR2 ? 'rgba(56, 189, 248, 0.45)' : isDark ? 'rgba(16, 185, 129, 0.35)' : '#a7f3d0'}`,
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '5px',
+              letterSpacing: '0.02em',
               transition: 'all 0.2s ease',
             }}
-            title="Đồng bộ lại tệp eda_summary.json mới nhất từ Cloudflare R2"
           >
             <span
               style={{
-                display: 'inline-block',
-                animation: isSyncing ? 'spinSync 0.8s linear infinite' : 'none',
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: isSyncingR2 ? '#38bdf8' : '#10b981',
+                animation: isSyncingR2 ? 'spinSync 0.8s linear infinite' : 'r2PulseRadar 2s infinite',
               }}
-            >
-              ⟳
+            />
+            <span>
+              {isSyncingR2
+                ? 'ĐANG SYNC R2 TỔNG...'
+                : lastSyncedR2
+                ? `R2 SYNCED: ${lastSyncedR2}`
+                : 'R2 AUTO-SYNC LIVE'}
             </span>
-            <span>{isSyncing ? 'Đang đồng bộ R2...' : 'Đồng Bộ R2'}</span>
-          </button>
+          </div>
         </div>
       </div>
 
@@ -638,7 +734,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
           <span style={{ fontSize: '8.5px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
             {isFilteredByCategory
               ? `Chiếm ${filteredKpi?.sharePercent || '23.8'}% toàn bộ Lakehouse`
-              : 'arXiv 83.6% • OR 10.0% • CVF 6.4%'}
+              : sourceSharesSummary}
           </span>
         </div>
 
@@ -749,7 +845,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
               AI Executive Insight:
             </span>
             <span style={{ fontSize: '9.5px', color: themeStyles.textSecondary, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-              Toàn bộ {displayedTotalPapers.toLocaleString()} bài báo toàn văn từ 3 nguồn (arXiv 83.6%, OpenReview 10.0%, CVF 6.4%) đạt 100% chuẩn cấu trúc RAG; không áp dụng nội suy điểm giả cho review_score nhằm tránh méo mó phân phối.
+              Toàn bộ {displayedTotalPapers.toLocaleString()} bài báo toàn văn từ 3 nguồn ({sourceSharesSummary}) đạt 100% chuẩn cấu trúc RAG; không áp dụng nội suy điểm giả cho review_score nhằm tránh méo mó phân phối.
             </span>
           </div>
 
@@ -794,7 +890,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
                 1. Toàn Vẹn &amp; Khuyết Thiếu Dữ Liệu
               </strong>
               • Bảo toàn 100.0% dữ liệu ở các trường định danh ID, Title, Clean Fulltext.<br />
-              • Tóm tắt đạt 99.8% và Tác giả đạt 99.5% độ đầy đủ; điểm phản biện chỉ hiện diện tại OpenReview (3,000 bài).
+              • Tóm tắt đạt 99.8% và Tác giả đạt 99.5% độ đầy đủ; điểm phản biện chỉ hiện diện tại OpenReview ({(sources.find((s) => s.key === 'openreview')?.count || 3000).toLocaleString()} bài).
             </div>
             <div style={{ backgroundColor: themeStyles.cardBg, padding: '6px 8px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
               <strong style={{ color: themeStyles.textPrimary, display: 'block', marginBottom: '2px' }}>
