@@ -1,7 +1,19 @@
 import { useState, useEffect, type FC } from 'react';
 import { useTranslation } from '../../hooks';
 import type { TelemetryTick } from '../../types';
-import { subscribeTelemetry } from '../../services/mining/mining.stream.service';
+import { subscribeTelemetry, fetchMiningManifest } from '../../services/mining';
+import { useLakehouseStreamStore } from '../../store';
+
+export interface LiveMiningStats {
+  totalPapers?: number;
+  totalFormulas?: number;
+  rulesCount?: number;
+  silhouetteScore?: number;
+  totalNodes?: number;
+  totalEdges?: number;
+  anomaliesCount?: number;
+  totalTimeSeconds?: number;
+}
 
 export interface MiningTelemetryStepperProps {
   isExecuting?: boolean;
@@ -9,6 +21,7 @@ export interface MiningTelemetryStepperProps {
   theme?: 'dark' | 'light';
   titleVi?: string;
   titleEn?: string;
+  liveStats?: LiveMiningStats;
 }
 
 interface CheckpointDef {
@@ -81,13 +94,35 @@ export const MiningTelemetryStepper: FC<MiningTelemetryStepperProps> = ({
   theme = 'dark',
   titleVi = 'TIẾN TRÌNH KHAI PHÁ DỮ LIỆU THỜI GIAN THỰC (5 CHECKPOINTS)',
   titleEn = 'REAL-TIME DATA MINING PIPELINE (5 CHECKPOINTS)',
+  liveStats,
 }) => {
   const { language } = useTranslation();
   const isDark = theme === 'dark';
 
+  const {
+    totalCorpus,
+    isSyncingR2,
+    lastSyncedR2,
+    miningSyncVersion,
+  } = useLakehouseStreamStore();
+
   const [telemetry, setTelemetry] = useState<TelemetryTick | null>(null);
   const [activeStep, setActiveStep] = useState<number>(5);
 
+  // 1. Initial hydration and re-hydration on R2 sync version change
+  useEffect(() => {
+    fetchMiningManifest()
+      .then((data) => {
+        if (data && typeof data === 'object') {
+          setTelemetry(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('[MiningTelemetry] Manifest fetch failed:', err);
+      });
+  }, [miningSyncVersion]);
+
+  // 2. Real-time Server-Sent Events (SSE) telemetry stream subscription
   useEffect(() => {
     const unsubscribe = subscribeTelemetry(
       (data) => {
@@ -124,7 +159,14 @@ export const MiningTelemetryStepper: FC<MiningTelemetryStepperProps> = ({
 
   const modules = telemetry?.modules || {};
   const status = isExecuting ? 'RUNNING' : telemetry?.status || 'COMPLETED';
-  const totalTime = telemetry?.total_execution_seconds ?? 0.28;
+
+  // Compute total dynamic execution seconds
+  const totalTime =
+    liveStats?.totalTimeSeconds ??
+    telemetry?.total_execution_seconds ??
+    (Object.values(modules).length > 0
+      ? Number(Object.values(modules).reduce((acc, m) => acc + (m.elapsed_seconds || 0), 0).toFixed(2))
+      : 42.0);
 
   return (
     <div
@@ -152,15 +194,16 @@ export const MiningTelemetryStepper: FC<MiningTelemetryStepperProps> = ({
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              backgroundColor: isExecuting ? '#8b5cf6' : '#10b981',
-              boxShadow: isExecuting ? '0 0 8px #8b5cf6' : '0 0 6px #10b981',
-              animation: isExecuting ? 'pulse 1s infinite' : 'none',
+              backgroundColor: isExecuting ? '#8b5cf6' : isSyncingR2 ? '#38bdf8' : '#10b981',
+              boxShadow: isExecuting ? '0 0 8px #8b5cf6' : isSyncingR2 ? '0 0 8px #38bdf8' : '0 0 6px #10b981',
+              animation: (isExecuting || isSyncingR2) ? 'pulse 1s infinite' : 'none',
             }}
           />
           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#f1f5f9' : '#0f172a' }}>
             {language === 'vi' ? titleVi : titleEn}
           </span>
           <span
+            title={lastSyncedR2 ? `Cloudflare R2 Synced: ${lastSyncedR2}` : 'Lakehouse Master Synced'}
             style={{
               fontSize: '10px',
               fontFamily: 'var(--font-mono)',
@@ -169,12 +212,16 @@ export const MiningTelemetryStepper: FC<MiningTelemetryStepperProps> = ({
               borderRadius: '4px',
               backgroundColor: isExecuting
                 ? 'rgba(139, 92, 246, 0.2)'
+                : isSyncingR2
+                ? 'rgba(56, 189, 248, 0.2)'
                 : 'rgba(16, 185, 129, 0.15)',
-              color: isExecuting ? '#c084fc' : '#10b981',
+              color: isExecuting ? '#c084fc' : isSyncingR2 ? '#38bdf8' : '#10b981',
             }}
           >
             {isExecuting
               ? (language === 'vi' ? '● ĐANG THỰC THI...' : '● RUNNING...')
+              : isSyncingR2
+              ? (language === 'vi' ? '⟳ ĐANG ĐỒNG BỘ R2...' : '⟳ R2 SYNCING...')
               : (language === 'vi' ? '✓ ĐỒNG BỘ' : '✓ SYNCED')}
           </span>
         </div>
@@ -189,17 +236,17 @@ export const MiningTelemetryStepper: FC<MiningTelemetryStepperProps> = ({
             <button
               type="button"
               onClick={onTriggerMining}
-              disabled={isExecuting}
+              disabled={isExecuting || isSyncingR2}
               style={{
                 padding: '4px 10px',
                 borderRadius: '6px',
                 border: 'none',
-                backgroundColor: isExecuting ? 'rgba(255, 255, 255, 0.08)' : '#8b5cf6',
+                backgroundColor: (isExecuting || isSyncingR2) ? 'rgba(255, 255, 255, 0.08)' : '#8b5cf6',
                 color: '#ffffff',
                 fontSize: '10.5px',
                 fontWeight: 700,
                 fontFamily: 'var(--font-mono)',
-                cursor: isExecuting ? 'not-allowed' : 'pointer',
+                cursor: (isExecuting || isSyncingR2) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
@@ -230,15 +277,22 @@ export const MiningTelemetryStepper: FC<MiningTelemetryStepperProps> = ({
 
           let metricDetail = '';
           if (cp.key === 'eda') {
-            metricDetail = `${(mod?.total_papers ?? 10000).toLocaleString()} ${language === 'vi' ? cp.metricLabelVi : cp.metricLabelEn}`;
+            const paperCount = liveStats?.totalPapers || totalCorpus || mod?.total_papers || 38416;
+            metricDetail = `${paperCount.toLocaleString()} ${language === 'vi' ? cp.metricLabelVi : cp.metricLabelEn}`;
           } else if (cp.key === 'association_rules') {
-            metricDetail = `${mod?.rules_mined ?? 24} ${language === 'vi' ? cp.metricLabelVi : cp.metricLabelEn}`;
+            const ruleCount = liveStats?.rulesCount ?? mod?.rules_mined ?? 30;
+            metricDetail = `${ruleCount} ${language === 'vi' ? cp.metricLabelVi : cp.metricLabelEn}`;
           } else if (cp.key === 'clusters') {
-            metricDetail = `${language === 'vi' ? cp.metricLabelVi : cp.metricLabelEn}: ${mod?.silhouette_score ?? 0.42}`;
+            const sil = liveStats?.silhouetteScore !== undefined ? liveStats.silhouetteScore : (mod?.silhouette_score ?? 0.0515);
+            const silStr = typeof sil === 'number' ? sil.toFixed(4) : String(sil);
+            metricDetail = `${language === 'vi' ? cp.metricLabelVi : cp.metricLabelEn}: ${silStr}`;
           } else if (cp.key === 'graph') {
-            metricDetail = `${mod?.total_nodes ?? 184} nodes • ${mod?.total_edges ?? 642} edges`;
+            const nodes = liveStats?.totalNodes ?? mod?.total_nodes ?? 14699;
+            const edges = liveStats?.totalEdges ?? mod?.total_edges ?? 35967;
+            metricDetail = `${nodes.toLocaleString()} nodes • ${edges.toLocaleString()} edges`;
           } else if (cp.key === 'trends_anomalies') {
-            metricDetail = `${mod?.anomalies_detected ?? 12} ${language === 'vi' ? cp.metricLabelVi : cp.metricLabelEn}`;
+            const anomCount = liveStats?.anomaliesCount ?? mod?.anomalies_detected ?? 30;
+            metricDetail = `${anomCount} ${language === 'vi' ? cp.metricLabelVi : cp.metricLabelEn}`;
           }
 
           return (

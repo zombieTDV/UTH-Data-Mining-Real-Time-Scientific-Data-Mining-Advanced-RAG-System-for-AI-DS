@@ -1046,6 +1046,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             isExecuting={isRecomputingPipeline}
             onTriggerMining={handleRecomputePillars}
             theme={theme}
+            liveStats={{
+              totalPapers: totalCorpus,
+              rulesCount: rulesData?.rules?.length ?? rulesData?.summary?.mined_rules_count,
+              silhouetteScore: clustersData?.validity_metrics?.silhouette_score,
+              totalNodes: graphData?.network_summary?.total_nodes,
+              totalEdges: graphData?.network_summary?.total_edges,
+              anomaliesCount: trendsData?.anomalies?.length ?? trendsData?.summary?.total_anomalies_detected,
+            }}
           />
 
           {/* Standard Mission Control 4 Pillar Cards */}

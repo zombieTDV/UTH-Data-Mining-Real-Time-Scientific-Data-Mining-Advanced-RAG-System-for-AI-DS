@@ -5,7 +5,14 @@ import type {
   TriggerPipelineResponse,
   DuckDbQueryResult,
   LakehouseSearchResult,
+  TelemetryTick,
 } from '../../types';
+
+export async function fetchMiningManifest(): Promise<TelemetryTick> {
+  const res = await fetch(`${API_CONFIG.baseUrl}/api/mining/manifest`);
+  if (!res.ok) throw new Error(`Failed to load mining manifest: ${res.statusText}`);
+  return res.json();
+}
 
 export async function fetchHealth(): Promise<HealthResponse> {
   const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.health}`);

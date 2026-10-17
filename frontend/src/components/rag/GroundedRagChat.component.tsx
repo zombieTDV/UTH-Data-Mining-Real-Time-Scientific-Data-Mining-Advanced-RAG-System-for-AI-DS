@@ -3,6 +3,7 @@ import type { ChatResponse } from '../../types';
 import { sendChatQuery, streamChatQuery, fetchPaper } from '../../services';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { useTranslation } from '../../hooks';
+import { useLakehouseStreamStore } from '../../store';
 
 export interface GroundedRagChatProps {
   theme?: 'dark' | 'light';
@@ -68,26 +69,36 @@ const getResearchPromptSuggestions = (lang: 'en' | 'vi') => [
   },
 ];
 
-const getStreamingStatuses = (lang: 'en' | 'vi') => {
+const getStreamingStatuses = (lang: 'en' | 'vi', vectors: number = 164750) => {
+  const vecStr = vectors.toLocaleString();
   if (lang === 'vi') {
     return [
-      'Đang truy vấn LanceDB Gold Lakehouse (913,205 vectors IVF-PQ 768-D)...',
+      `Đang truy vấn LanceDB Gold Lakehouse (${vecStr} vectors IVF-PQ 768-D)...`,
       'Đang đối chiếu ngữ cảnh & trích dẫn đa nguồn...',
       'Qwen2.5-7B đang tổng hợp câu trả lời học thuật...',
     ];
   }
   return [
-    'Querying LanceDB Gold Lakehouse (913,205 vectors IVF-PQ 768-D)...',
+    `Querying LanceDB Gold Lakehouse (${vecStr} vectors IVF-PQ 768-D)...`,
     'Verifying context & multi-source citations...',
     'Qwen2.5-7B synthesizing grounded academic response...',
   ];
 };
 
-const getInitialGreeting = (lang: 'en' | 'vi'): string => {
+const getInitialGreeting = (
+  lang: 'en' | 'vi',
+  works: number = 36414,
+  vectors: number = 164750,
+  formulas: number = 2765395
+): string => {
+  const worksStr = works.toLocaleString();
+  const vectorsStr = vectors.toLocaleString();
+  const formulasStr = formulas.toLocaleString();
+  const formulasMillion = (formulas / 1000000).toFixed(2);
   if (lang === 'vi') {
-    return 'Xin chào! Tôi là **Trợ lý RAG Khoa học UTH**.\n\nĐược vận hành bởi mô hình **Qwen2.5-7B-Instruct** và kết nối trực tiếp theo thời gian thực với Lakehouse học thuật gồm **29,911 bài báo toàn văn đã xác minh**, **2.77M công thức toán học** (2,765,395 phương trình LaTeX), cùng **913,205 vector embeddings** trên LanceDB (IVF-PQ K=1024, M=192, Nomic Embed 768-D). Mọi phản hồi đều được đối chiếu và trích dẫn chuẩn xác từ toàn văn bài báo. Bạn có câu hỏi nghiên cứu nào cần giải đáp hôm nay?';
+    return `Xin chào! Tôi là **Trợ lý RAG Khoa học UTH**.\n\nĐược vận hành bởi mô hình **Qwen2.5-7B-Instruct** và kết nối trực tiếp theo thời gian thực với Lakehouse học thuật gồm **${worksStr} bài báo toàn văn đã xác minh**, **${formulasMillion}M công thức toán học** (${formulasStr} phương trình LaTeX), cùng **${vectorsStr} vector embeddings** trên LanceDB (IVF-PQ K=1024, M=192, Nomic Embed 768-D). Mọi phản hồi đều được đối chiếu và trích dẫn chuẩn xác từ toàn văn bài báo. Bạn có câu hỏi nghiên cứu nào cần giải đáp hôm nay?`;
   }
-  return 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **29,911 verified full-text papers**, **2.77M formulas** (2,765,395 LaTeX equations), and **913,205 LanceDB vector embeddings** (IVF-PQ K=1024, M=192, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?';
+  return `Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **${worksStr} verified full-text papers**, **${formulasMillion}M formulas** (${formulasStr} LaTeX equations), and **${vectorsStr} LanceDB vector embeddings** (IVF-PQ K=1024, M=192, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?`;
 };
 
 export const GroundedRagChat: FC<GroundedRagChatProps> = ({
@@ -97,11 +108,25 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 }) => {
   const isDark = theme === 'dark';
   const { language } = useTranslation();
+  const { totalCorpus, storageStats } = useLakehouseStreamStore();
+
+  const liveWorksCount =
+    totalCorpus ||
+    storageStats?.sourceBreakdown?.total_deduplicated ||
+    storageStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ||
+    36414;
+
+  const liveVectorsCount =
+    storageStats?.backupStorage?.vectorCount ||
+    storageStats?.activeLakehouse?.activeLanceDbVectors ||
+    storageStats?.goldVectorLakehouse?.vectorCount ||
+    164750;
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'msg-0',
       sender: 'assistant',
-      text: getInitialGreeting(language),
+      text: getInitialGreeting(language, liveWorksCount, liveVectorsCount),
       timestamp: '12:00:00',
     },
   ]);
@@ -111,7 +136,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [streamingStepIndex, setStreamingStepIndex] = useState<number>(0);
 
-  // Update initial greeting when language changes if only welcome message is present
+  // Update initial greeting when language or live counts change if only welcome message is present
   useEffect(() => {
     setMessages((prev) => {
       if (prev.length === 1 && prev[0].id === 'msg-0') {
@@ -119,14 +144,14 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           {
             id: 'msg-0',
             sender: 'assistant',
-            text: getInitialGreeting(language),
+            text: getInitialGreeting(language, liveWorksCount, liveVectorsCount),
             timestamp: '12:00:00',
           },
         ];
       }
       return prev;
     });
-  }, [language]);
+  }, [language, liveWorksCount, liveVectorsCount]);
 
   // Paper Dossier Drawer State
   const [inspectedPaper, setInspectedPaper] = useState<InspectedPaperData | null>(null);
@@ -135,7 +160,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const streamingStatuses = getStreamingStatuses(language);
+  const streamingStatuses = getStreamingStatuses(language, liveVectorsCount);
 
   // Cycle streaming status text when waiting for the first token
   useEffect(() => {
@@ -679,7 +704,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
           <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
-            36,414 {language === 'vi' ? 'Bài báo' : 'Works'} · 164,702 LanceDB Vectors (Nomic 768-D)
+            {liveWorksCount.toLocaleString()} {language === 'vi' ? 'Bài báo' : 'Works'} · {liveVectorsCount.toLocaleString()} LanceDB Vectors (Nomic 768-D)
           </span>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
@@ -1388,7 +1413,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder={language === 'vi' ? 'Đặt câu hỏi nghiên cứu khoa học qua 36,414 bài báo...' : 'Ask any scientific inquiry across 36,414 academic works...'}
+                placeholder={
+                  language === 'vi'
+                    ? `Đặt câu hỏi nghiên cứu khoa học qua ${liveWorksCount.toLocaleString()} bài báo...`
+                    : `Ask any scientific inquiry across ${liveWorksCount.toLocaleString()} academic works...`
+                }
                 style={{
                   width: '100%',
                   border: 'none',

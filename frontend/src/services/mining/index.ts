@@ -1,5 +1,6 @@
 export {
   fetchHealth,
+  fetchMiningManifest,
   fetchStorageStats,
   triggerMiningPipeline,
   executeDuckDbQuery,
