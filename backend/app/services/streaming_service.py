@@ -120,18 +120,31 @@ class StreamingService:
             "storage_used_pct": storage["used_pct"],
         }
 
-    def get_latest_pipeline_logs(self, limit: int = 150) -> List[Dict[str, Any]]:
+    def get_latest_pipeline_logs(self, limit: int = 150, source: Optional[str] = None) -> Dict[str, Any]:
         """Reads and structures the latest real execution log lines directly from disk."""
         logs_dir = getattr(settings, "PROJECT_ROOT_DIR", Path(__file__).resolve().parents[3]) / "logs"
         if not logs_dir.exists():
-            return []
+            return {"logs": [], "active_file": "", "available_sources": []}
 
-        matched_files = list(logs_dir.glob("streaming_html_embed_*.log"))
-        if not matched_files:
-            matched_files = list(logs_dir.glob("tier2_*.log"))
+        # Gather all valid, non-empty log files
+        all_logs = [f for f in logs_dir.glob("*.log") if f.is_file() and f.stat().st_size > 0]
+        if not all_logs:
+            return {"logs": [], "active_file": "", "available_sources": []}
+
+        available_sources = []
+        if any("adaptive_scheduler" in f.name for f in all_logs):
+            available_sources.append("adaptive_scheduler")
+        if any("mining_engine" in f.name for f in all_logs):
+            available_sources.append("mining_engine")
+
+        # Filter by source if requested
+        if source and source != "all":
+            matched_files = [f for f in all_logs if source in f.name]
+        else:
+            matched_files = all_logs
 
         if not matched_files:
-            return []
+            matched_files = all_logs
 
         latest_file = max(matched_files, key=lambda p: p.stat().st_mtime)
         parsed_logs = []
@@ -141,30 +154,56 @@ class StreamingService:
 
             recent_lines = lines[-limit:]
             for idx, raw in enumerate(recent_lines):
-                time_match = re.search(r"(\d{2}:\d{2}:\d{2})", raw)
-                t_str = time_match.group(1) if time_match else datetime.datetime.now().strftime("%H:%M:%S")
+                # Extract timestamp
+                full_time = re.search(r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})", raw)
+                short_time = re.search(r"(\d{2}:\d{2}:\d{2})", raw)
+                if full_time:
+                    t_str = full_time.group(1)
+                elif short_time:
+                    t_str = f"{datetime.date.today().isoformat()} {short_time.group(1)}"
+                else:
+                    t_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+                raw_upper = raw.upper()
                 level = "INFO"
-                if "[ERROR]" in raw or "Traceback" in raw:
+                if "[ERROR]" in raw_upper or "TRACEBACK" in raw_upper or "EXCEPTION" in raw_upper or "FATAL" in raw_upper:
+                    level = "ERROR"
+                elif "[WARNING]" in raw_upper or "[WARN]" in raw_upper or "DEPRECATIONWARNING" in raw_upper:
                     level = "WARN"
-                elif "[SUCCESS]" in raw or "LANCEDB STREAM" in raw or "SILVER SAVED" in raw:
+                elif "[SUCCESS]" in raw_upper or "SUCCESSFULLY" in raw_upper or "LANCEDB STREAM" in raw_upper or "INITIALIZED" in raw_upper:
                     level = "SUCCESS"
+                elif "SELECT " in raw_upper or "DUCKDB" in raw_upper or "QUERY" in raw_upper:
+                    level = "QUERY"
+                elif "S3" in raw_upper or "R2" in raw_upper or "PARQUET" in raw_upper or "STORAGE" in raw_upper or "BRONZE" in raw_upper or "SILVER" in raw_upper or "GOLD" in raw_upper:
+                    level = "STORAGE"
+                elif "[STARTUP]" in raw_upper or "INIT" in raw_upper or "BOOTSTRAP" in raw_upper:
+                    level = "START"
+                elif "EXEC" in raw_upper or "RUNNING" in raw_upper or "BATCH" in raw_upper:
+                    level = "EXEC"
 
-                tag = "STREAM"
-                if "HTML ACCEPTED" in raw:
-                    tag = "HTML5-CRAWL"
-                elif "LANCEDB STREAM" in raw:
-                    tag = "GOLD-VECTOR"
-                elif "SILVER SAVED" in raw or "Parquet" in raw:
-                    tag = "SILVER-VAULT"
-                elif "R2" in raw:
-                    tag = "R2-SYNC"
-                elif "FILTER CACHE" in raw or "CANDIDATE" in raw or "STARTING" in raw:
-                    tag = "INIT"
+                # Extract tag from bracket e.g. [STARTUP], [LLM], [MINING ENGINE], or module
+                tag = "SYSTEM"
+                tag_match = re.search(r"\[([A-Z0-9_\-/\s]{3,24})\]", raw)
+                if tag_match and tag_match.group(1).strip() not in ("INFO", "WARNING", "WARN", "ERROR", "DEBUG", "CRITICAL"):
+                    tag = tag_match.group(1).strip()
+                elif "fastapi_main" in raw:
+                    tag = "API/SERVER"
+                elif "llm_client" in raw:
+                    tag = "LLM/QWEN"
+                elif "r2_explorer" in raw:
+                    tag = "R2/LAKEHOUSE"
+                elif "mining_engine" in raw:
+                    tag = "MINING/ENGINE"
+                elif "scheduler" in raw:
+                    tag = "SCHEDULER"
+                elif "PARQUET" in raw_upper:
+                    tag = "SILVER/PARQUET"
+                elif "LANCEDB" in raw_upper:
+                    tag = "GOLD/LANCEDB"
 
-                clean_msg = re.sub(r"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:,\d+)?\s+\[[A-Z]+\]\s+", "", raw).strip()
+                clean_msg = re.sub(r"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:,\d+)?\s+\[[A-Z]+\]\s+(?:[a-zA-Z0-9_]+:\s+)?", "", raw).strip()
                 parsed_logs.append({
-                    "id": f"log-disk-{idx}-{abs(hash(clean_msg)) % 1000000}",
+                    "id": f"log-disk-{idx}-{abs(hash(clean_msg + t_str)) % 1000000}",
                     "time": t_str,
                     "level": level,
                     "tag": tag,
@@ -173,7 +212,11 @@ class StreamingService:
         except Exception as e:
             logger.error(f"[LOGS] Failed reading log file {latest_file}: {e}")
 
-        return parsed_logs
+        return {
+            "logs": parsed_logs,
+            "active_file": latest_file.name,
+            "available_sources": available_sources,
+        }
 
     async def broadcast_event(self, event: Dict[str, Any]):
         """Dispatches an event to all active SSE subscribers."""

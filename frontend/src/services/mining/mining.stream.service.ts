@@ -51,14 +51,37 @@ export async function stopStreamingIngestion(): Promise<IngestionControlResponse
   return res.json();
 }
 
-export async function fetchPipelineLogs(limit: number = 100): Promise<Array<{ id: string | number; time: string; level: string; tag: string; msg: string }>> {
+export interface PipelineLogItem {
+  id: string | number;
+  time: string;
+  level: string;
+  tag: string;
+  msg: string;
+}
+
+export async function fetchPipelineLogs(
+  limit: number = 100,
+  source?: string,
+): Promise<Array<PipelineLogItem> & { activeFile?: string; availableSources?: string[] }> {
   try {
-    const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.ingestionLogs}?limit=${limit}`);
-    if (!res.ok) return [];
+    const query = source ? `?limit=${limit}&source=${encodeURIComponent(source)}` : `?limit=${limit}`;
+    const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.ingestionLogs}${query}`);
+    if (!res.ok) {
+      const fallback: any = [];
+      fallback.activeFile = '';
+      fallback.availableSources = [];
+      return fallback;
+    }
     const data = await res.json();
-    return data.logs || [];
+    const result: any = Array.isArray(data.logs) ? data.logs : [];
+    result.activeFile = data.active_file || '';
+    result.availableSources = Array.isArray(data.available_sources) ? data.available_sources : [];
+    return result;
   } catch {
-    return [];
+    const fallback: any = [];
+    fallback.activeFile = '';
+    fallback.availableSources = [];
+    return fallback;
   }
 }
 

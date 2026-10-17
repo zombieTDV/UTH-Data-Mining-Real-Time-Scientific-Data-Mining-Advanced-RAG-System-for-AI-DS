@@ -4,7 +4,7 @@ backend/app/api/endpoints/ingestion.py
 API Endpoints for Real-Time Streaming Ingestion & Change Data Capture (CDC).
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, BackgroundTasks, Query
 from sse_starlette.sse import EventSourceResponse
 from backend.app.services.streaming_service import streaming_service
@@ -54,9 +54,18 @@ async def reset_streaming_session() -> Dict[str, Any]:
 
 
 @router.get("/pipeline-logs")
-async def get_real_pipeline_logs(limit: int = 150) -> Dict[str, Any]:
+async def get_real_pipeline_logs(
+    limit: int = 150,
+    source: Optional[str] = Query(None, description="Optional log file source (adaptive_scheduler, mining_engine, all)"),
+) -> Dict[str, Any]:
     """Fetches real structured pipeline execution logs directly from disk."""
-    logs = streaming_service.get_latest_pipeline_logs(limit=limit)
-    return {"status": "SUCCESS", "count": len(logs), "logs": logs}
+    result = streaming_service.get_latest_pipeline_logs(limit=limit, source=source)
+    return {
+        "status": "SUCCESS",
+        "count": len(result.get("logs", [])),
+        "active_file": result.get("active_file", ""),
+        "available_sources": result.get("available_sources", []),
+        "logs": result.get("logs", []),
+    }
 
 
