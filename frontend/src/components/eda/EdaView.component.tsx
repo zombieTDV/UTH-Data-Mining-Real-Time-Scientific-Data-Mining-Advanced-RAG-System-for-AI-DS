@@ -1,16 +1,16 @@
-import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, type FC } from 'react';
 import type { EdaResponse, CategoryDistItem } from '../../types';
 import { fetchEdaSummary, triggerMiningPipeline, executeDuckDbQuery, syncMiningFromR2 } from '../../services';
 import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
-import { useSvgPanZoom, useTranslation } from '../../hooks';
+import { useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { MiningTelemetryStepper } from '../common';
 
 import { ThreeLensesDiagnosticView } from './ThreeLensesDiagnosticView.component';
 import { CollectionEdaView } from './CollectionEdaView.component';
 
-export type DeckType = 'collection' | 'scatter' | 'combo' | 'taxonomy' | 'authors' | 'correlations' | 'explorer' | 'rag_audit';
+export type DeckType = 'collection' | 'scatter' | 'combo' | 'taxonomy' | 'authors' | 'correlations' | 'explorer' | 'rag_audit' | 'governance';
 
 export interface ScatterPaperPoint {
   id: string;
@@ -404,22 +404,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   // Toast feedback message (e.g. for Copy LaTeX, Copy BibTeX)
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
-  // Hover Tooltip States for Charts
-  const [hoveredBar, setHoveredBar] = useState<{ category: string; count: number; math: number; x: number; y: number } | null>(null);
-  const [hoveredTimelineYear, setHoveredTimelineYear] = useState<{ year: string; count: number; pct: string; x: number; y: number } | null>(null);
-
   // SVG Chart Refs for Vector Export
-  const comboSvgRef = useRef<SVGSVGElement | null>(null);
-  const timelineSvgRef = useRef<SVGSVGElement | null>(null);
   const donutSvgRef = useRef<SVGSVGElement | null>(null);
 
   // Advanced Chart Insight States
-  const [temporalSmoothing, setTemporalSmoothing] = useState<boolean>(false);
   const [correlationMetric, setCorrelationMetric] = useState<'pearson' | 'spearman'>('spearman');
   const [correlationDimensionMode, setCorrelationDimensionMode] = useState<'core' | 'extended'>('extended');
   const [hoveredCorrelationCell, setHoveredCorrelationCell] = useState<{ row: string; col: string; val: number; p: string; note: string; stars?: string } | null>(null);
-  const [showParetoCurve, setShowParetoCurve] = useState<boolean>(true);
-  const [scaleMode, setScaleMode] = useState<'linear' | 'log10'>('linear');
   const [cooccurrenceThreshold, setCooccurrenceThreshold] = useState<number>(0);
   const [selectedQuadrant, setSelectedQuadrant] = useState<'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4'>('ALL');
   const [selectedCooccurrencePair, setSelectedCooccurrencePair] = useState<{
@@ -431,17 +422,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
   const [showTelemetry, setShowTelemetry] = useState<boolean>(false);
-
-  // Pan & Zoom Controllers for Interactive SVG Charts
-  const comboPanZoom = useSvgPanZoom({
-    nominalWidth: 920,
-    nominalHeight: 300,
-  });
-
-  const timelinePanZoom = useSvgPanZoom({
-    nominalWidth: 460,
-    nominalHeight: 230,
-  });
 
 
   const { totalCorpus, isStreaming, streamSpeed, sessionIngested, lastIngestedPaper, miningSyncVersion } = useLakehouseStreamStore();
@@ -589,81 +569,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
     return categoryList.find((c) => c.category === selectedCategory) || null;
   }, [categoryList, selectedCategory]);
 
-  const maxPaperCount = useMemo(() => {
-    if (!categoryList || categoryList.length === 0) return 3500;
-    const m = Math.max(...categoryList.map((c) => c.count));
-    return Math.max(1000, Math.ceil(m / 500) * 500);
-  }, [categoryList]);
-
-  const maxMathCount = useMemo(() => {
-    if (!categoryList || categoryList.length === 0) return 1200000;
-    const m = Math.max(...categoryList.map((c) => c.total_math_formulas));
-    return Math.max(200000, Math.ceil(m / 200000) * 200000);
-  }, [categoryList]);
-
-  const peakTemporalPeriod = useMemo(() => {
-    if (!data?.temporal_distribution || data.temporal_distribution.length === 0) {
-      return { period: '01/2024', count: 5027 };
-    }
-    const top = data.temporal_distribution.reduce(
-      (max, cur) => (cur.count > max.count ? cur : max),
-      data.temporal_distribution[0]
-    );
-    return { period: top.period, count: top.count };
-  }, [data]);
-
-  const temporalAggregatedPoints = useMemo(() => {
-    const rawDist = data?.temporal_distribution || [];
-    const total = data?.dataset_overview.total_papers || 100000;
-
-    const yearCounts: Record<string, number> = {};
-    for (const item of rawDist) {
-      const p = item.period;
-      const c = item.count;
-      const year = p.slice(0, 4);
-      if (year >= '2022' && year <= '2026') {
-        yearCounts[year] = (yearCounts[year] || 0) + c;
-      }
-    }
-
-    const rawPoints = [
-      { label: "'22", count: yearCounts['2022'] || 11246 },
-      { label: "'23", count: yearCounts['2023'] || 17739 },
-      { label: "'24", count: yearCounts['2024'] || 22965 },
-      { label: "'25", count: yearCounts['2025'] || 18302 },
-      { label: "'26", count: yearCounts['2026'] || 29727 },
-    ];
-
-    const effectivePoints = temporalSmoothing
-      ? rawPoints.map((p, idx, arr) => {
-          let count = p.count;
-          if (idx === 0) {
-            count = Math.round(0.75 * p.count + 0.25 * arr[1].count);
-          } else if (idx === arr.length - 1) {
-            count = Math.round(0.25 * arr[idx - 1].count + 0.75 * p.count);
-          } else {
-            count = Math.round(0.20 * arr[idx - 1].count + 0.60 * p.count + 0.20 * arr[idx + 1].count);
-          }
-          return { label: p.label, count };
-        })
-      : rawPoints;
-
-    const maxC = Math.max(...effectivePoints.map((p) => p.count), 1);
-    const yCeil = Math.max(10000, Math.ceil(maxC / 5000) * 5000);
-    const stepX = 360 / (effectivePoints.length - 1);
-
-    const points = effectivePoints.map((p, idx) => ({
-      label: p.label,
-      count: p.count,
-      pct: `${((p.count / total) * 100).toFixed(1)}%`,
-      x: Math.round(55 + idx * stepX),
-      y: Math.round(180 - (p.count / yCeil) * 140),
-    }));
-
-    const peakPoint = points.reduce((m, p) => (p.count > m.count ? p : m), points[0]);
-
-    return { yCeil, points, peakPoint, isSmoothed: temporalSmoothing };
-  }, [data, temporalSmoothing]);
 
   const donutSlices = useMemo(() => {
     if (!categoryList || categoryList.length === 0) return [];
@@ -1234,132 +1139,237 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         </div>
       )}
 
-      {/* Collapsible Telemetry Stepper */}
+      {/* Floating Popover Telemetry Stepper (Zero-Push Overlay) */}
       {!isFocusMode && showTelemetry && (
-        <MiningTelemetryStepper
-          isExecuting={isSyncingMining}
-          onTriggerMining={handleSyncLakehouseMining}
-          theme={theme}
-        />
+        <div
+          style={{
+            position: 'absolute',
+            top: '72px',
+            left: '12px',
+            right: '12px',
+            zIndex: 40,
+            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '8px',
+            border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.4)' : '#a7f3d0'}`,
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+            padding: '10px 14px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
+              ● QUY TRÌNH 5 TRẠM KHAI PHÁ DỮ LIỆU KHOA HỌC (MINING TELEMETRY)
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowTelemetry(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: themeStyles.textMuted,
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 800,
+                padding: '0 4px',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+          <MiningTelemetryStepper
+            isExecuting={isSyncingMining}
+            onTriggerMining={handleSyncLakehouseMining}
+            theme={theme}
+          />
+        </div>
       )}
 
       {/* ============================================================== */}
-      {/* 3. 2-TIER LAKEHOUSE MASTER SWITCHER & CONTEXTUAL SUB-TABS      */}
+      {/* 3. 3-TIER LAKEHOUSE MASTER SWITCHER & CONTEXTUAL SUB-TABS      */}
       {/* ============================================================== */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: themeStyles.cardBg,
-          borderRadius: '6px',
-          border: `1px solid ${themeStyles.border}`,
-          padding: '3px 8px',
-          flexShrink: 0,
-          gap: '6px',
-          flexWrap: 'wrap',
-        }}
-      >
-        {/* Tier 1 vs Tier 2 Master Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <button
-            type="button"
-            onClick={() => setActiveDeck('collection')}
+      {(() => {
+        const isTier1 = activeDeck === 'collection';
+        const isTier2 = ['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck);
+        const isTier3 = ['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck);
+
+        return (
+          <div
             style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: activeDeck === 'collection' ? 800 : 600,
-              backgroundColor: activeDeck === 'collection' ? '#f59e0b' : 'transparent',
-              color: activeDeck === 'collection' ? '#000000' : themeStyles.textSecondary,
-              border: `1px solid ${activeDeck === 'collection' ? '#f59e0b' : themeStyles.border}`,
-              cursor: 'pointer',
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              transition: 'all 0.15s ease',
+              justifyContent: 'space-between',
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '6px',
+              border: `1px solid ${themeStyles.border}`,
+              padding: '3px 8px',
+              flexShrink: 0,
+              gap: '6px',
+              flexWrap: 'wrap',
             }}
           >
-            <span>📥</span>
-            <span>TẦNG 1: THU THẬP &amp; DỮ LIỆU THÔ</span>
-          </button>
+            {/* 3-Tier Master Switcher */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setActiveDeck('collection')}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: isTier1 ? 800 : 600,
+                  backgroundColor: isTier1 ? '#f59e0b' : 'transparent',
+                  color: isTier1 ? '#000000' : themeStyles.textSecondary,
+                  border: `1px solid ${isTier1 ? '#f59e0b' : themeStyles.border}`,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>📥</span>
+                <span>TẦNG 1: THU THẬP &amp; THÔ</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (activeDeck === 'collection') setActiveDeck('scatter');
-            }}
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: activeDeck !== 'collection' ? 800 : 600,
-              backgroundColor: activeDeck !== 'collection' ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff') : 'transparent',
-              color: activeDeck !== 'collection' ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary,
-              border: `1px solid ${activeDeck !== 'collection' ? '#3b82f6' : themeStyles.border}`,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span>⚙️</span>
-            <span>TẦNG 2: TIỀN XỬ LÝ &amp; ĐẶC TRƯNG</span>
-          </button>
-        </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isTier2) setActiveDeck('scatter');
+                }}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: isTier2 ? 800 : 600,
+                  backgroundColor: isTier2 ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff') : 'transparent',
+                  color: isTier2 ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary,
+                  border: `1px solid ${isTier2 ? '#3b82f6' : themeStyles.border}`,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>⚙️</span>
+                <span>TẦNG 2: HÌNH HỌC &amp; ĐẶC TRƯNG</span>
+              </button>
 
-        {/* Contextual Sub-Tabs for Tier 2 */}
-        {activeDeck !== 'collection' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
-            {[
-              { id: 'scatter' as DeckType, label: '☍ 1. GMM 3 Thấu Kính', keyNum: '2' },
-              { id: 'combo' as DeckType, label: '◬ 2. Phân Phối Đơn Biến', keyNum: '3' },
-              { id: 'taxonomy' as DeckType, label: '☷ 3. Chuyên Ngành & Heatmap', keyNum: '4' },
-              { id: 'authors' as DeckType, label: '👥 4. Tác Giả & Phân Vị', keyNum: '5' },
-              { id: 'correlations' as DeckType, label: '📐 5. Tương Quan & ANOVA', keyNum: '6' },
-              { id: 'explorer' as DeckType, label: '🔍 6. Tra Cứu DuckDB', keyNum: '7' },
-              { id: 'rag_audit' as DeckType, label: '🛡️ 7. Kiểm Toán RAG', keyNum: '8' },
-            ].map((deck) => {
-              const isActive = activeDeck === deck.id;
-              return (
-                <button
-                  key={deck.id}
-                  type="button"
-                  onClick={() => setActiveDeck(deck.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    padding: '2px 7px',
-                    borderRadius: '4px',
-                    border: isActive ? '1px solid #3b82f6' : '1px solid transparent',
-                    backgroundColor: isActive ? '#2563eb' : (isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'),
-                    color: isActive ? '#ffffff' : themeStyles.textSecondary,
-                    cursor: 'pointer',
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: isActive ? 800 : 500,
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <span>{deck.label}</span>
-                </button>
-              );
-            })}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isTier3) setActiveDeck('governance');
+                }}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: isTier3 ? 800 : 600,
+                  backgroundColor: isTier3 ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#f5f3ff') : 'transparent',
+                  color: isTier3 ? (isDark ? '#c4b5fd' : '#7c3aed') : themeStyles.textSecondary,
+                  border: `1px solid ${isTier3 ? '#8b5cf6' : themeStyles.border}`,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>🛡️</span>
+                <span>TẦNG 3: ĐIỀU HƯỚNG &amp; RAG</span>
+              </button>
+            </div>
+
+            {/* Contextual Sub-Tabs for Tier 2 */}
+            {isTier2 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'scatter' as DeckType, label: '☍ 1. GMM 2D & Phân Vị' },
+                  { id: 'combo' as DeckType, label: '◬ 2. Phân Phối Đơn Biến & Q-Q' },
+                  { id: 'taxonomy' as DeckType, label: '☷ 3. Chuyên Ngành & Giao Thoa' },
+                  { id: 'correlations' as DeckType, label: '📐 4. Tương Quan Đa Biến & ANOVA' },
+                ].map((deck) => {
+                  const isActive = activeDeck === deck.id;
+                  return (
+                    <button
+                      key={deck.id}
+                      type="button"
+                      onClick={() => setActiveDeck(deck.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        border: isActive ? '1px solid #3b82f6' : '1px solid transparent',
+                        backgroundColor: isActive ? '#2563eb' : (isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'),
+                        color: isActive ? '#ffffff' : themeStyles.textSecondary,
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: isActive ? 800 : 500,
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{deck.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Contextual Sub-Tabs for Tier 3 */}
+            {isTier3 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'governance' as DeckType, label: '⚙ 1. Quy Tắc Lakehouse (§6.4)' },
+                  { id: 'authors' as DeckType, label: '👥 2. Tác Giả & Phân Vị' },
+                  { id: 'rag_audit' as DeckType, label: '🛡️ 3. Kiểm Toán RAG & Vectors' },
+                  { id: 'explorer' as DeckType, label: '🔍 4. Tra Cứu DuckDB OLAP' },
+                ].map((deck) => {
+                  const isActive = activeDeck === deck.id;
+                  return (
+                    <button
+                      key={deck.id}
+                      type="button"
+                      onClick={() => setActiveDeck(deck.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        border: isActive ? '1px solid #8b5cf6' : '1px solid transparent',
+                        backgroundColor: isActive ? '#7c3aed' : (isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'),
+                        color: isActive ? '#ffffff' : themeStyles.textSecondary,
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: isActive ? 800 : 500,
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{deck.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Contextual Info for Tier 1 */}
+            {isTier1 && (
+              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                arXiv (25,000) • OpenReview (3,000) • CVF (1,911) | Bronze Data Matrix
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Contextual Info for Tier 1 */}
-        {activeDeck === 'collection' && (
-          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-            arXiv (25,000) • OpenReview (3,000) • CVF (1,911)
-          </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* ============================================================== */}
       {/* 5. ACTIVE SUB-DECK VIEWPORT AREA (FLEX 1 // ZERO-SCROLL)        */}
@@ -1601,788 +1611,31 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         )}
 
         {/* ------------------------------------------------------------ */}
-        {/* SUB-DECK 1: COMBO CLUSTERED BAR & TIMELINE AREA CHARTS       */}
+        {/* SUB-DECK 2: PHÂN PHỐI ĐƠN BIẾN & Q-Q NORMALITY (LENS 2)      */}
         {/* ------------------------------------------------------------ */}
         {activeDeck === 'combo' && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isSidebarCollapsed ? '1fr' : '1.45fr 1fr',
-              gap: '8px',
-              height: '100%',
-              minHeight: 0,
-              ...(isTheaterMode
-                ? {
-                    position: 'fixed',
-                    top: '52px',
-                    left: '58px',
-                    right: 0,
-                    bottom: '32px',
-                    zIndex: 45,
-                    backgroundColor: themeStyles.cardBg,
-                    padding: '16px 20px',
-                    gridTemplateColumns: '1fr',
-                  }
-                : {}),
+          <ThreeLensesDiagnosticView
+            theme={theme}
+            isTheaterMode={isTheaterMode}
+            onToggleTheater={() => setIsTheaterMode((prev) => !prev)}
+            diagnosticData={data?.diagnostic_3lenses}
+            fallbackPoints={filteredScatterPoints}
+            onSelectPaper={(pt) => setSelectedPaperForDrawer(pt)}
+            selectedPaperId={selectedPaperForDrawer?.id}
+            activeTab="lens2_univariate"
+            onTabChange={(tab) => {
+              if (tab === 'lens3_bivariate') setActiveDeck('scatter');
+              if (tab === 'governance') setActiveDeck('governance');
             }}
-          >
-            {/* CHART 1: COMBO CLUSTERED COLUMN & LINE DUAL AXIS */}
-            <div
-              style={{
-                backgroundColor: themeStyles.cardBg,
-                borderRadius: '8px',
-                border: `1px solid ${themeStyles.border}`,
-                padding: '10px 14px',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100%',
-                minHeight: 0,
-              }}
-            >
-              {/* Row 1: Title + Viewport Controls (Two-Tier Swiss Architecture) */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '6px', flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)', flexShrink: 0 }}>
-                    [EDA-01]
-                  </span>
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {language === 'vi' ? 'PHÂN BỐ BÀI BÁO & CÔNG THỨC TOÁN' : 'WORK DISTRIBUTION & MATH FORMULAS'}
-                  </h3>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 600,
-                      backgroundColor: isSidebarCollapsed ? (isDark ? 'rgba(56, 189, 248, 0.25)' : '#e0f2fe') : (isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'),
-                      color: isSidebarCollapsed ? '#38bdf8' : themeStyles.textSecondary,
-                      border: `1px solid ${isSidebarCollapsed ? '#38bdf8' : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                    title={
-                      isSidebarCollapsed
-                        ? (language === 'vi' ? 'Mở lại biểu đồ xu hướng thời gian [ ► ]' : 'Expand temporal trends chart [ ► ]')
-                        : (language === 'vi' ? 'Thu gọn biểu đồ phụ để mở rộng đồ thị 100% [ ◄ ]' : 'Collapse side chart [ ◄ ]')
-                    }
-                  >
-                    {isSidebarCollapsed
-                      ? (language === 'vi' ? '► Mở Biểu Đồ Phụ' : '► Open Side Chart')
-                      : (language === 'vi' ? '◄ Thu Gọn Biểu Đồ Phụ' : '◄ Collapse Side Chart')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsTheaterMode((prev) => !prev)}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      backgroundColor: isTheaterMode ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : (isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'),
-                      color: isTheaterMode ? '#f59e0b' : themeStyles.textSecondary,
-                      border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                    title={language === 'vi' ? 'Phóng đại toàn màn hình 100% (Theater Mode)' : 'Fullscreen 100% (Theater Mode)'}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      {isTheaterMode ? (
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="4 14 10 14 10 20" />
-                          <polyline points="20 10 14 10 14 4" />
-                          <line x1="14" y1="10" x2="21" y2="3" />
-                          <line x1="3" y1="21" x2="10" y2="14" />
-                        </svg>
-                      ) : (
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="15 3 21 3 21 9" />
-                          <polyline points="9 21 3 21 3 15" />
-                          <line x1="21" y1="3" x2="14" y2="10" />
-                          <line x1="3" y1="21" x2="10" y2="14" />
-                        </svg>
-                      )}
-                      <span>
-                        {isTheaterMode
-                          ? (language === 'vi' ? 'Thu Nhỏ' : 'Minimize')
-                          : (language === 'vi' ? 'Rạp Hát' : 'Theater')}
-                      </span>
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Row 2: Metadata & Interactive Control Deck */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '4px 8px',
-                borderRadius: '5px',
-                backgroundColor: 'var(--bg-canvas)',
-                border: '1px solid var(--border-subtle)',
-                marginBottom: '8px',
-                flexShrink: 0,
-                flexWrap: 'wrap',
-                gap: '8px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', fontFamily: 'var(--font-mono)', flexWrap: 'wrap' }}>
-                  <span className="telemetry-chip" style={{ color: '#38bdf8' }}>
-                    EPOCH: 2023-2024 &bull; PEAK: {peakTemporalPeriod.period} (n={peakTemporalPeriod.count.toLocaleString()})
-                  </span>
-                  <span style={{ color: themeStyles.textMuted }}>
-                    &bull; {language === 'vi' ? 'Trục trái: Số bài • Trục phải: Eq' : 'Left axis: Papers • Right axis: Eq'}
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '8px', height: '8px', backgroundColor: '#2563eb', borderRadius: '2px' }} />
-                    <span style={{ color: themeStyles.textSecondary }}>Papers</span>
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '8px', height: '2px', backgroundColor: '#ea580c' }} />
-                    <span style={{ color: themeStyles.textSecondary }}>Formulas</span>
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '8px', height: '2px', backgroundColor: '#10b981', borderTop: '1px dashed #10b981' }} />
-                    <span style={{ color: themeStyles.textSecondary }}>Pareto 80/20</span>
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowParetoCurve((prev) => !prev)}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: showParetoCurve ? 700 : 500,
-                      backgroundColor: showParetoCurve ? (isDark ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5') : 'transparent',
-                      color: showParetoCurve ? '#10b981' : themeStyles.textSecondary,
-                      border: `1px solid ${showParetoCurve ? '#10b981' : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                    title={language === 'vi' ? 'Bật / tắt đường cong tích lũy Pareto 80/20' : 'Toggle Pareto 80/20 cumulative curve'}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                        <polyline points="17 6 23 6 23 12" />
-                      </svg>
-                      <span>80% Pareto</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setScaleMode((m) => (m === 'linear' ? 'log10' : 'linear'))}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: scaleMode === 'log10' ? 700 : 500,
-                      backgroundColor: scaleMode === 'log10' ? (isDark ? 'rgba(56, 189, 248, 0.2)' : '#e0f2fe') : 'transparent',
-                      color: scaleMode === 'log10' ? '#0284c7' : themeStyles.textSecondary,
-                      border: `1px solid ${scaleMode === 'log10' ? '#0284c7' : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                    title={language === 'vi' ? 'Chuyển đổi thang đo Tuyến tính / Logarit (Log10)' : 'Toggle Linear / Logarithmic (Log10) scale'}
-                  >
-                    {scaleMode === 'linear'
-                      ? (language === 'vi' ? 'Thang: Linear' : 'Scale: Linear')
-                      : (language === 'vi' ? 'Thang: Log10' : 'Scale: Log10')}
-                  </button>
-                  <ChartToolbar
-                    theme={theme}
-                    language={language}
-                    svgRef={comboSvgRef}
-                    filename="eda-category-distribution-combo"
-                    csvData={categoryList.map((c) => ({
-                      category: c.category,
-                      papers: c.count,
-                      math_formulas: c.total_math_formulas,
-                    }))}
-                    zoomLevel={comboPanZoom.zoom}
-                    hasPannedOrZoomed={comboPanZoom.hasPannedOrZoomed}
-                    onZoomIn={() => comboPanZoom.zoomIn(0.25)}
-                    onZoomOut={() => comboPanZoom.zoomOut(0.25)}
-                    onResetZoom={comboPanZoom.resetView}
-                    isSidebarCollapsed={isSidebarCollapsed}
-                    onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
-                    isTheater={isTheaterMode}
-                    onToggleTheater={() => setIsTheaterMode((prev) => !prev)}
-                    onShowToast={(msg) => {
-                      setFeedbackToast(msg);
-                      setTimeout(() => setFeedbackToast(null), 2500);
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* SVG DUAL-AXIS COMBO CHART */}
-              <div
-                {...comboPanZoom.containerProps}
-                style={{
-                  ...comboPanZoom.containerProps.style,
-                  flex: 1,
-                  minHeight: 0,
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                <svg
-                  ref={comboSvgRef}
-                  viewBox={comboPanZoom.viewBox}
-                  preserveAspectRatio="xMidYMid meet"
-                  style={{ width: '100%', height: '100%' }}
-                >
-                  {[0, 1, 2, 3, 4].map((g) => {
-                    const y = 35 + g * 50;
-                    const valLinear = Math.round(maxPaperCount - g * (maxPaperCount / 4));
-                    const valLog = Math.round(Math.pow(10, Math.log10(maxPaperCount) - g * (Math.log10(maxPaperCount) / 4)));
-                    const labelPaper = scaleMode === 'linear' ? valLinear : valLog;
-                    const mathVal = Math.round(maxMathCount - g * (maxMathCount / 4));
-                    const labelMath = mathVal >= 1000000 ? `${(mathVal / 1000000).toFixed(1)}M` : `${Math.round(mathVal / 1000)}k`;
-                    return (
-                      <g key={g}>
-                        <line x1="60" y1={y} x2="860" y2={y} stroke={themeStyles.gridLine} strokeDasharray="3 3" />
-                        <text x="52" y={y + 3} textAnchor="end" fontSize="10" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                          {labelPaper}
-                        </text>
-                        <text x="868" y={y + 3} textAnchor="start" fontSize="10" fontFamily="var(--font-mono)" fill="#ea580c">
-                          {labelMath}
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  <line x1="60" y1="235" x2="860" y2="235" stroke={themeStyles.axisLine} strokeWidth="1" />
-
-                  {categoryList.slice(0, 8).map((cat, i) => {
-                    const barX = 90 + i * 95;
-                    const barWidth = 46;
-                    const colHeight = scaleMode === 'linear'
-                      ? Math.max(10, (cat.count / maxPaperCount) * 195)
-                      : Math.max(16, (Math.log10(Math.max(10, cat.count)) / Math.log10(maxPaperCount)) * 195);
-                    const barY = 235 - colHeight;
-                    const isSelected = selectedCategory === cat.category;
-                    const color = isSelected ? '#1d4ed8' : getCategoryColor(cat.category);
-                    const isTallBar = colHeight > 110;
-                    const countLabelY = isTallBar ? barY + 16 : barY - 7;
-                    const countLabelFill = isTallBar ? '#ffffff' : themeStyles.textPrimary;
-
-                    return (
-                      <g
-                        key={cat.category}
-                        onClick={() => {
-                          if (!comboPanZoom.didDrag()) {
-                            setSelectedCategory(isSelected ? 'ALL' : cat.category);
-                          }
-                        }}
-                        onMouseEnter={(e: MouseEvent<SVGGElement>) => {
-                          const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                          setHoveredBar({
-                            category: cat.category,
-                            count: cat.count,
-                            math: cat.total_math_formulas,
-                            x: rect.left + rect.width / 2,
-                            y: rect.top - 8,
-                          });
-                        }}
-                        onMouseLeave={() => setHoveredBar(null)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <rect
-                          x={barX}
-                          y={barY}
-                          width={barWidth}
-                          height={colHeight}
-                          rx="4"
-                          fill={color}
-                          opacity={selectedCategory !== 'ALL' && !isSelected ? 0.35 : 0.9}
-                          style={{ transition: 'all 0.2s ease' }}
-                        />
-                        <text
-                          x={barX + barWidth / 2}
-                          y={countLabelY}
-                          textAnchor="middle"
-                          fontSize="10"
-                          fontFamily="var(--font-mono)"
-                          fontWeight="700"
-                          fill={countLabelFill}
-                        >
-                          {cat.count > 999 ? `${(cat.count / 1000).toFixed(1)}k` : cat.count}
-                        </text>
-                        <text
-                          x={barX + barWidth / 2}
-                          y="254"
-                          textAnchor="middle"
-                          fontSize="11"
-                          fontFamily="var(--font-mono)"
-                          fontWeight={isSelected ? '800' : '600'}
-                          fill={isSelected ? '#38bdf8' : themeStyles.textSecondary}
-                        >
-                          {cat.category}
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  {(() => {
-                    const points = categoryList.slice(0, 8).map((cat, i) => {
-                      const cx = 90 + i * 95 + 23;
-                      const cy = scaleMode === 'linear'
-                        ? 235 - Math.max(8, (cat.total_math_formulas / maxMathCount) * 195)
-                        : 235 - Math.max(16, (Math.log10(Math.max(100, cat.total_math_formulas)) / Math.log10(maxMathCount)) * 195);
-                      return { cx, cy, cat };
-                    });
-
-                    const pathD = points
-                      .map((p, i) => (i === 0 ? `M ${p.cx} ${p.cy}` : `L ${p.cx} ${p.cy}`))
-                      .join(' ');
-
-                    let runningCount = 0;
-                    const paretoPoints = categoryList.slice(0, 8).map((cat, i) => {
-                      runningCount += cat.count;
-                      const cumPct = (runningCount / (overview.total_papers || 10000)) * 100;
-                      const cx = 90 + i * 95 + 23;
-                      const cy = 235 - (cumPct / 100) * 195;
-                      return { cx, cy, cumPct, cat };
-                    });
-
-                    const paretoPathD = paretoPoints
-                      .map((p, i) => (i === 0 ? `M ${p.cx} ${p.cy}` : `L ${p.cx} ${p.cy}`))
-                      .join(' ');
-
-                    return (
-                      <g>
-                        {/* Formulas Line */}
-                        <path
-                          d={pathD}
-                          fill="none"
-                          stroke="#ea580c"
-                          strokeWidth="2.5"
-                          strokeDasharray="4 2"
-                          style={{ pointerEvents: 'none' }}
-                        />
-                        {points.map((p, idx) => (
-                          <circle
-                            key={idx}
-                            cx={p.cx}
-                            cy={p.cy}
-                            r="5"
-                            fill={themeStyles.cardInner}
-                            stroke="#ea580c"
-                            strokeWidth="2.5"
-                            style={{ cursor: 'pointer' }}
-                            onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                              const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                              setHoveredBar({
-                                category: p.cat.category,
-                                count: p.cat.count,
-                                math: p.cat.total_math_formulas,
-                                x: rect.left,
-                                y: rect.top - 8,
-                              });
-                            }}
-                            onMouseLeave={() => setHoveredBar(null)}
-                          />
-                        ))}
-
-                        {/* Dual-Axis Pareto Cumulative Curve */}
-                        {showParetoCurve && (() => {
-                          const cutoffY = 235 - 0.8 * 195;
-                          const cutoffIdx = paretoPoints.findIndex((p) => p.cumPct >= 80);
-
-                          return (
-                            <g>
-                              {/* 80% Pareto Reference Cutoff Line */}
-                              <line
-                                x1="60"
-                                y1={cutoffY}
-                                x2="860"
-                                y2={cutoffY}
-                                stroke="#10b981"
-                                strokeWidth="1.2"
-                                strokeDasharray="4 3"
-                                strokeOpacity="0.85"
-                              />
-                              {/* Anchored Left-Margin Reference Tag (Outside Data Flow) */}
-                              <rect
-                                x="65"
-                                y={cutoffY - 17}
-                                width="116"
-                                height="15"
-                                rx="3"
-                                fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.95)'}
-                                stroke="rgba(16, 185, 129, 0.45)"
-                                strokeWidth="0.8"
-                              />
-                              <text
-                                x="70"
-                                y={cutoffY - 6}
-                                fontSize="9"
-                                fontFamily="var(--font-mono)"
-                                fontWeight="800"
-                                fill="#10b981"
-                              >
-                                80% PARETO CUTOFF
-                              </text>
-
-                              {/* Cumulative Curve Path */}
-                              <path
-                                d={paretoPathD}
-                                fill="none"
-                                stroke="#10b981"
-                                strokeWidth="2.5"
-                                style={{ pointerEvents: 'none' }}
-                              />
-                              {paretoPoints.map((p, idx) => {
-                                const isMilestone = idx === 0 || idx === cutoffIdx || idx === paretoPoints.length - 1;
-                                const isNearCutoff = Math.abs(p.cy - cutoffY) < 24;
-                                const badgeY = isNearCutoff ? p.cy + 8 : p.cy - 19;
-                                const textY = isNearCutoff ? p.cy + 19 : p.cy - 8;
-
-                                return (
-                                  <g key={idx}>
-                                    <circle
-                                      cx={p.cx}
-                                      cy={p.cy}
-                                      r={isMilestone ? '5' : '3.5'}
-                                      fill={themeStyles.cardInner}
-                                      stroke="#10b981"
-                                      strokeWidth={isMilestone ? '2.5' : '1.8'}
-                                    >
-                                      <title>{`${p.cat.category}: ${p.cumPct.toFixed(1)}% ${language === 'vi' ? 'tích lũy' : 'cumulative'}`}</title>
-                                    </circle>
-                                    {isMilestone && (
-                                      <g style={{ pointerEvents: 'none' }}>
-                                        <rect
-                                          x={p.cx - 16}
-                                          y={badgeY}
-                                          width="32"
-                                          height="14"
-                                          rx="3"
-                                          fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.95)'}
-                                          stroke={idx === cutoffIdx ? '#10b981' : 'rgba(16, 185, 129, 0.35)'}
-                                          strokeWidth={idx === cutoffIdx ? '1.2' : '0.8'}
-                                        />
-                                        <text
-                                          x={p.cx}
-                                          y={textY}
-                                          textAnchor="middle"
-                                          fontSize="9.5"
-                                          fontFamily="var(--font-mono)"
-                                          fontWeight="800"
-                                          fill="#10b981"
-                                        >
-                                          {p.cumPct.toFixed(0)}%
-                                        </text>
-                                      </g>
-                                    )}
-                                  </g>
-                                );
-                              })}
-                            </g>
-                          );
-                        })()}
-                      </g>
-                    );
-                  })()}
-                </svg>
-
-                {comboPanZoom.hasPannedOrZoomed && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '8px',
-                      right: '8px',
-                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
-                      border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
-                      borderRadius: '4px',
-                      padding: '2px 7px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      color: isDark ? '#38bdf8' : '#0284c7',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      pointerEvents: 'none',
-                      backdropFilter: 'blur(4px)',
-                      zIndex: 10,
-                    }}
-                  >
-                    <span>✥</span>
-                    <span>{Math.round(comboPanZoom.zoom * 100)}%</span>
-                    <span style={{ color: themeStyles.textMuted }}>
-                      • {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* CHART 2: SMOOTH AREA TIMELINE CHART */}
-            {!isSidebarCollapsed && (
-              <div
-                style={{
-                  backgroundColor: themeStyles.cardBg,
-                  borderRadius: '8px',
-                  border: `1px solid ${themeStyles.border}`,
-                  padding: '10px 14px',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  height: '100%',
-                  minHeight: 0,
-                }}
-              >
-                {/* Row 1: Title & Classification (Two-Tier Swiss Architecture) */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '6px', flexShrink: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)', flexShrink: 0 }}>
-                      [EDA-02]
-                    </span>
-                    <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {language === 'vi' ? 'TĂNG TRƯỞNG THEO THỜI GIAN' : 'TEMPORAL PUBLICATION GROWTH'}
-                    </h3>
-                  </div>
-
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb', backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#eff6ff', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
-                    EXPONENTIAL
-                  </span>
-                </div>
-
-                {/* Row 2: Metadata & Controls Deck */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '4px 8px',
-                  borderRadius: '5px',
-                  backgroundColor: 'var(--bg-canvas)',
-                  border: '1px solid var(--border-subtle)',
-                  marginBottom: '8px',
-                  flexShrink: 0,
-                  flexWrap: 'wrap',
-                  gap: '8px',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                      {language === 'vi'
-                        ? `Đỉnh điểm ${temporalAggregatedPoints.peakPoint.count.toLocaleString()} bài (${temporalAggregatedPoints.peakPoint.label}) • Chuỗi lũy tiến`
-                        : `Peak ${temporalAggregatedPoints.peakPoint.count.toLocaleString()} papers (${temporalAggregatedPoints.peakPoint.label}) • Cumulative series`}
-                    </div>
-
-                    {/* Temporal Smoothing Switch */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: themeStyles.cardInner, padding: '2px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
-                      <button
-                        type="button"
-                        onClick={() => setTemporalSmoothing(false)}
-                        style={{
-                          padding: '2px 6px',
-                          borderRadius: '3px',
-                          fontSize: '9.5px',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: !temporalSmoothing ? 800 : 500,
-                          backgroundColor: !temporalSmoothing ? (isDark ? '#2563eb' : '#3b82f6') : 'transparent',
-                          color: !temporalSmoothing ? '#ffffff' : themeStyles.textMuted,
-                          border: 'none',
-                          cursor: 'pointer',
-                        }}
-                        title={language === 'vi' ? 'Hiển thị số liệu mốc thời gian nguyên bản từ Lakehouse' : 'Display raw timeline telemetry from Lakehouse'}
-                      >
-                        Raw
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTemporalSmoothing(true)}
-                        style={{
-                          padding: '2px 6px',
-                          borderRadius: '3px',
-                          fontSize: '9.5px',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: temporalSmoothing ? 800 : 500,
-                          backgroundColor: temporalSmoothing ? (isDark ? '#10b981' : '#059669') : 'transparent',
-                          color: temporalSmoothing ? '#ffffff' : themeStyles.textMuted,
-                          border: 'none',
-                          cursor: 'pointer',
-                        }}
-                        title={language === 'vi' ? 'Làm mịn trung bình động 3 điểm Gaussian: khử nhiễu đợt cào khởi tạo 5,027 bài tại 01/24' : '3-point Gaussian moving average: denoise initial 5,027 papers ingest batch at 01/24'}
-                      >
-                        Smoothed
-                      </button>
-                    </div>
-
-                    {temporalSmoothing && (
-                      <span
-                        style={{
-                          fontSize: '9.5px',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
-                          color: '#10b981',
-                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
-                          padding: '1px 6px',
-                          borderRadius: '3px',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
-                        }}
-                        title={language === 'vi' ? 'Đã khử nhiễu đợt cào 5,027 bài tại 01/24 bằng bộ lọc Gaussian 30-Day Moving Window' : 'Denoised initial 5,027 papers batch at 01/24 via Gaussian 30-Day Moving Window'}
-                      >
-                        {language === 'vi' ? 'Khử nhiễu Batch' : 'Batch Denoised'}
-                      </span>
-                    )}
-                  </div>
-
-                  <ChartToolbar
-                    theme={theme}
-                    language={language}
-                    svgRef={timelineSvgRef}
-                    filename="eda-temporal-publication-growth"
-                      csvData={temporalAggregatedPoints.points.map((p) => ({
-                        period: p.label,
-                        papers: p.count,
-                        cumulative_share: p.pct,
-                      }))}
-                      zoomLevel={timelinePanZoom.zoom}
-                      hasPannedOrZoomed={timelinePanZoom.hasPannedOrZoomed}
-                      onZoomIn={() => timelinePanZoom.zoomIn(0.25)}
-                      onZoomOut={() => timelinePanZoom.zoomOut(0.25)}
-                      onResetZoom={timelinePanZoom.resetView}
-                      onShowToast={(msg) => {
-                        setFeedbackToast(msg);
-                        setTimeout(() => setFeedbackToast(null), 2500);
-                      }}
-                    />
-                </div>
-
-                {/* SVG AREA CHART */}
-                <div
-                  {...timelinePanZoom.containerProps}
-                  style={{
-                    ...timelinePanZoom.containerProps.style,
-                    flex: 1,
-                    minHeight: 0,
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <svg
-                    ref={timelineSvgRef}
-                    viewBox={timelinePanZoom.viewBox}
-                    preserveAspectRatio="xMidYMid meet"
-                    style={{ width: '100%', height: '100%' }}
-                  >
-                        <defs>
-                          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#2563eb" stopOpacity={isDark ? '0.6' : '0.45'} />
-                            <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
-                          </linearGradient>
-                        </defs>
-
-                        {[0, 1, 2, 3].map((g) => {
-                          const y = 35 + g * 45;
-                          const val = Math.round(temporalAggregatedPoints.yCeil - g * (temporalAggregatedPoints.yCeil / 3));
-                          return (
-                            <g key={g}>
-                              <line x1="40" y1={y} x2="430" y2={y} stroke={themeStyles.gridLine} strokeDasharray="3 3" />
-                              <text x="34" y={y + 3} textAnchor="end" fontSize="10" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                                {val.toLocaleString()}
-                              </text>
-                            </g>
-                          );
-                        })}
-
-                        <line x1="40" y1="180" x2="430" y2="180" stroke={themeStyles.axisLine} strokeWidth="1" />
-
-                        {(() => {
-                          const points = temporalAggregatedPoints.points;
-                          const peakPoint = temporalAggregatedPoints.peakPoint;
-                          const lineD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
-                          const areaD = `${lineD} L ${points[points.length - 1].x} 180 L ${points[0].x} 180 Z`;
-
-                          return (
-                            <g>
-                              <path d={areaD} fill="url(#areaGradient)" />
-                              <path d={lineD} fill="none" stroke="#2563eb" strokeWidth="3" />
-
-                              <rect x={peakPoint.x - 35} y={Math.max(16, peakPoint.y - 20)} width="70" height="18" rx="3" fill="#2563eb" />
-                              <text x={peakPoint.x} y={Math.max(16, peakPoint.y - 20) + 13} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
-                                {peakPoint.count.toLocaleString()} {language === 'vi' ? 'BÀI' : 'WORKS'}
-                              </text>
-
-                              {points.map((p, i) => (
-                                <g key={i}>
-                                  <circle
-                                    cx={p.x}
-                                    cy={p.y}
-                                    r={p.count > 1000 ? '5.5' : '4'}
-                                    fill={themeStyles.cardInner}
-                                    stroke="#2563eb"
-                                    strokeWidth="2.5"
-                                    style={{ cursor: 'pointer' }}
-                                    onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
-                                      const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-                                      setHoveredTimelineYear({
-                                        year: p.label,
-                                        count: p.count,
-                                        pct: p.pct,
-                                        x: rect.left,
-                                        y: rect.top - 8,
-                                      });
-                                    }}
-                                    onMouseLeave={() => setHoveredTimelineYear(null)}
-                                  />
-                                  <text x={p.x} y="196" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textSecondary}>
-                                    {p.label}
-                                  </text>
-                                </g>
-                              ))}
-                            </g>
-                          );
-                        })()}
-                      </svg>
-                      {timelinePanZoom.hasPannedOrZoomed && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: '8px',
-                            right: '8px',
-                            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
-                            border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
-                            borderRadius: '4px',
-                            padding: '2px 7px',
-                            fontSize: '10px',
-                            fontFamily: 'var(--font-mono)',
-                            color: isDark ? '#38bdf8' : '#0284c7',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            pointerEvents: 'none',
-                            backdropFilter: 'blur(4px)',
-                            zIndex: 10,
-                          }}
-                        >
-                          <span>✥</span>
-                          <span>{Math.round(timelinePanZoom.zoom * 100)}%</span>
-                          <span style={{ color: themeStyles.textMuted }}>
-                            • {language === 'vi' ? 'Kéo để pan' : 'Drag to pan'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-          </div>
+            onShowToast={(msg) => {
+              setFeedbackToast(msg);
+              setTimeout(() => setFeedbackToast(null), 2500);
+            }}
+          />
         )}
 
         {/* ------------------------------------------------------------ */}
-        {/* SUB-DECK 2: CHẨN ĐOÁN 3 THẤU KÍNH & TƯƠNG TÁC ĐA BIẾN (EDA-03) */}
+        {/* SUB-DECK 1: GMM 2D & TƯƠNG TÁC ĐA BIẾN (LENS 1 & 3)           */}
         {/* ------------------------------------------------------------ */}
         {activeDeck === 'scatter' && (
           <ThreeLensesDiagnosticView
@@ -2393,6 +1646,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             fallbackPoints={filteredScatterPoints}
             onSelectPaper={(pt) => setSelectedPaperForDrawer(pt)}
             selectedPaperId={selectedPaperForDrawer?.id}
+            activeTab="lens3_bivariate"
+            onTabChange={(tab) => {
+              if (tab === 'lens2_univariate') setActiveDeck('combo');
+              if (tab === 'governance') setActiveDeck('governance');
+            }}
             onShowToast={(msg) => {
               setFeedbackToast(msg);
               setTimeout(() => setFeedbackToast(null), 2500);
@@ -2400,6 +1658,29 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           />
         )}
 
+        {/* ------------------------------------------------------------ */}
+        {/* SUB-DECK 6: QUY TẮC ĐIỀU HƯỚNG LAKEHOUSE (§6.4 GOVERNANCE)    */}
+        {/* ------------------------------------------------------------ */}
+        {activeDeck === 'governance' && (
+          <ThreeLensesDiagnosticView
+            theme={theme}
+            isTheaterMode={isTheaterMode}
+            onToggleTheater={() => setIsTheaterMode((prev) => !prev)}
+            diagnosticData={data?.diagnostic_3lenses}
+            fallbackPoints={filteredScatterPoints}
+            onSelectPaper={(pt) => setSelectedPaperForDrawer(pt)}
+            selectedPaperId={selectedPaperForDrawer?.id}
+            activeTab="governance"
+            onTabChange={(tab) => {
+              if (tab === 'lens3_bivariate') setActiveDeck('scatter');
+              if (tab === 'lens2_univariate') setActiveDeck('combo');
+            }}
+            onShowToast={(msg) => {
+              setFeedbackToast(msg);
+              setTimeout(() => setFeedbackToast(null), 2500);
+            }}
+          />
+        )}
         {/* ------------------------------------------------------------ */}
         {/* SUB-DECK 3: TAXONOMY DONUT & HEATMAP MATRIX                  */}
         {/* ------------------------------------------------------------ */}
@@ -2635,7 +1916,26 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                  {/* Gradient Color Density Legend */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title={`Thang mật độ: 0 đến ${maxCooccurVal.toLocaleString()} bài đồng xuất bản`}>
+                    <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>0</span>
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '7px',
+                        borderRadius: '2px',
+                        background: isDark
+                          ? 'linear-gradient(to right, rgba(255,255,255,0.06), rgba(37,99,235,0.35), #2563eb)'
+                          : 'linear-gradient(to right, #f1f5f9, rgba(37,99,235,0.3), #2563eb)',
+                        border: `1px solid ${themeStyles.border}`,
+                      }}
+                    />
+                    <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: isDark ? '#93c5fd' : '#1d4ed8' }}>
+                      {maxCooccurVal >= 1000 ? `${(maxCooccurVal / 1000).toFixed(1)}k+` : maxCooccurVal}
+                    </span>
+                  </div>
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
                       {language === 'vi' ? 'Lọc ≥' : 'Filter ≥'}
@@ -3098,6 +2398,48 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         <div style={{ fontSize: '12px', fontWeight: 800, color: '#ef4444' }}>{math_and_content_stats.math_quantiles.max}</div>
                       </div>
                     </div>
+
+                    {/* SVG Horizontal Boxplot (Math Formulas) */}
+                    {(() => {
+                      const q = math_and_content_stats.math_quantiles;
+                      const scaleMax = q.p95 > 0 ? q.p95 * 1.15 : 1000;
+                      const toX = (val: number) => Math.min(290, Math.max(10, 10 + (val / scaleMax) * 280));
+                      const xP25 = toX(q.p25);
+                      const xMed = toX(q.median);
+                      const xP75 = toX(q.p75);
+                      const xP95 = toX(q.p95);
+                      const xMin = 10;
+                      return (
+                        <div style={{ marginTop: '6px', paddingTop: '4px', borderTop: `1px dashed ${isDark ? 'rgba(234, 88, 12, 0.3)' : '#fed7aa'}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginBottom: '2px' }}>
+                            <span>0</span>
+                            <span style={{ color: '#ea580c', fontWeight: 700 }}>IQR: [{q.p25} — {q.p75}] · Med: {q.median}</span>
+                            <span>P95: {q.p95}</span>
+                          </div>
+                          <svg viewBox="0 0 300 18" style={{ width: '100%', height: '18px', display: 'block' }}>
+                            <line x1={xMin} y1="9" x2={xP95} y2="9" stroke="#ea580c" strokeWidth="1.2" strokeDasharray="3 2" />
+                            <line x1={xMin} y1="5" x2={xMin} y2="13" stroke="#ea580c" strokeWidth="1.5" />
+                            <line x1={xP95} y1="5" x2={xP95} y2="13" stroke="#ea580c" strokeWidth="1.5" />
+                            <rect
+                              x={xP25}
+                              y="3"
+                              width={Math.max(2, xP75 - xP25)}
+                              height="12"
+                              fill={isDark ? 'rgba(234, 88, 12, 0.35)' : 'rgba(234, 88, 12, 0.2)'}
+                              stroke="#ea580c"
+                              strokeWidth="1.5"
+                              rx="2"
+                            />
+                            <line x1={xMed} y1="2" x2={xMed} y2="16" stroke="#f97316" strokeWidth="2.5" />
+                            {q.max > q.p95 && (
+                              <circle cx="290" cy="9" r="2.5" fill="#ef4444">
+                                <title>{`Max Outlier: ${q.max}`}</title>
+                              </circle>
+                            )}
+                          </svg>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Word Count Quantiles */}
@@ -3127,6 +2469,48 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#2563eb' }}>{math_and_content_stats.word_quantiles.max.toLocaleString()}</div>
                       </div>
                     </div>
+
+                    {/* SVG Horizontal Boxplot (Word Count) */}
+                    {(() => {
+                      const q = math_and_content_stats.word_quantiles;
+                      const scaleMax = q.p95 > 0 ? q.p95 * 1.15 : 20000;
+                      const toX = (val: number) => Math.min(290, Math.max(10, 10 + (val / scaleMax) * 280));
+                      const xP25 = toX(q.p25);
+                      const xMed = toX(q.median);
+                      const xP75 = toX(q.p75);
+                      const xP95 = toX(q.p95);
+                      const xMin = 10;
+                      return (
+                        <div style={{ marginTop: '6px', paddingTop: '4px', borderTop: `1px dashed ${isDark ? 'rgba(37, 99, 235, 0.3)' : '#bfdbfe'}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginBottom: '2px' }}>
+                            <span>0</span>
+                            <span style={{ color: '#2563eb', fontWeight: 700 }}>IQR: [{q.p25.toLocaleString()} — {q.p75.toLocaleString()}] · Med: {q.median.toLocaleString()}</span>
+                            <span>P95: {q.p95.toLocaleString()}</span>
+                          </div>
+                          <svg viewBox="0 0 300 18" style={{ width: '100%', height: '18px', display: 'block' }}>
+                            <line x1={xMin} y1="9" x2={xP95} y2="9" stroke="#2563eb" strokeWidth="1.2" strokeDasharray="3 2" />
+                            <line x1={xMin} y1="5" x2={xMin} y2="13" stroke="#2563eb" strokeWidth="1.5" />
+                            <line x1={xP95} y1="5" x2={xP95} y2="13" stroke="#2563eb" strokeWidth="1.5" />
+                            <rect
+                              x={xP25}
+                              y="3"
+                              width={Math.max(2, xP75 - xP25)}
+                              height="12"
+                              fill={isDark ? 'rgba(37, 99, 235, 0.35)' : 'rgba(37, 99, 235, 0.2)'}
+                              stroke="#2563eb"
+                              strokeWidth="1.5"
+                              rx="2"
+                            />
+                            <line x1={xMed} y1="2" x2={xMed} y2="16" stroke="#3b82f6" strokeWidth="2.5" />
+                            {q.max > q.p95 && (
+                              <circle cx="290" cy="9" r="2.5" fill="#3b82f6">
+                                <title>{`Max Outlier: ${q.max.toLocaleString()}`}</title>
+                              </circle>
+                            )}
+                          </svg>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Synthesis Insight Note */}
@@ -3280,16 +2664,33 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 </div>
               </div>
 
-              {/* Subtitle & Significance Legend */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0, flexWrap: 'wrap', gap: '4px' }}>
+              {/* Subtitle & Significance Legend & Diverging Colormap Bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0, flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                   Kiểm định thực nghiệm trên n = {(data?.correlations?.sample_size || 20452).toLocaleString()} bài báo có cấu trúc HTML5 &amp; LaTeX đầy đủ trong Lakehouse.
                 </div>
-                <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, display: 'flex', gap: '6px' }}>
-                  <span>*** p &lt; 0.001</span>
-                  <span>** p &lt; 0.01</span>
-                  <span>* p &lt; 0.05</span>
-                  <span>ns: p ≥ 0.05</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  {/* Diverging Colormap Legend */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title="Thang đo tương quan: [-1.0 Nghịch biến ◀ 0.0 Độc lập ▶ +1.0 Đồng biến]">
+                    <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#ef4444', fontWeight: 700 }}>-1.0</span>
+                    <div
+                      style={{
+                        width: '64px',
+                        height: '7px',
+                        borderRadius: '2px',
+                        background: 'linear-gradient(to right, #ef4444, rgba(148, 163, 184, 0.4), #2563eb)',
+                        border: `1px solid ${themeStyles.border}`,
+                      }}
+                    />
+                    <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#2563eb', fontWeight: 700 }}>+1.0</span>
+                  </div>
+
+                  <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, display: 'flex', gap: '6px' }}>
+                    <span>*** p &lt; 0.001</span>
+                    <span>** p &lt; 0.01</span>
+                    <span>* p &lt; 0.05</span>
+                    <span>ns: p ≥ 0.05</span>
+                  </div>
                 </div>
               </div>
 
@@ -3413,21 +2814,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 const currentMatrix = correlationMetric === 'pearson' ? pearsonMatrix : spearmanMatrix;
 
                 const getCellColor = (val: number) => {
-                  if (val === 1.0) return isDark ? 'rgba(37, 99, 235, 0.40)' : 'rgba(37, 99, 235, 0.20)';
-                  if (val <= -0.05) return isDark ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.20)';
-                  if (val < 0) return isDark ? 'rgba(239, 68, 68, 0.20)' : 'rgba(239, 68, 68, 0.10)';
-                  if (val >= 0.7) return isDark ? 'rgba(37, 99, 235, 0.45)' : 'rgba(37, 99, 235, 0.28)';
-                  if (val >= 0.3) return isDark ? 'rgba(59, 130, 246, 0.35)' : 'rgba(59, 130, 246, 0.18)';
-                  if (val >= 0.08) return isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(99, 102, 241, 0.12)';
+                  if (val === 1.0) return isDark ? 'rgba(37, 99, 235, 0.45)' : 'rgba(37, 99, 235, 0.25)';
+                  if (val < 0) {
+                    const alpha = Math.min(0.40, Math.max(0.08, Math.abs(val) * 0.45));
+                    return `rgba(239, 68, 68, ${alpha.toFixed(2)})`;
+                  }
+                  if (val > 0) {
+                    const alpha = Math.min(0.45, Math.max(0.08, val * 0.45));
+                    return `rgba(37, 99, 235, ${alpha.toFixed(2)})`;
+                  }
                   return isDark ? 'rgba(148, 163, 184, 0.10)' : 'rgba(203, 213, 225, 0.25)';
                 };
 
                 const getTextColor = (val: number) => {
                   if (val === 1.0) return isDark ? '#93c5fd' : '#1d4ed8';
-                  if (val < 0) return '#ef4444';
-                  if (val >= 0.7) return isDark ? '#60a5fa' : '#1d4ed8';
-                  if (val >= 0.3) return isDark ? '#93c5fd' : '#2563eb';
-                  if (val >= 0.08) return isDark ? '#a5b4fc' : '#4f46e5';
+                  if (val < -0.05) return '#ef4444';
+                  if (val >= 0.5) return isDark ? '#60a5fa' : '#1d4ed8';
+                  if (val >= 0.2) return isDark ? '#93c5fd' : '#2563eb';
+                  if (val >= 0.05) return isDark ? '#a5b4fc' : '#4f46e5';
                   return themeStyles.textSecondary;
                 };
 
@@ -4176,73 +3580,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         )}
       </div>
 
-      {/* ============================================================== */}
-      {/* FLOATING HOVER TOOLTIP FOR CHARTS                              */}
-      {/* ============================================================== */}
-      {/* FLOATING HOVER TOOLTIPS                                        */}
-      {/* ============================================================== */}
-
-      {hoveredBar && (
-        <div
-          style={{
-            position: 'fixed',
-            left: `${hoveredBar.x}px`,
-            top: `${hoveredBar.y}px`,
-            transform: 'translate(-50%, -100%)',
-            backgroundColor: 'var(--tooltip-bg)',
-            color: 'var(--tooltip-text)',
-            padding: '6px 10px',
-            borderRadius: '6px',
-            boxShadow: 'var(--card-shadow)',
-            zIndex: 90,
-            pointerEvents: 'none',
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            border: '1px solid var(--tooltip-border)',
-          }}
-        >
-          <div style={{ fontWeight: 800, color: getCategoryColor(hoveredBar.category) }}>
-            {hoveredBar.category}
-          </div>
-          <div style={{ marginTop: '2px' }}>
-            {language === 'vi' ? 'Số bài:' : 'Papers:'} <strong>{hoveredBar.count.toLocaleString()}</strong> ({((hoveredBar.count / (overview.total_papers || 10000)) * 100).toFixed(1)}%)
-          </div>
-          <div style={{ color: '#ea580c' }}>
-            {language === 'vi' ? 'Công thức:' : 'Formulas:'} <strong>{hoveredBar.math.toLocaleString()}</strong> (avg {(hoveredBar.math / hoveredBar.count).toFixed(1)}/paper)
-          </div>
-        </div>
-      )}
-
-      {hoveredTimelineYear && (
-        <div
-          style={{
-            position: 'fixed',
-            left: `${hoveredTimelineYear.x}px`,
-            top: `${hoveredTimelineYear.y}px`,
-            transform: 'translate(-50%, -100%)',
-            backgroundColor: 'var(--tooltip-bg)',
-            color: 'var(--tooltip-text)',
-            padding: '6px 10px',
-            borderRadius: '6px',
-            boxShadow: 'var(--card-shadow)',
-            zIndex: 90,
-            pointerEvents: 'none',
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            border: '1px solid var(--tooltip-border)',
-          }}
-        >
-          <div style={{ fontWeight: 800, color: 'var(--accent-silver)' }}>
-            {language === 'vi' ? 'Thời kỳ:' : 'Period:'} {hoveredTimelineYear.year}
-          </div>
-          <div style={{ marginTop: '2px' }}>
-            {language === 'vi' ? 'Bài báo xuất bản:' : 'Published papers:'} <strong>{hoveredTimelineYear.count.toLocaleString()}</strong>
-          </div>
-          <div style={{ color: 'var(--accent-emerald)' }}>
-            {language === 'vi' ? 'Tỷ trọng:' : 'Share:'} <strong>{hoveredTimelineYear.pct}</strong>
-          </div>
-        </div>
-      )}
 
       {/* ============================================================== */}
       {/* FLOATING LIVE ANOMALY TOAST ALERT BANNER                       */}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, type FC, type MouseEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
 import type { Diagnostic3Lenses } from '../../types';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom } from '../../hooks';
@@ -24,6 +24,8 @@ interface ThreeLensesDiagnosticViewProps {
   onSelectPaper: (paper: ScatterPaperPoint) => void;
   selectedPaperId?: string;
   onShowToast: (msg: string) => void;
+  activeTab?: 'lens3_bivariate' | 'lens2_univariate' | 'governance';
+  onTabChange?: (tab: 'lens3_bivariate' | 'lens2_univariate' | 'governance') => void;
 }
 
 export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
@@ -35,11 +37,22 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   onSelectPaper,
   selectedPaperId,
   onShowToast,
+  activeTab: propActiveTab,
+  onTabChange,
 }) => {
   const isDark = theme === 'dark';
 
   // Sub-tab switcher across the Three Lenses (§6.1 - §6.4)
-  const [activeTab, setActiveTab] = useState<'lens3_bivariate' | 'lens2_univariate' | 'governance'>('lens3_bivariate');
+  const [internalTab, setInternalTab] = useState<'lens3_bivariate' | 'lens2_univariate' | 'governance'>(propActiveTab || 'lens3_bivariate');
+  const activeTab = propActiveTab || internalTab;
+  const setActiveTab = (tab: 'lens3_bivariate' | 'lens2_univariate' | 'governance') => {
+    setInternalTab(tab);
+    onTabChange?.(tab);
+  };
+
+  useEffect(() => {
+    if (propActiveTab) setInternalTab(propActiveTab);
+  }, [propActiveTab]);
 
   // Pair selection in Lens 3 (default: words_x_math_density from lecture case study)
   const [selectedPairKey, setSelectedPairKey] = useState<string>('words_x_math_density');
