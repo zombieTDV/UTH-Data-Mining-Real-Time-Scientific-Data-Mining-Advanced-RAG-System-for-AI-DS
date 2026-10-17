@@ -40,6 +40,7 @@ class Settings(BaseSettings):
 
     # Qdrant Vector Database
     QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_HOST: str = "http://localhost:6333"
     QDRANT_COLLECTION: str = "scientific_papers_gold"
 
     # RabbitMQ Message Broker
