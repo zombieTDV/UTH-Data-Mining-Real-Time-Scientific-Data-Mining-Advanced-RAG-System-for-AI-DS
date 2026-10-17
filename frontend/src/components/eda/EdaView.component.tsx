@@ -1613,7 +1613,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         )}
 
         {/* ------------------------------------------------------------ */}
-        {/* SUB-DECK 6: QUY TẮC ĐIỀU HƯỚNG LAKEHOUSE (§6.4 GOVERNANCE)    */}
+        {/* SUB-DECK 6: QUY TẮC ĐIỀU HƯỚNG LAKEHOUSE (PIPELINE GOVERNANCE) */}
         {/* ------------------------------------------------------------ */}
         {activeDeck === 'governance' && (
           <ThreeLensesDiagnosticView

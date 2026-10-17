@@ -166,19 +166,6 @@ export const InteractiveQqPlot: FC<InteractiveQqPlotProps> = ({
           <span style={{ fontSize: '11px', fontWeight: 800, color: colors.textPrimary, letterSpacing: '0.02em' }}>
             Q-Q PLOT (NORMAL QUANTILE-QUANTILE)
           </span>
-          <span
-            style={{
-              fontSize: '9px',
-              fontFamily: 'var(--font-mono)',
-              padding: '1px 5px',
-              borderRadius: '4px',
-              backgroundColor: isDark ? 'rgba(220, 38, 38, 0.15)' : '#fee2e2',
-              color: '#dc2626',
-              fontWeight: 700,
-            }}
-          >
-            §6.2 Kiểm định Chuẩn tắc
-          </span>
         </div>
 
         {/* Transformation Playground Mode Selector */}
@@ -599,57 +586,6 @@ export const InteractiveQqPlot: FC<InteractiveQqPlotProps> = ({
             </div>
           </div>
         )}
-      </div>
-
-      {/* Diagnostic Verdict & Actionable Callout Banner */}
-      <div
-        style={{
-          marginTop: '6px',
-          padding: '6px 10px',
-          borderRadius: '5px',
-          backgroundColor: isDark ? 'rgba(234, 88, 12, 0.08)' : 'rgba(234, 88, 12, 0.05)',
-          border: `1px solid ${transformMode === 'raw' ? 'rgba(234, 88, 12, 0.25)' : 'rgba(16, 185, 129, 0.25)'}`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '3px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <span
-            style={{
-              fontSize: '10px',
-              fontWeight: 800,
-              color: transformMode === 'raw' ? '#ea580c' : '#10b981',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            <span>⚡ DIỄN GIẢI THỰC NGHIỆM (§6.2 &amp; §6.4):</span>
-            <span style={{ fontWeight: 600, color: colors.textSecondary }}>
-              {transformMode === 'raw'
-                ? 'Đường cong lồi hướng xuống (Heavy Right-Skew)'
-                : 'Tuyến tính hóa thành công (Near-Normal)'}
-            </span>
-          </span>
-          <span
-            style={{
-              fontSize: '9px',
-              fontFamily: 'var(--font-mono)',
-              color: transformMode === 'raw' ? '#dc2626' : '#10b981',
-              fontWeight: 700,
-            }}
-          >
-            {transformMode === 'raw'
-              ? `Skewness S = +${univariate.skewness}`
-              : 'Skewness S ≈ +0.12'}
-          </span>
-        </div>
-        <p style={{ margin: 0, fontSize: '9.5px', color: colors.textSecondary, lineHeight: 1.35 }}>
-          {transformMode === 'raw'
-            ? `Các điểm phân vị thực tế uốn cong xuống dưới trục chuẩn và bứt phá vọt trần ở đuôi phải (> +1.5σ), phản ánh hiện tượng đuôi dày (Heavy-tailed). Bắt buộc áp dụng tiền xử lý Log-scaling (§6.4) trước khi tính khoảng cách Cosine trong RAG.`
-            : `Phép biến đổi y' = ln(1 + y) đã kéo các phân vị ngoại lai đuôi phải về sát đường chéo 45° trong dải tin cậy 95%. Phân phối đạt tính đối xứng Gauss, triệt tiêu hiện tượng loãng khoảng cách vector embedding.`}
-        </p>
       </div>
     </div>
   );

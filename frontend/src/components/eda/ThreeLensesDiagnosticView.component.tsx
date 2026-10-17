@@ -258,23 +258,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               ? 'TƯƠNG TÁC ĐA BIẾN & PHÂN CỤM GMM 2D (BIVARIATE INTERACTIONS & GMM)'
               : activeTab === 'lens2_univariate'
               ? 'PHÂN PHỐI ĐƠN BIẾN & KIỂM ĐỊNH CHUẨN TẮC Q-Q (UNIVARIATE & NORMALITY)'
-              : 'MA TRẬN QUY TẮC ĐIỀU HƯỚNG LAKEHOUSE (§6.4 GOVERNANCE)'}
+              : 'MA TRẬN QUY TẮC ĐIỀU HƯỚNG LAKEHOUSE (PIPELINE GOVERNANCE)'}
           </h3>
-          <span
-            style={{
-              fontSize: '9px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              padding: '1px 5px',
-              borderRadius: '3px',
-              backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#e0f2fe',
-              color: isDark ? '#38bdf8' : '#0369a1',
-              border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
-              flexShrink: 0,
-            }}
-          >
-            {activeTab === 'lens3_bivariate' ? 'LECTURE §6.3' : activeTab === 'lens2_univariate' ? 'LECTURE §6.2' : 'LECTURE §6.4'}
-          </span>
         </div>
 
         {/* Right side: Statistical metrics for Bivariate + Toolbar */}
@@ -387,7 +372,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 Cặp biến:
               </span>
               {[
-                { key: 'words_x_math_density', label: 'Mật độ Toán × Từ (§6.3)' },
+                { key: 'words_x_math_density', label: 'Mật độ Toán × Từ' },
                 { key: 'math_x_authors', label: 'Toán × Tác giả' },
                 { key: 'words_x_math', label: 'Số từ × Công thức' },
                 { key: 'words_x_citations', label: 'Số từ × Trích dẫn' },
@@ -569,7 +554,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   whiteSpace: 'nowrap',
                 }}
               >
-                <span>⚠️ <strong>{activePair.warning.badge}</strong>: {activePair.warning.title}</span>
+                <span>⚠️ <strong>{activePair.warning.badge?.replace(/BÀI GIẢNG\s*§[0-9.]+/gi, 'QUAN TRỌNG').replace(/§[0-9.]+/gi, '').trim() || 'LƯU Ý'}</strong>: {activePair.warning.title}</span>
                 <span style={{ opacity: 0.8, fontSize: '9px' }}>ⓘ</span>
               </div>
             )}
@@ -975,7 +960,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary }}>
-                    QUY HOẠCH 4 PHÂN VỊ (§6.3)
+                    QUY HOẠCH 4 PHÂN VỊ
                   </span>
                   <button
                     type="button"
@@ -1425,31 +1410,10 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
       )}
 
       {/* ---------------------------------------------------------------- */}
-      {/* TAB 3: DOWNSTREAM PIPELINE GOVERNANCE (§6.4)                      */}
+      {/* TAB 3: DOWNSTREAM PIPELINE GOVERNANCE                            */}
       {/* ---------------------------------------------------------------- */}
       {activeTab === 'governance' && (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '8px', overflowY: 'auto' }}>
-          <div
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              backgroundColor: isDark ? 'rgba(56, 189, 248, 0.1)' : '#f0f9ff',
-              border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ fontSize: '11px', color: themeStyles.textPrimary }}>
-              <strong style={{ color: '#0284c7' }}>BÀI GIẢNG §6.4: </strong>
-              <span>Hình học dữ liệu thực nghiệm quyết định cấu trúc bắt buộc của các bước tiền xử lý &amp; học máy.</span>
-            </div>
-            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#0284c7' }}>
-              4 QUY TẮC ĐÃ ÁP DỤNG TRÊN LAKEHOUSE
-            </span>
-          </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', flex: 1 }}>
             {diagnosticData?.downstream_governance?.map((gov) => (
               <div
@@ -1504,7 +1468,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     lineHeight: 1.35,
                   }}
                 >
-                  <strong style={{ color: themeStyles.textPrimary }}>Yêu cầu kiến trúc (§6.4): </strong>
+                  <strong style={{ color: themeStyles.textPrimary }}>Yêu cầu kiến trúc: </strong>
                   {gov.pipeline_requirement}
                 </div>
 
