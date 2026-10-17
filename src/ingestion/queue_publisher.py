@@ -96,3 +96,8 @@ class RabbitMQPublisher:
                 self._connection.close()
         except Exception:
             pass
+
+
+# Backward compatibility alias
+QueuePublisher = RabbitMQPublisher
+

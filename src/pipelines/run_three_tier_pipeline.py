@@ -79,23 +79,19 @@ def get_architecture_status() -> Dict[str, Any]:
     for p_file in silver_dir.glob("**/papers.parquet"):
         total_silver_papers += count_parquet(p_file)
 
-    # LanceDB Gold Count
-    lancedb_count = 0
-    gold_dir = settings.ROOT_DIR / "data" / "gold" / "lancedb"
-    if gold_dir.exists():
-        try:
-            import lancedb
-            db = lancedb.connect(str(gold_dir))
-            if "scientific_papers_gold" in db.table_names():
-                tbl = db.open_table("scientific_papers_gold")
-                lancedb_count = tbl.count_rows()
-        except Exception:
-            pass
+    # Qdrant Gold Count
+    qdrant_count = 0
+    try:
+        from src.indexing.qdrant_manager import QdrantManager
+        qm = QdrantManager()
+        qdrant_count = qm.count()
+    except Exception:
+        pass
 
     return {
         "total_unique_abstract_hashes": total_hashes,
         "total_silver_papers": total_silver_papers,
-        "lancedb_gold_vectors": lancedb_count,
+        "qdrant_gold_vectors": qdrant_count,
         "tier1": {
             "name": "Tier 1: Historical Core (Landmarks)",
             "raw_bronze": t1_raw_count,
@@ -122,7 +118,7 @@ def print_status_table():
     st = get_architecture_status()
     print("\n" + "=" * 80)
     print("  3-TIER SCIENTIFIC DATA ARCHITECTURE: LAKEHOUSE & VECTOR STATUS")
-    print(f"  Indexed Abstract Hashes: {st['total_unique_abstract_hashes']:,} | LanceDB Gold Vectors: {st['lancedb_gold_vectors']:,}")
+    print(f"  Indexed Abstract Hashes: {st['total_unique_abstract_hashes']:,} | Qdrant Gold Vectors: {st['qdrant_gold_vectors']:,}")
     print("=" * 80)
 
     rows = []
