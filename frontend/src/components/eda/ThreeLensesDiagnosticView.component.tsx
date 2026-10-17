@@ -743,28 +743,38 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       stroke={isDark ? '#0f172a' : '#ffffff'}
                       strokeWidth="1.5"
                     />
-                    {/* Cluster Label Badge */}
-                    <rect
-                      x={cx - 60}
-                      y={cy - safeRy - 20}
-                      width="120"
-                      height="17"
-                      rx="3"
-                      fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)'}
-                      stroke={c.color}
-                      strokeWidth="1"
-                    />
-                    <text
-                      x={cx}
-                      y={cy - safeRy - 8}
-                      textAnchor="middle"
-                      fontSize="9"
-                      fontFamily="var(--font-mono)"
-                      fontWeight="800"
-                      fill={c.color}
-                    >
-                      {c.name} ({(c.weight * 100).toFixed(0)}%)
-                    </text>
+                    {/* Cluster Label Badge (Dynamically placed to avoid clipping at canvas top) */}
+                    {(() => {
+                      const isNearTop = cy - safeRy - 22 < 20;
+                      const badgeY = isNearTop ? cy + safeRy + 8 : cy - safeRy - 20;
+                      const textY = isNearTop ? cy + safeRy + 20 : cy - safeRy - 8;
+                      const badgeX = Math.max(65, Math.min(790, cx - 60));
+                      return (
+                        <g>
+                          <rect
+                            x={badgeX}
+                            y={badgeY}
+                            width="120"
+                            height="17"
+                            rx="3"
+                            fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)'}
+                            stroke={c.color}
+                            strokeWidth="1"
+                          />
+                          <text
+                            x={badgeX + 60}
+                            y={textY}
+                            textAnchor="middle"
+                            fontSize="9"
+                            fontFamily="var(--font-mono)"
+                            fontWeight="800"
+                            fill={c.color}
+                          >
+                            {c.name} ({(c.weight * 100).toFixed(0)}%)
+                          </text>
+                        </g>
+                      );
+                    })()}
                   </g>
                 );
               })}
@@ -822,15 +832,26 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       strokeWidth="3.2"
                       strokeLinecap="round"
                     />
+                    <rect
+                      x="180"
+                      y="26"
+                      width="230"
+                      height="18"
+                      rx="3"
+                      fill={isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.94)'}
+                      stroke="rgba(234, 88, 12, 0.45)"
+                      strokeWidth="1"
+                    />
                     <text
-                      x="240"
-                      y="40"
+                      x="295"
+                      y="38.5"
+                      textAnchor="middle"
                       fill="#ea580c"
                       fontSize="9"
                       fontFamily="var(--font-mono)"
                       fontWeight="800"
                     >
-                      ★ Xu hướng phi tuyến thực nghiệm (MI={activePair.mutual_information})
+                      ★ Xu hướng phi tuyến (MI={activePair.mutual_information})
                     </text>
                   </g>
                 );
@@ -1020,125 +1041,129 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               </button>
             )}
 
-            {/* Hover Tooltip Popup Card */}
-            {hoveredPoint && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '12px',
-                  right: '12px',
-                  maxWidth: '350px',
-                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
-                  border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
-                  borderRadius: '6px',
-                  padding: '10px 12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  pointerEvents: 'none',
-                  zIndex: 20,
-                  backdropFilter: 'blur(6px)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#38bdf8' }}>
-                    {hoveredPoint.id}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      padding: '1px 5px',
-                      borderRadius: '3px',
-                      backgroundColor: getCatColor(hoveredPoint.category),
-                      color: '#ffffff',
-                    }}
-                  >
-                    {hoveredPoint.category}
-                  </span>
-                </div>
+            {/* Hover Tooltip Popup Card (Dynamically flipped to opposite side to avoid covering inspected points) */}
+            {hoveredPoint && (() => {
+              const cx = 60 + Math.min(850, Math.max(0, (hoveredPoint.x / maxX) * 850));
+              const isRightSide = cx > 480;
+              return (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    ...(isRightSide ? { left: '12px' } : { right: '12px' }),
+                    maxWidth: '350px',
+                    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                    border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#bae6fd'}`,
+                    borderRadius: '6px',
+                    padding: '10px 12px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    pointerEvents: 'none',
+                    zIndex: 20,
+                    backdropFilter: 'blur(6px)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#38bdf8' }}>
+                      {hoveredPoint.id}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontFamily: 'var(--font-mono)',
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        backgroundColor: getCatColor(hoveredPoint.category),
+                        color: '#ffffff',
+                      }}
+                    >
+                      {hoveredPoint.category}
+                    </span>
+                  </div>
 
-                {/* GMM Cluster Tag & Soft Posterior Probability Bar */}
-                {hoveredPoint.gmm_cluster !== undefined && (() => {
-                  const clusterProbs: number[] = hoveredPoint.gmm_all_probs || (() => {
-                    const p = hoveredPoint.gmm_prob ?? 0.85;
-                    const rem = Math.max(0, 1 - p) / 3;
-                    return [0, 1, 2, 3].map((c) => (c === hoveredPoint.gmm_cluster ? p : rem));
-                  })();
+                  {/* GMM Cluster Tag & Soft Posterior Probability Bar */}
+                  {hoveredPoint.gmm_cluster !== undefined && (() => {
+                    const clusterProbs: number[] = hoveredPoint.gmm_all_probs || (() => {
+                      const p = hoveredPoint.gmm_prob ?? 0.85;
+                      const rem = Math.max(0, 1 - p) / 3;
+                      return [0, 1, 2, 3].map((c) => (c === hoveredPoint.gmm_cluster ? p : rem));
+                    })();
 
-                  return (
-                    <div style={{ marginBottom: '6px', backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', padding: '5px 7px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span
-                          style={{
-                            fontSize: '9px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            padding: '1px 6px',
-                            borderRadius: '3px',
-                            backgroundColor: getPointColor(hoveredPoint),
-                            color: '#ffffff',
-                          }}
-                        >
-                          GMM Cụm {hoveredPoint.gmm_cluster + 1}: {activePair?.gmm_clusters?.[hoveredPoint.gmm_cluster]?.name?.split(':')[1] || `Cụm ${hoveredPoint.gmm_cluster + 1}`}
-                        </span>
-                        <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                          P(C|x) = <strong>{((hoveredPoint.gmm_prob ?? Math.max(...clusterProbs)) * 100).toFixed(1)}%</strong>
-                        </span>
-                      </div>
-
-                      {/* Soft Posterior Stacked Mini-Bar */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <div style={{ display: 'flex', height: '6px', borderRadius: '3px', overflow: 'hidden', border: `1px solid ${themeStyles.border}` }}>
-                          {clusterProbs.map((prob, idx) => {
-                            const cColor = activePair?.gmm_clusters?.[idx]?.color || ['#10b981', '#0284c7', '#f59e0b', '#8b5cf6'][idx];
-                            return (
-                              <div
-                                key={`prob-seg-${idx}`}
-                                style={{
-                                  width: `${Math.max(0, prob * 100)}%`,
-                                  backgroundColor: cColor,
-                                  transition: 'width 0.2s ease',
-                                }}
-                                title={`Cụm ${idx + 1}: ${(prob * 100).toFixed(1)}%`}
-                              />
-                            );
-                          })}
+                    return (
+                      <div style={{ marginBottom: '6px', backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', padding: '5px 7px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 800,
+                              padding: '1px 6px',
+                              borderRadius: '3px',
+                              backgroundColor: getPointColor(hoveredPoint),
+                              color: '#ffffff',
+                            }}
+                          >
+                            GMM Cụm {hoveredPoint.gmm_cluster + 1}: {activePair?.gmm_clusters?.[hoveredPoint.gmm_cluster]?.name?.split(':')[1] || `Cụm ${hoveredPoint.gmm_cluster + 1}`}
+                          </span>
+                          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                            P(C|x) = <strong>{((hoveredPoint.gmm_prob ?? Math.max(...clusterProbs)) * 100).toFixed(1)}%</strong>
+                          </span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                          {clusterProbs.map((prob, idx) => (
-                            <span key={`prob-lbl-${idx}`} style={{ color: idx === hoveredPoint.gmm_cluster ? getPointColor(hoveredPoint) : undefined, fontWeight: idx === hoveredPoint.gmm_cluster ? 800 : 400 }}>
-                              C{idx + 1}: {(prob * 100).toFixed(0)}%
-                            </span>
-                          ))}
+
+                        {/* Soft Posterior Stacked Mini-Bar */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div style={{ display: 'flex', height: '6px', borderRadius: '3px', overflow: 'hidden', border: `1px solid ${themeStyles.border}` }}>
+                            {clusterProbs.map((prob, idx) => {
+                              const cColor = activePair?.gmm_clusters?.[idx]?.color || ['#10b981', '#0284c7', '#f59e0b', '#8b5cf6'][idx];
+                              return (
+                                <div
+                                  key={`prob-seg-${idx}`}
+                                  style={{
+                                    width: `${Math.max(0, prob * 100)}%`,
+                                    backgroundColor: cColor,
+                                    transition: 'width 0.2s ease',
+                                  }}
+                                  title={`Cụm ${idx + 1}: ${(prob * 100).toFixed(1)}%`}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                            {clusterProbs.map((prob, idx) => (
+                              <span key={`prob-lbl-${idx}`} style={{ color: idx === hoveredPoint.gmm_cluster ? getPointColor(hoveredPoint) : undefined, fontWeight: idx === hoveredPoint.gmm_cluster ? 800 : 400 }}>
+                                C{idx + 1}: {(prob * 100).toFixed(0)}%
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
+                    );
+                  })()}
+
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: themeStyles.textPrimary, marginBottom: '4px', lineHeight: 1.25 }}>
+                    {hoveredPoint.title}
+                  </div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+                    {hoveredPoint.author}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ color: '#2563eb' }}>
+                      {activePair.x_label}: <strong>{hoveredPoint.x.toLocaleString()}</strong>
                     </div>
-                  );
-                })()}
-
-                <div style={{ fontSize: '11px', fontWeight: 700, color: themeStyles.textPrimary, marginBottom: '4px', lineHeight: 1.25 }}>
-                  {hoveredPoint.title}
-                </div>
-                <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
-                  {hoveredPoint.author}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
-                  <div style={{ color: '#2563eb' }}>
-                    {activePair.x_label}: <strong>{hoveredPoint.x.toLocaleString()}</strong>
-                  </div>
-                  <div style={{ color: '#ea580c' }}>
-                    {activePair.y_label}: <strong>{hoveredPoint.y.toLocaleString()}</strong>
-                  </div>
-                </div>
-                {hoveredPoint.sampleFormula && (
-                  <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.border}` }}>
-                    <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>MẪU LATEX TOÀN VĂN:</div>
-                    <div style={{ fontSize: '10px', color: '#10b981', overflow: 'hidden' }}>
-                      <ScientificMath math={hoveredPoint.sampleFormula} block={false} />
+                    <div style={{ color: '#ea580c' }}>
+                      {activePair.y_label}: <strong>{hoveredPoint.y.toLocaleString()}</strong>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                  {hoveredPoint.sampleFormula && (
+                    <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.border}` }}>
+                      <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>MẪU LATEX TOÀN VĂN:</div>
+                      <div style={{ fontSize: '10px', color: '#10b981', overflow: 'hidden' }}>
+                        <ScientificMath math={hoveredPoint.sampleFormula} block={false} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

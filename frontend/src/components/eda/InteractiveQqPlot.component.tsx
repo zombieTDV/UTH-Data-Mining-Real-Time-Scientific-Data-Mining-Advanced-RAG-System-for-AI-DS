@@ -440,9 +440,11 @@ export const InteractiveQqPlot: FC<InteractiveQqPlotProps> = ({
             const cx = toX(z);
             const cy = toY(targetEmpirical);
 
-            // Compute actual vs expected values in native units for tooltip probe
-            const actualVal = Math.round((univariate.mean + pt.empirical * univariate.std) * 10) / 10;
-            const expectedVal = Math.round((univariate.mean + z * univariate.std) * 10) / 10;
+            // Compute actual vs expected values in native units for tooltip probe (non-negative for count metrics)
+            const rawActual = univariate.mean + pt.empirical * univariate.std;
+            const rawExpected = univariate.mean + z * univariate.std;
+            const actualVal = Math.max(0, Math.round(rawActual * 10) / 10);
+            const expectedVal = Math.max(0, Math.round(rawExpected * 10) / 10);
 
             const circleFill =
               transformMode === 'log1p'

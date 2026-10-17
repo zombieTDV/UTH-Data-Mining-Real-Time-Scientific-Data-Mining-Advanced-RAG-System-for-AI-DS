@@ -938,8 +938,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             {['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                 {[
-                  { id: 'scatter' as DeckType, label: '☍ GMM 2D' },
-                  { id: 'combo' as DeckType, label: '◬ Q-Q & Chuẩn' },
+                  { id: 'scatter' as DeckType, label: '☍ Đa Biến & GMM' },
+                  { id: 'combo' as DeckType, label: '◬ Đơn Biến & Q-Q' },
                   { id: 'taxonomy' as DeckType, label: '☷ Chuyên Ngành' },
                   { id: 'correlations' as DeckType, label: '📐 Tương Quan' },
                 ].map((deck) => {
@@ -1008,6 +1008,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           {/* Right: Lakehouse Live Badge, Outlier Test, Focus & Selected */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <div
+              title={language === 'vi' ? 'Lakehouse Corpus: 13,000 bài khoa học tinh chế từ 29,911 bài Bronze ban đầu (Loại bỏ tài liệu ngắn/thiếu văn bản)' : 'Lakehouse Corpus: 13,000 refined papers from initial 29,911 Bronze harvest'}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1020,6 +1021,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 fontFamily: 'var(--font-mono)',
                 color: isDark ? '#4ade80' : '#166534',
                 fontWeight: 700,
+                cursor: 'help',
               }}
             >
               <span
@@ -1121,14 +1123,26 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '6px',
-            flexWrap: 'wrap',
+            flexWrap: 'nowrap',
             paddingTop: '2px',
             borderTop: `1px solid ${themeStyles.borderSubtle}`,
           }}
         >
-          {/* Left: Category Slicers */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '9.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+          {/* Left: Category Slicers (Micro-scrollable) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              flexWrap: 'nowrap',
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
+              flex: 1,
+              minWidth: 0,
+              paddingRight: '6px',
+            }}
+          >
+            <span style={{ fontSize: '9.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, flexShrink: 0 }}>
               SLICER:
             </span>
 
@@ -1145,6 +1159,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 backgroundColor: selectedCategory === 'ALL' ? themeStyles.slicerAllActiveBg : themeStyles.cardInner,
                 color: selectedCategory === 'ALL' ? themeStyles.slicerAllActiveText : themeStyles.textSecondary,
                 cursor: 'pointer',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
               }}
             >
               TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
@@ -1171,6 +1187,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     display: 'flex',
                     alignItems: 'center',
                     gap: '3px',
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: isSelected ? '#ffffff' : color }} />
@@ -1181,7 +1199,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             })}
 
             {/* Math Density Filter */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', marginLeft: '6px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', marginLeft: '6px', flexShrink: 0 }}>
               <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
                 TOÁN:
               </span>
@@ -1200,6 +1218,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     color: selectedMathFilter === m ? '#ffffff' : themeStyles.textMuted,
                     border: `1px solid ${themeStyles.border}`,
                     cursor: 'pointer',
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {m === 'ALL' ? 'All' : m === 'HIGH' ? '>300' : m === 'MED' ? '100-300' : '<100'}
@@ -1209,7 +1229,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           </div>
 
           {/* Right: Quick KPIs & Telemetry */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9.5px', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9.5px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
             <div>
               <span style={{ color: themeStyles.textMuted }}>Σ TOÁN: </span>
               <strong style={{ color: '#ea580c' }}>{(filteredKpi.totalMath / 1_000_000).toFixed(2)}M</strong>
@@ -1236,6 +1256,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '3px',
+                whiteSpace: 'nowrap',
               }}
             >
               <span>{showTelemetry ? '▲' : '▼'}</span>
@@ -1250,7 +1271,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         <div
           style={{
             position: 'absolute',
-            top: '72px',
+            top: '64px',
             left: '12px',
             right: '12px',
             zIndex: 40,
@@ -1469,10 +1490,29 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       return (
                         <tr
                           key={idx}
+                          onClick={() => {
+                            setSelectedPaperForDrawer({
+                              id: paperId,
+                              title,
+                              category,
+                              words,
+                              formulas: mathCount,
+                              author: authors,
+                            });
+                          }}
                           style={{
                             borderBottom: `1px solid ${themeStyles.border}`,
                             backgroundColor: idx % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#f8fafc'),
+                            cursor: 'pointer',
+                            transition: 'background-color 0.15s ease',
                           }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = isDark ? 'rgba(56, 189, 248, 0.1)' : 'rgba(2, 132, 199, 0.06)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#f8fafc');
+                          }}
+                          title={language === 'vi' ? 'Nhấp để xem chi tiết bài báo (Abstract, Công thức KaTeX, BibTeX)' : 'Click to inspect paper details (Abstract, KaTeX math, BibTeX)'}
                         >
                           <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: '#38bdf8', fontWeight: 700 }}>
                             {paperId}
@@ -1497,7 +1537,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 if (onNavigateToRag) {
                                   onNavigateToRag(title);
                                 }
@@ -2941,13 +2982,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 </div>
                 <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '10px', color: themeStyles.textSecondary, lineHeight: '1.6' }}>
                   <li>
-                    <strong>{language === 'vi' ? 'Nghịch lý toán học vs tác giả (r = -0.104, p < 10⁻¹⁰): ' : 'Math vs Authors Paradox (r = -0.104, p < 10⁻¹⁰): '}</strong>
+                    <strong>{language === 'vi' ? 'Nghịch lý toán học vs tác giả (r = -0.066, p < 1e-15, ρ = -0.078): ' : 'Math vs Authors Paradox (r = -0.066, p < 1e-15, ρ = -0.078): '}</strong>
                     {language === 'vi'
                       ? 'Nghiên cứu toán lý thuyết thường do cá nhân hoặc nhóm nhỏ (1-2 người) phụ trách. Trái lại, các bài báo kỹ thuật hệ thống (LLM, Robotics) có nhóm tác giả đông (5-10 người) nhưng ít công thức lý thuyết thuần túy.'
                       : 'Theoretical math research is predominantly produced by individuals or small teams (1-2 authors). Conversely, systems-oriented papers (LLMs, Robotics) feature large author teams (5-10 researchers) with fewer pure theoretical equations.'}
                   </li>
                   <li>
-                    <strong>{language === 'vi' ? 'Khoảng cách Pearson vs Spearman (0.228 vs 0.483): ' : 'Pearson vs Spearman Divergence (0.228 vs 0.483): '}</strong>
+                    <strong>{language === 'vi' ? 'Khoảng cách Pearson vs Spearman (0.201 vs 0.335): ' : 'Pearson vs Spearman Divergence (0.201 vs 0.335): '}</strong>
                     {language === 'vi'
                       ? 'Phân phối số công thức tuân theo quy luật lũy thừa có đuôi dài cực đoan (Heavy-tailed Power Law), khiến Pearson bị nén. Kiểm định phi tham số Spearman phản ánh trung thực hơn quy luật đồng biến.'
                       : 'Equation counts follow an extreme heavy-tailed power law distribution, dampening Pearson r. The non-parametric Spearman rank test more faithfully reflects the monotonic co-growth.'}
