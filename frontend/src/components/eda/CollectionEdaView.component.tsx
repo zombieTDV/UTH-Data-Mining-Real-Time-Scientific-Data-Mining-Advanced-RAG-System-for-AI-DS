@@ -69,12 +69,9 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
   const {
     totalCorpus,
     isStreaming,
-    streamSpeed,
     sessionIngested,
     storageStats,
     storageUsedGb,
-    isSyncingR2,
-    lastSyncedR2,
   } = useLakehouseStreamStore();
 
   // Interactive UI States
@@ -121,18 +118,6 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
     collectionData?.total_size_gb ??
     8.28;
 
-  const ingestionPpm = isStreaming && streamSpeed > 0
-    ? Number(streamSpeed.toFixed(1))
-    : collectionData?.ingestion_rate_ppm ?? 32.4;
-
-  const totalRawHarvested = storageStats?.sourceBreakdown
-    ? (storageStats.sourceBreakdown.arxiv || 25000) +
-      (storageStats.sourceBreakdown.openreview || 3000) +
-      (storageStats.sourceBreakdown.cvf || 1911)
-    : 34500;
-  const dedupRatePct = totalRawHarvested > baselineLakehousePapers
-    ? parseFloat((((totalRawHarvested - baselineLakehousePapers) / totalRawHarvested) * 100).toFixed(1))
-    : collectionData?.active_dedup_rate_pct ?? 14.8;
 
   // 2.3 Processing metrics (from processing_eda in R2 + live session delta)
   const baseMath = processingData?.total_math_formulas ?? 1469032;
@@ -536,113 +521,9 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
       `}</style>
 
       {/* ============================================================== */}
-      {/* 1. TOP LIVE R2 STATUS STRIP & RE-SYNC BUTTON                   */}
+      {/* 1. ACTIVE SLICER & SOURCE FILTER BANNER (Khi có bộ lọc kích hoạt) */}
       {/* ============================================================== */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '4px 10px',
-          borderRadius: '6px',
-          backgroundColor: themeStyles.cardBg,
-          border: `1px solid ${themeStyles.border}`,
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
-            style={{
-              width: '7px',
-              height: '7px',
-              borderRadius: '50%',
-              backgroundColor: '#10b981',
-              animation: 'r2PulseRadar 2s infinite',
-            }}
-          />
-          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary }}>
-            CLOUDFLARE R2 DATA LAKEHOUSE
-          </span>
-          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-            • BUCKET: <strong style={{ color: '#38bdf8' }}>scientific-rag-lakehouse</strong> • QUY MÔ: <strong style={{ color: '#10b981' }}>{totalSizeGb.toFixed(2)} GB</strong> • TỐC ĐỘ: <strong style={{ color: '#ea580c' }}>{ingestionPpm} PPM</strong> • DEDUP: <strong style={{ color: '#8b5cf6' }}>{dedupRatePct}%</strong>
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {selectedSource !== 'ALL' && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedSource('ALL');
-                onShowToast?.('Đã xóa bộ lọc nguồn');
-              }}
-              style={{
-                padding: '2px 7px',
-                borderRadius: '4px',
-                fontSize: '9px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                color: '#ef4444',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                cursor: 'pointer',
-              }}
-            >
-              ✕ Xóa lọc nguồn: {selectedSource.toUpperCase()}
-            </button>
-          )}
-
-          {/* Dynamic Master Sync Telemetry Pill (Đồng bộ trực tiếp với Master Sync R2 trên HeaderBar) */}
-          <div
-            title={
-              isSyncingR2
-                ? 'Đang nhận tín hiệu đồng bộ từ Master Sync trên thanh Header...'
-                : 'Đã kết nối trực tiếp với Cloudflare R2 Lakehouse. Bấm nút "Sync Live R2" trên HeaderBar để cập nhật tức thì toàn hệ thống.'
-            }
-            style={{
-              padding: '2px 9px',
-              borderRadius: '4px',
-              fontSize: '9px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              backgroundColor: isSyncingR2
-                ? 'rgba(56, 189, 248, 0.18)'
-                : isDark
-                ? 'rgba(16, 185, 129, 0.12)'
-                : '#ecfdf5',
-              color: isSyncingR2 ? '#0284c7' : '#059669',
-              border: `1px solid ${isSyncingR2 ? 'rgba(56, 189, 248, 0.45)' : isDark ? 'rgba(16, 185, 129, 0.35)' : '#a7f3d0'}`,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              letterSpacing: '0.02em',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <span
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: isSyncingR2 ? '#38bdf8' : '#10b981',
-                animation: isSyncingR2 ? 'spinSync 0.8s linear infinite' : 'r2PulseRadar 2s infinite',
-              }}
-            />
-            <span>
-              {isSyncingR2
-                ? 'ĐANG SYNC R2 TỔNG...'
-                : lastSyncedR2
-                ? `R2 SYNCED: ${lastSyncedR2}`
-                : 'R2 AUTO-SYNC LIVE'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ============================================================== */}
-      {/* 2. ACTIVE SLICER FILTER BANNER (Khi có nút Slicer được kích hoạt)*/}
-      {/* ============================================================== */}
-      {(isFilteredByCategory || isFilteredByMath) && (
+      {(isFilteredByCategory || isFilteredByMath || selectedSource !== 'ALL') && (
         <div
           style={{
             display: 'flex',
@@ -657,8 +538,44 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
             flexShrink: 0,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: '#3b82f6', fontWeight: 800 }}>⚡ BỘ LỌC SLICER ĐANG ĐƯỢC ĐỒNG BỘ:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span style={{ color: '#3b82f6', fontWeight: 800 }}>⚡ BỘ LỌC ĐANG ĐỒNG BỘ:</span>
+            {selectedSource !== 'ALL' && (
+              <span
+                style={{
+                  backgroundColor: '#0284c7',
+                  color: '#ffffff',
+                  padding: '1px 6px',
+                  borderRadius: '3px',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                NGUỒN: {selectedSource.toUpperCase()}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedSource('ALL');
+                    onShowToast?.('Đã xóa bộ lọc nguồn');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontWeight: 900,
+                    fontSize: '10px',
+                  }}
+                  title="Xóa lọc nguồn"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
             {isFilteredByCategory && (
               <span style={{ backgroundColor: '#2563eb', color: '#ffffff', padding: '1px 6px', borderRadius: '3px', fontWeight: 800 }}>
                 CHUYÊN NGÀNH: {selectedCategory} ({displayedTotalPapers.toLocaleString()} bài • {activeCategoryData ? `${activeCategoryData.percentage.toFixed(1)}%` : `${filteredKpi?.sharePercent || '23.8'}%`})
@@ -674,9 +591,10 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
           <button
             type="button"
             onClick={() => {
+              setSelectedSource('ALL');
               onSelectCategory?.('ALL');
               onSelectMathFilter?.('ALL');
-              onShowToast?.('Đã đặt lại toàn bộ bộ lọc Slicer');
+              onShowToast?.('Đã đặt lại toàn bộ bộ lọc Slicer & Nguồn');
             }}
             style={{
               padding: '1px 6px',
@@ -688,6 +606,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
               color: '#ef4444',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
             ✕ ĐẶT LẠI TẤT CẢ ({baselineLakehousePapers.toLocaleString()} bài)

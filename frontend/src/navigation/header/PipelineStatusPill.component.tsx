@@ -11,6 +11,10 @@ export interface PipelineStatusPillProps {
   totalVectors?: number;
   streamSpeed?: number;
   sessionIngested?: number;
+  totalSizeGb?: number;
+  ingestionPpm?: number;
+  dedupRatePct?: number;
+  bucketName?: string;
 }
 
 export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
@@ -21,6 +25,10 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
   totalVectors = 913205,
   streamSpeed = 0,
   sessionIngested = 0,
+  totalSizeGb = 8.28,
+  ingestionPpm = 32.4,
+  dedupRatePct = 14.8,
+  bucketName = 'scientific-rag-lakehouse',
 }) => {
   const { language } = useTranslation();
 
@@ -39,17 +47,32 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
     ? '0 0 10px rgba(6, 182, 212, 0.45)'
     : '0 0 8px rgba(16, 185, 129, 0.35)';
 
+  const tooltipContent =
+    language === 'vi'
+      ? `TRUNG TÂM GIÁM SÁT HẠ TẦNG & DỮ LIỆU LAKEHOUSE:
+• Cloudflare R2 Bucket: ${bucketName}
+• Quy mô lưu trữ Lakehouse: ${totalSizeGb.toFixed(2)} GB (Bronze/Silver/Gold)
+• Tốc độ thu nạp (CDC): ${ingestionPpm} PPM | Khử trùng lặp (Dedup): ${dedupRatePct}%
+• Toàn văn bài báo đã xác minh: ${totalPapers.toLocaleString()} bài
+• Công thức toán học (DuckDB AST): ${totalFormulas.toLocaleString()}
+• LanceDB Vector Embeddings (IVF-PQ 768-dim): ${totalVectors.toLocaleString()} vectors
+• Trạng thái: ${isRunning ? 'Đang chạy Ingestion/Embedding Pipeline' : streamActive ? `Đang nhận CDC Stream (${streamSpeed} bài/phút)` : 'Lakehouse Sẵn sàng phục vụ RAG & Mining'}`
+      : `LAKEHOUSE INFRASTRUCTURE & DATA TELEMETRY CENTER:
+• Cloudflare R2 Bucket: ${bucketName}
+• Lakehouse Storage Footprint: ${totalSizeGb.toFixed(2)} GB (Bronze/Silver/Gold)
+• Ingestion Rate (CDC): ${ingestionPpm} PPM | Deduplication Rate: ${dedupRatePct}%
+• Verified Full-Text Papers: ${totalPapers.toLocaleString()} works
+• Mathematical Formulas (DuckDB AST): ${totalFormulas.toLocaleString()}
+• LanceDB Vector Index (IVF-PQ 768-dim): ${totalVectors.toLocaleString()} embeddings
+• Status: ${isRunning ? 'Running Ingestion/Embedding Pipeline' : streamActive ? `Active CDC Stream (${streamSpeed} papers/min)` : 'Lakehouse Operational / Ready for RAG & Mining'}`;
+
   return (
     <div
-      title={
-        language === 'vi'
-          ? `Đồng bộ Lakehouse Thời gian thực:\n• Bài báo Toàn văn Đã xác minh: ${totalPapers.toLocaleString()} bài\n• Công thức toán học (DuckDB): ${totalFormulas.toLocaleString()}\n• LanceDB Vector Index (IVF-PQ): ${totalVectors.toLocaleString()} embeddings\n• Trạng thái: ${isRunning ? 'Đang chạy Ingestion/Embedding' : streamActive ? `Đang nhận CDC Stream (${streamSpeed} bài/phút)` : 'Sẵn sàng phục vụ RAG / Mining'}`
-          : `Real-Time Lakehouse Sync:\n• Verified Full-Text Papers: ${totalPapers.toLocaleString()}\n• Math Formulas (DuckDB): ${totalFormulas.toLocaleString()}\n• LanceDB Vector Index (IVF-PQ): ${totalVectors.toLocaleString()} embeddings\n• Status: ${isRunning ? 'Running Ingestion/Embedding' : streamActive ? `Active CDC Stream (${streamSpeed} papers/min)` : 'Standby / Ready for RAG'}`
-      }
+      title={tooltipContent}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '10px',
+        gap: '9px',
         backgroundColor: 'var(--badge-bg)',
         padding: '0 12px',
         height: '32px',
@@ -61,7 +84,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
         transition: 'all 0.2s ease',
       }}
     >
-      {/* Live Status Indicator */}
+      {/* 1. Live Pipeline Status Indicator */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <span
           style={{
@@ -75,7 +98,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
         />
         <span
           style={{
-            fontSize: '10.5px',
+            fontSize: '10px',
             fontWeight: 800,
             letterSpacing: '0.04em',
             color: statusColor,
@@ -92,9 +115,9 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
 
       <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-subtle)' }} />
 
-      {/* Real-time Metric Micro-Chips */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
-        {/* 1. Papers / Works */}
+      {/* 2. Core Data Corpus Metric Chips */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '10.5px' }}>
+        {/* Papers / Works */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -105,13 +128,13 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
           <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
             <AnimatedCounter value={totalPapers} />
           </span>
-          <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
             {language === 'vi' ? 'bài' : 'works'}
           </span>
           {sessionIngested > 0 && (
             <span
               style={{
-                fontSize: '9.5px',
+                fontSize: '9px',
                 fontWeight: 800,
                 color: 'var(--accent-cyan)',
                 backgroundColor: 'rgba(6, 182, 212, 0.12)',
@@ -126,25 +149,25 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
 
         <span style={{ color: 'var(--border-subtle)', fontSize: '9px' }}>•</span>
 
-        {/* 2. Math Formulas */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ color: '#f59e0b', fontWeight: 900, fontSize: '11px' }}>∑</span>
+        {/* Math Formulas */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <span style={{ color: '#ea580c', fontWeight: 900, fontSize: '10.5px' }}>∑</span>
           <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
             <AnimatedCounter
               value={totalFormulas}
               formatter={(v) => `${(v / 1000000).toFixed(2)}M`}
             />
           </span>
-          <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
-            {language === 'vi' ? 'công thức' : 'math'}
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
+            {language === 'vi' ? 'toán' : 'math'}
           </span>
         </div>
 
         <span style={{ color: 'var(--border-subtle)', fontSize: '9px' }}>•</span>
 
-        {/* 3. LanceDB Vectors */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        {/* LanceDB Vectors */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="12 2 2 7 12 12 22 7 12 2" />
             <polyline points="2 17 12 22 22 17" />
             <polyline points="2 12 12 17 22 12" />
@@ -152,8 +175,57 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
           <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
             <AnimatedCounter value={totalVectors} />
           </span>
-          <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
-            vectors
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
+            vec
+          </span>
+        </div>
+      </div>
+
+      <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-subtle)' }} />
+
+      {/* 3. Cloudflare R2 Lakehouse Infrastructure Micro-Telemetry */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '10px' }}>
+        {/* R2 Storage Footprint */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <span
+            style={{
+              fontSize: '8.5px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 800,
+              color: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+              padding: '1px 4px',
+              borderRadius: '3px',
+            }}
+          >
+            R2
+          </span>
+          <span style={{ fontWeight: 800, color: '#10b981' }}>
+            {totalSizeGb.toFixed(2)} GB
+          </span>
+        </div>
+
+        <span style={{ color: 'var(--border-subtle)', fontSize: '9px' }}>•</span>
+
+        {/* Ingestion Rate PPM */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <span style={{ fontWeight: 800, color: '#ea580c' }}>
+            {ingestionPpm}
+          </span>
+          <span style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
+            PPM
+          </span>
+        </div>
+
+        <span style={{ color: 'var(--border-subtle)', fontSize: '9px' }}>•</span>
+
+        {/* Dedup Rate */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <span style={{ fontWeight: 800, color: '#8b5cf6' }}>
+            {dedupRatePct}%
+          </span>
+          <span style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
+            DEDUP
           </span>
         </div>
       </div>
