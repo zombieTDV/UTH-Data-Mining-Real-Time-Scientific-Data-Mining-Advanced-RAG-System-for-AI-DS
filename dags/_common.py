@@ -82,13 +82,16 @@ def _clean(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
 
 
-def fetch_recent(cat: str, limit: int) -> List[Dict[str, Any]]:
-    """Newest papers of a category as normalized dicts.
+def fetch_recent(cat: str, limit: int, hours: int = 36) -> List[Dict[str, Any]]:
+    """Every new paper of a category as normalized dicts (up to `limit`).
 
-    Tries the daily RSS (new + cross-listed only, abstract prefix stripped). rss.arxiv.org returns an empty feed
-    on non-announcement days, so it falls back to the arXiv API sorted by submission date.
+    1. Daily RSS: all `new` and `cross`-listed entries (revisions are skipped, abstract prefix stripped).
+    2. rss.arxiv.org serves an empty feed on non-announcement days, so fall back to the arXiv API and take everything
+       submitted in the last `hours` hours (paginated, newest first), not just a handful of papers.
     """
     import re
+    import time
+    from datetime import datetime, timedelta, timezone
 
     import feedparser
 
@@ -108,14 +111,32 @@ def fetch_recent(cat: str, limit: int) -> List[Dict[str, Any]]:
         })
         if len(out) >= limit:
             return out
+    if out:
+        return out
 
-    if not out:
-        logger.info("RSS empty for %s; falling back to the arXiv API", cat)
+    # The API only lists announced papers, so on a weekend "now" is days after the newest paper. Anchor the window on the
+    # newest paper arXiv actually has, not on the wall clock.
+    newest = feedparser.parse(
+        f"https://export.arxiv.org/api/query?search_query=cat:{cat}&sortBy=submittedDate&sortOrder=descending&max_results=1",
+        request_headers=http_headers(),
+    ).entries
+    if not newest:
+        return out
+    anchor = datetime.fromisoformat(newest[0].published.replace("Z", "+00:00")).astimezone(timezone.utc)
+    window = f"[{(anchor - timedelta(hours=hours)).strftime('%Y%m%d%H%M')}+TO+{(anchor + timedelta(minutes=1)).strftime('%Y%m%d%H%M')}]"
+    logger.info("RSS empty for %s; falling back to the arXiv API (the %dh up to the newest paper, %s)", cat, hours, newest[0].published)
+    time.sleep(3)
+    start, page = 0, 200
+    while len(out) < limit:
         url = (
             "https://export.arxiv.org/api/query?"
-            f"search_query=cat:{cat}&sortBy=submittedDate&sortOrder=descending&max_results={limit}"
+            f"search_query=cat:{cat}+AND+submittedDate:{window}"
+            f"&start={start}&max_results={min(page, limit - len(out))}&sortBy=submittedDate&sortOrder=descending"
         )
-        for e in feedparser.parse(url, request_headers=http_headers()).entries:
+        entries = feedparser.parse(url, request_headers=http_headers()).entries
+        if not entries:
+            break
+        for e in entries:
             m = re.search(r"(\d{4}\.\d{4,5})", e.id)
             out.append({
                 "paper_id": m.group(1) if m else e.id.rsplit("/", 1)[-1],
@@ -124,6 +145,10 @@ def fetch_recent(cat: str, limit: int) -> List[Dict[str, Any]]:
                 "authors": [a.name for a in getattr(e, "authors", []) if hasattr(a, "name")],
                 "published": getattr(e, "published", ""),
             })
+        start += len(entries)
+        if len(entries) < page:
+            break
+        time.sleep(3)  # arXiv API terms: be polite between pages
     return out
 
 

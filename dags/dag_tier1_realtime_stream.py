@@ -21,7 +21,7 @@ from _common import emit, on_failure, categories, ensure_published, fetch_recent
 
 logger = logging.getLogger("airflow.task")
 local_tz = pendulum.timezone("Asia/Ho_Chi_Minh")
-PER_CATEGORY = 10
+PER_CATEGORY = 1000  # safety cap per category; a normal announcement day has a few hundred new papers
 
 default_args = {
     "on_failure_callback": on_failure,
@@ -37,7 +37,7 @@ default_args = {
 def harvest_tier1_realtime(**_context):
     harvested = queued = 0
     per_cat = {}
-    emit("INFO", "HARVEST", f"Tier 1 real-time harvest started ({PER_CATEGORY} newest per category).", tier="tier1")
+    emit("INFO", "HARVEST", f"Tier 1 real-time harvest started (every new paper per category, cap {PER_CATEGORY}).", tier="tier1")
     for cat in categories():
         got = 0
         for item in fetch_recent(cat, PER_CATEGORY):
