@@ -626,13 +626,16 @@ class EdaEngine:
             # Predict on full sample
             X_all_scaled = (X - mean_vec) / std_vec
             labels = gmm.predict(X_all_scaled)
-            probs = gmm.predict_proba(X_all_scaled).max(axis=1)
+            all_proba = gmm.predict_proba(X_all_scaled)
+            probs = all_proba.max(axis=1)
 
             # Sort clusters by X coordinate of unscaled mean
             unscaled_means = gmm.means_ * std_vec + mean_vec
             sorted_indices = np.argsort(unscaled_means[:, 0])
             label_remap = {old_i: new_i for new_i, old_i in enumerate(sorted_indices)}
             remapped_labels = [label_remap[int(l)] for l in labels]
+            remapped_all_proba = all_proba[:, sorted_indices]
+            all_probs_list = [[round(float(p), 3) for p in row] for row in remapped_all_proba]
 
             palette = [
                 {"name": "Cụm 1: Khảo luận & Báo cáo Ngắn", "badge": "SURVEY / BRIEF", "color": "#10b981"},
@@ -690,6 +693,7 @@ class EdaEngine:
                 "clusters": clusters_info,
                 "labels": remapped_labels,
                 "probs": [round(float(p), 3) for p in probs],
+                "all_probs": all_probs_list,
             }
         except Exception as e:
             logger.warning("[EDA] Error calculating GMM for pair (%s, %s): %s", xk, yk, e)
@@ -697,6 +701,7 @@ class EdaEngine:
                 "clusters": [],
                 "labels": [0] * len(df_sample),
                 "probs": [1.0] * len(df_sample),
+                "all_probs": [[0.25, 0.25, 0.25, 0.25]] * len(df_sample),
             }
 
     def _get_three_lenses_diagnostics(self) -> Dict[str, Any]:
@@ -991,6 +996,7 @@ class EdaEngine:
                         "sampleFormula": sample_formula,
                         "gmm_cluster": int(gmm_res["labels"][idx]) if idx < len(gmm_res["labels"]) else 0,
                         "gmm_prob": float(gmm_res["probs"][idx]) if idx < len(gmm_res["probs"]) else 1.0,
+                        "gmm_all_probs": gmm_res["all_probs"][idx] if "all_probs" in gmm_res and idx < len(gmm_res["all_probs"]) else [0.25, 0.25, 0.25, 0.25],
                     })
 
                 lens3_pairs[pid] = {

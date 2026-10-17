@@ -430,6 +430,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   // Ergonomic Visual & Viewport Expansion States
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
+  const [showTelemetry, setShowTelemetry] = useState<boolean>(false);
 
   // Pan & Zoom Controllers for Interactive SVG Charts
   const comboPanZoom = useSvgPanZoom({
@@ -1158,45 +1159,83 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           </div>
         </div>
 
-        {/* Data Inflow Pipeline Funnel Strip (Hidden in Focus Mode) */}
-        {!isFocusMode && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '6px',
-              backgroundColor: themeStyles.cardSubtle,
-              borderRadius: '6px',
-              padding: '4px 10px',
-              border: `1px solid ${themeStyles.border}`,
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>1. RAW INGEST:</span>
-              <strong style={{ color: themeStyles.textPrimary }}>{overview.total_papers?.toLocaleString() || '13,000'} papers</strong>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. FULL-TEXT RAG:</span>
-              <strong style={{ color: '#059669' }}>{(overview.fulltext_papers_count || 29911).toLocaleString()} (100.00%)</strong>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>3. LATEX MATH:</span>
-              <strong style={{ color: '#ea580c' }}>{overview.total_math_formulas ? `${(overview.total_math_formulas / 1000000).toFixed(2)}M` : '2.77M'} formulas</strong>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>4. DEEP CORPUS:</span>
-              <strong style={{ color: '#2563eb' }}>{overview.total_words ? `${(overview.total_words / 1000000).toFixed(2)}M` : '60.98M'} words</strong>
-            </div>
-          </div>
-        )}
+        {/* Data Inflow Pipeline Funnel Strip -> Consolidated into sleek ticker below */}
       </div>
 
       {/* ============================================================== */}
-      {/* 2. REAL-TIME DATA MINING 5-CHECKPOINT TELEMETRY STEPPER        */}
+      {/* 2. COMPACT SINGLE-ROW KPI TICKER & TELEMETRY TOGGLE             */}
       {/* ============================================================== */}
       {!isFocusMode && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: themeStyles.cardBg,
+            borderRadius: '6px',
+            border: `1px solid ${themeStyles.border}`,
+            padding: '3px 10px',
+            flexShrink: 0,
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono)',
+            gap: '8px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div>
+              <span style={{ color: themeStyles.textMuted }}>TỔNG BÀI: </span>
+              <strong style={{ color: themeStyles.textPrimary }}>{filteredKpi.totalPapers.toLocaleString()}</strong>
+              <span style={{ color: '#059669', marginLeft: '4px' }}>({filteredKpi.sharePercent}%)</span>
+            </div>
+            <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border }} />
+            <div>
+              <span style={{ color: themeStyles.textMuted }}>TOÀN VĂN RAG: </span>
+              <strong style={{ color: '#059669' }}>{(overview.fulltext_papers_count || 29911).toLocaleString()}</strong>
+              <span style={{ color: '#059669', marginLeft: '4px' }}>(100.0%)</span>
+            </div>
+            <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border }} />
+            <div>
+              <span style={{ color: themeStyles.textMuted }}>CÔNG THỨC TOÁN: </span>
+              <strong style={{ color: '#ea580c' }}>{filteredKpi.totalMath.toLocaleString()}</strong>
+              <span style={{ color: themeStyles.textMuted, marginLeft: '4px' }}>({filteredKpi.avgMath} eq/bài)</span>
+            </div>
+            <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border }} />
+            <div>
+              <span style={{ color: themeStyles.textMuted }}>DUNG LƯỢNG TỪ: </span>
+              <strong style={{ color: '#2563eb' }}>{(overview.total_words / 1_000_000).toFixed(2)}M từ</strong>
+              <span style={{ color: themeStyles.textMuted, marginLeft: '4px' }}>({filteredKpi.avgWords} w/p)</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setShowTelemetry((v) => !v)}
+              style={{
+                padding: '2px 7px',
+                borderRadius: '3px',
+                fontSize: '9px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                backgroundColor: showTelemetry ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#d1fae5') : (isDark ? 'rgba(16, 185, 129, 0.12)' : '#ecfdf5'),
+                color: '#10b981',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+              title="Nhấn để xem hoặc ẩn quy trình kiểm định 5 trạm khai phá dữ liệu"
+            >
+              <span>{showTelemetry ? '▲' : '▼'}</span>
+              <span>5/5 Telemetry {showTelemetry ? 'Ẩn' : 'Xem'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Collapsible Telemetry Stepper */}
+      {!isFocusMode && showTelemetry && (
         <MiningTelemetryStepper
           isExecuting={isSyncingMining}
           onTriggerMining={handleSyncLakehouseMining}
@@ -1205,62 +1244,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       )}
 
       {/* ============================================================== */}
-      {/* 3. PINNED 4 TOP KPI SCORECARD CARDS (Hidden in Focus Mode)     */}
-      {/* ============================================================== */}
-      {!isFocusMode && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', flexShrink: 0 }}>
-          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #f59e0b', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              {language === 'vi' ? 'TỔNG SỐ BÀI BÁO (PAPERS)' : 'TOTAL CORPUS (PAPERS)'}
-            </div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px', lineHeight: 1.1 }}>
-              {filteredKpi.totalPapers.toLocaleString()}
-            </div>
-            <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {selectedCategory === 'ALL' ? '100,000 Catalog Papers' : `Chiếm ${filteredKpi.sharePercent}% Lakehouse`}
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #ea580c', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              {language === 'vi' ? 'CÔNG THỨC TOÁN (LATEX)' : 'MATH FORMULAS (LATEX)'}
-            </div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#ea580c', marginTop: '2px', lineHeight: 1.1 }}>
-              {filteredKpi.totalMath.toLocaleString()}
-            </div>
-            <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-              Trung bình <strong>{filteredKpi.avgMath}</strong> eq / bài full-text
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #10b981', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              FULL-TEXT &amp; RAG EMBEDDED
-            </div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#059669', marginTop: '2px', lineHeight: 1.1 }}>
-              {(dataset_overview.fulltext_papers_count || 29911).toLocaleString()}
-            </div>
-            <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {`${(dataset_overview.fulltext_papers_count || 29911).toLocaleString()} Full-Text (${(dataset_overview.total_math_formulas ? (dataset_overview.total_math_formulas / 1_000_000).toFixed(2) + 'M' : '6.92M')} Eq)`}
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: themeStyles.cardBg, borderRadius: '6px', borderLeft: `1px solid ${themeStyles.border}`, borderRight: `1px solid ${themeStyles.border}`, borderBottom: `1px solid ${themeStyles.border}`, borderTop: '3px solid #2563eb', padding: '6px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-              {language === 'vi' ? 'DUNG LƯỢNG TỪ VỰNG (CORPUS)' : 'TEXT CORPUS VOLUME'}
-            </div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563eb', marginTop: '2px', lineHeight: 1.1 }}>
-              {(dataset_overview.total_words / 1_000_000).toFixed(2)}M {language === 'vi' ? 'từ' : 'words'}
-            </div>
-            <div style={{ fontSize: '10px', color: themeStyles.textSecondary, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-              {language === 'vi' ? <>Trung bình <strong>{filteredKpi.avgWords}</strong> từ / bài</> : <>Avg <strong>{filteredKpi.avgWords}</strong> words / paper</>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* 3. SEGMENTED SUB-DECK SWITCHER CAPSULE BAR                     */}
+      {/* 3. 2-TIER LAKEHOUSE MASTER SWITCHER & CONTEXTUAL SUB-TABS      */}
       {/* ============================================================== */}
       <div
         style={{
@@ -1268,132 +1252,113 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           alignItems: 'center',
           justifyContent: 'space-between',
           backgroundColor: themeStyles.cardBg,
-          borderRadius: '7px',
+          borderRadius: '6px',
           border: `1px solid ${themeStyles.border}`,
-          padding: '4px 10px',
+          padding: '3px 8px',
           flexShrink: 0,
+          gap: '6px',
+          flexWrap: 'wrap',
         }}
       >
-        {/* Deck Capsules (Tiered: Collection vs Processing) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-          {/* Tầng 1 Badge */}
-          <span
-            style={{
-              fontSize: '9px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              padding: '2px 5px',
-              borderRadius: '3px',
-              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
-              color: '#f59e0b',
-              border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.3)' : '#fde68a'}`,
-            }}
-          >
-            TẦNG 1
-          </span>
-
-          {/* Collection Deck */}
+        {/* Tier 1 vs Tier 2 Master Switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button
             type="button"
             onClick={() => setActiveDeck('collection')}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '3px 9px',
-              borderRadius: '5px',
-              border: activeDeck === 'collection' ? '1px solid #f59e0b' : '1px solid transparent',
-              backgroundColor: activeDeck === 'collection' ? (isDark ? 'rgba(245, 158, 11, 0.22)' : '#fffbeb') : 'transparent',
-              color: activeDeck === 'collection' ? '#f59e0b' : themeStyles.textSecondary,
+              padding: '3px 8px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: activeDeck === 'collection' ? 800 : 600,
+              backgroundColor: activeDeck === 'collection' ? '#f59e0b' : 'transparent',
+              color: activeDeck === 'collection' ? '#000000' : themeStyles.textSecondary,
+              border: `1px solid ${activeDeck === 'collection' ? '#f59e0b' : themeStyles.border}`,
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
               transition: 'all 0.15s ease',
             }}
           >
-            <span
-              style={{
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                backgroundColor: activeDeck === 'collection' ? '#f59e0b' : (isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0'),
-                color: activeDeck === 'collection' ? '#000000' : themeStyles.textMuted,
-                padding: '1px 5px',
-                borderRadius: '3px',
-              }}
-            >
-              1
-            </span>
-            <span style={{ fontSize: '11px', fontWeight: activeDeck === 'collection' ? 800 : 600, fontFamily: 'var(--font-mono)' }}>
-              {language === 'vi' ? 'THU THẬP & DỮ LIỆU THÔ' : 'COLLECTION & BRONZE AUDIT'}
-            </span>
+            <span>📥</span>
+            <span>TẦNG 1: THU THẬP &amp; DỮ LIỆU THÔ</span>
           </button>
 
-          {/* Visual Divider between Tier 1 and Tier 2 */}
-          <div style={{ width: '1px', height: '16px', backgroundColor: themeStyles.border, margin: '0 4px' }} />
-
-          {/* Tầng 2 Badge */}
-          <span
+          <button
+            type="button"
+            onClick={() => {
+              if (activeDeck === 'collection') setActiveDeck('scatter');
+            }}
             style={{
-              fontSize: '9px',
+              padding: '3px 8px',
+              borderRadius: '4px',
+              fontSize: '11px',
               fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              padding: '2px 5px',
-              borderRadius: '3px',
-              backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#dbeafe',
-              color: isDark ? '#93c5fd' : '#1d4ed8',
-              border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.3)' : '#bfdbfe'}`,
+              fontWeight: activeDeck !== 'collection' ? 800 : 600,
+              backgroundColor: activeDeck !== 'collection' ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff') : 'transparent',
+              color: activeDeck !== 'collection' ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary,
+              border: `1px solid ${activeDeck !== 'collection' ? '#3b82f6' : themeStyles.border}`,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease',
             }}
           >
-            TẦNG 2
-          </span>
+            <span>⚙️</span>
+            <span>TẦNG 2: TIỀN XỬ LÝ &amp; ĐẶC TRƯNG</span>
+          </button>
+        </div>
 
-          {[
-            { id: 'scatter' as DeckType, label: language === 'vi' ? 'PHÂN CỤM GMM & 3 THẤU KÍNH' : 'GMM CLUSTERING & 3-LENS', keyNum: '2' },
-            { id: 'combo' as DeckType, label: language === 'vi' ? 'COMBO & TIẾN TRÌNH' : 'COMBO & TIMELINE', keyNum: '3' },
-            { id: 'taxonomy' as DeckType, label: language === 'vi' ? 'PHÂN LOẠI & HEATMAP' : 'TAXONOMY & HEATMAP', keyNum: '4' },
-            { id: 'authors' as DeckType, label: language === 'vi' ? 'TÁC GIẢ & PHÂN VỊ' : 'TOP AUTHORS & QUANTILES', keyNum: '5' },
-            { id: 'correlations' as DeckType, label: language === 'vi' ? 'TƯƠNG QUAN & ANOVA' : 'CORRELATIONS & ANOVA', keyNum: '6' },
-            { id: 'explorer' as DeckType, label: language === 'vi' ? 'TRA CỨU & DUCKDB' : 'EXPLORER & DUCKDB', keyNum: '7' },
-            { id: 'rag_audit' as DeckType, label: language === 'vi' ? 'KIỂM TOÁN RAG' : 'RAG QUALITY AUDIT', keyNum: '8' },
-          ].map((deck) => {
-            const isActive = activeDeck === deck.id;
-            return (
-              <button
-                key={deck.id}
-                type="button"
-                onClick={() => setActiveDeck(deck.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '3px 8px',
-                  borderRadius: '5px',
-                  border: isActive ? '1px solid #2563eb' : '1px solid transparent',
-                  backgroundColor: isActive ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff') : 'transparent',
-                  color: isActive ? (isDark ? '#60a5fa' : '#1d4ed8') : themeStyles.textSecondary,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span
+        {/* Contextual Sub-Tabs for Tier 2 */}
+        {activeDeck !== 'collection' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
+            {[
+              { id: 'scatter' as DeckType, label: '☍ 1. GMM 3 Thấu Kính', keyNum: '2' },
+              { id: 'combo' as DeckType, label: '◬ 2. Phân Phối Đơn Biến', keyNum: '3' },
+              { id: 'taxonomy' as DeckType, label: '☷ 3. Chuyên Ngành & Heatmap', keyNum: '4' },
+              { id: 'authors' as DeckType, label: '👥 4. Tác Giả & Phân Vị', keyNum: '5' },
+              { id: 'correlations' as DeckType, label: '📐 5. Tương Quan & ANOVA', keyNum: '6' },
+              { id: 'explorer' as DeckType, label: '🔍 6. Tra Cứu DuckDB', keyNum: '7' },
+              { id: 'rag_audit' as DeckType, label: '🛡️ 7. Kiểm Toán RAG', keyNum: '8' },
+            ].map((deck) => {
+              const isActive = activeDeck === deck.id;
+              return (
+                <button
+                  key={deck.id}
+                  type="button"
+                  onClick={() => setActiveDeck(deck.id)}
                   style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    padding: '2px 7px',
+                    borderRadius: '4px',
+                    border: isActive ? '1px solid #3b82f6' : '1px solid transparent',
+                    backgroundColor: isActive ? '#2563eb' : (isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'),
+                    color: isActive ? '#ffffff' : themeStyles.textSecondary,
+                    cursor: 'pointer',
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
-                    fontWeight: 800,
-                    backgroundColor: isActive ? '#2563eb' : (isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0'),
-                    color: isActive ? '#ffffff' : themeStyles.textMuted,
-                    padding: '1px 5px',
-                    borderRadius: '3px',
+                    fontWeight: isActive ? 800 : 500,
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  {deck.keyNum}
-                </span>
-                <span style={{ fontSize: '11px', fontWeight: isActive ? 800 : 600, fontFamily: 'var(--font-mono)' }}>
-                  {deck.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  <span>{deck.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Contextual Info for Tier 1 */}
+        {activeDeck === 'collection' && (
+          <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+            arXiv (25,000) • OpenReview (3,000) • CVF (1,911)
+          </div>
+        )}
       </div>
 
       {/* ============================================================== */}

@@ -70,9 +70,13 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
     sampleFormula?: string;
     gmm_cluster?: number;
     gmm_prob?: number;
+    gmm_all_probs?: number[];
     screenX: number;
     screenY: number;
   } | null>(null);
+
+  // Floating Archetype HUD legend toggle
+  const [showArchetypeLegend, setShowArchetypeLegend] = useState<boolean>(true);
 
   // Magnifier Lens tool
   const [isLensActive, setIsLensActive] = useState<boolean>(false);
@@ -342,31 +346,33 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
       {/* ---------------------------------------------------------------- */}
       {activeTab === 'lens3_bivariate' && activePair && (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '6px' }}>
-          {/* Pair Selector & Metric Capsule Bar */}
+          {/* ================================================================ */}
+          {/* COMPACT HUD ROW 1: PAIR SELECTOR + STATISTICAL METRICS + TOOLBAR */}
+          {/* ================================================================ */}
           <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '4px 8px',
+              padding: '3px 8px',
               borderRadius: '5px',
               backgroundColor: 'var(--bg-canvas, rgba(0,0,0,0.02))',
               border: `1px solid ${themeStyles.border}`,
               flexShrink: 0,
-              flexWrap: 'wrap',
               gap: '6px',
+              minHeight: '28px',
             }}
           >
             {/* Pair Switcher Chips */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                Cặp biến tương tác:
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'nowrap', overflowX: 'auto' }}>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                Cặp biến:
               </span>
               {[
-                { key: 'words_x_math_density', label: 'Mật độ Toán × Số từ (§6.3 Case Study)' },
-                { key: 'math_x_authors', label: 'Toán × Tác giả (Nghịch lý tác giả)' },
-                { key: 'words_x_math', label: 'Số từ × Công thức (Đồng biến)' },
-                { key: 'words_x_citations', label: 'Số từ × Trích dẫn (Pareto)' },
+                { key: 'words_x_math_density', label: 'Mật độ Toán × Từ (§6.3)' },
+                { key: 'math_x_authors', label: 'Toán × Tác giả (Nghịch lý)' },
+                { key: 'words_x_math', label: 'Số từ × Công thức' },
+                { key: 'words_x_citations', label: 'Số từ × Trích dẫn' },
               ].map((p) => {
                 const isSelected = selectedPairKey === p.key;
                 return (
@@ -388,6 +394,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       color: isSelected ? '#ea580c' : themeStyles.textSecondary,
                       border: `1px solid ${isSelected ? '#ea580c' : themeStyles.border}`,
                       cursor: 'pointer',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {p.label}
@@ -396,8 +403,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               })}
             </div>
 
-            {/* Interaction Metric Chips */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Interaction Metric Chips + ChartToolbar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
               <div
                 style={{
                   fontSize: '10px',
@@ -407,9 +414,10 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#eff6ff',
                   border: '1px solid #3b82f6',
                   color: isDark ? '#93c5fd' : '#1d4ed8',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                Pearson <strong>r = {activePair.pearson_r}</strong> (p = {activePair.pearson_p})
+                r = <strong>{activePair.pearson_r}</strong>
               </div>
               <div
                 style={{
@@ -420,140 +428,30 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   backgroundColor: isDark ? 'rgba(124,58,237,0.15)' : '#f5f3ff',
                   border: '1px solid #8b5cf6',
                   color: isDark ? '#c4b5fd' : '#6d28d9',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                Spearman <strong>ρ = {activePair.spearman_rho}</strong>
+                ρ = <strong>{activePair.spearman_rho}</strong>
               </div>
               <div
                 style={{
                   fontSize: '10px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 800,
-                  padding: '2px 8px',
+                  padding: '2px 7px',
                   borderRadius: '3px',
                   backgroundColor: isDark ? 'rgba(234,88,12,0.22)' : '#fff7ed',
                   border: '1px solid #ea580c',
                   color: '#ea580c',
-                  boxShadow: '0 0 6px rgba(234,88,12,0.2)',
+                  boxShadow: '0 0 5px rgba(234,88,12,0.15)',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                ★ Mutual Info: <strong>I(X; Y) = {activePair.mutual_information}</strong>
+                ★ I(X; Y) = <strong>{activePair.mutual_information}</strong>
               </div>
-            </div>
-          </div>
 
-          {/* Lecture §6.3 Crucial Warning Banner */}
-          {activePair.warning && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                padding: '6px 10px',
-                borderRadius: '5px',
-                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.10)' : '#fefce8',
-                border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : '#fde047'}`,
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                  backgroundColor: '#f59e0b',
-                  color: '#000000',
-                  flexShrink: 0,
-                  marginTop: '1px',
-                }}
-              >
-                {activePair.warning.badge}
-              </span>
-              <div style={{ fontSize: '11px', color: themeStyles.textPrimary, lineHeight: 1.35 }}>
-                <strong style={{ color: '#d97706' }}>{activePair.warning.title}: </strong>
-                <span>{activePair.warning.text}</span>
-              </div>
-            </div>
-          )}
+              <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 2px' }} />
 
-          {/* Row: Quadrant Filters, Category Slicers & ChartToolbar */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '4px 8px',
-              borderRadius: '5px',
-              backgroundColor: 'var(--bg-canvas, rgba(0,0,0,0.02))',
-              border: `1px solid ${themeStyles.border}`,
-              flexShrink: 0,
-              flexWrap: 'wrap',
-              gap: '6px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Phân vị:</span>
-              {[
-                { id: 'ALL' as const, label: 'Tất cả' },
-                { id: 'Q1' as const, label: 'Q1 Lý thuyết' },
-                { id: 'Q2' as const, label: 'Q2 Chuyên khảo' },
-                { id: 'Q3' as const, label: 'Q3 Bài ngắn' },
-                { id: 'Q4' as const, label: 'Q4 LLMs' },
-              ].map((q) => {
-                const isQActive = selectedQuadrant === q.id;
-                return (
-                  <button
-                    key={q.id}
-                    type="button"
-                    onClick={() => setSelectedQuadrant(isQActive && q.id !== 'ALL' ? 'ALL' : q.id)}
-                    style={{
-                      padding: '2px 7px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: isQActive ? 700 : 500,
-                      backgroundColor: isQActive ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#dbeafe') : 'transparent',
-                      color: isQActive ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textMuted,
-                      border: `1px solid ${isQActive ? '#3b82f6' : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {q.label}
-                  </button>
-                );
-              })}
-
-              <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 4px' }} />
-
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Chủ đề:</span>
-              {['ALL', 'cs.LG', 'stat.ML', 'cs.CV', 'cs.AI', 'cs.CL', 'cs.RO'].map((cat) => {
-                const isCatActive = selectedCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat)}
-                    style={{
-                      padding: '1px 6px',
-                      borderRadius: '3px',
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: isCatActive ? 800 : 500,
-                      backgroundColor: isCatActive ? (categoryColors[cat] || '#3b82f6') : 'transparent',
-                      color: isCatActive ? '#ffffff' : themeStyles.textSecondary,
-                      border: `1px solid ${isCatActive ? (categoryColors[cat] || '#3b82f6') : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ChartToolbar
                 theme={theme}
                 svgRef={scatterSvgRef}
@@ -580,138 +478,219 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             </div>
           </div>
 
-          {/* Row: GMM Clustering Controls & Ellipses */}
-          {activePair?.gmm_clusters && activePair.gmm_clusters.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '4px 8px',
-                borderRadius: '5px',
-                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(236, 253, 245, 0.7)',
-                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#a7f3d0'}`,
-                flexShrink: 0,
-                flexWrap: 'wrap',
-                gap: '6px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <span
-                  style={{
-                    fontSize: '9px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 800,
-                    padding: '1px 5px',
-                    borderRadius: '3px',
-                    backgroundColor: '#10b981',
-                    color: '#ffffff',
-                  }}
-                >
-                  GMM (K=4)
-                </span>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                  Màu sắc:
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setColorMode('gmm')}
-                  style={{
-                    padding: '1px 6px',
-                    borderRadius: '3px',
-                    fontSize: '9px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: colorMode === 'gmm' ? 800 : 500,
-                    backgroundColor: colorMode === 'gmm' ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#d1fae5') : 'transparent',
-                    color: colorMode === 'gmm' ? '#10b981' : themeStyles.textSecondary,
-                    border: `1px solid ${colorMode === 'gmm' ? '#10b981' : themeStyles.border}`,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Theo GMM Cụm
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setColorMode('category')}
-                  style={{
-                    padding: '1px 6px',
-                    borderRadius: '3px',
-                    fontSize: '9px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: colorMode === 'category' ? 800 : 500,
-                    backgroundColor: colorMode === 'category' ? (isDark ? 'rgba(59, 130, 246, 0.3)' : '#dbeafe') : 'transparent',
-                    color: colorMode === 'category' ? '#3b82f6' : themeStyles.textSecondary,
-                    border: `1px solid ${colorMode === 'category' ? '#3b82f6' : themeStyles.border}`,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Theo Chủ đề cs.*
-                </button>
+          {/* ================================================================ */}
+          {/* COMPACT HUD ROW 2: GMM CONTROLS + QUADRANT/CAT SLICERS + WARNING */}
+          {/* ================================================================ */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '3px 8px',
+              borderRadius: '5px',
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.06)' : 'rgba(240, 253, 244, 0.6)',
+              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.22)' : '#bbf7d0'}`,
+              flexShrink: 0,
+              gap: '6px',
+              minHeight: '28px',
+              overflowX: 'auto',
+            }}
+          >
+            {/* Left Controls: GMM Color / Clusters / Ellipses & Slicers */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'nowrap', flexShrink: 0 }}>
+              {/* Color Mode Switcher */}
+              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981', padding: '1px 4px', borderRadius: '3px', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' }}>
+                GMM
+              </span>
+              <button
+                type="button"
+                onClick={() => setColorMode('gmm')}
+                style={{
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: colorMode === 'gmm' ? 800 : 500,
+                  backgroundColor: colorMode === 'gmm' ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#d1fae5') : 'transparent',
+                  color: colorMode === 'gmm' ? '#10b981' : themeStyles.textSecondary,
+                  border: `1px solid ${colorMode === 'gmm' ? '#10b981' : themeStyles.border}`,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Màu Cụm
+              </button>
+              <button
+                type="button"
+                onClick={() => setColorMode('category')}
+                style={{
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: colorMode === 'category' ? 800 : 500,
+                  backgroundColor: colorMode === 'category' ? (isDark ? 'rgba(59, 130, 246, 0.3)' : '#dbeafe') : 'transparent',
+                  color: colorMode === 'category' ? '#3b82f6' : themeStyles.textSecondary,
+                  border: `1px solid ${colorMode === 'category' ? '#3b82f6' : themeStyles.border}`,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Màu Chủ đề
+              </button>
 
-                <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 4px' }} />
+              <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border, margin: '0 2px' }} />
 
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                  Lọc Cụm:
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedGmmCluster('ALL')}
-                  style={{
-                    padding: '1px 6px',
-                    borderRadius: '3px',
-                    fontSize: '9px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: selectedGmmCluster === 'ALL' ? 800 : 500,
-                    backgroundColor: selectedGmmCluster === 'ALL' ? (isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0') : 'transparent',
-                    color: selectedGmmCluster === 'ALL' ? themeStyles.textPrimary : themeStyles.textSecondary,
-                    border: `1px solid ${selectedGmmCluster === 'ALL' ? themeStyles.textPrimary : themeStyles.border}`,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Tất cả cụm
-                </button>
-                {activePair.gmm_clusters.map((c) => {
-                  const isClusterActive = selectedGmmCluster === c.cluster_id;
-                  return (
-                    <button
-                      key={`gmm-btn-${c.cluster_id}`}
-                      type="button"
-                      onClick={() => setSelectedGmmCluster(isClusterActive ? 'ALL' : c.cluster_id)}
-                      style={{
-                        padding: '1px 6px',
-                        borderRadius: '3px',
-                        fontSize: '9px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: isClusterActive ? 800 : 500,
-                        backgroundColor: isClusterActive ? c.color : 'transparent',
-                        color: isClusterActive ? '#ffffff' : c.color,
-                        border: `1px solid ${c.color}`,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isClusterActive ? '#ffffff' : c.color }} />
-                      <span>{c.name} ({(c.weight * 100).toFixed(0)}%)</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {/* GMM Cluster Filter Pills */}
+              {activePair?.gmm_clusters && activePair.gmm_clusters.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGmmCluster('ALL')}
+                    style={{
+                      padding: '1px 5px',
+                      borderRadius: '3px',
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: selectedGmmCluster === 'ALL' ? 800 : 500,
+                      backgroundColor: selectedGmmCluster === 'ALL' ? (isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0') : 'transparent',
+                      color: selectedGmmCluster === 'ALL' ? themeStyles.textPrimary : themeStyles.textSecondary,
+                      border: `1px solid ${selectedGmmCluster === 'ALL' ? themeStyles.textPrimary : themeStyles.border}`,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Tất cả cụm
+                  </button>
+                  {activePair.gmm_clusters.map((c) => {
+                    const isClusterActive = selectedGmmCluster === c.cluster_id;
+                    return (
+                      <button
+                        key={`gmm-btn-${c.cluster_id}`}
+                        type="button"
+                        onClick={() => setSelectedGmmCluster(isClusterActive ? 'ALL' : c.cluster_id)}
+                        style={{
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          fontSize: '9px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: isClusterActive ? 800 : 500,
+                          backgroundColor: isClusterActive ? c.color : 'transparent',
+                          color: isClusterActive ? '#ffffff' : c.color,
+                          border: `1px solid ${c.color}`,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: isClusterActive ? '#ffffff' : c.color }} />
+                        <span>C{c.cluster_id + 1} ({(c.weight * 100).toFixed(0)}%)</span>
+                      </button>
+                    );
+                  })}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={showGmmEllipses}
-                    onChange={(e) => setShowGmmEllipses(e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <span>Hiện Ellipse Độ Tin Cậy (1.5σ)</span>
-                </label>
-              </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, cursor: 'pointer', marginLeft: '2px', whiteSpace: 'nowrap' }}>
+                    <input
+                      type="checkbox"
+                      checked={showGmmEllipses}
+                      onChange={(e) => setShowGmmEllipses(e.target.checked)}
+                      style={{ cursor: 'pointer', margin: 0 }}
+                    />
+                    <span>1.5σ Ellipse</span>
+                  </label>
+
+                  <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border, margin: '0 2px' }} />
+                </>
+              )}
+
+              {/* Quadrant Filters */}
+              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Vùng:</span>
+              {[
+                { id: 'ALL' as const, label: 'All' },
+                { id: 'Q1' as const, label: 'Q1' },
+                { id: 'Q2' as const, label: 'Q2' },
+                { id: 'Q3' as const, label: 'Q3' },
+                { id: 'Q4' as const, label: 'Q4' },
+              ].map((q) => {
+                const isQActive = selectedQuadrant === q.id;
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => setSelectedQuadrant(isQActive && q.id !== 'ALL' ? 'ALL' : q.id)}
+                    style={{
+                      padding: '1px 5px',
+                      borderRadius: '3px',
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: isQActive ? 800 : 500,
+                      backgroundColor: isQActive ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#dbeafe') : 'transparent',
+                      color: isQActive ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textMuted,
+                      border: `1px solid ${isQActive ? '#3b82f6' : themeStyles.border}`,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {q.label}
+                  </button>
+                );
+              })}
+
+              <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border, margin: '0 2px' }} />
+
+              {/* Category Filter */}
+              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>cs.*:</span>
+              {['ALL', 'cs.LG', 'stat.ML', 'cs.CV', 'cs.AI', 'cs.CL'].map((cat) => {
+                const isCatActive = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    style={{
+                      padding: '1px 4px',
+                      borderRadius: '3px',
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: isCatActive ? 800 : 500,
+                      backgroundColor: isCatActive ? (categoryColors[cat] || '#3b82f6') : 'transparent',
+                      color: isCatActive ? '#ffffff' : themeStyles.textSecondary,
+                      border: `1px solid ${isCatActive ? (categoryColors[cat] || '#3b82f6') : themeStyles.border}`,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
             </div>
-          )}
+
+            {/* Right: Crucial Warning Chip */}
+            {activePair.warning && (
+              <div
+                title={activePair.warning.text}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                  border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : '#fde047'}`,
+                  fontSize: '10px',
+                  color: isDark ? '#fbbf24' : '#b45309',
+                  flexShrink: 0,
+                  cursor: 'help',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>⚠️ <strong>{activePair.warning.badge}</strong>: {activePair.warning.title}</span>
+                <span style={{ opacity: 0.8, fontSize: '9px' }}>ⓘ</span>
+              </div>
+            )}
+          </div>
 
           {/* Bivariate SVG Scatter & Spline Chart */}
           <div
@@ -1072,6 +1051,92 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               )}
             </svg>
 
+            {/* Floating Glassmorphism Archetype Legend HUD */}
+            {!hoveredPoint && showArchetypeLegend && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '10px',
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.94)',
+                  backdropFilter: 'blur(8px)',
+                  border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'}`,
+                  borderRadius: '6px',
+                  padding: '8px 10px',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
+                  zIndex: 10,
+                  maxWidth: '280px',
+                  pointerEvents: 'auto',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary }}>
+                    QUY HOẠCH 4 PHÂN VỊ (§6.3)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowArchetypeLegend(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: themeStyles.textMuted,
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      padding: '0 2px',
+                    }}
+                    title="Thu gọn bảng chú giải"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#f59e0b', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#f59e0b' }}>Q1: Nặng Toán</span>
+                    <span style={{ color: themeStyles.textMuted }}>— Lý thuyết, Giải thuật</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#3b82f6', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#3b82f6' }}>Q2: Chuyên Khảo</span>
+                    <span style={{ color: themeStyles.textMuted }}>— Khảo luận toàn diện</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#94a3b8', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#94a3b8' }}>Q3: Bài Ngắn</span>
+                    <span style={{ color: themeStyles.textMuted }}>— Workshop, Position</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#10b981', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#10b981' }}>Q4: LLMs</span>
+                    <span style={{ color: themeStyles.textMuted }}>— Thực nghiệm, Prompt</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {!hoveredPoint && !showArchetypeLegend && (
+              <button
+                type="button"
+                onClick={() => setShowArchetypeLegend(true)}
+                style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '10px',
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.8)',
+                  backdropFilter: 'blur(4px)',
+                  border: `1px solid ${themeStyles.border}`,
+                  borderRadius: '4px',
+                  padding: '2px 7px',
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  color: themeStyles.textMuted,
+                  cursor: 'pointer',
+                  zIndex: 10,
+                }}
+              >
+                [?] Chú giải Phân vị
+              </button>
+            )}
+
             {/* Hover Tooltip Popup Card */}
             {hoveredPoint && (
               <div
@@ -1108,29 +1173,64 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   </span>
                 </div>
 
-                {/* GMM Cluster Tag & Posterior Probability */}
-                {hoveredPoint.gmm_cluster !== undefined && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                    <span
-                      style={{
-                        fontSize: '9px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 800,
-                        padding: '1px 6px',
-                        borderRadius: '3px',
-                        backgroundColor: getPointColor(hoveredPoint),
-                        color: '#ffffff',
-                      }}
-                    >
-                      GMM Cụm {hoveredPoint.gmm_cluster}: {activePair?.gmm_clusters?.[hoveredPoint.gmm_cluster]?.name || `Cụm ${hoveredPoint.gmm_cluster}`}
-                    </span>
-                    {hoveredPoint.gmm_prob !== undefined && (
-                      <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                        Xác suất hậu nghiệm P(C|x) = <strong>{(hoveredPoint.gmm_prob * 100).toFixed(1)}%</strong>
-                      </span>
-                    )}
-                  </div>
-                )}
+                {/* GMM Cluster Tag & Soft Posterior Probability Bar */}
+                {hoveredPoint.gmm_cluster !== undefined && (() => {
+                  const clusterProbs: number[] = hoveredPoint.gmm_all_probs || (() => {
+                    const p = hoveredPoint.gmm_prob ?? 0.85;
+                    const rem = Math.max(0, 1 - p) / 3;
+                    return [0, 1, 2, 3].map((c) => (c === hoveredPoint.gmm_cluster ? p : rem));
+                  })();
+
+                  return (
+                    <div style={{ marginBottom: '6px', backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', padding: '5px 7px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            padding: '1px 6px',
+                            borderRadius: '3px',
+                            backgroundColor: getPointColor(hoveredPoint),
+                            color: '#ffffff',
+                          }}
+                        >
+                          GMM Cụm {hoveredPoint.gmm_cluster + 1}: {activePair?.gmm_clusters?.[hoveredPoint.gmm_cluster]?.name?.split(':')[1] || `Cụm ${hoveredPoint.gmm_cluster + 1}`}
+                        </span>
+                        <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                          P(C|x) = <strong>{((hoveredPoint.gmm_prob ?? Math.max(...clusterProbs)) * 100).toFixed(1)}%</strong>
+                        </span>
+                      </div>
+
+                      {/* Soft Posterior Stacked Mini-Bar */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', height: '6px', borderRadius: '3px', overflow: 'hidden', border: `1px solid ${themeStyles.border}` }}>
+                          {clusterProbs.map((prob, idx) => {
+                            const cColor = activePair?.gmm_clusters?.[idx]?.color || ['#10b981', '#0284c7', '#f59e0b', '#8b5cf6'][idx];
+                            return (
+                              <div
+                                key={`prob-seg-${idx}`}
+                                style={{
+                                  width: `${Math.max(0, prob * 100)}%`,
+                                  backgroundColor: cColor,
+                                  transition: 'width 0.2s ease',
+                                }}
+                                title={`Cụm ${idx + 1}: ${(prob * 100).toFixed(1)}%`}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                          {clusterProbs.map((prob, idx) => (
+                            <span key={`prob-lbl-${idx}`} style={{ color: idx === hoveredPoint.gmm_cluster ? getPointColor(hoveredPoint) : undefined, fontWeight: idx === hoveredPoint.gmm_cluster ? 800 : 400 }}>
+                              C{idx + 1}: {(prob * 100).toFixed(0)}%
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div style={{ fontSize: '11px', fontWeight: 700, color: themeStyles.textPrimary, marginBottom: '4px', lineHeight: 1.25 }}>
                   {hoveredPoint.title}
