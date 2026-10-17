@@ -81,17 +81,17 @@ export function GeometricPipelineDiagram() {
     {
       id: 'node-bronze',
       code: '02/LAKE',
-      name: 'Cloudflare R2 Bronze Lake',
+      name: 'MinIO Local S3 Bronze Lake',
       zone: 'BRONZE',
       zoneColor: '#f59e0b',
-      toolName: 'Cloudflare R2',
-      toolCategory: 'Multi-Tier Raw Lake',
+      toolName: 'MinIO S3 Storage',
+      toolCategory: 'Local S3 Raw Lakehouse',
       metricLabel: 'ACTIVE STORED',
       metricValue: `${storageUsedGb.toFixed(3)} GB`,
       secondaryMetric: `${currentDoiCount.toLocaleString()} DOI · ${currentArxivCount.toLocaleString()} Preprints · ${(currentCvfCount + currentOpenReviewCount + currentZenodoCount).toLocaleString()} Conf`,
       status: 'ONLINE',
       iconType: 'r2',
-      specList: ['S3 Compatible Global Edge', 'Zero Egress Fees (100% Free)', 'SHA-256 Content Addressed']
+      specList: ['S3 Compatible High-Throughput', 'Zero Cloud Egress (< 1ms Latency)', 'SHA-256 Content Addressed']
     },
     {
       id: 'node-duckdb',
@@ -141,17 +141,17 @@ export function GeometricPipelineDiagram() {
     {
       id: 'node-gold',
       code: '06/VECTOR',
-      name: 'LanceDB Gold Vector Lake',
+      name: 'Qdrant Gold Vector Engine',
       zone: 'GOLD',
       zoneColor: '#fbbf24',
-      toolName: 'LanceDB',
-      toolCategory: 'Vector Lakehouse',
-      metricLabel: 'INDEXED CHUNKS',
-      metricValue: `${currentVectors.toLocaleString()} Rows`,
+      toolName: 'Qdrant Vector DB',
+      toolCategory: 'Rust In-Memory HNSW',
+      metricLabel: 'INDEXED VECTORS',
+      metricValue: `${currentVectors.toLocaleString()} Points`,
       secondaryMetric: `${currentGoldMb} MB Table Size`,
       status: 'ONLINE',
       iconType: 'lancedb',
-      specList: ['Lance Columnar Format', 'Cosine Metric ANN Index', 'Sub-50ms Approximate Lookup']
+      specList: ['Rust In-Memory HNSW Index', 'Cosine Metric & Fast Filters', 'Sub-millisecond Retrieval (<10ms)']
     },
     {
       id: 'node-qwen',

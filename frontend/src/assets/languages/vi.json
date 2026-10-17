@@ -232,7 +232,7 @@
     "goldTables": "Bảng Gold",
     "goldChunks": "Chunks Gold",
     "goldSize": "Kích thước Gold",
-    "lancedbReady": "LanceDB Sẵn sàng",
+    "lancedbReady": "Qdrant Sẵn sàng",
     "parquetReady": "Parquet Sẵn sàng",
     "remoteIndices": "Chỉ mục Từ xa"
   },

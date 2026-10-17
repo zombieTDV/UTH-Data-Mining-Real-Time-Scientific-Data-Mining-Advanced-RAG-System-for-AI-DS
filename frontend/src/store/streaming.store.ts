@@ -197,8 +197,8 @@ export async function triggerR2ManualSync(): Promise<{ status: string; message: 
     appendStreamLog({
       time: new Date().toLocaleTimeString(),
       level: 'STORAGE',
-      tag: 'R2-SYNC',
-      msg: res.message || 'Live Cloudflare R2 bucket synchronized successfully.',
+      tag: 'MINIO-SYNC',
+      msg: res.message || 'Live MinIO Lakehouse bucket synchronized successfully.',
     });
     updateState({
       isSyncingR2: false,
@@ -374,8 +374,8 @@ export function initializeLakehouseStream(): () => void {
           const isGold = event.stage?.toUpperCase() === 'GOLD';
           const pTitle = (event.title || '').slice(0, 50);
           const goldMsg = event.paper_id
-            ? `[GOLD INGEST] ${event.paper_id} (${event.category || 'Gold'}) -> "${pTitle}..." (+${event.vectors_synced || 64} vectors to LanceDB)`
-            : `[GOLD INGEST] +${event.vectors_synced || 64} dense vectors indexed into LanceDB (Total: ${(event.total_vectors || 419528).toLocaleString()} vectors)`;
+            ? `[GOLD INGEST] ${event.paper_id} (${event.category || 'Gold'}) -> "${pTitle}..." (+${event.vectors_synced || 64} vectors to Qdrant)`
+            : `[GOLD INGEST] +${event.vectors_synced || 64} dense vectors indexed into Qdrant (Total: ${(event.total_vectors || 673909).toLocaleString()} vectors)`;
           const bronzeMsg = `[BRONZE HARVEST] ${event.paper_id || 'arXiv'} (${event.category || 'cs.AI'}) -> "${pTitle || 'Preprint'}" (+${Math.round(paperDelta / 1024)} KB${event.total_sections ? `, ${event.total_sections} sects` : ''})`;
 
           appendStreamLog({

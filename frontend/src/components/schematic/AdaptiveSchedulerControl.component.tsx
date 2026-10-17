@@ -160,7 +160,7 @@ export const AdaptiveSchedulerControl: FC = () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              {language === 'vi' ? 'Bộ Điều Khiển Cào Thông Minh & Tiết Kiệm R2' : 'Adaptive Harvester & R2 Cost Guard'}
+              {language === 'vi' ? 'Bộ Điều Phối Apache Airflow & Hàng Đợi RabbitMQ' : 'Apache Airflow & RabbitMQ Ingestion Orchestrator'}
             </h4>
             <span
               style={{
@@ -174,13 +174,13 @@ export const AdaptiveSchedulerControl: FC = () => {
                 fontWeight: 600,
               }}
             >
-              🛡️ Cache-First Zero-R2 Bill Guard
+              ⚡ Airflow DAGs + RabbitMQ Async
             </span>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
             {language === 'vi'
-              ? 'Tự động cào các nguồn học thuật theo lịch, nén Parquet gộp batch trước khi đồng bộ R2. Frontend cập nhật realtime 100% qua SSE Cache.'
-              : 'Orchestrates federated academic sources on schedule with Parquet compaction. Zero direct R2 queries from Frontend.'}
+              ? 'Tự động cào Tier 1 (02:00 AM) & Tier 2 (02:10 AM - 10k bài) qua Apache Airflow DAGs. Bắn tasks vào RabbitMQ để Worker bóc tách & nạp Qdrant bất đồng bộ.'
+              : 'Orchestrates Tier 1 (02:00 AM) & Tier 2 (02:10 AM - 10k papers) via Apache Airflow DAGs and asynchronous RabbitMQ vector ingestion into Qdrant.'}
           </p>
         </div>
 

@@ -232,7 +232,7 @@
     "goldTables": "Gold Tables",
     "goldChunks": "Gold Chunks",
     "goldSize": "Gold Size",
-    "lancedbReady": "LanceDB Ready",
+    "lancedbReady": "Qdrant Ready",
     "parquetReady": "Parquet Ready",
     "remoteIndices": "Remote Indices"
   },

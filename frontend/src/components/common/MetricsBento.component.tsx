@@ -76,13 +76,13 @@ export const MetricsBento: FC = () => {
         badge="768 Dim"
         badgeColor="var(--accent-gold)"
         value={<AnimatedCounter value={activeVectors} />}
-        description="LanceDB Contextual Chunks (12,816 Indexed Papers)"
-        footerLeft={<>Chunks: <AnimatedCounter value={activeVectors} /> ({activeVectorMb.toFixed(1)} MB)</>}
+        description="Qdrant Contextual Chunks (673,909 Indexed Vectors)"
+        footerLeft={<>Vectors: <AnimatedCounter value={activeVectors} /> ({activeVectorMb.toFixed(1)} MB)</>}
         footerRight={<>Papers: <AnimatedCounter value={12816} /></>}
         glowColor="rgba(234, 179, 8, 0.08)"
       />
 
-      {/* 3. Cloudflare R2 Multi-Tier Storage Card */}
+      {/* 3. MinIO S3 Multi-Tier Storage Card */}
       <div style={{
         gridColumn: 'span 4',
         background: 'var(--bg-surface)',
@@ -112,7 +112,7 @@ export const MetricsBento: FC = () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Cloudflare R2 Storage Lens
+              MinIO S3 Storage Lens
             </span>
 
             {/* Toggle switch between Active vs Total */}
