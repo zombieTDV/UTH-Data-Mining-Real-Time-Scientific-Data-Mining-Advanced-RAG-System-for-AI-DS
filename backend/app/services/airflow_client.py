@@ -15,8 +15,8 @@ logger = logging.getLogger("airflow_client")
 
 # key (used by the dashboard) -> DAG metadata
 DAGS: Dict[str, Dict[str, str]] = {
-    "tier1": {"dag_id": "dag_tier1_realtime_stream", "name": "Tier 1: Live Real-Time Stream (arXiv)", "frequency": "Daily 02:00 ICT", "kind": "harvest"},
-    "tier2": {"dag_id": "dag_tier2_near_past_harvest", "name": "Tier 2: Near-Past, newest to oldest (arXiv)", "frequency": "Daily 02:10 ICT", "kind": "harvest"},
+    "tier1": {"dag_id": "dag_tier1_realtime_stream", "name": "Tier 1: Live Real-Time Stream (arXiv)", "frequency": "Daily 04:50 ICT", "kind": "harvest"},
+    "tier2": {"dag_id": "dag_tier2_near_past_harvest", "name": "Tier 2: Near-Past, newest to oldest (arXiv)", "frequency": "Daily 05:00 ICT (10 min after Tier 1)", "kind": "harvest"},
     "compact_silver": {"dag_id": "dag_compact_silver", "name": "Silver compaction", "frequency": "Daily 03:00 ICT", "kind": "maintenance"},
     "mining": {"dag_id": "dag_recompute_mining", "name": "Mining recompute", "frequency": "Weekly Sun 00:00 UTC", "kind": "maintenance"},
 }

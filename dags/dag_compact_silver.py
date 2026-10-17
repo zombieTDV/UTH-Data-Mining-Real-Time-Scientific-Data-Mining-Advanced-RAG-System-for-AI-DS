@@ -1,6 +1,6 @@
 """Apache Airflow DAG: Silver compaction.
 
-Schedule: daily 03:00 ICT, after the Tier 1 (02:00) and Tier 2 (02:10) harvests have had time to drain.
+Schedule: daily 03:00 ICT, folding in whatever the previous day's Tier 1 (04:50) and Tier 2 (05:00) runs wrote.
 The queue consumer writes each micro-batch as an immutable part under silver/papers/year=YYYY/parts/. This DAG asks
 the backend to fold those parts into silver/papers/year=YYYY/papers.parquet (deduplicated by abstract hash) so the
 dashboard, DuckDB and the mining engine see the new papers.

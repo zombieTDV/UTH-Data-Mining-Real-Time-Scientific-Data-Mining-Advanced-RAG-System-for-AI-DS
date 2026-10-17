@@ -190,8 +190,8 @@ export const AdaptiveSchedulerControl: FC = () => {
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
             {language === 'vi'
-              ? 'Tự động cào Tier 1 (02:00 AM) & Tier 2 (02:10 AM - 10k bài) qua Apache Airflow DAGs. Bắn tasks vào RabbitMQ để Worker bóc tách & nạp Qdrant bất đồng bộ.'
-              : 'Orchestrates Tier 1 (02:00 AM) & Tier 2 (02:10 AM - 10k papers) via Apache Airflow DAGs and asynchronous RabbitMQ vector ingestion into Qdrant.'}
+              ? 'Tự động cào Tier 1 (04:50 AM) & Tier 2 (05:00 AM - 10k bài) qua Apache Airflow DAGs. Bắn tasks vào RabbitMQ để Worker bóc tách & nạp Qdrant bất đồng bộ.'
+              : 'Orchestrates Tier 1 (04:50 AM) & Tier 2 (05:00 AM - 10k papers) via Apache Airflow DAGs and asynchronous RabbitMQ vector ingestion into Qdrant.'}
           </p>
         </div>
 

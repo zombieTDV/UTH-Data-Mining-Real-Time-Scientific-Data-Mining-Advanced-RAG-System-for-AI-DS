@@ -1,10 +1,10 @@
 """Apache Airflow DAG: Tier 2 - Near-Past Ingestion (present -> past, 10k papers/run).
 
-Schedule: daily 02:10 ICT.
+Schedule: daily 05:00 ICT (10 minutes after the Tier 1 stream at 04:50).
 Walks arXiv BACKWARDS in time per category (newest first, down to 2024-01-01). A per-category cursor in an
 Airflow Variable remembers the oldest submission reached, so each run continues deeper into the past instead of
 re-harvesting the same papers. Papers go to RabbitMQ; the queue consumer writes Bronze / Silver / Gold.
-(Tier 1 = the live stream at 02:00; Tier 3 = the historical archive, already harvested and never crawled again.)
+(Tier 1 = the live stream at 04:50; Tier 3 = the historical archive, already harvested and never crawled again.)
 """
 
 import logging
@@ -17,6 +17,7 @@ import requests
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator
+from airflow.timetables.trigger import CronTriggerTimetable
 
 from _common import emit, on_failure, categories, ensure_published, http_headers, ping_infrastructure, publish_paper
 
@@ -133,8 +134,8 @@ def harvest_tier2_batch_10k(**context):
 with DAG(
     dag_id="dag_tier2_near_past_harvest",
     default_args=default_args,
-    description="Tier 2: near-past arXiv ingestion, present -> past (10k papers/run, 02:10 AM ICT daily)",
-    schedule_interval="10 2 * * *",
+    description="Tier 2: near-past arXiv ingestion, present -> past (10k papers/run, 05:00 AM ICT daily)",
+    schedule=CronTriggerTimetable("0 5 * * *", timezone=local_tz),  # fires exactly at 05:00 ICT, 10 minutes after Tier 1
     start_date=datetime(2025, 1, 1, tzinfo=local_tz),
     catchup=False,
     tags=["tier2", "trending", "arxiv", "rabbitmq"],
