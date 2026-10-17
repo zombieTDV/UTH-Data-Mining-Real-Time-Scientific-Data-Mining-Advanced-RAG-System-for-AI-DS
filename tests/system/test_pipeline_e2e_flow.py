@@ -76,3 +76,42 @@ def test_complete_lakehouse_pipeline_flow(tmp_path: Path, synthetic_html_paper, 
     assert top_result["title"] == "Deep Equilibrium Diffusion Models"
     assert len(top_result["authors"]) > 0
 
+
+@pytest.mark.system
+def test_queue_consumer_three_tier_medallion_flow(tmp_path: Path, synthetic_html_paper, mock_embedder):
+    from unittest.mock import MagicMock
+    from src.ingestion.queue_consumer import QueueConsumer
+
+    # Prepare QueueConsumer with mock embedder
+    consumer = QueueConsumer(qdrant_client=QdrantManager(collection_name="pipeline_consumer_medallion_test"))
+    consumer._embedder = mock_embedder
+
+    paper_payload = {
+        "paper_id": "2402.12345",
+        "title": "Deep Equilibrium Diffusion Models",
+        "abstract": "We present deep equilibrium diffusion architectures for fast continuous-time score evaluation across complex generative modeling settings.",
+        "authors": ["Alice Smith", "Bob Jones"],
+        "categories": ["cs.AI", "cs.LG"],
+        "published_date": "2026-03-01T00:00:00Z",
+        "raw_html": synthetic_html_paper,
+    }
+
+    # Execute consumer processing
+    success = consumer.process_paper(paper_payload)
+    assert success is True
+
+    # 1. Verify Bronze exists on MinIO
+    bronze_key = "bronze/papers/2026/2402.12345.json"
+    assert consumer.storage.object_exists(bronze_key) is True
+
+    # 2. Verify Silver Parquet exists on MinIO
+    silver_key = "silver/papers/year=2026/papers.parquet"
+    assert consumer.storage.object_exists(silver_key) is True
+
+    # 3. Verify Gold vector indexing in Qdrant
+    q_vec = mock_embedder.embed_query("diffusion models reverse drift")
+    res = consumer.qdrant.vector_search(query_vector=q_vec, limit=3)
+    assert len(res) > 0
+    assert any(r["paper_id"] == "2402.12345" for _, r in res.iterrows())
+
+

@@ -10,12 +10,15 @@ import logging
 import signal
 import sys
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from src.config.settings import settings
+from src.indexing.chunker import AcademicChunker
 from src.indexing.embedder import NomicEmbedder
 from src.indexing.qdrant_manager import QdrantManager
 from src.storage.minio_client import StorageClient
+from src.transformation.html_parser import AcademicHTMLParser
+from src.transformation.silver_writer import SilverLakehouseWriter
 
 
 logging.basicConfig(
@@ -28,13 +31,16 @@ logger = logging.getLogger("QueueConsumer")
 class QueueConsumer:
     """Consumes and processes papers from RabbitMQ."""
 
-    def __init__(self):
-        self.storage = StorageClient()
-        self.qdrant = QdrantManager()
+    def __init__(self, storage_client: Optional[StorageClient] = None, qdrant_client: Optional[QdrantManager] = None):
+        self.storage = storage_client or StorageClient()
+        self.qdrant = qdrant_client or QdrantManager()
         self._embedder = None
         self.queue_name = settings.RABBITMQ_QUEUE_INGEST
         self.amqp_url = settings.RABBITMQ_URL
         self._running = True
+        self.html_parser = AcademicHTMLParser()
+        self.silver_writer = SilverLakehouseWriter(storage_client=self.storage)
+        self.chunker = AcademicChunker(max_chunk_words=450, overlap_words=50)
 
     @property
     def embedder(self) -> NomicEmbedder:
@@ -45,54 +51,84 @@ class QueueConsumer:
         return self._embedder
 
     def process_paper(self, paper: Dict[str, Any]) -> bool:
-        """Processes a single paper payload: archives to MinIO, chunks, embeds, and stores in Qdrant."""
-        paper_id = paper.get("paper_id", "unknown")
+        """Processes a single paper payload strictly across the 3 Medallion Tiers:
+        1. 🥉 Bronze: Raw metadata JSON & raw HTML archived into MinIO.
+        2. 🥈 Silver: HTML section parsing, schema normalization, and columnar Parquet sync.
+        3. 🥇 Gold: Section-aware chunking & 768-D dense vector embedding into Qdrant.
+        """
+        paper_id = str(paper.get("paper_id", "unknown")).strip()
         title = paper.get("title", "")
-        abstract = paper.get("abstract", "")
-        categories = paper.get("categories", ["cs.AI"])
-        primary_category = categories[0] if categories else "cs.AI"
-        authors = paper.get("authors", [])
+        year = str(paper.get("published_date", "")[:4]) if paper.get("published_date") else "2026"
+        if not year.isdigit():
+            year = "2026"
 
         logger.info(f"[Worker] Processing paper {paper_id}: {title[:60]}...")
 
-        # 1. Archive to MinIO Bronze
+        # -------------------------------------------------------------
+        # 1. 🥉 TẦNG BRONZE: Lưu trữ nguyên bản raw JSON & raw HTML lên MinIO
+        # -------------------------------------------------------------
+        raw_html = paper.get("raw_html") or paper.get("html_content")
         try:
-            bronze_key = f"bronze/papers/{paper_id}.json"
-            self.storage.upload_json(paper, bronze_key)
-            logger.info(f"[Worker] Archived paper {paper_id} to MinIO ({bronze_key})")
+            bronze_meta_key = f"bronze/papers/{year}/{paper_id}.json"
+            self.storage.upload_json(paper, bronze_meta_key)
+            if raw_html:
+                bronze_html_key = f"bronze/papers/{year}/{paper_id}.html"
+                self.storage.upload_text(raw_html, bronze_html_key, content_type="text/html; charset=utf-8")
+            logger.info(f"[Worker][Bronze] Archived raw paper {paper_id} to MinIO ({bronze_meta_key})")
         except Exception as e:
-            logger.warning(f"[Worker] Failed to archive to MinIO: {e}")
+            logger.warning(f"[Worker][Bronze] Non-fatal MinIO Bronze archive warning: {e}")
 
-        # 2. Extract Chunks (Abstract chunk + text if present)
-        chunks = []
-        text_content = f"{title}\n\nAbstract: {abstract}".strip()
-        chunks.append({
-            "chunk_id": f"{paper_id}_chunk_0",
-            "paper_id": paper_id,
-            "title": title,
-            "abstract": abstract,
-            "authors": authors,
-            "primary_category": primary_category,
-            "section_title": "Abstract",
-            "section_type": "abstract",
-            "text": text_content,
-            "char_length": len(text_content),
-            "published_date": paper.get("published_date", ""),
-        })
-
-        # 3. Generate Embeddings
+        # -------------------------------------------------------------
+        # 2. 🥈 TẦNG SILVER: Bóc tách cấu trúc, chuẩn hóa Schema & ghi Parquet
+        # -------------------------------------------------------------
         try:
-            texts = [c["text"] for c in chunks]
+            if raw_html:
+                parsed_html = self.html_parser.parse(raw_html)
+            else:
+                # Nếu chưa có HTML đầy đủ, tạo cấu trúc tối thiểu từ abstract
+                parsed_html = {
+                    "parsed_title": title,
+                    "parsed_abstract": paper.get("abstract", ""),
+                    "sections": [
+                        {
+                            "section_title": "Abstract",
+                            "section_type": "abstract",
+                            "content": paper.get("abstract", ""),
+                        }
+                    ],
+                    "total_sections": 1,
+                    "total_math_count": 0,
+                    "total_words": len(str(paper.get("abstract", "")).split()),
+                    "content_origin": "abstract_only",
+                }
+
+            silver_record = self.silver_writer.prepare_record(raw_meta=paper, parsed_html=parsed_html)
+            self.silver_writer.save_and_upload_parquet([silver_record], year=year)
+            logger.info(f"[Worker][Silver] Standardized & synced paper {paper_id} into Silver Parquet")
+        except Exception as e:
+            logger.error(f"[Worker][Silver] Failed to transform to Silver: {e}")
+            return False
+
+        # -------------------------------------------------------------
+        # 3. 🥇 TẦNG GOLD: Sinh Chunk ngữ cảnh từ Silver & Upsert Vector vào Qdrant
+        # -------------------------------------------------------------
+        try:
+            # Chỉ sinh chunk từ bản ghi Silver đã chuẩn hóa
+            chunks = self.chunker.chunk_paper(silver_record)
+            if not chunks:
+                logger.warning(f"[Worker][Gold] No valid chunks generated for paper {paper_id}")
+                return True
+
+            texts = [c.get("context_text") or c.get("text", "") for c in chunks]
             vectors = self.embedder.embed_documents(texts)
             for c, vec in zip(chunks, vectors):
                 c["vector"] = vec
 
-            # 4. Upsert into Qdrant
             inserted = self.qdrant.insert_chunks(chunks)
-            logger.info(f"[Worker] Upserted {inserted} vectors for paper {paper_id} into Qdrant")
+            logger.info(f"[Worker][Gold] Upserted {inserted} section vectors for paper {paper_id} into Qdrant")
             return True
         except Exception as e:
-            logger.error(f"[Worker] Failed to embed/upsert paper {paper_id}: {e}")
+            logger.error(f"[Worker][Gold] Failed to index paper {paper_id} into Qdrant: {e}")
             return False
 
     def run_pika(self):
