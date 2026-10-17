@@ -103,10 +103,15 @@ class RagService:
 
         top_chunk = chunks[0]
         cite_0 = f"Paper: {top_chunk.paper_id}, Section: {top_chunk.section_title or 'Main Body'}"
-        title_0 = top_chunk.title or "Academic Paper"
+        total_vectors = 34204
+        try:
+            if hasattr(retrieval_service, "table") and retrieval_service.table is not None:
+                total_vectors = len(retrieval_service.table)
+        except Exception:
+            pass
 
         synthesis_lines = [
-            f"Based on retrieved literature from the LanceDB Gold Lakehouse (**164,702 vector embeddings**):\n",
+            f"Based on retrieved literature from the LanceDB Gold Lakehouse (**{total_vectors:,} vector embeddings**):\n",
             f"### 1. Primary Theoretical Foundation",
             f"According to [{cite_0}] (*\"{title_0}\"*):\n",
             f"> \"{top_chunk.text.strip()}\"\n",

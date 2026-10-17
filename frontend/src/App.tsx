@@ -5,7 +5,8 @@ import { SchematicScreen, R2Screen, EdaScreen, PillarsScreen, RagScreen, LogsScr
 import {
   fetchHealth,
   subscribeTelemetry,
-  triggerMiningPipeline,
+  startStreamingIngestion,
+  stopStreamingIngestion,
   fetchStorageStats,
   fetchEdaSummary,
 } from './services';
@@ -20,13 +21,16 @@ export default function App() {
     sessionIngested,
     streamSpeed,
     storageStats,
+    activePipelineStage,
     initializeStream,
     refreshStorageStats,
   } = useLakehouseStreamStore();
 
   const [activeTab, setActiveTab] = useState<AppTab>('schematic');
   const [schematicViewMode, setSchematicViewMode] = useState<SchematicViewMode>('pipeline');
-  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('IDLE');
+  const pipelineStatus: PipelineStatus = isStreaming
+    ? 'RUNNING'
+    : (activePipelineStage === 'completed' ? 'COMPLETED' : 'IDLE');
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
@@ -123,14 +127,13 @@ export default function App() {
 
   const handleTriggerPipeline = async () => {
     try {
-      setPipelineStatus('RUNNING');
-      await triggerMiningPipeline();
-      setTimeout(() => {
-        setPipelineStatus('COMPLETED');
-        setTimeout(() => setPipelineStatus('IDLE'), 12000);
-      }, 6500);
-    } catch {
-      setPipelineStatus('IDLE');
+      if (isStreaming) {
+        await stopStreamingIngestion();
+      } else {
+        await startStreamingIngestion(100, 1.5);
+      }
+    } catch (err) {
+      console.error('Pipeline trigger error:', err);
     }
   };
 

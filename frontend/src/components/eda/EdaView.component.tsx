@@ -456,14 +456,20 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
     if (lastIngestedPaper && lastIngestedPaper.paperId) {
       setStreamedPapers((prev) => {
         if (prev.some((p) => p.id === lastIngestedPaper.paperId)) return prev;
+        const authorsStr = Array.isArray(lastIngestedPaper.authors) && lastIngestedPaper.authors.length > 0
+          ? (lastIngestedPaper.authors.length > 2
+              ? `${lastIngestedPaper.authors.slice(0, 2).join(', ')} et al.`
+              : lastIngestedPaper.authors.join(', '))
+          : 'Verified Academic Author';
+
         const newPoint: ScatterPaperPoint = {
           id: lastIngestedPaper.paperId,
           title: lastIngestedPaper.title,
           category: lastIngestedPaper.category,
-          words: Math.floor(4800 + Math.random() * 3200),
-          formulas: Math.floor(120 + Math.random() * 420),
-          author: 'Live Streaming CDC Ingest',
-          abstract: `Harvested via real-time SSE stream. Vectorized into LanceDB table scientific_papers_gold in ${lastIngestedPaper.latencyMs}ms.`,
+          words: lastIngestedPaper.wordCount || 4200,
+          formulas: lastIngestedPaper.mathCount || 0,
+          author: authorsStr,
+          abstract: `Ingested from Silver Lakehouse Parquet. Vectorized into LanceDB table scientific_papers_gold in ${lastIngestedPaper.latencyMs}ms.`,
           sampleFormula: '\\nabla \\mathcal{L}_{stream}(\\theta) = \\mathbb{E}_{x \\sim \\mathcal{D}_{live}} [ f(x) ]',
         };
         return [newPoint, ...prev.slice(0, 50)];

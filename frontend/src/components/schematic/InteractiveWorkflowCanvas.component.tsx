@@ -617,14 +617,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   };
 
 
-  // Simulation state for realistic data streaming animation
-  const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
-  const [simulationHarvestedCount, setSimulationHarvestedCount] = useState<number>(0);
-  const [formulasExtracted, setFormulasExtracted] = useState<number>(2838695);
-  const [vectorsIndexed, setVectorsIndexed] = useState<number>(164750);
+  // Real dynamic flow velocity based on real ingestion speed (ppm)
+  const flowSpeedRatio = Math.max(0.6, Math.min(2.5, (streamSpeed || 60) / 60));
+  const dynamicFlowDuration = `${(1.0 / flowSpeedRatio).toFixed(2)}s`;
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const streamOffset = isPipelineRunning ? streamSessionCount : 0;
+  const streamOffset = streamSessionCount;
   const liveArxivCount = (sourceBreakdown?.arxiv ?? 101) + streamOffset;
   const liveDoiCount = sourceBreakdown?.doi ?? 8890;
   const liveOpenReviewCount = sourceBreakdown?.openreview ?? 1000;
@@ -645,10 +643,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const liveSilverMb = storageStats?.activeLakehouse?.silverParquetSizeMb ?? 321.69;
   const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 11;
 
-  const liveVectors = isPipelineRunning && simulationStage !== 'completed'
-    ? vectorsIndexed
-    : (storageStats?.backupStorage?.vectorCount ?? (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164750));
-  const liveFormulas = (formulasExtracted || 2838695);
+  const liveVectors = storageStats?.backupStorage?.vectorCount ?? (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164750);
+  const liveFormulas = 2838695;
 
   const liveBatchesCount = 12;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
@@ -662,8 +658,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const openalexPctOfTotal = (((storageStats?.activeLakehouse?.openalexSizeGb ?? 1.767) / liveTotalStorageGb) * 100).toFixed(1);
   const silverPctOfTotal = (((liveSilverMb / 1024) / liveTotalStorageGb) * 100).toFixed(1);
   const goldPctOfTotal = ((liveGoldGb / liveTotalStorageGb) * 100).toFixed(1);
-  const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || totalCorpus) : (totalCorpus || liveTotalWorks);
-  const displayWorks = isPipelineRunning && simulationStage !== 'completed' ? papersHarvested : (totalCorpus || liveTotalWorks);
+  const displayWorks = totalCorpus || liveTotalWorks;
 
   const handleToggleStreaming = async () => {
     if (isStreaming) {
@@ -681,83 +676,20 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     }
   };
 
-  // Progressive simulation when "Run Pipeline" is triggered
-  useEffect(() => {
-    if (!isPipelineRunning) {
-      if (simulationStage !== 'idle' && simulationStage !== 'completed') {
-        setSimulationStage('completed');
-      }
-      return;
-    }
+  // Real stage driven directly by backend SSE events (100% Zero setTimeout):
+  const effectiveStage: PipelineStageKey = (activePipelineStage && activePipelineStage !== 'idle')
+    ? (activePipelineStage as PipelineStageKey)
+    : (isStreaming ? 'harvest' : 'idle');
 
-    setSimulationStage('harvest');
-    setSimulationHarvestedCount(Math.round((displayWorks || 18287) * 0.25));
-    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-    setLogs((prev) => [
-      ...prev,
-      { id: Date.now(), time: now, level: 'EXEC', tag: 'PIPELINE', msg: '▶ Ingesting scientific papers: OAI-PMH harvest triggered.' },
-    ]);
-
-    const t1 = setTimeout(() => {
-      setSimulationStage('bronze');
-      setSimulationHarvestedCount(Math.round((displayWorks || 18287) * 0.65));
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + 1, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'BRONZE-R2', msg: 'Streamed raw HTML5 documents to Cloudflare R2 bucket bronze/raw_html/ (0 egress fees).' },
-      ]);
-    }, 1200);
-
-    const t2 = setTimeout(() => {
-      setSimulationStage('duckdb');
-      setSimulationHarvestedCount(displayWorks || 18287);
-      setFormulasExtracted(2838695);
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + 2, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'EXEC', tag: 'DUCKDB-SIMD', msg: 'DuckDB SIMD vector parsing LaTeX equations into Apache Arrow columnar memory.' },
-      ]);
-    }, 2500);
-
-    const t3 = setTimeout(() => {
-      setSimulationStage('parallel');
-      setVectorsIndexed(Math.round((liveVectors || 164750) * 0.7));
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: `Silver Parquet & Gold LanceDB synced: ${liveFormulas.toLocaleString()} formulas, ${(liveVectors || 164750).toLocaleString()} vectors indexed.` },
-      ]);
-    }, 4000);
-
-    const t4 = setTimeout(() => {
-      setSimulationStage('completed');
-      setVectorsIndexed(liveVectors || 164750);
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: `Lakehouse pipeline execution completed: ${(displayWorks || 18287).toLocaleString()} works, ${(liveVectors || 164750).toLocaleString()} vectors online.` }
-      ]);
-    }, 6000);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  }, [isPipelineRunning]);
-
-  const effectiveStage = (activePipelineStage && activePipelineStage !== 'idle') ? activePipelineStage : simulationStage;
-
-
-  const isStageActive = (stage: string) => {
-    // When live streaming ingestion is running, data flows down the entire Lakehouse:
-    // Harvest -> Cloudflare R2 Bronze -> DuckDB OLAP -> Parallel Fork -> Parquet Silver & LanceDB Gold Vectors
-    if (isStreaming && (stage === 'harvest' || stage === 'bronze' || stage === 'duckdb' || stage === 'parallel' || stage === 'silver' || stage === 'gold')) return true;
-    if (!isPipelineRunning) return false;
-    if (effectiveStage === 'completed') return false;
+  const isStageActive = (stage: string): boolean => {
+    if (!isStreaming && !isPipelineRunning) return false;
+    if (effectiveStage === 'completed' || effectiveStage === 'idle') return false;
     if (effectiveStage === stage) return true;
     if (effectiveStage === 'parallel' && (stage === 'parallel' || stage === 'silver' || stage === 'gold')) return true;
     return false;
   };
 
-  const isGroundedRagReady = effectiveStage === 'completed' || activePipelineStage === 'completed' || simulationStage === 'completed';
+  const isGroundedRagReady = effectiveStage === 'completed' || activePipelineStage === 'completed' || (!isStreaming && !isPipelineRunning);
 
   const handleOpenInspector = (nodeId: string) => {
     setSelectedNodeId(nodeId);
@@ -1459,10 +1391,10 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                 width: '100%',
                 height: '6px',
                 borderRadius: '3px',
-                backgroundColor: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1')) ? '#8b5cf6' : themeStyles.wire,
+                backgroundColor: (isStageActive('harvest') || isLineageHighlighted('conduit-1')) ? '#8b5cf6' : themeStyles.wire,
                 position: 'relative',
                 overflow: 'hidden',
-                boxShadow: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1'))
+                boxShadow: (isStageActive('harvest') || isLineageHighlighted('conduit-1'))
                   ? '0 0 12px rgba(139, 92, 246, 0.8), 0 0 4px #ffffff'
                   : 'none',
                 transition: 'all 0.3s ease',
@@ -1477,12 +1409,12 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
                   display: 'flex',
                   alignItems: 'center',
                   gap: '2px',
-                  color: (isStageActive('harvest') || isStreaming || isLineageHighlighted('conduit-1')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
+                  color: (isStageActive('harvest') || isLineageHighlighted('conduit-1')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
                   fontSize: '11px',
                   lineHeight: 1,
                   fontFamily: 'monospace',
                   fontWeight: 900,
-                  animation: (isStageActive('harvest') || isStreaming) ? 'chevronFlow 1.0s linear infinite' : 'none',
+                  animation: isStageActive('harvest') ? `chevronFlow ${dynamicFlowDuration} linear infinite` : 'none',
                   userSelect: 'none',
                 }}
               >
@@ -1924,10 +1856,10 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             width: '100%',
             height: '6px',
             borderRadius: '3px',
-            backgroundColor: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#e11d48' : themeStyles.wire,
+            backgroundColor: (isStageActive('bronze') || isLineageHighlighted('conduit-2')) ? '#e11d48' : themeStyles.wire,
             position: 'relative',
             overflow: 'hidden',
-            boxShadow: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2'))
+            boxShadow: (isStageActive('bronze') || isLineageHighlighted('conduit-2'))
               ? '0 0 12px rgba(225, 29, 72, 0.8), 0 0 4px #ffffff'
               : 'none',
             transition: 'all 0.3s ease',
@@ -1942,12 +1874,12 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               display: 'flex',
               alignItems: 'center',
               gap: '2px',
-              color: (isStageActive('bronze') || isStreaming || isLineageHighlighted('conduit-2')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
+              color: (isStageActive('bronze') || isLineageHighlighted('conduit-2')) ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'),
               fontSize: '11px',
               lineHeight: 1,
               fontFamily: 'monospace',
               fontWeight: 900,
-              animation: (isStageActive('bronze') || isStreaming) ? 'chevronFlow 1.0s linear infinite' : 'none',
+              animation: isStageActive('bronze') ? `chevronFlow ${dynamicFlowDuration} linear infinite` : 'none',
               userSelect: 'none',
             }}
           >
@@ -1958,7 +1890,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           </div>
 
           {/* Traveling Data Payload Orb when Active */}
-          {(isStageActive('bronze') || isStreaming) && (
+          {isStageActive('bronze') && (
             <div
               style={{
                 position: 'absolute',
@@ -2316,7 +2248,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
               lineHeight: 1,
               fontFamily: 'monospace',
               fontWeight: 900,
-              animation: isStageActive('duckdb') ? 'chevronFlow 1.0s linear infinite' : 'none',
+              animation: isStageActive('duckdb') ? `chevronFlow ${dynamicFlowDuration} linear infinite` : 'none',
               userSelect: 'none',
             }}
           >

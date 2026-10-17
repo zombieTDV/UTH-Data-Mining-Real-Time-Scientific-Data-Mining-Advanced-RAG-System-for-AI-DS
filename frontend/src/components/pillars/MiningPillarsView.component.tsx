@@ -247,12 +247,30 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
         else if (lastIngestedPaper.category.startsWith('cs.AI')) cid = 4;
         else if (lastIngestedPaper.category.startsWith('cs.CL')) cid = 5;
 
+        // Deterministic placement around cluster centroid based on paper ID hash (Zero Math.random)
+        let hash = 0;
+        for (let i = 0; i < lastIngestedPaper.paperId.length; i++) {
+          hash = (hash << 5) - hash + lastIngestedPaper.paperId.charCodeAt(i);
+          hash |= 0;
+        }
+        const clusterCenters = [
+          { cx: 0.15, cy: 0.20 },
+          { cx: -0.35, cy: 0.45 },
+          { cx: 0.40, cy: -0.30 },
+          { cx: -0.40, cy: -0.25 },
+          { cx: 0.10, cy: -0.45 },
+          { cx: -0.20, cy: -0.10 },
+        ];
+        const center = clusterCenters[cid] || clusterCenters[0];
+        const angle = (Math.abs(hash) % 360) * (Math.PI / 180);
+        const radius = 0.04 + ((Math.abs(hash >> 3) % 100) / 100) * 0.14;
+
         const livePt: ScatterPointItem = {
-          x: parseFloat((-0.5 + Math.random() * 1.0).toFixed(4)),
-          y: parseFloat((-0.5 + Math.random() * 1.0).toFixed(4)),
+          x: parseFloat((center.cx + Math.cos(angle) * radius).toFixed(4)),
+          y: parseFloat((center.cy + Math.sin(angle) * radius).toFixed(4)),
           cluster: cid,
           category: lastIngestedPaper.category,
-          title: `[LIVE STREAM] ${lastIngestedPaper.title}`,
+          title: `[STREAM CDC] ${lastIngestedPaper.title}`,
           paper_id: lastIngestedPaper.paperId,
         };
         return [livePt, ...prev.slice(0, 30)];

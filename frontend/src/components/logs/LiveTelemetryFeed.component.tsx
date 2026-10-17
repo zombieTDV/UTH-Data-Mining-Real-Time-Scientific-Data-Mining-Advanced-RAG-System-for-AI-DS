@@ -119,9 +119,9 @@ export const LiveTelemetryFeed: FC = () => {
     latencyMs: number;
   }>({
     status: 'ONLINE',
-    totalPapers: 18287,
-    totalSeconds: 42.0,
-    latencyMs: 14,
+    totalPapers: 0,
+    totalSeconds: 0,
+    latencyMs: 0,
   });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -131,8 +131,15 @@ export const LiveTelemetryFeed: FC = () => {
   // Load real logs from disk
   const loadRealLogs = async (sourceFilter?: string, limitCount: number = bufferLimit) => {
     if (isPaused) return;
+    const tStart = performance.now();
     try {
       const diskLogs: any = await fetchPipelineLogs(limitCount, sourceFilter === 'all' ? undefined : sourceFilter);
+      const roundTripMs = Math.round(performance.now() - tStart);
+      setTelemetryPulse((prev) => ({
+        ...prev,
+        latencyMs: roundTripMs,
+        status: 'ONLINE',
+      }));
       if (diskLogs && diskLogs.length > 0) {
         if (diskLogs.activeFile) {
           setActiveFile(diskLogs.activeFile);
@@ -168,12 +175,12 @@ export const LiveTelemetryFeed: FC = () => {
     const unsub = subscribeTelemetry(
       (data: any) => {
         if (data && typeof data === 'object') {
-          setTelemetryPulse({
-            status: data.status || 'READY',
-            totalPapers: data.total_papers || 18287,
-            totalSeconds: data.total_execution_seconds || 42.0,
-            latencyMs: Math.floor(Math.random() * 12 + 8),
-          });
+          setTelemetryPulse((prev) => ({
+            status: data.status || prev.status,
+            totalPapers: data.total_papers ?? prev.totalPapers,
+            totalSeconds: data.total_execution_seconds ?? prev.totalSeconds,
+            latencyMs: prev.latencyMs,
+          }));
         }
       },
       () => {}

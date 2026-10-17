@@ -635,6 +635,10 @@ export interface IngestionEvent {
   total_vectors?: number;
   total_sections?: number;
   total_words?: number;
+  math_count?: number;
+  word_count?: number;
+  authors?: string[];
+  published_date?: string;
 }
 
 export interface DuckDbQueryResult {

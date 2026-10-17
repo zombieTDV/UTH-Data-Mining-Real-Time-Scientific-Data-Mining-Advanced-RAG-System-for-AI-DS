@@ -12,53 +12,7 @@ export interface StreamingLogEntry {
 }
 
 export const createInitialLakehouseLogs = (): StreamingLogEntry[] => {
-  const now = new Date();
-  const formatTime = (d: Date) => d.toISOString().replace('T', ' ').slice(0, 19);
-
-  return [
-    {
-      id: 'init-01',
-      time: formatTime(new Date(now.getTime() - 1000 * 150)),
-      level: 'STORAGE',
-      tag: 'R2/SYNC',
-      msg: 'Cloudflare R2 lakehouse active: 8.750 GB across Bronze (2.352 GB HTML5/OpenAlex), Silver (321.69 MB Parquet), Gold (211.27 MB LanceDB, 4.943 GB Backups)',
-    },
-    {
-      id: 'init-02',
-      time: formatTime(new Date(now.getTime() - 1000 * 120)),
-      level: 'SUCCESS',
-      tag: 'GOLD/LANCEDB',
-      msg: '164,750 vector embeddings active in LanceDB table scientific_papers_gold (Cosine ANN, 768-dim nomic-embed-text-v1.5)',
-    },
-    {
-      id: 'init-03',
-      time: formatTime(new Date(now.getTime() - 1000 * 90)),
-      level: 'INFO',
-      tag: 'SILVER/DUCKDB',
-      msg: 'DuckDB columnar OLAP engine attached to Silver Parquet partitions (2,838,695 LaTeX formulas indexed with SIMD)',
-    },
-    {
-      id: 'init-04',
-      time: formatTime(new Date(now.getTime() - 1000 * 60)),
-      level: 'INFO',
-      tag: 'CORPUS/SYNC',
-      msg: 'Corpus baseline verified: 18,287 works (101 arXiv HTML5 + 9,621 OpenAlex + 8,565 conferences/journals) mapped in Lakehouse Bronze & Silver layers',
-    },
-    {
-      id: 'init-05',
-      time: formatTime(new Date(now.getTime() - 1000 * 30)),
-      level: 'SUCCESS',
-      tag: 'RAG/GATE',
-      msg: 'Qwen 2.5 7B GGUF Anti-Hallucination Gate initialized with Cosine grounding threshold tau >= 0.75',
-    },
-    {
-      id: 'init-06',
-      time: formatTime(now),
-      level: 'INFO',
-      tag: 'CDC/STREAM',
-      msg: 'Continuous Lakehouse Change Data Capture (CDC) stream listening on /api/ingestion/stream',
-    },
-  ];
+  return [];
 };
 
 export interface LakehouseStreamState {
@@ -75,6 +29,10 @@ export interface LakehouseStreamState {
     paperId: string;
     title: string;
     category: string;
+    authors?: string[];
+    mathCount?: number;
+    wordCount?: number;
+    publishedDate?: string;
     vectorsSynced: number;
     latencyMs: number;
   } | null;
@@ -300,12 +258,14 @@ export function setViewMode(mode: 'active' | 'total'): void {
   });
 }
 
+let logSequence = 1;
+
 export function appendStreamLog(log: Omit<StreamingLogEntry, 'id'>): void {
   updateState((prev) => {
     const newLogs: StreamingLogEntry[] = [
       {
         ...log,
-        id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: `log-${Date.now()}-${logSequence++}`,
       },
       ...prev.logs.slice(0, 199),
     ];
@@ -319,13 +279,12 @@ export function appendStreamLog(log: Omit<StreamingLogEntry, 'id'>): void {
 }
 
 export function clearStreamLogs(): void {
-  const initial = createInitialLakehouseLogs();
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem('uth_lakehouse_logs', JSON.stringify(initial));
+      localStorage.removeItem('uth_lakehouse_logs');
     } catch {}
   }
-  updateState({ logs: initial });
+  updateState({ logs: [] });
 }
 
 export const addTelemetryLog = appendStreamLog;
@@ -435,6 +394,10 @@ export function initializeLakehouseStream(): () => void {
                 paperId: event.paper_id || '',
                 title: event.title || '',
                 category: event.category || '',
+                authors: event.authors,
+                mathCount: event.math_count,
+                wordCount: event.word_count,
+                publishedDate: event.published_date,
                 vectorsSynced: vectorsDelta,
                 latencyMs: event.latency_ms || 0,
               },
