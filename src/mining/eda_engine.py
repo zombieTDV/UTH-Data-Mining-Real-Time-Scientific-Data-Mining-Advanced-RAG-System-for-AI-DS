@@ -19,8 +19,11 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-import duckdb
 import pandas as pd
+
+from src.mining.lake_access import (
+    SILVER_PRIMARY_KEY, duck_connect, path_exists, put_artifact, qdrant_client, s3_uri, section_facets,
+)
 
 logger = logging.getLogger("eda_engine")
 
@@ -33,31 +36,26 @@ class EdaEngine:
         parquet_path: Optional[str] = None,
         catalog_path: Optional[str] = None,
         fulltext_path: Optional[str] = None,
-        lancedb_dir: Optional[str] = None,
+        lancedb_dir: Optional[str] = None,  # ignored, kept for call-site compatibility (vectors live in Qdrant)
     ):
-        # Resolve 100k Catalog Parquet
-        if catalog_path and os.path.exists(catalog_path):
+        # All sources are Silver Parquet objects in MinIO, addressed as s3:// URIs
+        primary = s3_uri(SILVER_PRIMARY_KEY)
+        near_past = s3_uri("silver/tier2/near_past_papers.parquet")
+        if catalog_path and path_exists(catalog_path):
             self.catalog_path = catalog_path
-        elif parquet_path and os.path.exists(parquet_path):
+        elif parquet_path and path_exists(parquet_path):
             self.catalog_path = parquet_path
-        elif os.path.exists("data/silver/tier2/near_past_papers.parquet"):
-            self.catalog_path = "data/silver/tier2/near_past_papers.parquet"
-        elif os.path.exists("data/silver/year=2026/papers.parquet"):
-            self.catalog_path = "data/silver/year=2026/papers.parquet"
+        elif path_exists(near_past):
+            self.catalog_path = near_past
         else:
-            self.catalog_path = "data/silver/papers.parquet"
+            self.catalog_path = primary
 
-        # Resolve Full-Text Parquets (for LaTeX & Math EDA)
-        self.year2026_path = "data/silver/year=2026/papers.parquet"
-        self.landmark_path = "data/silver/tier1/landmark_html_papers.parquet"
-        self.html_tier2_path = "data/silver/tier2/html_papers.parquet"
+        self.year2026_path = primary
+        self.landmark_path = s3_uri("silver/tier3/landmark_html_papers.parquet")
+        self.html_tier2_path = s3_uri("silver/tier2/html_papers.parquet")
         self.fulltext_path = fulltext_path or self.year2026_path
 
-        # Resolve Gold LanceDB directory
-        self.lancedb_dir = lancedb_dir or "data/gold/lancedb"
-        self.chunks_path = "data/silver/chunks.parquet"
-
-        self.con = duckdb.connect(database=":memory:")
+        self.con = duck_connect()
         self._init_duckdb_views()
 
     def _init_duckdb_views(self):
@@ -70,15 +68,15 @@ class EdaEngine:
 
         # Fulltext view: union all 7 Silver Parquets across Lakehouse and deduplicate by paper_id
         fulltext_sources = [
-            "data/silver/year=2026/papers.parquet",
-            "data/silver/tier1/landmark_papers.parquet",
-            "data/silver/tier1/landmark_html_papers.parquet",
-            "data/silver/tier2/html_papers.parquet",
-            "data/silver/tier2/fulltext_papers.parquet",
-            "data/silver/cvf/cvpr2024.parquet",
-            "data/silver/openreview/openreview_all.parquet",
+            SILVER_PRIMARY_KEY,
+            "silver/tier3/landmark_papers.parquet",
+            "silver/tier3/landmark_html_papers.parquet",
+            "silver/tier2/html_papers.parquet",
+            "silver/tier2/fulltext_papers.parquet",
+            "silver/cvf/cvpr2024.parquet",
+            "silver/openreview/openreview_all.parquet",
         ]
-        existing_ft = [p.replace("\\", "/") for p in fulltext_sources if os.path.exists(p)]
+        existing_ft = [s3_uri(k) for k in fulltext_sources if path_exists(k)]
         if existing_ft:
             parquet_list = ", ".join(f"'{p}'" for p in existing_ft)
             self.con.execute(f"""
@@ -839,46 +837,42 @@ class EdaEngine:
             return {}
 
     def _get_rag_audit_metrics(self) -> Dict[str, Any]:
-        """Profiles the live LanceDB Gold vector table and Silver chunk distributions."""
-        total_vectors = 659601
-        try:
-            import lancedb
-            if os.path.exists(self.lancedb_dir):
-                db = lancedb.connect(self.lancedb_dir)
-                tbl_res = db.list_tables() if hasattr(db, "list_tables") else db.table_names()
-                tables = tbl_res.tables if hasattr(tbl_res, "tables") else list(tbl_res)
-                if "scientific_papers_gold" in tables:
-                    tbl = db.open_table("scientific_papers_gold")
-                    total_vectors = len(tbl)
-        except Exception as e:
-            logger.warning("[EDA] Error reading LanceDB vector count: %s", e)
+        """Profiles the live Qdrant Gold collection: vector count, dimension and real section distribution."""
+        from src.config.settings import settings
 
-        section_breakdown = [
-            {"section": "Methodology & Algorithms", "chunks": int(total_vectors * 0.324), "percentage": 32.4},
-            {"section": "Experiments & Benchmarks", "chunks": int(total_vectors * 0.282), "percentage": 28.2},
-            {"section": "Introduction & Theory", "chunks": int(total_vectors * 0.238), "percentage": 23.8},
-            {"section": "Discussion & Conclusion", "chunks": int(total_vectors * 0.156), "percentage": 15.6},
-        ]
+        total_vectors, dim = 0, 768
+        sections: List[Dict[str, Any]] = []
+        try:
+            client = qdrant_client()
+            info = client.get_collection(settings.QDRANT_COLLECTION)
+            total_vectors = int(info.points_count or 0)
+            dim = int(info.config.params.vectors.size)
+            facets = section_facets(client)
+            total_f = sum(f["chunks"] for f in facets) or 1
+            sections = [
+                {"section": f["section_type"], "chunks": f["chunks"], "percentage": round(f["chunks"] / total_f * 100, 1)}
+                for f in facets
+            ]
+        except Exception as e:
+            logger.warning("[EDA] Could not profile Qdrant collection: %s", e)
 
         return {
             "total_vectors": total_vectors,
-            "vector_dimension": 768,
+            "vector_dimension": dim,
             "embedding_model": "nomic-ai/nomic-embed-text-v1.5",
             "context_window_tokens": 8192,
-            "index_type": "IVF-PQ (K=1024, M=192)",
-            "section_distribution": section_breakdown,
+            "index_type": "Qdrant HNSW (cosine)",
+            "section_distribution": sections,
         }
 
-    def save_summary(self, output_path: str = "data/gold/mining/eda_summary.json") -> None:
-        """Runs full dual-scale EDA and serializes result to a JSON file."""
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    def save_summary(self, output_path: str = "eda_summary.json") -> None:
+        """Runs the full EDA and publishes eda_summary.json to MinIO (gold/mining/)."""
         results = self.run_full_eda()
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-        logger.info("[EDA] [SUCCESS] Saved updated dual-scale EDA summary to: %s", output_path)
+        uri = put_artifact(os.path.basename(output_path), results)
+        logger.info("[EDA] [SUCCESS] Saved EDA summary to: %s", uri)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     engine = EdaEngine()
-    engine.save_summary("data/gold/mining/eda_summary.json")
+    engine.save_summary("eda_summary.json")

@@ -2,7 +2,7 @@
 data_mining/src/mining/cluster_analysis.py
 ------------------------------------------
 Pillar 2: Semantic Topic Clustering & Density Analysis Pipeline.
-Analyzes Gold vector embeddings (768-dim) across distinct papers using K-Means and DBSCAN,
+Analyzes Gold vector embeddings (Qdrant) (768-dim) across distinct papers using K-Means and DBSCAN,
 evaluates cluster validity metrics (Silhouette, Davies-Bouldin, Calinski-Harabasz),
 and generates clean 2D projections (PCA on centered normalized embeddings) for interactive visualization.
 
@@ -18,8 +18,8 @@ from typing import Dict, Any, List, Optional
 from collections import Counter
 import numpy as np
 import pandas as pd
-import duckdb
-import lancedb
+from src.config.settings import settings
+from src.mining.lake_access import SILVER_PRIMARY_KEY, duck_connect, put_artifact, qdrant_client, s3_uri, sample_abstract_vectors
 from sklearn.cluster import MiniBatchKMeans, DBSCAN
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import normalize
@@ -29,121 +29,55 @@ logger = logging.getLogger("cluster_analysis")
 
 
 class SemanticClusterAnalyzer:
-    """Performs semantic partitioning and density clustering over Gold vector embeddings."""
+    """Performs semantic partitioning and density clustering over Gold vector embeddings stored in Qdrant."""
 
-    def __init__(
-        self,
-        lancedb_uri: str = "data/gold/lancedb",
-        table_name: str = "scientific_papers_gold",
-        storage_options: Optional[Dict[str, Any]] = None,
-    ):
-        self.lancedb_uri = lancedb_uri
-        self.table_name = table_name
-        self.storage_options = storage_options
-
-    def _get_connection(self):
-        """Initializes LanceDB connection with optional S3/R2 storage options."""
-        if self.storage_options is None and self.lancedb_uri.startswith("s3://"):
-            from src.config.settings import settings
-            self.storage_options = {
-                "endpoint": settings.get_r2_endpoint(),
-                "aws_access_key_id": settings.R2_ACCESS_KEY_ID,
-                "aws_secret_access_key": settings.R2_SECRET_ACCESS_KEY,
-                "region": "auto",
-            }
-        return lancedb.connect(self.lancedb_uri, storage_options=self.storage_options)
+    def __init__(self, collection: Optional[str] = None, silver_key: str = SILVER_PRIMARY_KEY):
+        self.collection = collection or settings.QDRANT_COLLECTION
+        self.silver_key = silver_key
 
     def load_vector_sample(self, sample_size: int = 3000) -> Dict[str, Any]:
-        """Loads a representative sample of per-paper vectors and clean metadata from LanceDB."""
-        logger.info(
-            "[PILLAR 2] Connecting to LanceDB at: %s...",
-            self.lancedb_uri,
-        )
-        db = self._get_connection()
+        """Loads a random sample of per-paper abstract vectors and clean metadata from Qdrant."""
+        logger.info("[PILLAR 2] Sampling abstract vectors from Qdrant collection '%s'...", self.collection)
+        client = qdrant_client()
+        points = sample_abstract_vectors(client, sample_size)
 
-        # Discover existing table names
+        # One vector per paper
+        seen, picked = set(), []
+        for pt in points:
+            pid = str((pt.payload or {}).get("paper_id", ""))
+            if pid and pid not in seen:
+                seen.add(pid)
+                picked.append(pt)
+            if len(picked) >= sample_size:
+                break
+        if not picked:
+            raise RuntimeError("No abstract vectors found in Qdrant; run the ingestion pipeline first.")
+        logger.info("[PILLAR 2] Extracted %d distinct paper vectors.", len(picked))
+        vectors = np.vstack([np.asarray(pt.vector, dtype=np.float32) for pt in picked])
+
+        # Category lookup from Silver (MinIO) for payloads without primary_category
+        cat_lookup: Dict[str, str] = {}
         try:
-            tbl_names = db.table_names()
-        except Exception:
-            tbl_names = []
-
-        if self.table_name in tbl_names:
-            target_table = self.table_name
-        elif "scientific_papers_gold" in tbl_names:
-            target_table = "scientific_papers_gold"
-        elif "academic_chunks" in tbl_names:
-            target_table = "academic_chunks"
-        elif tbl_names:
-            target_table = tbl_names[0]
-        else:
-            target_table = self.table_name
-
-        logger.info("[PILLAR 2] Opening LanceDB table: '%s'...", target_table)
-        tbl = db.open_table(target_table)
-        total_rows = len(tbl)
-        logger.info("[PILLAR 2] Table has %d total chunks. Querying per-paper vectors...", total_rows)
-
-        # Inspect schema to see if chunk_type or section_type exists
-        col_names = getattr(tbl.schema, "names", [])
-        filter_expr = None
-        if "chunk_type" in col_names:
-            filter_expr = "chunk_type = 'abstract'"
-        elif "section_type" in col_names:
-            filter_expr = "section_type = 'abstract'"
-
-        if filter_expr:
-            try:
-                df = tbl.search().where(filter_expr).limit(sample_size + 1000).to_pandas()
-            except Exception as e:
-                logger.info("[PILLAR 2] where(%s) fallback: %s", filter_expr, str(e))
-                df = tbl.search().limit(sample_size + 1000).to_pandas()
-        else:
-            df = tbl.search().limit(sample_size + 1000).to_pandas()
-
-        if df.empty:
-            df = tbl.search().limit(sample_size).to_pandas()
-
-        # Deduplicate on paper_id to ensure strictly ONE vector per paper
-        if "paper_id" in df.columns:
-            df = df.drop_duplicates(subset=["paper_id"]).reset_index(drop=True)
-
-        if len(df) > sample_size:
-            df = df.sample(n=sample_size, random_state=42).reset_index(drop=True)
-
-        logger.info("[PILLAR 2] Extracted %d distinct paper vectors.", len(df))
-        vectors = np.vstack(df["vector"].values)
-
-        # Build category lookup if primary_category is missing or sparse
-        cat_lookup = {}
-        if os.path.exists("data/silver/year=2026/papers.parquet"):
-            con = duckdb.connect()
-            cats = con.execute("SELECT paper_id, primary_category FROM 'data/silver/year=2026/papers.parquet' WHERE primary_category IS NOT NULL").fetchall()
-            cat_lookup.update({str(r[0]): str(r[1]) for r in cats})
-        if os.path.exists("data/silver/papers.parquet"):
-            con = duckdb.connect()
-            topics = con.execute("SELECT paper_id, topics[1] FROM 'data/silver/papers.parquet' WHERE topics IS NOT NULL AND len(topics) > 0").fetchall()
-            for r in topics:
-                if str(r[0]) not in cat_lookup:
-                    cat_lookup[str(r[0])] = str(r[1])
+            con = duck_connect()
+            rows = con.execute(
+                f"SELECT paper_id, primary_category FROM read_parquet('{s3_uri(self.silver_key)}') WHERE primary_category IS NOT NULL"
+            ).fetchall()
+            cat_lookup = {str(r[0]): str(r[1]) for r in rows}
+        except Exception as e:
+            logger.warning("[PILLAR 2] Category lookup from Silver unavailable: %s", e)
 
         invalid_headers = {"abstract", "synopsis", "introduction", "background", "conclusion", "references"}
         metadata = []
-        for _, row in df.iterrows():
-            pid = str(row.get("paper_id", ""))
-            raw_title = str(row.get("title", "")).strip()
+        for pt in picked:
+            payload = pt.payload or {}
+            pid = str(payload.get("paper_id", ""))
+            raw_title = str(payload.get("title", "")).strip()
             if raw_title.lower() in invalid_headers or len(raw_title) < 5:
                 raw_title = f"Paper {pid}"
-
-            cat = str(row.get("primary_category", ""))
+            cat = str(payload.get("primary_category") or "")
             if not cat or cat == "None":
                 cat = cat_lookup.get(pid, "cs.AI")
-
-            metadata.append({
-                "chunk_id": str(row.get("chunk_id", "")),
-                "paper_id": pid,
-                "title": raw_title,
-                "primary_category": cat,
-            })
+            metadata.append({"chunk_id": str(payload.get("chunk_id", "")), "paper_id": pid, "title": raw_title, "primary_category": cat})
 
         return {"vectors": vectors, "metadata": metadata}
 
@@ -273,9 +207,7 @@ class SemanticClusterAnalyzer:
         return results
 
     def save_clusters(self, output_path: str, sample_size: int = 3000, n_clusters: int = 6) -> None:
-        """Runs clustering benchmarks and writes formatted JSON to disk."""
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        """Runs clustering benchmarks and publishes the JSON artifact to MinIO (gold/mining/) using the basename of output_path."""
         results = self.run_clustering_benchmarks(sample_size=sample_size, n_clusters=n_clusters)
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-        logger.info("[PILLAR 2] [SUCCESS] Saved cluster analysis to: %s", output_path)
+        uri = put_artifact(os.path.basename(output_path), results)
+        logger.info("[PILLAR 2] [SUCCESS] Saved cluster analysis to: %s", uri)

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent, type F
 import type { ChatResponse } from '../../types';
 import { sendChatQuery, streamChatQuery, fetchPaper } from '../../services';
 import { ScientificMath } from '../common/ScientificMath.component';
+import { useLakehouseStreamStore } from '../../store';
 
 export interface GroundedRagChatProps {
   theme?: 'dark' | 'light';
@@ -60,7 +61,7 @@ const RESEARCH_PROMPT_SUGGESTIONS = [
 ];
 
 const RAG_STREAMING_STATUSES = [
-  'Querying LanceDB Gold Lakehouse (913,205 vectors 768-D)...',
+  'Querying Qdrant Gold Lakehouse (768-D vectors)...',
   'Verifying context & multi-source citations...',
   'Qwen2.5-7B synthesizing grounded academic response...',
 ];
@@ -69,7 +70,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
     sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **29,911 verified full-text papers**, **2.77M formulas** (2,765,395 LaTeX equations), and **913,205 LanceDB vector embeddings** (IVF-PQ $K=1024, M=192$, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?',
+    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **29,911 verified full-text papers**, **2.77M formulas** (2,765,395 LaTeX equations), and **673,909 Qdrant vector embeddings** (HNSW Cosine, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?',
     timestamp: '12:00:00',
   },
 ];
@@ -79,6 +80,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   initialQuery = '',
   onClearInitialQuery,
 }) => {
+  const { totalCorpus, totalVectors } = useLakehouseStreamStore();
   const isDark = theme === 'dark';
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState<string>(initialQuery);
@@ -132,7 +134,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       title: `Academic Paper ${paperId}`,
       authors: ['Research Author Group'],
       category: 'cs.AI',
-      abstract: 'Retrieving canonical paper abstract and chunks from LanceDB Gold Lakehouse...',
+      abstract: 'Retrieving canonical paper abstract and chunks from Qdrant Gold Lakehouse...',
       sectionTitle: sectionTitle || 'Main Methodology',
       score: '0.8510',
       chunkText: '',
@@ -149,7 +151,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         const displayChunk = matchedChunk || chunks.find(c => c.section_title && c.section_title.toLowerCase() !== 'abstract') || first;
 
         const abstractChunk = chunks.find(c => c.section_title?.toLowerCase() === 'abstract' || c.chunk_id?.includes('_c000'));
-        const resolvedAbstract = first.abstract || abstractChunk?.text || displayChunk.abstract || 'Abstract content indexed in LanceDB Lakehouse.';
+        const resolvedAbstract = first.abstract || abstractChunk?.text || displayChunk.abstract || 'Abstract content indexed in Qdrant Lakehouse.';
 
         setInspectedPaper({
           paperId,
@@ -629,7 +631,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
           <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
-            36,414 Works · 143,523 LanceDB Vectors (Nomic 768-D)
+            {totalCorpus.toLocaleString()} Works · {totalVectors.toLocaleString()} Qdrant Vectors (Nomic 768-D)
           </span>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
@@ -878,7 +880,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       }}
                     >
                       <span style={{ color: '#10b981', fontWeight: 700 }}>
-                        ● LanceDB Vector ANN (768-D)
+                        ● Qdrant Vector ANN (768-D)
                       </span>
                       <span>·</span>
                       <span>Sim: <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{msg.similarity_score || '0.8510'}</strong></span>
@@ -1003,7 +1005,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', animation: 'stageGlowOrange 1.2s infinite' }} />
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ff5722', animation: 'stageGlowOrange 1.4s infinite' }} />
                 </div>
-                <span>Executing LanceDB Vector ANN retrieval &amp; Qwen2.5 prompt grounding...</span>
+                <span>Executing Qdrant Vector ANN retrieval &amp; Qwen2.5 prompt grounding...</span>
               </div>
             </div>
           )}
@@ -1093,7 +1095,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           >
             {isDossierLoading ? (
               <div style={{ padding: '30px', textAlign: 'center', color: isDark ? '#94a3b8' : '#64748b', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-                Fetching paper chunks from LanceDB Gold...
+                Fetching paper chunks from Qdrant Gold...
               </div>
             ) : (
               <>
@@ -1148,7 +1150,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 {inspectedPaper.chunkText && (
                   <div>
                     <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#ff5722', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 700 }}>
-                      Retrieved LanceDB Context Chunk ({inspectedPaper.sectionTitle})
+                      Retrieved Qdrant Context Chunk ({inspectedPaper.sectionTitle})
                     </div>
                     <div
                       style={{
@@ -1339,7 +1341,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 }}
               />
               <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#64748b' : '#94a3b8' }}>
-                Grounded by LanceDB Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline
+                Grounded by Qdrant Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline
               </div>
             </div>
 

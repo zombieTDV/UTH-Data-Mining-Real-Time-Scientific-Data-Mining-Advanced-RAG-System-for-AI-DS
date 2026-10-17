@@ -32,7 +32,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           type="button"
           onClick={() => triggerR2ManualSync()}
           disabled={isSyncingR2}
-          title={lastSyncedR2 ? `Fetch live Cloudflare R2 storage objects & manifest (Last synced: ${lastSyncedR2})` : 'Fetch live Cloudflare R2 storage objects'}
+          title={lastSyncedR2 ? `Scan the live MinIO bucket (Last synced: ${lastSyncedR2})` : 'Fetch live Cloudflare R2 storage objects'}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -54,7 +54,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           <span style={{ display: 'inline-block', animation: isSyncingR2 ? 'spin 1s linear infinite' : 'none' }}>
             🔄
           </span>
-          <span>{isSyncingR2 ? 'FETCHING R2...' : 'FETCH LIVE R2'}</span>
+          <span>{isSyncingR2 ? 'FETCHING R2...' : 'SCAN MINIO LIVE'}</span>
           {lastSyncedR2 && !isSyncingR2 && (
             <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 500 }}>
               ({lastSyncedR2.includes(' ') ? lastSyncedR2.split(' ')[1] : lastSyncedR2})

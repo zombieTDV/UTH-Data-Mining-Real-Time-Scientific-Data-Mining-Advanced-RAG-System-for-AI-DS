@@ -131,9 +131,11 @@ class LlmClient:
                 base_probe = url.replace("/chat/completions", "/models")
                 with httpx.Client(timeout=2.0) as client:
                     resp = client.get(base_probe)
-                    if resp.status_code in (200, 404, 405):
+                    # An OpenAI-compatible server answers /models with JSON {"data": [...]}. Anything else on that port
+                    # (e.g. the MinIO console, which also listens on :9001) is not an LLM.
+                    if resp.status_code == 200 and isinstance(resp.json().get("data"), list):
                         return url
-            except (httpx.ConnectError, httpx.TimeoutException):
+            except (httpx.ConnectError, httpx.TimeoutException, ValueError, AttributeError):
                 continue
 
         if settings.GROQ_API_KEY:

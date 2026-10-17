@@ -21,12 +21,13 @@ if str(PROJECT_ROOT) not in sys.path:
 # Load biến môi trường từ .env
 try:
     from dotenv import load_dotenv
-
     load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 except ImportError:
     pass
 
 import pytest
+from src.config.settings import settings
+from src.storage.minio_client import StorageClient
 
 
 def test_env_file_exists():
@@ -39,12 +40,12 @@ def test_env_file_exists():
 
 
 def test_env_variables_present():
-    """Kiểm tra các biến môi trường thiết yếu của Phase 1 trong .env."""
+    """Kiểm tra các biến môi trường thiết yếu của MinIO S3 trong .env."""
     required_vars = [
-        "R2_ACCESS_KEY_ID",
-        "R2_SECRET_ACCESS_KEY",
-        "R2_ENDPOINT_URL",
-        "R2_BUCKET_NAME",
+        "MINIO_ENDPOINT_URL",
+        "MINIO_ACCESS_KEY_ID",
+        "MINIO_SECRET_ACCESS_KEY",
+        "MINIO_BUCKET_NAME",
     ]
     missing = [var for var in required_vars if not os.getenv(var, "").strip()]
     assert not missing, (
@@ -53,95 +54,48 @@ def test_env_variables_present():
     )
 
 
-@pytest.mark.live_r2
-def test_r2_connection_and_permissions():
-    """Kiểm tra kết nối tới Cloudflare R2: Head Bucket, Write, Read, Delete."""
-    import boto3
-    from botocore.config import Config
-    from botocore.exceptions import ClientError, EndpointConnectionError
+def test_minio_connection_and_permissions():
+    """Kiểm tra kết nối tới MinIO S3: Head Bucket, Write, Read, Delete."""
+    storage = StorageClient()
 
-    endpoint_url = os.getenv("R2_ENDPOINT_URL", "").strip()
-    access_key = os.getenv("R2_ACCESS_KEY_ID", "").strip()
-    secret_key = os.getenv("R2_SECRET_ACCESS_KEY", "").strip()
-    bucket_name = os.getenv("R2_BUCKET_NAME", "").strip()
-
-    assert endpoint_url, "R2_ENDPOINT_URL is empty"
-    assert access_key, "R2_ACCESS_KEY_ID is empty"
-    assert secret_key, "R2_SECRET_ACCESS_KEY is empty"
-    assert bucket_name, "R2_BUCKET_NAME is empty"
-
-    # Đảm bảo endpoint bắt đầu bằng https://
-    if not endpoint_url.startswith("http://") and not endpoint_url.startswith("https://"):
-        endpoint_url = f"https://{endpoint_url}"
-
-    # Khởi tạo S3 Client cho R2
-    s3_client = boto3.client(
-        service_name="s3",
-        endpoint_url=endpoint_url,
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key,
-        region_name="auto",
-        config=Config(
-            signature_version="s3v4",
-            retries={"max_attempts": 3, "mode": "standard"},
-            connect_timeout=10,
-            read_timeout=15,
-        ),
-    )
-
-    # 1. Kiểm tra tồn tại và quyền truy cập Bucket
+    # 1. Kiểm tra tồn tại Bucket
     try:
-        s3_client.head_bucket(Bucket=bucket_name)
-    except ClientError as e:
-        error_code = e.response.get("Error", {}).get("Code", "Unknown")
-        pytest.fail(
-            f"Không thể kết nối tới bucket '{bucket_name}'. Lỗi: {error_code} - {e}"
-        )
-    except EndpointConnectionError as e:
-        pytest.fail(
-            f"Không thể kết nối tới R2_ENDPOINT_URL '{endpoint_url}'. Kiểm tra lại URL và mạng: {e}"
-        )
+        storage.s3.head_bucket(Bucket=storage.bucket_name)
+    except Exception as e:
+        pytest.fail(f"Không thể kết nối tới MinIO bucket '{storage.bucket_name}': {e}")
 
-    # 2. Kiểm tra quyền ghi (Write Permission) bằng test payload
+    # 2. Kiểm tra quyền ghi (PutObject)
     test_key = f"_healthcheck/ping_{int(time.time())}.json"
     test_data = {
         "status": "ok",
-        "service": "UTH-Data-Mining-R2-Healthcheck",
+        "service": "UTH-Data-Mining-MinIO-Healthcheck",
         "timestamp": time.time(),
         "created_by": "test_connection.py",
     }
-    encoded_data = json.dumps(test_data).encode("utf-8")
-
     try:
-        s3_client.put_object(
-            Bucket=bucket_name,
-            Key=test_key,
-            Body=encoded_data,
-            ContentType="application/json",
-        )
-    except ClientError as e:
-        pytest.fail(f"Lỗi quyền GHI (PutObject) vào R2 bucket '{bucket_name}': {e}")
+        storage.upload_json(test_data, test_key)
+    except Exception as e:
+        pytest.fail(f"Lỗi quyền GHI vào MinIO bucket '{storage.bucket_name}': {e}")
 
-    # 3. Kiểm tra quyền đọc (Read Permission) và tính toàn vẹn
+    # 3. Kiểm tra quyền đọc (GetObject)
     try:
-        response = s3_client.get_object(Bucket=bucket_name, Key=test_key)
-        content = json.loads(response["Body"].read().decode("utf-8"))
-        assert content.get("status") == "ok"
-    except ClientError as e:
-        pytest.fail(f"Lỗi quyền ĐỌC (GetObject) từ R2 bucket '{bucket_name}': {e}")
+        fetched = storage.get_json(test_key)
+        assert fetched.get("status") == "ok"
+    except Exception as e:
+        pytest.fail(f"Lỗi quyền ĐỌC từ MinIO bucket '{storage.bucket_name}': {e}")
 
-    # 4. Kiểm tra quyền xóa (Delete Permission) để dọn dẹp bucket
+    # 4. Kiểm tra quyền xóa (DeleteObject)
     try:
-        s3_client.delete_object(Bucket=bucket_name, Key=test_key)
-    except ClientError as e:
-        pytest.fail(f"Lỗi quyền XÓA (DeleteObject) trên R2 bucket '{bucket_name}': {e}")
+        deleted = storage.delete_object(test_key)
+        assert deleted is True
+    except Exception as e:
+        pytest.fail(f"Lỗi quyền XÓA trên MinIO bucket '{storage.bucket_name}': {e}")
 
 
 def test_arxiv_connectivity():
     """Kiểm tra kết nối mạng tới endpoint arXiv API / RSS."""
     try:
         import httpx
-
         response = httpx.get(
             "http://export.arxiv.org/api/query?search_query=cat:cs.AI&max_results=1",
             timeout=15.0,
@@ -153,7 +107,6 @@ def test_arxiv_connectivity():
         assert b"arxiv.org" in response.content, "Phản hồi không phải từ arXiv"
     except ImportError:
         import urllib.request
-
         req = urllib.request.Request(
             "http://export.arxiv.org/api/query?search_query=cat:cs.AI&max_results=1",
             headers={"User-Agent": "UTH-DataMining/1.0"},
@@ -170,12 +123,9 @@ def test_local_directories_creation():
     assert raw_dir.exists() and raw_dir.is_dir()
 
 
-# ==============================================================================
-# CLI Runner tiện dụng để in ra kết quả trực tiếp với icon và hướng dẫn
-# ==============================================================================
 def main():
     print("=" * 70)
-    print("🚀 BẮT ĐẦU KIỂM TRA TOÀN BỘ KẾT NỐI THEO FILE .ENV")
+    print("🚀 BẮT ĐẦU KIỂM TRA TOÀN BỘ KẾT NỐI THEO FILE .ENV (MINIO S3 STACK)")
     print("=" * 70)
 
     # 1. Kiểm tra .env
@@ -187,37 +137,37 @@ def main():
     print(f"  ✅ Đã tìm thấy file .env tại: {env_file}")
 
     # 2. Kiểm tra biến môi trường
-    print("\n[2/4] Kiểm tra các biến môi trường Cloudflare R2...")
+    print("\n[2/4] Kiểm tra các biến môi trường MinIO S3...")
     required = [
-        "R2_ACCESS_KEY_ID",
-        "R2_SECRET_ACCESS_KEY",
-        "R2_ENDPOINT_URL",
-        "R2_BUCKET_NAME",
+        "MINIO_ENDPOINT_URL",
+        "MINIO_ACCESS_KEY_ID",
+        "MINIO_SECRET_ACCESS_KEY",
+        "MINIO_BUCKET_NAME",
     ]
     missing = [k for k in required if not os.getenv(k, "").strip()]
     if missing:
         print(f"  ❌ THẤT BẠI: Thiếu các biến sau: {', '.join(missing)}")
         sys.exit(1)
     print("  ✅ Đã điền đầy đủ các biến môi trường:")
-    print(f"     - R2_BUCKET_NAME: {os.getenv('R2_BUCKET_NAME')}")
-    print(f"     - R2_ENDPOINT_URL: {os.getenv('R2_ENDPOINT_URL')}")
-    print(f"     - R2_ACCESS_KEY_ID: {os.getenv('R2_ACCESS_KEY_ID')[:8]}********")
+    print(f"     - MINIO_BUCKET_NAME: {os.getenv('MINIO_BUCKET_NAME')}")
+    print(f"     - MINIO_ENDPOINT_URL: {os.getenv('MINIO_ENDPOINT_URL')}")
+    print(f"     - MINIO_ACCESS_KEY_ID: {os.getenv('MINIO_ACCESS_KEY_ID')}")
 
-    # 3. Test Cloudflare R2
-    print("\n[3/4] Kiểm tra kết nối & quyền đọc/ghi tới Cloudflare R2...")
+    # 3. Test MinIO S3
+    print("\n[3/4] Kiểm tra kết nối & quyền đọc/ghi tới MinIO S3...")
     try:
-        test_r2_connection_and_permissions()
-        print("  ✅ KẾT NỐI R2 THÀNH CÔNG VƯỢT TRỘI!")
+        test_minio_connection_and_permissions()
+        print("  ✅ KẾT NỐI MINIO S3 THÀNH CÔNG VƯỢT TRỘI!")
         print("     - Bucket tồn tại và phản hồi tốt (HeadBucket OK)")
         print("     - Đã ghi thử nghiệm file test (PutObject OK)")
         print("     - Đã đọc kiểm tra tính toàn vẹn (GetObject OK)")
         print("     - Đã xóa dọn dẹp file test thành công (DeleteObject OK)")
     except Exception as e:
-        print(f"  ❌ THẤT BẠI KẾT NỐI R2: {e}")
+        print(f"  ❌ THẤT BẠI KẾT NỐI MINIO: {e}")
         print("\n💡 Gợi ý khắc phục:")
-        print("   1. Kiểm tra lại Access Key ID và Secret Access Key đã copy đúng chưa.")
-        print("   2. Kiểm tra Token R2 đã được cấp quyền 'Object Read & Write' chưa.")
-        print("   3. Đảm bảo tên Bucket trên Cloudflare trùng khớp với R2_BUCKET_NAME.")
+        print("   1. Kiểm tra Docker container minio_service đang chạy trên port 9000.")
+        print("   2. Kiểm tra MINIO_ACCESS_KEY_ID và MINIO_SECRET_ACCESS_KEY trong .env.")
+        print("   3. Đảm bảo bucket 'uth-scientific-lakehouse' đã được tạo trên MinIO.")
         sys.exit(1)
 
     # 4. Test arXiv API

@@ -70,16 +70,16 @@ export function StorageInspector() {
   const backupData = activeStats?.backupStorage;
   const totalBucket = activeStats?.totalBucket;
 
-  const arxivCount = (activeData?.arxivHtmlCount ?? 1381) + sessionIngested;
-  const arxivGb = (activeData?.arxivHtmlSizeGb ?? 1.054).toFixed(3);
-  const doiCount = (activeStats?.sourceBreakdown?.doi ?? 8890).toLocaleString();
-  const doiGb = (Number((activeStats?.activeLakehouse?.openalexSizeBytes ?? 1897363178) / (1024**3))).toFixed(3);
-  const silverMb = (activeData?.silverParquetSizeMb ?? 103.8).toFixed(2);
-  const goldChunks = (activeData?.activeLanceDbVectors ?? 913205).toLocaleString();
-  const goldMb = (activeData?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
-  const backupGb = (backupData?.totalSizeGb ?? 1.344).toFixed(3);
+  const arxivCount = (activeData?.arxivHtmlCount ?? 0);
+  const arxivGb = (activeData?.arxivHtmlSizeGb ?? 0).toFixed(3);
+  const doiCount = (activeStats?.sourceBreakdown?.doi ?? 0).toLocaleString();
+  const doiGb = (Number((activeStats?.activeLakehouse?.openalexSizeBytes ?? 0) / (1024**3))).toFixed(3);
+  const silverMb = (activeData?.silverParquetSizeMb ?? 0).toFixed(2);
+  const goldChunks = (activeData?.activeLanceDbVectors ?? 0).toLocaleString();
+  const goldMb = (activeData?.activeLanceDbSizeMb ?? 0).toFixed(2);
+  const backupGb = (backupData?.totalSizeGb ?? 0).toFixed(3);
 
-  const activeGb = (Number(activeData?.totalSizeGb ?? 3.373)).toFixed(3);
+  const activeGb = (Number(activeData?.totalSizeGb ?? 0)).toFixed(3);
   const activePct = (Number(activeData?.usedPercentage ?? 33.73)).toFixed(1);
   const totalGb = (totalBucket?.totalSizeGb ?? 4.774).toFixed(3);
   const totalPct = (totalBucket?.usedPercentage ?? 47.74).toFixed(1);
@@ -145,7 +145,7 @@ export function StorageInspector() {
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy & Zstd)',
-      itemsCount: '29,911 works (Tier 1 + Tier 2 HTML5 lakehouse)',
+      itemsCount: `${(storageStats?.sourceBreakdown?.active_rag_papers ?? 0).toLocaleString()} papers (Silver across Tier 1, 2, 3)`,
       sizeBytes: `${silverMb} MB`,
       r2Location: 's3://uth-scientific-lakehouse/silver/tier2/fulltext_papers.parquet',
       color: '#10b981',
@@ -158,20 +158,20 @@ export function StorageInspector() {
       format: 'Lance Columnar (.lance) & Parquet',
       itemsCount: `${goldChunks} vectors`,
       sizeBytes: `${goldMb} MB`,
-      r2Location: 'data/gold/ & s3://uth-scientific-lakehouse/gold/ (lancedb, cvf, openreview)',
+      r2Location: 'data/gold/ & s3://uth-scientific-lakehouse/gold/ (qdrant, cvf, openreview)',
       color: '#eab308',
       description: 'Contextualized 768-dimensional dense embeddings and Gold parquets spanning CVPR, OpenReview, and arXiv.'
     },
     {
       zone: 'BACKUP',
-      name: 'Cloud Disaster Recovery Vector Replica',
-      storageType: 'Cloudflare R2 Cold Snapshots',
-      format: 'LanceDB Multi-Segment Archives',
-      itemsCount: '32 chunk segments',
+      name: 'High-Performance Vector Engine Store',
+      storageType: 'Qdrant In-Memory Vector Store',
+      format: 'Rust HNSW Multi-Segment Graph',
+      itemsCount: `${(activeData?.activeLanceDbVectors ?? 0).toLocaleString()} points`,
       sizeBytes: `${backupGb} GB`,
-      r2Location: 's3://uth-scientific-lakehouse/gold/lancedb/',
+      r2Location: 's3://uth-scientific-lakehouse/gold/qdrant/ & localhost:6333',
       color: '#f59e0b',
-      description: 'Disaster recovery cloud backup replica enabling instant cluster reconstitution with zero egress fees.'
+      description: 'Rust-powered in-memory vector store with sub-millisecond approximate nearest neighbor lookup.'
     }
   ];
 
@@ -187,7 +187,7 @@ export function StorageInspector() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-              Cloudflare R2 Multi-Tier Storage Lens
+              MinIO Local S3 Lakehouse Storage Lens
             </h3>
             <span style={{
               fontSize: '10px',
@@ -198,11 +198,11 @@ export function StorageInspector() {
               color: 'var(--accent-emerald)',
               border: '1px solid rgba(16, 185, 129, 0.3)',
             }}>
-              Zero Egress Fees
+              Local S3 (&lt; 1ms Latency)
             </span>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
-            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{activeStats?.bucket || 'uth-scientific-lakehouse'}</code> · S3 Endpoint: Cloudflare Global Edge
+            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{activeStats?.bucket || 'uth-scientific-lakehouse'}</code> · S3 Endpoint: MinIO S3 (localhost:9000)
           </p>
         </div>
 
@@ -354,7 +354,7 @@ export function StorageInspector() {
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>(28 segments)</span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Gold LanceDB cloud replica on R2 for instant cold recovery
+            Gold Qdrant vector engine with persistent MinIO Lakehouse storage
           </div>
         </div>
 
@@ -366,7 +366,7 @@ export function StorageInspector() {
           border: '1px solid var(--border-subtle)',
         }}>
           <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-            TOTAL CLOUDFLARE R2 BUCKET
+            TOTAL MINIO S3 LAKEHOUSE BUCKET
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
             <AnimatedCounter value={Number(totalGb)} decimals={3} suffix=" GB" />{' '}
@@ -375,7 +375,7 @@ export function StorageInspector() {
             </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            36,673 files · 1.14 GB overage (~$0.017/month / 400 VND)
+            {(totalBucket?.totalObjects ?? 0).toLocaleString()} objects · {(totalBucket?.overageGb ?? 0).toFixed(2)} GB over the free tier (~${(totalBucket?.estimatedOverageCostUsd ?? 0).toFixed(3)}/month)
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 """End-to-End Scientific RAG Engine.
 
-Coordinates Nomic Embeddings retrieval from Gold LanceDB and
+Coordinates Nomic Embeddings retrieval from Qdrant Vector DB and
 contextual response generation via Qwen2.5-7B-Instruct GGUF.
 """
 
@@ -10,7 +10,8 @@ import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from src.indexing.embedder import NomicEmbedder
-from src.indexing.lancedb_manager import LanceDBManager
+from src.indexing.qdrant_manager import QdrantManager
+from src.indexing import get_vector_manager
 from src.rag.llm_client import QwenGGUFEngine
 from src.rag.prompt_templates import build_rag_messages
 
@@ -23,15 +24,15 @@ class ScientificRAGEngine:
     def __init__(
         self,
         embedder: Optional[NomicEmbedder] = None,
-        db_manager: Optional[LanceDBManager] = None,
+        db_manager: Optional[QdrantManager] = None,
         llm_engine: Optional[QwenGGUFEngine] = None,
     ):
         """Initializes components of the scientific RAG pipeline."""
         logger.info("[RAG] Initializing Scientific RAG Engine...")
         self.embedder = embedder or NomicEmbedder()
-        self.db = db_manager or LanceDBManager()
+        self.db = db_manager or get_vector_manager()
         self.llm = llm_engine or QwenGGUFEngine()
-        logger.info("[RAG] Scientific RAG Engine ready.")
+        logger.info("[RAG] Scientific RAG Engine ready (vector_store: %s).", type(self.db).__name__)
 
     def retrieve(
         self,
@@ -39,7 +40,8 @@ class ScientificRAGEngine:
         top_k: int = 5,
         category_filter: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Retrieves most relevant scientific chunks from LanceDB."""
+        """Retrieves most relevant scientific chunks from Qdrant Vector Store."""
+
         t0 = time.time()
         query_vector = self.embedder.embed_query(query)
 
@@ -51,7 +53,9 @@ class ScientificRAGEngine:
             query_vector=query_vector,
             limit=top_k,
             filter_expr=filter_expr,
+            category_filter=category_filter,
         )
+
 
         results = df.to_dict(orient="records")
         elapsed = time.time() - t0

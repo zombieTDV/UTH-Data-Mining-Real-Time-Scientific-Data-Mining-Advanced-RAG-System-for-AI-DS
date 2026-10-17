@@ -3,14 +3,12 @@
 Integrates and controls the complete 3-Tier academic ingestion pipeline across 4 canonical sources:
 (arXiv, OpenReview, CVF, Zenodo) with Marker PDF LaTeX extraction & Abstract Hash Deduplication:
 
-- Tier 1: Historical Core (Seminal milestone AI/DS papers sorted by cite_count DESC, 3,000 target).
-- Tier 2: Near-Past Trending (2024 to present window, daily/interval slices, cite_count DESC).
-- Tier 3: Live Real-Time Forward Stream (Continuous zero-day preprints from present moment onwards).
+- Tier 1: Live Real-Time Forward Stream (zero-day preprints, daily 02:00 ICT).
+- Tier 2: Near-Past Trending (arXiv, 2024 to present, newest first, daily 02:10 ICT, Airflow DAG only).
+- Tier 3: Historical Archive (seminal milestone AI/DS papers; already harvested, never crawled again).
 
 Usage:
-    python -m src.pipelines.run_three_tier_pipeline --tier 1 --limit 50
-    python -m src.pipelines.run_tier2_near_past_harvest --limit 50
-    python -m src.pipelines.run_tier3_realtime_stream --limit 20
+    python -m src.pipelines.run_tier1_realtime_stream --limit 20
     python -m src.pipelines.run_three_tier_pipeline --tier all --limit 10
     python -m src.pipelines.run_three_tier_pipeline --status
 """
@@ -31,89 +29,74 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config.settings import settings
-from src.pipelines.run_tier1_historical_core import Tier1HistoricalHarvester
-from src.pipelines.run_tier2_near_past_harvest import Tier2NearPastHarvester
-from src.pipelines.run_tier3_realtime_stream import Tier3RealtimeStreamer
+from src.pipelines.run_tier1_realtime_stream import Tier1RealtimeStreamer
 from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
 from src.utils.logger import setup_pipeline_logging
 
 logger, log_file = setup_pipeline_logging("three_tier_master_pipeline")
 
 
+def _parquet_rows(fs, bucket: str, key: str) -> int:
+    """Row count from the Parquet footer only (S3 range reads, no full download)."""
+    import pyarrow.parquet as pq
+
+    try:
+        with fs.open_input_file(f"{bucket}/{key}") as f:
+            return pq.ParquetFile(f).metadata.num_rows
+    except Exception:
+        return 0
+
+
 def get_architecture_status() -> Dict[str, Any]:
-    """Inspects lakehouse volumes, unique hashes, and tier data partitions."""
-    dedup = LakehouseDeduplicator()
-    total_hashes = len(dedup)
+    """Inspects lakehouse volumes, unique hashes, and tier partitions directly in MinIO."""
+    from urllib.parse import urlparse
 
-    silver_dir = settings.ROOT_DIR / "data" / "silver"
-    raw_dir = settings.ROOT_DIR / "data" / "raw"
+    import pyarrow.fs as pafs
+    from src.storage.minio_client import StorageClient
 
-    t1_parquet = silver_dir / "tier1" / "landmark_papers.parquet"
-    t2_parquet = silver_dir / "tier2" / "near_past_papers.parquet"
-    t3_parquet = silver_dir / "tier3" / "realtime_papers.parquet"
+    storage = StorageClient()
+    bucket = storage.bucket_name
+    endpoint = urlparse(settings.MINIO_ENDPOINT_URL)
+    fs = pafs.S3FileSystem(
+        access_key=settings.MINIO_ACCESS_KEY_ID,
+        secret_key=settings.MINIO_SECRET_ACCESS_KEY,
+        endpoint_override=endpoint.netloc,
+        scheme=endpoint.scheme or "http",
+        region="us-east-1",
+    )
 
-    def count_parquet(path: Path) -> int:
-        if path.exists():
-            try:
-                import pyarrow.parquet as pq
-                return pq.read_metadata(path).num_rows
-            except Exception:
-                return 0
-        return 0
+    total_hashes = len(LakehouseDeduplicator())
 
-    def count_raw_json(path: Path) -> int:
-        if path.exists():
-            return len(list(path.glob("*.json")))
-        return 0
+    t3_hist = _parquet_rows(fs, bucket, "silver/tier3/landmark_papers.parquet")
+    t2_silver = _parquet_rows(fs, bucket, "silver/tier2/near_past_papers.parquet")
+    t1_stream = sum(
+        _parquet_rows(fs, bucket, o["key"])
+        for o in storage.list_objects("silver/papers/", max_keys=100000)
+        if o["key"].endswith(".parquet")
+    )
 
-    t1_silver_count = count_parquet(t1_parquet)
-    t2_silver_count = count_parquet(t2_parquet)
-    t3_silver_count = count_parquet(t3_parquet)
+    def count_json(prefix: str) -> int:
+        return sum(1 for o in storage.list_objects(prefix, max_keys=1000000) if o["key"].endswith(".json"))
 
-    t1_raw_count = count_raw_json(raw_dir / "tier1")
-    t2_raw_count = count_raw_json(raw_dir / "tier2")
-    t3_raw_count = count_raw_json(raw_dir / "tier3")
+    # Qdrant Gold Count
+    qdrant_count = 0
+    try:
+        from src.indexing.qdrant_manager import QdrantManager
 
-    # Global silver partitioned counts
-    total_silver_papers = 0
-    for p_file in silver_dir.glob("**/papers.parquet"):
-        total_silver_papers += count_parquet(p_file)
+        qdrant_count = QdrantManager().count()
+    except Exception:
+        pass
 
-    # LanceDB Gold Count
-    lancedb_count = 0
-    gold_dir = settings.ROOT_DIR / "data" / "gold" / "lancedb"
-    if gold_dir.exists():
-        try:
-            import lancedb
-            db = lancedb.connect(str(gold_dir))
-            if "scientific_papers_gold" in db.table_names():
-                tbl = db.open_table("scientific_papers_gold")
-                lancedb_count = tbl.count_rows()
-        except Exception:
-            pass
+    def tier(name: str, raw: int, silver: int) -> Dict[str, Any]:
+        return {"name": name, "raw_bronze": raw, "silver_parquet": silver, "status": "HEALTHY" if silver > 0 else "READY"}
 
     return {
         "total_unique_abstract_hashes": total_hashes,
-        "total_silver_papers": total_silver_papers,
-        "lancedb_gold_vectors": lancedb_count,
-        "tier1": {
-            "name": "Tier 1: Historical Core (Landmarks)",
-            "raw_bronze": t1_raw_count,
-            "silver_parquet": t1_silver_count,
-            "status": "HEALTHY" if t1_silver_count > 0 else "READY",
-        },
-        "tier2": {
-            "name": "Tier 2: Near-Past Trending (2024-Present)",
-            "raw_bronze": t2_raw_count,
-            "silver_parquet": t2_silver_count,
-            "status": "HEALTHY" if t2_silver_count > 0 else "READY",
-        },
-        "tier3": {
-            "name": "Tier 3: Live Real-Time Forward Stream",
-            "raw_bronze": t3_raw_count,
-            "silver_parquet": t3_silver_count,
-            "status": "HEALTHY" if t3_silver_count > 0 else "READY",
-        },
+        "total_silver_papers": t1_stream + t2_silver + t3_hist,
+        "qdrant_gold_vectors": qdrant_count,
+        "tier1": tier("Tier 1: Live Real-Time Forward Stream (silver/papers/)", count_json("bronze/papers/"), t1_stream),
+        "tier2": tier("Tier 2: Near-Past Trending (2024-Present)", count_json("bronze/tier2/"), t2_silver),
+        "tier3": tier("Tier 3: Historical Archive (Landmarks)", count_json("bronze/tier3/"), t3_hist),
     }
 
 
@@ -122,7 +105,7 @@ def print_status_table():
     st = get_architecture_status()
     print("\n" + "=" * 80)
     print("  3-TIER SCIENTIFIC DATA ARCHITECTURE: LAKEHOUSE & VECTOR STATUS")
-    print(f"  Indexed Abstract Hashes: {st['total_unique_abstract_hashes']:,} | LanceDB Gold Vectors: {st['lancedb_gold_vectors']:,}")
+    print(f"  Indexed Abstract Hashes: {st['total_unique_abstract_hashes']:,} | Qdrant Gold Vectors: {st['qdrant_gold_vectors']:,}")
     print("=" * 80)
 
     rows = []
@@ -144,7 +127,6 @@ def run_pipeline(
     tier: str = "all",
     limit: Optional[int] = None,
     days: int = 1,
-    use_marker: bool = True,
     sync_r2: bool = False,
 ) -> Dict[str, Any]:
     """Runs designated tiers in the 3-tier architecture."""
@@ -152,29 +134,22 @@ def run_pipeline(
     tier_choice = tier.lower().strip()
 
     print("\n" + "=" * 80)
-    print(f"  LAUNCHING 3-TIER DATA PIPELINE (Tier: {tier_choice.upper()}, Use Marker: {use_marker})")
+    print(f"  LAUNCHING 3-TIER DATA PIPELINE (Tier: {tier_choice.upper()})")
     print("=" * 80)
 
-    # 1. Tier 1 Execution
+    # Tier 1: live real-time stream (producer only; the queue consumer writes Bronze/Silver/Gold)
     if tier_choice in ["1", "tier1", "all"]:
-        t1_limit = limit or 50
-        print(f"\n>>> [1/3] EXECUTING TIER 1: HISTORICAL CORE (Target: {t1_limit} papers)...")
-        h1 = Tier1HistoricalHarvester(target_total=t1_limit, use_marker=use_marker, sync_r2=sync_r2)
-        results["tier1"] = h1.run()
+        t1_limit = limit or 20
+        print(f"\n>>> [1/3] EXECUTING TIER 1: LIVE REAL-TIME FORWARD STREAM (Target: {t1_limit} papers)...")
+        results["tier1"] = Tier1RealtimeStreamer().process_batch(limit=t1_limit)
 
-    # 2. Tier 2 Execution
-    if tier_choice in ["2", "tier2", "all"]:
-        t2_limit = limit or 50
-        print(f"\n>>> [2/3] EXECUTING TIER 2: NEAR-PAST TRENDING (Days: {days}, Limit: {t2_limit} papers)...")
-        h2 = Tier2NearPastHarvester(start_date="2024-01-01", max_total=t2_limit, num_days=days, use_marker=use_marker, sync_r2=sync_r2)
-        results["tier2"] = h2.run()
+    # Tier 2 (arXiv, newest -> past) runs only as the Airflow DAG dag_tier2_near_past_harvest, which publishes to RabbitMQ.
+    if tier_choice in ["2", "tier2"]:
+        print("\n>>> TIER 2 runs in Airflow (dag_tier2_near_past_harvest). Trigger it with: airflow dags trigger dag_tier2_near_past_harvest --conf '{\"target\": 1000}'")
 
-    # 3. Tier 3 Execution
-    if tier_choice in ["3", "tier3", "all"]:
-        t3_limit = limit or 20
-        print(f"\n>>> [3/3] EXECUTING TIER 3: LIVE REAL-TIME FORWARD STREAM (Target: {t3_limit} papers)...")
-        h3 = Tier3RealtimeStreamer(use_marker=use_marker, sync_r2=sync_r2)
-        results["tier3"] = h3.process_batch(limit=t3_limit)
+    # Tier 3 is the historical archive that was already harvested: nothing to crawl.
+    if tier_choice in ["3", "tier3"]:
+        print("\n>>> TIER 3 (historical archive) is already harvested; there is nothing to crawl. Use --status to inspect it.")
 
     print("\n" + "=" * 80)
     print("  3-TIER EXECUTION FINISHED SUMMARY:")
@@ -190,7 +165,6 @@ def main():
     parser.add_argument("--tier", type=str, default="all", choices=["1", "2", "3", "tier1", "tier2", "tier3", "all"], help="Tier to execute (1, 2, 3, or all)")
     parser.add_argument("--limit", type=int, default=None, help="Target paper limit per tier")
     parser.add_argument("--days", type=int, default=1, help="Number of days backwards to harvest for Tier 2 (default 1)")
-    parser.add_argument("--no-marker", action="store_true", help="Disable Marker neural extraction (use resilient fallback)")
     parser.add_argument("--sync-r2", action="store_true", help="Synchronize Bronze, Silver, Gold to Cloudflare R2")
     parser.add_argument("--status", action="store_true", help="Display current 3-Tier Lakehouse status table")
     args = parser.parse_args()
@@ -203,7 +177,6 @@ def main():
         tier=args.tier,
         limit=args.limit,
         days=args.days,
-        use_marker=not args.no_marker,
         sync_r2=args.sync_r2,
     )
 

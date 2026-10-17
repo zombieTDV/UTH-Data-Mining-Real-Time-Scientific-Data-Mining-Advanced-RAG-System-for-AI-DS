@@ -1,28 +1,56 @@
 """Silver Layer Lakehouse Writer.
 
-Transforms parsed paper structures into columnar Apache Parquet format
-with zstd compression and uploads to Cloudflare R2 Silver Zone.
+Transforms parsed paper structures into columnar Apache Parquet (zstd) and writes
+them straight to the MinIO Silver zone. Everything is serialized in memory; nothing
+touches the local disk.
 """
 
 import datetime
 import json
-from pathlib import Path
+import uuid
 from typing import Any, Dict, List, Optional
 import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet as pq
 
-from src.config.settings import settings
-from src.storage.r2_client import R2Client
+from src.storage.lakehouse_io import LakehouseIO
+from src.storage.minio_client import StorageClient
 
 
 class SilverLakehouseWriter:
     """Manages the creation, schema validation, and upload of Silver Parquet datasets."""
 
-    def __init__(self, r2_client: Optional[R2Client] = None, local_silver_dir: Optional[Path] = None):
-        self.r2 = r2_client or R2Client()
-        self.local_dir = local_silver_dir or (settings.ROOT_DIR / "data" / "silver")
-        self.local_dir.mkdir(parents=True, exist_ok=True)
+    SCHEMA = pa.schema(
+        [
+            ("paper_id", pa.string()),
+            ("abstract_hash", pa.string()),
+            ("doi", pa.string()),
+            ("journal_ref", pa.string()),
+            ("title", pa.string()),
+            ("abstract", pa.string()),
+            ("authors", pa.list_(pa.string())),
+            ("categories", pa.list_(pa.string())),
+            ("primary_category", pa.string()),
+            ("published_date", pa.string()),
+            ("crawled_at", pa.string()),
+            ("pdf_url", pa.string()),
+            ("html_url", pa.string()),
+            ("total_sections", pa.int64()),
+            ("total_math_count", pa.int64()),
+            ("total_words", pa.int64()),
+            ("sections_json", pa.string()),
+            ("clean_full_text", pa.string()),
+            ("transformed_at", pa.string()),
+            ("cite_count", pa.int64()),
+            ("source", pa.string()),
+            ("tier", pa.string()),
+            ("content_origin", pa.string()),
+        ]
+    )
+
+    def __init__(self, storage_client: Optional[StorageClient] = None, r2_client: Optional[Any] = None, **_ignored):
+        self.storage = storage_client or r2_client or StorageClient()
+        self.r2 = self.storage
+        self.io = LakehouseIO(self.storage)
 
     def prepare_record(self, raw_meta: Dict[str, Any], parsed_html: Dict[str, Any]) -> Dict[str, Any]:
         """Gộp metadata thô và kết quả bóc tách HTML thành 1 bản ghi Silver chuẩn hóa."""
@@ -68,124 +96,87 @@ class SilverLakehouseWriter:
             "clean_full_text": clean_full_text,
             "transformed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "cite_count": int(raw_meta.get("cite_count") or raw_meta.get("citation_count") or 0),
-            "source": str(raw_meta.get("source") or "openalex"),
+            "source": str(raw_meta.get("source") or "arxiv"),
             "tier": str(raw_meta.get("tier") or "tier1"),
             "content_origin": str(parsed_html.get("content_origin") or raw_meta.get("content_origin") or "unknown"),
         }
 
-    def save_and_upload_parquet(
-        self,
-        records: List[Dict[str, Any]],
-        year: str = "2026",
-    ) -> Dict[str, Any]:
-        """Chuyển đổi danh sách bản ghi thành Parquet nén zstd và tải lên R2 Silver."""
-        if not records:
-            return {"status": "NO_RECORDS", "count": 0}
+    @staticmethod
+    def year_key(year: str) -> str:
+        return f"silver/papers/year={year}/papers.parquet"
+
+    def _normalize_frame(self, records: List[Dict[str, Any]]) -> pd.DataFrame:
+        from src.utils.hasher import compute_abstract_hash
 
         df = pd.DataFrame(records)
-
-        # Đảm bảo abstract_hash có trong df
         if "abstract_hash" not in df.columns:
-            from src.utils.hasher import compute_abstract_hash
             df["abstract_hash"] = df.apply(
-                lambda r: compute_abstract_hash(str(r.get("abstract", "") or r.get("title", ""))),
-                axis=1,
+                lambda r: compute_abstract_hash(str(r.get("abstract", "") or r.get("title", ""))), axis=1
             )
-
         if "cite_count" not in df.columns:
             df["cite_count"] = 0
         df["cite_count"] = df["cite_count"].fillna(0).astype("int64")
+        for col, default in (("source", "arxiv"), ("tier", "tier1"), ("content_origin", "unknown")):
+            if col not in df.columns:
+                df[col] = default
+        for col in self.SCHEMA.names:
+            if col not in df.columns:
+                df[col] = None
+        return df[self.SCHEMA.names]
 
-        # Bổ sung provenance mặc định nếu chưa có
-        if "source" not in df.columns:
-            df["source"] = "openalex"
-        if "tier" not in df.columns:
-            df["tier"] = "tier1"
-        if "content_origin" not in df.columns:
-            df["content_origin"] = "unknown"
+    def append_part(self, records: List[Dict[str, Any]], year: str = "2026") -> Dict[str, Any]:
+        """Streaming write: one immutable part object per micro-batch (O(batch), no rewrite
+        of the big year file). Fold parts into papers.parquet with compact_year()."""
+        if not records:
+            return {"status": "NO_RECORDS", "count": 0}
+        df = self._normalize_frame(records)
+        stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S")
+        key = f"silver/papers/year={year}/parts/part-{stamp}-{uuid.uuid4().hex[:8]}.parquet"
+        res = self.io.write_parquet(key, df, schema=self.SCHEMA)
+        return {"status": "SUCCESS", "count": len(df), "s3_uri": res["uri"], "key": key, "size_bytes": res["size_bytes"]}
 
-        # Định nghĩa PyArrow Schema chuẩn (23 columns)
-        schema = pa.schema(
-            [
-                ("paper_id", pa.string()),
-                ("abstract_hash", pa.string()),
-                ("doi", pa.string()),
-                ("journal_ref", pa.string()),
-                ("title", pa.string()),
-                ("abstract", pa.string()),
-                ("authors", pa.list_(pa.string())),
-                ("categories", pa.list_(pa.string())),
-                ("primary_category", pa.string()),
-                ("published_date", pa.string()),
-                ("crawled_at", pa.string()),
-                ("pdf_url", pa.string()),
-                ("html_url", pa.string()),
-                ("total_sections", pa.int64()),
-                ("total_math_count", pa.int64()),
-                ("total_words", pa.int64()),
-                ("sections_json", pa.string()),
-                ("clean_full_text", pa.string()),
-                ("transformed_at", pa.string()),
-                ("cite_count", pa.int64()),
-                ("source", pa.string()),
-                ("tier", pa.string()),
-                ("content_origin", pa.string()),
-            ]
-        )
+    def compact_year(self, year: str = "2026") -> Dict[str, Any]:
+        """Merge every parts/ object of `year` into papers.parquet (dedup by abstract_hash), then delete the parts."""
+        prefix = f"silver/papers/year={year}/parts/"
+        part_keys = self.io.list_keys(prefix)
+        if not part_keys:
+            return {"status": "NOTHING_TO_COMPACT", "parts": 0}
+        frames = [self.io.read_parquet(k) for k in part_keys]
+        new_df = pd.concat([f for f in frames if f is not None], ignore_index=True)
+        res = self.io.upsert_parquet(self.year_key(year), new_df, subset=["abstract_hash"], schema=self.SCHEMA)
+        self.storage.delete_objects_batch(part_keys)  # only after the merged object is safely written
+        return {"status": "SUCCESS", "parts": len(part_keys), "rows": res["rows"], "s3_uri": res["uri"]}
 
-        # Lưu file local
-        year_dir = self.local_dir / f"year={year}"
-        year_dir.mkdir(parents=True, exist_ok=True)
-        local_parquet_path = year_dir / "papers.parquet"
+    def compact_all(self) -> Dict[str, Any]:
+        """Fold every year's parts/ objects into that year's papers.parquet. Safe next to a running consumer:
+        only the part keys listed here are merged and deleted; parts written meanwhile are picked up next time."""
+        import re
 
-        # Nếu file đã tồn tại cục bộ, hợp nhất (idempotent upsert by abstract_hash)
-        if local_parquet_path.exists():
-            existing_table = pq.read_table(local_parquet_path)
-            existing_df = existing_table.to_pandas()
-            if "cite_count" not in existing_df.columns:
-                existing_df["cite_count"] = 0
-            if "source" not in existing_df.columns:
-                existing_df["source"] = "openalex"
-            if "tier" not in existing_df.columns:
-                existing_df["tier"] = "tier1"
-            if "content_origin" not in existing_df.columns:
-                existing_df["content_origin"] = "unknown"
-            if "abstract_hash" not in existing_df.columns:
-                from src.utils.hasher import compute_abstract_hash
-                existing_df["abstract_hash"] = existing_df.apply(
-                    lambda r: compute_abstract_hash(str(r.get("abstract", "") or r.get("title", ""))),
-                    axis=1,
-                )
-            combined_df = pd.concat([existing_df, df], ignore_index=True)
-            dedup_col = "abstract_hash" if "abstract_hash" in combined_df.columns else "paper_id"
-            combined_df = combined_df.drop_duplicates(subset=[dedup_col], keep="last")
-            # Select schema columns in exact order
-            for col in schema.names:
-                if col not in combined_df.columns:
-                    combined_df[col] = None
-            combined_df = combined_df[schema.names]
-            table = pa.Table.from_pandas(combined_df, schema=schema, preserve_index=False)
-        else:
-            for col in schema.names:
-                if col not in df.columns:
-                    df[col] = None
-            df = df[schema.names]
-            table = pa.Table.from_pandas(df, schema=schema, preserve_index=False)
+        years = sorted({
+            m.group(1)
+            for k in self.io.list_keys("silver/papers/")
+            if (m := re.match(r"silver/papers/year=([^/]+)/parts/.+\.parquet$", k))
+        })
+        results = {y: self.compact_year(y) for y in years}
+        return {"years": years, "results": results, "parts": sum(r.get("parts", 0) for r in results.values())}
 
-        pq.write_table(table, local_parquet_path, compression="zstd")
+    def save_and_upload_parquet(self, records: List[Dict[str, Any]], year: str = "2026") -> Dict[str, Any]:
+        """Batch write: upsert records (by abstract_hash) into silver/papers/year=<year>/papers.parquet."""
+        if not records:
+            return {"status": "NO_RECORDS", "count": 0}
+        df = self._normalize_frame(records)
+        existing = self.io.read_parquet(self.year_key(year))
+        if existing is not None and "abstract_hash" not in existing.columns:
+            from src.utils.hasher import compute_abstract_hash
 
-        # Tải lên Cloudflare R2 Silver Zone
-        r2_key = f"silver/papers/year={year}/papers.parquet"
-        res = self.r2.upload_file(
-            file_path=local_parquet_path,
-            key=r2_key,
-            content_type="application/vnd.apache.parquet",
-        )
-
+            existing["abstract_hash"] = existing.apply(
+                lambda r: compute_abstract_hash(str(r.get("abstract", "") or r.get("title", ""))), axis=1
+            )
+        res = self.io.upsert_parquet(self.year_key(year), df, subset=["abstract_hash"], schema=self.SCHEMA)
         return {
             "status": "SUCCESS",
-            "count": len(table),
-            "local_path": str(local_parquet_path),
+            "count": res["rows"],
+            "s3_uri": res["uri"],
             "r2_uri": res["uri"],
             "size_bytes": res["size_bytes"],
             "sha256": res["sha256"],

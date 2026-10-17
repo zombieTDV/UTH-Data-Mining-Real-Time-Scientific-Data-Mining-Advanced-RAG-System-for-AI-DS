@@ -17,9 +17,9 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 from itertools import combinations
-import duckdb
+from src.mining.lake_access import duck_connect, path_exists, put_artifact, s3_uri
 import networkx as nx
-from networkx.algorithms.community import greedy_modularity_communities
+from networkx.algorithms.community import louvain_communities
 
 logger = logging.getLogger("graph_mining")
 
@@ -29,20 +29,19 @@ class ScientificGraphMiner:
 
     def __init__(self, parquet_path: str, citations_path: Optional[str] = None):
         self.parquet_path = parquet_path
-        self.citations_path = citations_path or "data/silver/citations.parquet"
+        self.citations_path = citations_path or s3_uri("silver/citations.parquet")
 
     def _has_citations_data(self) -> bool:
         """Checks if citation graph dataset is present and accessible."""
-        if not os.path.exists(self.citations_path):
+        if not path_exists(self.citations_path):
             return False
         # Verify papers parquet is also present for metadata join
-        openalex_papers = "data/silver/papers.parquet"
-        return os.path.exists(openalex_papers) or os.path.exists(self.parquet_path)
+        return path_exists(self.parquet_path)
 
     def build_citation_network(self) -> nx.DiGraph:
         """Constructs directed citation graph (citing_paper -> cited_paper)."""
         logger.info("[PILLAR 3] Constructing directed citation graph from: %s...", self.citations_path)
-        con = duckdb.connect()
+        con = duck_connect()
         df_citations = con.execute(f"""
             SELECT citing_paper_id, cited_paper_id 
             FROM read_parquet('{self.citations_path}') 
@@ -66,7 +65,7 @@ class ScientificGraphMiner:
     def build_coauthorship_fallback(self) -> nx.Graph:
         """Fallback: Constructs fractional-weighted co-authorship network."""
         logger.info("[PILLAR 3] Building co-authorship fallback network from: %s...", self.parquet_path)
-        con = duckdb.connect()
+        con = duck_connect()
         df = con.execute(
             f"SELECT paper_id, authors FROM read_parquet('{self.parquet_path}') WHERE authors IS NOT NULL"
         ).fetchdf()
@@ -122,8 +121,8 @@ class ScientificGraphMiner:
         pagerank_scores = nx.pagerank(G, alpha=0.85)
 
         # Load paper titles and first author metadata for node labeling
-        con = duckdb.connect()
-        metadata_path = "data/silver/papers.parquet" if os.path.exists("data/silver/papers.parquet") else self.parquet_path
+        con = duck_connect()
+        metadata_path = self.parquet_path
         cols_df = con.execute(f"DESCRIBE SELECT * FROM read_parquet('{metadata_path}')").fetchdf()
         available_cols = set(cols_df["column_name"].tolist())
         
@@ -137,9 +136,9 @@ class ScientificGraphMiner:
         meta_dict = papers_meta.set_index("paper_id").to_dict(orient="index")
 
         # Community detection on undirected projection of largest connected component
-        logger.info("[PILLAR 3] Detecting research front communities (Greedy Modularity)...")
+        logger.info("[PILLAR 3] Detecting research front communities (Louvain modularity)...")
         G_undirected = G.to_undirected()
-        communities_raw = list(greedy_modularity_communities(G_undirected))
+        communities_raw = list(louvain_communities(G_undirected, seed=42))
         community_mapping = {}
         for comm_id, members in enumerate(communities_raw):
             for member in members:
@@ -246,7 +245,7 @@ class ScientificGraphMiner:
             return {"network_summary": {}, "top_influencers": [], "communities": [], "graph_export": {}}
 
         pagerank_scores = nx.pagerank(G, weight="weight", alpha=0.85)
-        communities_raw = list(greedy_modularity_communities(G))
+        communities_raw = list(louvain_communities(G, weight="weight", seed=42))
         community_mapping = {}
         for comm_id, members in enumerate(communities_raw):
             for member in members:
@@ -306,12 +305,10 @@ class ScientificGraphMiner:
         }
 
     def save_graph(self, output_path: str, top_hubs_limit: int = 40) -> None:
-        """Runs graph mining and writes formatted JSON to disk."""
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        """Runs graph mining and publishes the JSON artifact to MinIO (gold/mining/) using the basename of output_path."""
         results = self.analyze_network(top_hubs_limit=top_hubs_limit)
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-        logger.info("[PILLAR 3] [SUCCESS] Saved graph topology to: %s", output_path)
+        uri = put_artifact(os.path.basename(output_path), results)
+        logger.info("[PILLAR 3] [SUCCESS] Saved graph topology to: %s", uri)
 
 
 # Backward-compatible alias for existing imports

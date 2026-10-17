@@ -1015,7 +1015,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. FULL-TEXT RAG:</span>
-              <strong style={{ color: '#059669' }}>{(overview.fulltext_papers_count || 29911).toLocaleString()} (100.00%)</strong>
+              <strong style={{ color: '#059669' }}>{(overview.fulltext_papers_count ?? 0).toLocaleString()} (100.00%)</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>3. LATEX MATH:</span>
@@ -1063,10 +1063,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               FULL-TEXT &amp; RAG EMBEDDED
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#059669', marginTop: '2px', lineHeight: 1.1 }}>
-              {(dataset_overview.fulltext_papers_count || 29911).toLocaleString()}
+              {(dataset_overview.fulltext_papers_count ?? 0).toLocaleString()}
             </div>
             <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-              {`${(dataset_overview.fulltext_papers_count || 29911).toLocaleString()} Full-Text (${(dataset_overview.total_math_formulas ? (dataset_overview.total_math_formulas / 1_000_000).toFixed(2) + 'M' : '6.92M')} Eq)`}
+              {`${(dataset_overview.fulltext_papers_count ?? 0).toLocaleString()} Full-Text (${(dataset_overview.total_math_formulas ? (dataset_overview.total_math_formulas / 1_000_000).toFixed(2) + 'M' : '6.92M')} Eq)`}
             </div>
           </div>
 
@@ -3181,7 +3181,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     RAG VECTOR LAKEHOUSE &amp; CONTEXT CHUNKING
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#7c3aed' }}>
-                    LANCEDB GOLD · {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()} VECTORS (IVF-PQ)
+                    LANCEDB GOLD · {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} VECTORS (IVF-PQ)
                   </span>
                 </div>
 
@@ -3245,7 +3245,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'IVF-PQ (K=1024, M=192)'}
+                  {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'IVF-PQ (K=1024, M=192)'}
                 </div>
 
                 <ChartToolbar
@@ -3278,13 +3278,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>TỔNG CHUNKS</div>
                     <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>
-                      {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()}
+                      {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()}
                     </div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>CHUNKS / BÀI</div>
                     <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
-                      {((data?.rag_audit_metrics?.total_vectors || 913205) / Math.max(1, data?.dataset_overview.fulltext_papers_count || 29911)).toFixed(1)}x
+                      {((data?.rag_audit_metrics?.total_vectors ?? 0) / Math.max(1, data?.dataset_overview.fulltext_papers_count ?? 0)).toFixed(1)}x
                     </div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>

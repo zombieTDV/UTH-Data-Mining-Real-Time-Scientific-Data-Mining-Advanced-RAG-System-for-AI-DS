@@ -1,4 +1,6 @@
 from typing import Dict, Any
+import logging
+import threading
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sse_starlette.sse import EventSourceResponse
 from backend.app.schemas.mining import (
@@ -10,6 +12,7 @@ from backend.app.schemas.mining import (
 )
 from backend.app.services.mining_service import mining_service
 
+logger = logging.getLogger("mining_api")
 router = APIRouter(prefix="/mining", tags=["Data Mining & Modeling"])
 
 
@@ -70,18 +73,25 @@ async def telemetry_event_stream():
     return EventSourceResponse(mining_service.stream_telemetry())
 
 
+_mining_lock = threading.Lock()
+
+
+def _run_mining() -> None:
+    try:
+        from src.mining.mining_engine import MiningEngine
+
+        MiningEngine().run_all()
+    except Exception:
+        logger.exception("[MINING] Background mining run failed")
+    finally:
+        _mining_lock.release()
+
+
 @router.post("/trigger")
 async def trigger_mining_execution(background_tasks: BackgroundTasks) -> Dict[str, str]:
-    """Triggers background re-execution of the Python Data Mining Engine across the 10,000 papers."""
-    def run_mining():
-        import sys, os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../../data_mining"))
-        from data_mining.src.mining.mining_engine import MiningEngine
-        engine = MiningEngine()
-        engine.run_all(upload_to_r2=True)
-
-    background_tasks.add_task(run_mining)
-    return {
-        "status": "QUEUED",
-        "message": "Data Mining pipeline has been triggered in the background.",
-    }
+    """Re-runs EDA and the four mining pillars in the background (Silver from MinIO, vectors from Qdrant,
+    artifacts published to MinIO gold/mining/). Only one run at a time."""
+    if not _mining_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="A mining run is already in progress.")
+    background_tasks.add_task(_run_mining)
+    return {"status": "QUEUED", "message": "Data Mining pipeline has been triggered in the background."}

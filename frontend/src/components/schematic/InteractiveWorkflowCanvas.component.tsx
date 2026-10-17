@@ -5,7 +5,8 @@ import {
   executeDuckDbQuery,
   searchLakehouse,
   sendChatQuery,
-  fetchPipelineLogs,
+  fetchEdaSummary,
+  triggerSchedulerHarvest,
 } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
@@ -242,8 +243,6 @@ export interface InteractiveWorkflowCanvasProps {
 }
 
 export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
-  isPipelineRunning = false,
-  onTriggerPipeline,
   theme = 'dark',
 }) => {
   const isDark = theme === 'dark';
@@ -358,7 +357,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   // Terminal Logs State
   const [logs, setLogs] = useState<Array<{ id: number | string; time: string; level: 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC'; tag: string; msg: string }>>([
-    { id: 1, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'INFO', tag: 'SYSTEM', msg: 'Lakehouse Engine live. Connected to scientific pipeline.' },
   ]);
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -439,11 +437,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     setIsDragging(false);
   };
 
-  // Simulation state for realistic data streaming animation
-  const [simulationStage, setSimulationStage] = useState<PipelineStageKey>('idle');
-  const [simulationHarvestedCount, setSimulationHarvestedCount] = useState<number>(0);
-  const [formulasExtracted, setFormulasExtracted] = useState<number>(2765395);
-  const [vectorsIndexed, setVectorsIndexed] = useState<number>(913205);
+  // Nothing here is simulated: every figure comes from the backend monitor (store) or the EDA/mining artifacts.
+  const simulationStage: PipelineStageKey = 'idle';
+  const [formulasExtracted, setFormulasExtracted] = useState<number>(0);
+  useEffect(() => {
+    fetchEdaSummary().then((eda) => setFormulasExtracted(eda?.dataset_overview?.total_math_formulas ?? 0)).catch(() => undefined);
+  }, []);
 
   // Consume Centralized Lakehouse Stream Store
   const {
@@ -458,50 +457,24 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     storageStats,
     lastPaperDeltaBytes,
     activePipelineStage,
+    totalVectors,
     logs: storeLogs,
   } = useLakehouseStreamStore();
 
-  // Autoscroll logs
-  // Fetch real execution logs from server disk
-  useEffect(() => {
-    let timer: any;
-    const loadRealLogs = async () => {
-      try {
-        const diskLogs = await fetchPipelineLogs(150);
-        if (diskLogs && diskLogs.length > 0) {
-          setLogs(diskLogs.map((l, i) => ({
-            id: l.id || i + 1,
-            time: l.time,
-            level: (l.level === 'STORAGE' ? 'SUCCESS' : l.level === 'QUERY' ? 'EXEC' : l.level) as any,
-            tag: l.tag,
-            msg: l.msg,
-          })));
-        }
-      } catch {}
-    };
-
-    loadRealLogs();
-    if (drawerOpen && bottomTab === 'logs') {
-      timer = setInterval(loadRealLogs, 3000);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [drawerOpen, bottomTab]);
-
-  // Autoscroll logs
-  const allTerminalLogs = useMemo(() => {
-    const liveMapped = (storeLogs || []).map((sl) => ({
-      id: typeof sl.id === 'number' ? sl.id : parseInt(String(sl.id).replace(/\D/g, '').slice(-8) || '0', 10) || Date.now(),
-      time: sl.time,
-      level: (sl.level === 'STORAGE' ? 'SUCCESS' : sl.level === 'QUERY' ? 'EXEC' : sl.level) as 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC',
-      tag: sl.tag,
-      msg: sl.msg,
-    }));
-    // When live SSE logs exist, prioritize them; otherwise display the real disk logs
-    if (liveMapped.length > 0) return liveMapped;
-    return logs;
-  }, [storeLogs, logs]);
+  // Terminal logs: the backend's single ordered log buffer (Airflow, harvest DAGs, worker, RabbitMQ, Qdrant)
+  const allTerminalLogs = useMemo(
+    () => [
+      ...[...(storeLogs || [])].reverse().map((sl) => ({
+        id: sl.seq,
+        time: sl.time,
+        level: (sl.level === 'ERROR' || sl.level === 'WARN' ? 'WARN' : sl.level === 'SUCCESS' ? 'SUCCESS' : 'INFO') as 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC',
+        tag: sl.tag,
+        msg: sl.msg,
+      })),
+      ...logs,
+    ],
+    [storeLogs, logs],
+  );
 
   useEffect(() => {
     if (autoScrollLogs && bottomTab === 'logs') {
@@ -510,35 +483,24 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   }, [allTerminalLogs, autoScrollLogs, bottomTab]);
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const isAnyRunning = isPipelineRunning || isStreaming;
-  const streamOffset = isAnyRunning ? streamSessionCount : 0;
-  const liveArxivCount = (sourceBreakdown?.arxiv ?? 21311) + streamOffset;
-  const liveDoiCount = sourceBreakdown?.doi ?? 18;
-  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 1000;
-  const liveCvfCount = sourceBreakdown?.cvf ?? 1000;
-  const liveZenodoCount = sourceBreakdown?.zenodo ?? 4;
-  const liveTotalWorks = (
-    sourceBreakdown?.total_deduplicated ??
-      (liveDoiCount + (sourceBreakdown?.arxiv ?? 21311) + liveOpenReviewCount + liveCvfCount + liveZenodoCount)
-  ) + streamOffset;
+  const liveArxivCount = sourceBreakdown?.arxiv ?? 0;
+  const liveDoiCount = sourceBreakdown?.doi ?? 0;
+  const liveOpenReviewCount = sourceBreakdown?.openreview ?? 0;
+  const liveCvfCount = sourceBreakdown?.cvf ?? 0;
+  const liveZenodoCount = sourceBreakdown?.zenodo ?? 0;
+  const liveTotalWorks = totalCorpus || sourceBreakdown?.total_deduplicated || 0;
   const liveBronzeCount = liveArxivCount;
 
-  const liveBronzeGb = storageStats?.activeLakehouse
-    ? (storageStats.activeLakehouse.arxivHtmlSizeGb + (streamOffset * 380000) / (1024 ** 3)).toFixed(3)
-    : (1.054 + (streamOffset * 380000) / (1024 ** 3)).toFixed(3);
+  const liveBronzeGb = (storageStats?.activeLakehouse?.arxivHtmlSizeGb ?? 0).toFixed(3);
+  const liveSilverMb = storageStats?.activeLakehouse?.silverParquetSizeMb ?? 0;
+  const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 0;
 
-  const liveSilverMb = (storageStats?.activeLakehouse?.silverParquetSizeMb ?? 103.8) + (streamOffset * 0.025);
-  const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 22;
+  const liveVectors = totalVectors || (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 0);
+  const liveFormulas = formulasExtracted;
 
-  const liveVectors = isPipelineRunning && simulationStage !== 'completed'
-    ? vectorsIndexed
-    : (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 419528) + (isStreaming ? (streamSessionCount * 35) : 0);
-  const liveFormulas = (formulasExtracted || 2765395);
-
-  const liveBatchesCount = 12;
+  const liveBatchesCount = 0;
   const liveQuotaGb = storageStats?.free_tier_quota_gb ?? 10.0;
-  const papersHarvested = isPipelineRunning && simulationStage !== 'completed' ? (simulationHarvestedCount || liveTotalWorks) : liveTotalWorks;
-  const displayWorks = isPipelineRunning && simulationStage !== 'completed' ? papersHarvested : liveTotalWorks;
+  const displayWorks = liveTotalWorks;
 
   const handleToggleStreaming = async () => {
     if (isStreaming) {
@@ -557,69 +519,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     }
   };
 
-  // Progressive simulation when "Run Pipeline" is triggered
-  useEffect(() => {
-    if (!isPipelineRunning) {
-      if (simulationStage !== 'idle' && simulationStage !== 'completed') {
-        setSimulationStage('completed');
-      }
-      return;
-    }
-
-    setSimulationStage('harvest');
-    setSimulationHarvestedCount(1420);
-    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-    setLogs((prev) => [
-      ...prev,
-      { id: Date.now(), time: now, level: 'EXEC', tag: 'PIPELINE', msg: '▶ Ingesting scientific papers: OAI-PMH harvest triggered.' },
-    ]);
-
-    const t1 = setTimeout(() => {
-      setSimulationStage('bronze');
-      setSimulationHarvestedCount(6150);
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + 1, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'BRONZE-R2', msg: 'Streamed 6,150 raw HTML5 documents to Cloudflare R2 bucket bronze/raw_html/ (0 egress fees).' },
-      ]);
-    }, 1200);
-
-    const t2 = setTimeout(() => {
-      setSimulationStage('duckdb');
-      setSimulationHarvestedCount(29911);
-      setFormulasExtracted(1850000);
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + 2, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'EXEC', tag: 'DUCKDB-SIMD', msg: 'DuckDB SIMD vector parsing LaTeX equations into Apache Arrow columnar memory.' },
-      ]);
-    }, 2500);
-
-    const t3 = setTimeout(() => {
-      setSimulationStage('parallel');
-      setFormulasExtracted(2765395);
-      setVectorsIndexed(650000);
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + 3, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PARALLEL', msg: 'Silver Parquet & Gold LanceDB synced: 2,765,395 formulas, 913,205 vectors indexed.' },
-      ]);
-    }, 4000);
-
-    const t4 = setTimeout(() => {
-      setSimulationStage('completed');
-      setVectorsIndexed(913205);
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now() + 4, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'SUCCESS', tag: 'PIPELINE', msg: 'Lakehouse pipeline execution completed: 29,911 works, 913,205 vectors online.' },
-      ]);
-    }, 6000);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  }, [isPipelineRunning]);
-
   const effectiveStage = (activePipelineStage && activePipelineStage !== 'idle') 
     ? activePipelineStage 
     : (isStreaming ? 'harvest' : simulationStage);
@@ -636,7 +535,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     return false;
   };
 
-  const isGroundedRagReady = isStreaming || effectiveStage === 'completed' || activePipelineStage === 'completed' || simulationStage === 'completed' || liveTotalWorks > 0;
+  const isGroundedRagReady = isStreaming || effectiveStage === 'completed' || activePipelineStage === 'completed' || liveTotalWorks > 0;
 
   const handleOpenInspector = (nodeId: string) => {
     setSelectedNodeId(nodeId);
@@ -652,30 +551,20 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     );
   };
 
-  const handleStartHarvest = () => {
+  // Starts a real Tier 2 run in Apache Airflow (limit = number of papers). Progress arrives through the live log stream.
+  const handleStartHarvest = async () => {
     setIsHarvesting(true);
-    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const newBatch = [
-      { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'HARVEST', msg: `Initiating arXiv harvest: categories=[${harvestCategories.join(', ')}], limit=${harvestLimit.toLocaleString()}, delay=${harvestDelay}s` },
-      { id: Date.now() + 1, time: now, level: 'INFO' as const, tag: 'RATE-LIMIT', msg: 'arXiv OAI-PMH compliance verified. Resumption token rate-limiting enforced.' },
-      { id: Date.now() + 2, time: now, level: 'INFO' as const, tag: 'ASYNC-HTTPX', msg: 'Spawning 4 asynchronous HTTPX workers with SHA-256 integrity validation.' },
-    ];
-    setLogs((prev) => [...prev, ...newBatch]);
-
-    if (onTriggerPipeline) {
-      onTriggerPipeline();
-    }
-
-    setTimeout(() => {
-      const t1 = new Date().toLocaleTimeString('en-US', { hour12: false });
+    try {
+      await triggerSchedulerHarvest('tier2', harvestLimit, true, true);
+      setBottomTab('logs');
+    } catch (err: any) {
       setLogs((prev) => [
         ...prev,
-        { id: Date.now() + 3, time: t1, level: 'SUCCESS' as const, tag: 'BRONZE-R2', msg: 'Streamed 250 raw HTML5 articles to Cloudflare R2 bucket bronze/raw_html/year=2026/ (0 egress fees).' },
-        { id: Date.now() + 4, time: t1, level: 'EXEC' as const, tag: 'DUCKDB-SIMD', msg: 'DuckDB parsed 4,820 LaTeX formulas; extracted 5 academic canonical sections.' },
-        { id: Date.now() + 5, time: t1, level: 'SUCCESS' as const, tag: 'LANCEDB', msg: 'Indexed 1,250 semantic passage chunks into LanceDB IVF-PQ table.' },
+        { id: Date.now(), time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'WARN' as const, tag: 'AIRFLOW', msg: `Could not trigger the Tier 2 DAG: ${err?.message || err}` },
       ]);
+    } finally {
       setIsHarvesting(false);
-    }, 3500);
+    }
   };
 
   const handleToggleFormat = (fmt: string) => {

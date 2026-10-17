@@ -20,7 +20,8 @@ import httpx
 import xmltodict
 
 from src.config.settings import settings
-from src.storage.r2_client import R2Client
+from src.storage.lakehouse_io import LakehouseIO
+from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.silver_writer import SilverLakehouseWriter
 
 
@@ -32,18 +33,17 @@ class ArxivBatchHarvester:
     def __init__(
         self,
         r2_client: Optional[R2Client] = None,
-        checkpoint_dir: Optional[Path] = None,
+        checkpoint_dir: Optional[Path] = None,  # ignored: checkpoints live in MinIO
         request_delay: float = 10.0,
     ):
         self.r2 = r2_client or R2Client()
+        self.io = LakehouseIO(self.r2)
         self.request_delay = request_delay
-        self.checkpoint_dir = checkpoint_dir or (settings.ROOT_DIR / "data" / "manifests")
-        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        self.checkpoint_file = self.checkpoint_dir / "batch_checkpoint.json"
+        self.checkpoint_key = "manifests/batch_checkpoint.json"
 
         self.http_client = httpx.Client(
             headers={
-                "User-Agent": "UTH-Scientific-DataMining-OAIHarvester/2.0 (academic research; contact: data-mining@uth.edu.vn)"
+                "User-Agent": settings.ARXIV_USER_AGENT
             },
             timeout=90.0,
             follow_redirects=True,
@@ -51,12 +51,9 @@ class ArxivBatchHarvester:
 
     def load_checkpoint(self) -> Dict[str, Any]:
         """Tai trang thai checkpoint cua lan chay truoc."""
-        if self.checkpoint_file.exists():
-            try:
-                with open(self.checkpoint_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                pass
+        data = self.io.get_json(self.checkpoint_key)
+        if isinstance(data, dict):
+            return data
         return {
             "resumption_token": None,
             "page_num": 0,
@@ -72,8 +69,7 @@ class ArxivBatchHarvester:
             "total_ingested": total_ingested,
             "last_updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
-        with open(self.checkpoint_file, "w", encoding="utf-8") as f:
-            json.dump(checkpoint_data, f, indent=2)
+        self.io.put_json(self.checkpoint_key, checkpoint_data)
 
     def normalize_oai_record(self, record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Chuyen doi ban ghi OAI-PMH sang schema tieu chuan cua he thong."""
@@ -311,12 +307,10 @@ class ArxivBatchHarvester:
             time.sleep(1.0)
 
         # Save to Silver Parquet partition
-        arxiv_silver_path = settings.ROOT_DIR / "data" / "silver" / "arxiv" / "arxiv_near_past.parquet"
-        arxiv_silver_path.parent.mkdir(parents=True, exist_ok=True)
         import pandas as pd
         df = pd.DataFrame(collected_papers)
-        df.to_parquet(arxiv_silver_path, engine="pyarrow", compression="zstd")
-        print(f"[SUCCESS] Saved {len(df)} day-by-day papers to {arxiv_silver_path}")
+        res = self.io.upsert_parquet("silver/arxiv/arxiv_near_past.parquet", df, subset=["paper_id"])
+        print(f"[SUCCESS] Saved {len(df)} day-by-day papers to {res['uri']}")
 
         return collected_papers
 
@@ -483,15 +477,7 @@ class ArxivBatchHarvester:
             if len(buffered_silver_records) >= 500 or total_ingested >= total_target:
                 print(f"[STORAGE] Luu {len(buffered_silver_records)} ban ghi vao Silver Parquet va dong bo R2...")
                 import pandas as pd
-                arxiv_silver_path = settings.ROOT_DIR / "data" / "silver" / "arxiv" / "arxiv_near_past.parquet"
-                arxiv_silver_path.parent.mkdir(parents=True, exist_ok=True)
-                new_df = pd.DataFrame(buffered_silver_records)
-                if arxiv_silver_path.exists():
-                    exist_df = pd.read_parquet(arxiv_silver_path)
-                    combined_df = pd.concat([exist_df, new_df], ignore_index=True).drop_duplicates(subset=["paper_id"])
-                else:
-                    combined_df = new_df
-                combined_df.to_parquet(arxiv_silver_path, engine="pyarrow", compression="zstd")
+                self.io.upsert_parquet("silver/arxiv/arxiv_near_past.parquet", pd.DataFrame(buffered_silver_records), subset=["paper_id"])
                 writer.save_and_upload_parquet(buffered_silver_records, year="2026")
                 buffered_silver_records = []
                 print("[STORAGE] Hoan tat dong bo Tang Silver Parquet.\n")

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useLakehouseStreamStore, type LiveSnapshot } from '../../store';
 
 export interface ToolItem {
   id: string;
@@ -6,17 +7,17 @@ export interface ToolItem {
   category: 'Storage' | 'Compute' | 'Vector DB' | 'Model & Engine' | 'Data Source';
   role: string;
   spec: string;
-  status: 'Operational' | 'Active' | 'Synced';
+  status: 'Operational' | 'Active' | 'Synced' | 'Offline';
   icon: ReactNode;
 }
 
 export const TOOLS_DATA: ToolItem[] = [
   {
-    id: 'cloudflare-r2',
-    name: 'Cloudflare R2',
+    id: 'minio',
+    name: 'MinIO S3',
     category: 'Storage',
-    role: 'Bronze Lakehouse & Gold Backup',
-    spec: 'S3 API · Zero Egress Fees · 4.77 GB (Free Tier)',
+    role: 'Bronze · Silver · Gold lakehouse (single store)',
+    spec: 'S3 API · local object storage',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -30,7 +31,7 @@ export const TOOLS_DATA: ToolItem[] = [
     name: 'DuckDB',
     category: 'Compute',
     role: 'In-Process Vectorized SQL Engine',
-    spec: 'Zero-Copy Parquet Query · v1.1.3',
+    spec: 'Zero-copy Parquet queries over MinIO (S3)',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -41,11 +42,11 @@ export const TOOLS_DATA: ToolItem[] = [
     )
   },
   {
-    id: 'lancedb',
-    name: 'LanceDB',
+    id: 'qdrant',
+    name: 'Qdrant',
     category: 'Vector DB',
-    role: 'Multi-Modal Vector Lakehouse (Gold)',
-    spec: '913,205 Embeddings · IVF-PQ Cosine ANN',
+    role: 'Gold vector store (768-D, cosine HNSW)',
+    spec: 'Embeddings · cosine ANN',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -123,8 +124,8 @@ export const TOOLS_DATA: ToolItem[] = [
     id: 'arxiv',
     name: 'arXiv OAI-PMH & ar5iv',
     category: 'Data Source',
-    role: 'Real-time Scientific Harvesting',
-    spec: 'cs.AI, cs.LG, cs.CV, cs.CL · HTML5 Full-Text',
+    role: 'Scientific harvesting (RSS + API)',
+    spec: 'cs.AI, cs.LG, cs.CV, cs.CL, stat.ML · HTML5 full text',
     status: 'Synced',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -136,14 +137,32 @@ export const TOOLS_DATA: ToolItem[] = [
   }
 ];
 
+/** Replace the static specs/status of the infrastructure cards with what the backend monitor reports right now. */
+function withLive(tool: ToolItem, live: LiveSnapshot | null): ToolItem {
+  if (!live) return tool;
+  if (tool.id === 'minio') {
+    const gb = live.storage.storage_total_gb;
+    return { ...tool, status: gb === undefined ? 'Offline' : 'Operational', spec: `S3 API · ${(live.storage.objects ?? 0).toLocaleString()} objects · ${(gb ?? 0).toFixed(2)} GB` };
+  }
+  if (tool.id === 'qdrant') {
+    return { ...tool, status: live.corpus.vectors > 0 ? 'Operational' : 'Offline', spec: `${live.corpus.vectors.toLocaleString()} vectors · cosine ANN` };
+  }
+  if (tool.id === 'arxiv') {
+    const t1 = live.airflow.dags.find((d) => d.key === 'tier1');
+    return { ...tool, status: t1?.running ? 'Active' : 'Synced', spec: `${tool.spec} · session +${live.session.ingested.toLocaleString()} papers` };
+  }
+  return tool;
+}
+
 export function ToolLogosGrid() {
+  const { live } = useLakehouseStreamStore();
   return (
     <div style={{
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
       gap: '12px',
     }}>
-      {TOOLS_DATA.map((tool) => (
+      {TOOLS_DATA.map((t) => withLive(t, live)).map((tool) => (
         <div
           key={tool.id}
           style={{
@@ -183,9 +202,9 @@ export function ToolLogosGrid() {
                 letterSpacing: '0.05em',
                 padding: '2px 7px',
                 borderRadius: '999px',
-                background: tool.status === 'Active' ? 'rgba(124, 58, 237, 0.12)' : 'rgba(5, 150, 105, 0.12)',
-                color: tool.status === 'Active' ? 'var(--accent-violet)' : 'var(--accent-emerald)',
-                border: tool.status === 'Active' ? '1px solid rgba(124, 58, 237, 0.3)' : '1px solid rgba(5, 150, 105, 0.3)',
+                background: tool.status === 'Offline' ? 'rgba(239, 68, 68, 0.12)' : tool.status === 'Active' ? 'rgba(124, 58, 237, 0.12)' : 'rgba(5, 150, 105, 0.12)',
+                color: tool.status === 'Offline' ? '#ef4444' : tool.status === 'Active' ? 'var(--accent-violet)' : 'var(--accent-emerald)',
+                border: tool.status === 'Offline' ? '1px solid rgba(239, 68, 68, 0.3)' : tool.status === 'Active' ? '1px solid rgba(124, 58, 237, 0.3)' : '1px solid rgba(5, 150, 105, 0.3)',
               }}>
                 {tool.status}
               </span>

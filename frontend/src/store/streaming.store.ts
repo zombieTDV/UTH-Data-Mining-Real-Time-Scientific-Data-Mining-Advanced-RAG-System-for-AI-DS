@@ -1,19 +1,72 @@
 import { useSyncExternalStore } from 'react';
 import { API_CONFIG } from '../config';
-import { fetchStreamingStatus, fetchStorageStats, fetchPipelineLogs } from '../services';
-import type { IngestionEvent, StorageStatsResponse } from '../types';
+import { fetchStorageStats, fetchPipelineLogs } from '../services';
+import type { StorageStatsResponse } from '../types';
+
+/**
+ * Server-authoritative pipeline store.
+ *
+ * Everything shown on the dashboard comes from the backend monitor over ONE SSE connection:
+ *  - SNAPSHOT: Airflow DAG state, RabbitMQ queue, Qdrant vector count, MinIO totals, session counters (every ~3 s)
+ *  - LOG: a pipeline log line (ids are the backend's sequence numbers, so lines can never be duplicated or reordered)
+ *  - PAPER_INGESTED: one paper that now exists in Bronze + Silver + Gold
+ * Nothing is estimated in the browser: no fake increments, no hard-coded fallback numbers.
+ */
 
 export interface StreamingLogEntry {
   id: string;
+  seq: number;
   time: string;
-  level: 'SUCCESS' | 'INFO' | 'STORAGE' | 'QUERY';
+  level: string;
   tag: string;
+  tier?: string | null;
   msg: string;
+}
+
+export interface LiveDag {
+  key: string;
+  dag_id: string;
+  name: string;
+  frequency: string;
+  kind: string;
+  paused: boolean;
+  running: boolean;
+  next_run?: string | null;
+  last_run?: { run_id: string; state: string; run_type: string; start?: string | null; end?: string | null } | null;
+}
+
+export interface LiveSnapshot {
+  status: 'STREAMING' | 'IDLE';
+  stage: 'idle' | 'harvest' | 'queued' | 'embedding' | 'gold';
+  time: string;
+  queue: { status: string; ready: number; unacked: number; consumers: number; dead: number };
+  airflow: { reachable: boolean; scheduler_healthy: boolean; dags: LiveDag[] };
+  corpus: {
+    vectors: number;
+    papers: number;
+    tier1_rows: number;
+    tier2_rows: number;
+    tier3_rows: number;
+    sources: Record<string, number>;
+  };
+  storage: { storage_total_bytes?: number; storage_total_gb?: number; storage_used_pct?: number; objects?: number; last_synced?: string };
+  session: {
+    ingested: number;
+    by_tier: Record<string, number>;
+    by_origin: Record<string, number>;
+    speed_ppm: number;
+    last_paper: {
+      paper_id?: string; title?: string; category?: string; tier?: string; content_origin?: string;
+      total_words?: number; total_sections?: number; vectors_synced?: number; at?: string;
+    } | null;
+  };
+  last_log_id: number;
 }
 
 export interface LakehouseStreamState {
   isStreaming: boolean;
   totalCorpus: number;
+  totalVectors: number;
   sessionIngested: number;
   streamSpeed: number;
   streamTarget: number;
@@ -25,17 +78,23 @@ export interface LakehouseStreamState {
     paperId: string;
     title: string;
     category: string;
+    tier: string;
+    contentOrigin: string;
+    totalWords: number;
     vectorsSynced: number;
     latencyMs: number;
   } | null;
   storageStats: StorageStatsResponse | null;
-  activePipelineStage: 'idle' | 'harvest' | 'bronze' | 'duckdb' | 'silver' | 'embedding' | 'parallel' | 'gold' | 'r2_sync' | 'completed';
+  activePipelineStage: 'idle' | 'harvest' | 'bronze' | 'duckdb' | 'silver' | 'embedding' | 'parallel' | 'gold' | 'r2_sync' | 'completed' | 'queued';
   connectionStatus: 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED';
   viewMode: 'active' | 'total';
   logs: StreamingLogEntry[];
   isSyncingR2: boolean;
   lastSyncedR2: string | null;
+  live: LiveSnapshot | null;
 }
+
+const MAX_LOGS = 300;
 
 const getStoredViewMode = (): 'active' | 'total' => {
   if (typeof window !== 'undefined') {
@@ -45,77 +104,32 @@ const getStoredViewMode = (): 'active' | 'total' => {
   return 'total';
 };
 
-const getStoredLogs = (): StreamingLogEntry[] => {
-  if (typeof window !== 'undefined') {
-    try {
-      const saved = localStorage.getItem('uth_lakehouse_logs');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const isMock = Array.isArray(parsed) && parsed.some((l: any) => 
-          typeof l.msg === 'string' && (l.msg.includes('CVPR Pipeline') || l.msg.includes('OpenAlex Pipeline') || l.msg.includes('15,926 objects'))
-        );
-        if (isMock) {
-          localStorage.removeItem('uth_lakehouse_logs');
-          return [];
-        }
-        return parsed;
-      }
-    } catch {}
-  }
-  return [];
-};
-
-const getStoredStorageStats = (): StorageStatsResponse | null => {
-  if (typeof window !== 'undefined') {
-    try {
-      const saved = localStorage.getItem('uth_lakehouse_storage_stats_cache');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Automatically invalidate stale caches from previous sessions (< 29,911 papers or < 913,205 vectors)
-        const dedup = parsed?.sourceBreakdown?.total_deduplicated || parsed?.activeLakehouse?.sourceBreakdown?.total_deduplicated || 0;
-        const vecs = parsed?.activeLakehouse?.activeLanceDbVectors || 0;
-        if (dedup < 29911 || vecs < 913205) {
-          localStorage.removeItem('uth_lakehouse_storage_stats_cache');
-          return null;
-        }
-        return parsed;
-      }
-    } catch {}
-  }
-  return null;
-};
-
-const initialCachedStats = getStoredStorageStats();
-
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus:
-    initialCachedStats?.sourceBreakdown?.total_deduplicated ??
-    initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ??
-    23333,
+  totalCorpus: 0,
+  totalVectors: 0,
   sessionIngested: 0,
   streamSpeed: 0,
-  streamTarget: 3000,
-  storageUsedGb: initialCachedStats?.totalBucket?.totalSizeGb ?? initialCachedStats?.total_size_gb ?? 4.774,
-  storageUsedPct: initialCachedStats?.totalBucket?.usedPercentage ?? initialCachedStats?.used_percentage ?? 47.74,
-  storageTotalBytes: initialCachedStats?.totalBucket?.totalSizeBytes ?? initialCachedStats?.total_size_bytes ?? 5126066468,
+  streamTarget: 0,
+  storageUsedGb: 0,
+  storageUsedPct: 0,
+  storageTotalBytes: 0,
   lastPaperDeltaBytes: 0,
   lastIngestedPaper: null,
-  storageStats: initialCachedStats,
+  storageStats: null,
   activePipelineStage: 'idle',
   connectionStatus: 'DISCONNECTED',
   viewMode: getStoredViewMode(),
-  logs: getStoredLogs(),
+  logs: [],
   isSyncingR2: false,
-  lastSyncedR2: initialCachedStats?.last_synced ?? '2026-10-13 06:38:53',
+  lastSyncedR2: null,
+  live: null,
 };
 
 const listeners = new Set<() => void>();
 
 function emitChange() {
-  for (const listener of listeners) {
-    listener();
-  }
+  for (const listener of listeners) listener();
 }
 
 function updateState(partial: Partial<LakehouseStreamState> | ((prev: LakehouseStreamState) => Partial<LakehouseStreamState>)) {
@@ -126,63 +140,107 @@ function updateState(partial: Partial<LakehouseStreamState> | ((prev: LakehouseS
 
 let eventSourceInstance: EventSource | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let statsTimer: ReturnType<typeof setTimeout> | null = null;
 let retryCount = 0;
 let initialized = false;
+let lastStatsKey = '';
+
+// ---------------------------------------------------------------- logs
+interface ServerLog { id: number; time: string; level: string; tag: string; tier?: string | null; msg: string }
+
+function toEntry(l: ServerLog): StreamingLogEntry {
+  return { id: `srv-${l.id}`, seq: l.id, time: l.time, level: l.level, tag: l.tag, tier: l.tier ?? null, msg: l.msg };
+}
+
+/** Merge server log lines by sequence number: newest first, no duplicates, stable under reconnects. */
+function mergeLogs(prev: StreamingLogEntry[], incoming: StreamingLogEntry[]): StreamingLogEntry[] {
+  const bySeq = new Map<number, StreamingLogEntry>();
+  for (const l of prev) bySeq.set(l.seq, l);
+  for (const l of incoming) bySeq.set(l.seq, l);
+  return [...bySeq.values()].sort((a, b) => b.seq - a.seq).slice(0, MAX_LOGS);
+}
+
+export function appendStreamLog(log: Omit<StreamingLogEntry, 'id' | 'seq'>): void {
+  // Local, client-only notes (e.g. "sync requested") get negative sequence numbers so they never collide with server ids.
+  updateState((prev) => {
+    const seq = -Date.now();
+    return { logs: mergeLogs(prev.logs, [{ ...log, id: `cli-${-seq}`, seq }]) };
+  });
+}
+
+export async function refreshPipelineLogs(): Promise<void> {
+  try {
+    const rows = await fetchPipelineLogs(MAX_LOGS);
+    if (rows && rows.length > 0) {
+      updateState((prev) => ({ logs: mergeLogs(prev.logs, (rows as unknown as ServerLog[]).map(toEntry)) }));
+    }
+  } catch {
+    /* backend not reachable yet: the SSE stream will fill the buffer once it is */
+  }
+}
+
+// ---------------------------------------------------------------- snapshot -> state
+function applySnapshot(s: LiveSnapshot) {
+  updateState((prev) => {
+    const lp = s.session.last_paper;
+    const storageBytes = s.storage.storage_total_bytes ?? prev.storageTotalBytes;
+    const patchedStats: StorageStatsResponse | null = prev.storageStats?.activeLakehouse
+      ? {
+          ...prev.storageStats,
+          activeLakehouse: { ...prev.storageStats.activeLakehouse, activeLanceDbVectors: s.corpus.vectors || prev.storageStats.activeLakehouse.activeLanceDbVectors },
+        }
+      : prev.storageStats;
+    return {
+      live: s,
+      isStreaming: s.status === 'STREAMING',
+      activePipelineStage: s.stage,
+      totalCorpus: s.corpus.papers || prev.totalCorpus,
+      totalVectors: s.corpus.vectors,
+      sessionIngested: s.session.ingested,
+      streamSpeed: s.session.speed_ppm,
+      storageUsedGb: prev.viewMode === 'total' ? (s.storage.storage_total_gb ?? prev.storageUsedGb) : prev.storageUsedGb,
+      storageUsedPct: prev.viewMode === 'total' ? (s.storage.storage_used_pct ?? prev.storageUsedPct) : prev.storageUsedPct,
+      storageTotalBytes: prev.viewMode === 'total' ? storageBytes : prev.storageTotalBytes,
+      lastSyncedR2: s.storage.last_synced ?? prev.lastSyncedR2,
+      storageStats: patchedStats,
+      lastIngestedPaper: lp
+        ? {
+            paperId: lp.paper_id || '',
+            title: lp.title || '',
+            category: lp.category || '',
+            tier: lp.tier || '',
+            contentOrigin: lp.content_origin || '',
+            totalWords: lp.total_words || 0,
+            vectorsSynced: lp.vectors_synced || 0,
+            latencyMs: 0,
+          }
+        : prev.lastIngestedPaper,
+    };
+  });
+
+  // The detailed storage breakdown (zones, per-source counts) is a heavier REST call: refresh it when the lake changed.
+  const key = `${s.corpus.vectors}|${s.storage.storage_total_bytes}|${s.corpus.papers}|${s.corpus.tier2_rows}|${s.corpus.tier1_rows}`;
+  if (key !== lastStatsKey) {
+    lastStatsKey = key;
+    if (statsTimer) clearTimeout(statsTimer);
+    statsTimer = setTimeout(() => { void refreshStorageStats(); }, 1500);
+  }
+}
 
 export async function refreshStorageStats(): Promise<void> {
   try {
     const data = await fetchStorageStats();
-    if (data) {
-      const mode = state.viewMode;
-      const gb = mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 3.373);
-      const pct = mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 33.73);
-      const bytes = mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 3622046330);
-
-      // Merge storageStats but never let polling overwrite HIGHER numbers already pushed via SSE.
-      // This prevents the "numbers jump up then reset" bug caused by stale API responses.
-      const mergedActiveLakehouse = data.activeLakehouse && state.storageStats?.activeLakehouse
-        ? {
-            ...data.activeLakehouse,
-            // Gold vectors: take the higher of API response vs current state (SSE may have pushed it higher)
-            activeLanceDbVectors: Math.max(
-              data.activeLakehouse.activeLanceDbVectors ?? 0,
-              state.storageStats.activeLakehouse.activeLanceDbVectors ?? 0,
-            ),
-            // ArXiv HTML count: take higher value
-            arxivHtmlCount: Math.max(
-              data.activeLakehouse.arxivHtmlCount ?? 0,
-              state.storageStats.activeLakehouse.arxivHtmlCount ?? 0,
-            ),
-            // Conference count: take higher value (pipeline may have added more)
-            conferenceCount: Math.max(
-              data.activeLakehouse.conferenceCount ?? 0,
-              state.storageStats.activeLakehouse.conferenceCount ?? 0,
-            ),
-          }
-        : data.activeLakehouse;
-
-      const updatedTotalWorks = 
-        data.sourceBreakdown?.total_deduplicated ||
-        data.activeLakehouse?.sourceBreakdown?.total_deduplicated ||
-        data.sourceBreakdown?.active_rag_papers ||
-        data.total_objects ||
-        23333;
-
-      updateState({
-        totalCorpus: updatedTotalWorks,
-        storageStats: data.activeLakehouse ? { ...data, activeLakehouse: mergedActiveLakehouse } : data,
-        storageUsedGb: gb,
-        storageUsedPct: pct,
-        storageTotalBytes: bytes,
-        lastSyncedR2: data.last_synced || state.lastSyncedR2,
-      });
-
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('uth_lakehouse_storage_stats_cache', JSON.stringify(data));
-        } catch {}
-      }
-    }
+    if (!data) return;
+    updateState((prev) => {
+      const mode = prev.viewMode;
+      return {
+        storageStats: data,
+        storageUsedGb: mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 0),
+        storageUsedPct: mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 0),
+        storageTotalBytes: mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 0),
+        lastSyncedR2: data.last_synced || prev.lastSyncedR2,
+      };
+    });
   } catch (e) {
     console.warn('[StreamStore] Failed to refresh storage stats:', e);
   }
@@ -194,20 +252,11 @@ export async function triggerR2ManualSync(): Promise<{ status: string; message: 
     const { syncR2Storage } = await import('../services');
     const res = await syncR2Storage();
     await refreshStorageStats();
-    appendStreamLog({
-      time: new Date().toLocaleTimeString(),
-      level: 'STORAGE',
-      tag: 'R2-SYNC',
-      msg: res.message || 'Live Cloudflare R2 bucket synchronized successfully.',
-    });
-    updateState({
-      isSyncingR2: false,
-      lastSyncedR2: new Date().toLocaleTimeString(),
-    });
-    return { status: 'SUCCESS', message: res.message || 'R2 synchronized' };
+    updateState({ isSyncingR2: false });
+    return { status: 'SUCCESS', message: res.message || 'MinIO synchronized' };
   } catch (err: any) {
     updateState({ isSyncingR2: false });
-    return { status: 'ERROR', message: err.message || 'Failed to sync R2' };
+    return { status: 'ERROR', message: err.message || 'Failed to sync MinIO' };
   }
 }
 
@@ -223,40 +272,15 @@ export function setViewMode(mode: 'active' | 'total'): void {
         pct = data.used_percentage;
         bytes = data.total_size_bytes;
       } else {
-        gb = data.activeLakehouse?.totalSizeGb ?? 8.073;
-        pct = data.activeLakehouse?.usedPercentage ?? 80.73;
-        bytes = data.activeLakehouse?.totalSizeBytes ?? 8668472480;
+        gb = data.activeLakehouse?.totalSizeGb ?? 0;
+        pct = data.activeLakehouse?.usedPercentage ?? 0;
+        bytes = data.activeLakehouse?.totalSizeBytes ?? 0;
       }
     }
     if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('uth_lakehouse_view_mode', mode);
-      } catch {}
+      try { localStorage.setItem('uth_lakehouse_view_mode', mode); } catch { /* storage unavailable */ }
     }
-    return {
-      viewMode: mode,
-      storageUsedGb: gb,
-      storageUsedPct: pct,
-      storageTotalBytes: bytes,
-    };
-  });
-}
-
-export function appendStreamLog(log: Omit<StreamingLogEntry, 'id'>): void {
-  updateState((prev) => {
-    const newLogs: StreamingLogEntry[] = [
-      {
-        ...log,
-        id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      },
-      ...prev.logs.slice(0, 199),
-    ];
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('uth_lakehouse_logs', JSON.stringify(newLogs.slice(0, 50)));
-      } catch {}
-    }
-    return { logs: newLogs };
+    return { viewMode: mode, storageUsedGb: gb, storageUsedPct: pct, storageTotalBytes: bytes };
   });
 }
 
@@ -264,174 +288,52 @@ export function setStreamTarget(target: number): void {
   updateState({ streamTarget: target });
 }
 
-export async function refreshPipelineLogs(): Promise<void> {
-  try {
-    const realLogs = await fetchPipelineLogs(150);
-    if (realLogs && realLogs.length > 0) {
-      updateState((prev) => {
-        // Keep any active in-flight SSE logs at the top, followed by real disk logs
-        const sseLogs = prev.logs.filter((l) => l.id.startsWith('log-'));
-        const diskLogs = realLogs.map((rl) => ({
-          id: String(rl.id),
-          time: rl.time,
-          level: rl.level as any,
-          tag: rl.tag,
-          msg: rl.msg,
-        }));
-        const merged = [...sseLogs, ...diskLogs].slice(0, 200);
-        return { logs: merged };
-      });
-    }
-  } catch {}
-}
-
+// ---------------------------------------------------------------- SSE
 export function initializeLakehouseStream(): () => void {
-  if (initialized) {
-    return () => {};
-  }
+  if (initialized) return () => {};
   initialized = true;
 
-  fetchStreamingStatus()
-    .then((st) => {
-      if (st) {
-        updateState({
-          isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || state.totalCorpus || 23333,
-          sessionIngested: st.status === 'STREAMING' ? (st.session_ingested || 0) : 0,
-          streamSpeed: st.speed_ppm || 0,
-          storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,
-          storageUsedPct: st.storage_used_pct ?? state.storageUsedPct,
-        });
-      }
-    })
-    .catch(() => {});
-
-  refreshStorageStats();
-  refreshPipelineLogs();
+  void refreshStorageStats();
+  void refreshPipelineLogs();
 
   const connectSSE = () => {
-    if (eventSourceInstance) {
-      eventSourceInstance.close();
-    }
-
-    const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.ingestionStream}`;
-    eventSourceInstance = new EventSource(url);
+    if (eventSourceInstance) eventSourceInstance.close();
+    eventSourceInstance = new EventSource(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.ingestionStream}`);
 
     eventSourceInstance.onopen = () => {
       retryCount = 0;
       updateState({ connectionStatus: 'CONNECTED' });
+      void refreshPipelineLogs(); // fill any gap left while the connection was down
     };
 
     eventSourceInstance.onmessage = (e) => {
       try {
-        const event: IngestionEvent = JSON.parse(e.data);
-
-        if (event.type === 'PAPER_INGESTED') {
-          const paperDelta = event.bronze_bytes_delta || 380000;
-          const updatedGb = event.storage_total_gb ?? +(state.storageUsedGb + paperDelta / (1024 ** 3)).toFixed(3);
-          const updatedPct = event.storage_used_pct ?? +(state.storageUsedPct + (paperDelta / (10 * 1024 ** 3)) * 100).toFixed(2);
-
-          const stageKey = (event.stage || 'harvest').toLowerCase() as any;
-          updateState((prev) => {
-            const nextSession = event.session_ingested || prev.sessionIngested + 1;
-            const vectorsDelta = typeof event.vectors_synced === 'number' ? event.vectors_synced : 0;
-            const updatedActive = prev.storageStats?.activeLakehouse
-              ? {
-                  ...prev.storageStats.activeLakehouse,
-                  activeLanceDbVectors:
-                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 913205) + vectorsDelta,
-                  totalSizeGb: updatedGb,
-                  usedPercentage: updatedPct,
-                }
-              : null;
-
-            return {
-              isStreaming: true,
-              activePipelineStage: stageKey,
-              totalCorpus: event.total_corpus || prev.totalCorpus + 1,
-              sessionIngested: nextSession,
-              streamSpeed: event.speed_ppm || prev.streamSpeed,
-              storageUsedGb: updatedGb,
-              storageUsedPct: updatedPct,
-              storageTotalBytes: event.storage_total_bytes ?? prev.storageTotalBytes + paperDelta,
-              lastPaperDeltaBytes: paperDelta,
-              storageStats: prev.storageStats && updatedActive ? {
-                ...prev.storageStats,
-                activeLakehouse: updatedActive,
-                total_size_gb: updatedGb,
-                used_percentage: updatedPct,
-              } : prev.storageStats,
+        const event = JSON.parse(e.data);
+        switch (event.type) {
+          case 'SNAPSHOT':
+          case 'CONNECTION_ESTABLISHED':
+            applySnapshot(event as LiveSnapshot);
+            break;
+          case 'LOG':
+            updateState((prev) => ({ logs: mergeLogs(prev.logs, [toEntry(event.log as ServerLog)]) }));
+            break;
+          case 'PAPER_INGESTED':
+            updateState({
+              sessionIngested: event.session_ingested ?? state.sessionIngested + 1,
               lastIngestedPaper: {
                 paperId: event.paper_id || '',
                 title: event.title || '',
                 category: event.category || '',
-                vectorsSynced: vectorsDelta,
-                latencyMs: event.latency_ms || 0,
+                tier: event.tier || '',
+                contentOrigin: event.content_origin || '',
+                totalWords: event.total_words || 0,
+                vectorsSynced: event.vectors_synced || 0,
+                latencyMs: 0,
               },
-            };
-          });
-
-          const isGold = event.stage?.toUpperCase() === 'GOLD';
-          const pTitle = (event.title || '').slice(0, 50);
-          const goldMsg = event.paper_id
-            ? `[GOLD INGEST] ${event.paper_id} (${event.category || 'Gold'}) -> "${pTitle}..." (+${event.vectors_synced || 64} vectors to LanceDB)`
-            : `[GOLD INGEST] +${event.vectors_synced || 64} dense vectors indexed into LanceDB (Total: ${(event.total_vectors || 419528).toLocaleString()} vectors)`;
-          const bronzeMsg = `[BRONZE HARVEST] ${event.paper_id || 'arXiv'} (${event.category || 'cs.AI'}) -> "${pTitle || 'Preprint'}" (+${Math.round(paperDelta / 1024)} KB${event.total_sections ? `, ${event.total_sections} sects` : ''})`;
-
-          appendStreamLog({
-            time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
-            level: 'SUCCESS',
-            tag: isGold ? 'GOLD-VECTOR' : 'STREAM-CDC',
-            msg: isGold ? goldMsg : bronzeMsg,
-          });
-        } else if (event.type === 'STAGE_CHANGE') {
-          const rawStage = (event.stage || '').toLowerCase();
-          const targetStage: any = rawStage === 'embedding' ? 'parallel' : rawStage;
-          updateState((prev) => {
-            const vectorsDelta = typeof event.vectors_synced === 'number' ? event.vectors_synced : 0;
-            const updatedActive = prev.storageStats?.activeLakehouse && vectorsDelta > 0
-              ? {
-                  ...prev.storageStats.activeLakehouse,
-                  activeLanceDbVectors:
-                    (prev.storageStats.activeLakehouse.activeLanceDbVectors || 913205) + vectorsDelta,
-                }
-              : prev.storageStats?.activeLakehouse;
-
-            return {
-              isStreaming: targetStage !== 'completed',
-              activePipelineStage: targetStage,
-              storageStats: prev.storageStats && updatedActive ? {
-                ...prev.storageStats,
-                activeLakehouse: updatedActive,
-              } : prev.storageStats,
-            };
-          });
-
-          if (rawStage === 'completed') {
-            setTimeout(() => {
-              updateState({ activePipelineStage: 'idle', isStreaming: false });
-            }, 6000);
-          }
-
-          appendStreamLog({
-            time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
-            level: 'INFO',
-            tag: 'PIPELINE-STEP',
-            msg: `[FLOW STAGE: ${rawStage.toUpperCase()}] ${event.title || 'Pipeline transition triggered.'}`,
-          });
-        } else if (event.type === 'HEARTBEAT' || event.type === 'CONNECTION_ESTABLISHED') {
-          if (event.status === 'STREAMING') {
-            updateState({
-              isStreaming: true,
-              sessionIngested: event.session_ingested || state.sessionIngested,
-              streamSpeed: event.speed_ppm || state.streamSpeed,
-              totalCorpus: event.total_corpus || state.totalCorpus,
-              storageUsedGb: event.storage_total_gb ?? state.storageUsedGb,
-              storageUsedPct: event.storage_used_pct ?? state.storageUsedPct,
             });
-          } else if (event.status === 'PAUSED' || event.status === 'COMPLETED') {
-            updateState({ isStreaming: false });
-          }
+            break;
+          default:
+            break;
         }
       } catch (err) {
         console.error('[StreamStore] Malformed event payload:', err);
@@ -444,13 +346,10 @@ export function initializeLakehouseStream(): () => void {
         eventSourceInstance.close();
         eventSourceInstance = null;
       }
-
       const delay = Math.min(10000, 1500 * 2 ** retryCount);
       retryCount += 1;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      reconnectTimer = setTimeout(() => {
-        connectSSE();
-      }, delay);
+      reconnectTimer = setTimeout(connectSSE, delay);
     };
   };
 
@@ -458,6 +357,7 @@ export function initializeLakehouseStream(): () => void {
 
   return () => {
     if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (statsTimer) clearTimeout(statsTimer);
     if (eventSourceInstance) {
       eventSourceInstance.close();
       eventSourceInstance = null;
@@ -469,9 +369,7 @@ export function initializeLakehouseStream(): () => void {
 
 function subscribe(callback: () => void): () => void {
   listeners.add(callback);
-  return () => {
-    listeners.delete(callback);
-  };
+  return () => { listeners.delete(callback); };
 }
 
 function getSnapshot(): LakehouseStreamState {

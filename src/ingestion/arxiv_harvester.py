@@ -1,7 +1,7 @@
 """Real-Time arXiv Harvester for AI/DS literature.
 
 Fetches paper metadata via RSS/API, downloads standardized HTML5 full-text,
-and vaults raw payloads into the Cloudflare R2 Bronze Lakehouse layer
+and vaults raw payloads into the MinIO Bronze Lakehouse layer
 with cryptographic SHA-256 integrity hashes.
 """
 
@@ -15,33 +15,47 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import settings
-from src.storage.r2_client import R2Client
+from src.ingestion.queue_publisher import RabbitMQPublisher
+from src.storage.minio_client import StorageClient
 from src.utils.hasher import compute_sha256
 
 
 class ArxivHarvester:
     """Automated harvester for arXiv preprints."""
 
-    BASE_RSS_URL = "http://export.arxiv.org/rss"
+    BASE_RSS_URL = "https://rss.arxiv.org/rss"
     BASE_API_URL = "http://export.arxiv.org/api/query"
     BASE_HTML_URL = "https://arxiv.org/html"
 
     def __init__(
         self,
-        r2_client: Optional[R2Client] = None,
+        storage_client: Optional[StorageClient] = None,
+        r2_client: Optional[Any] = None,
         categories: Optional[List[str]] = None,
         request_delay: Optional[float] = None,
+        enable_queue: bool = True,
+        queue_publisher: Optional[RabbitMQPublisher] = None,
     ):
-        self.r2 = r2_client or R2Client()
+        self.storage = storage_client or r2_client or StorageClient()
+        self.r2 = self.storage
+
         self.categories = categories or settings.ARXIV_CATEGORIES
         self.request_delay = request_delay or settings.ARXIV_REQUEST_DELAY_SECONDS
+        self.enable_queue = enable_queue
+        self.publisher = None
+        if self.enable_queue:
+            try:
+                self.publisher = queue_publisher or RabbitMQPublisher()
+            except Exception:
+                self.publisher = None
         self.http_client = httpx.Client(
             headers={
-                "User-Agent": "UTH-Scientific-DataMining-Harvester/1.0 (academic research; contact: data-mining@uth.edu.vn)"
+                "User-Agent": settings.ARXIV_USER_AGENT
             },
             timeout=30.0,
             follow_redirects=True,
         )
+
 
     def extract_clean_arxiv_id(self, raw_id_or_url: str) -> str:
         """Trích xuất ID arXiv chuẩn hóa dạng YYYY.NNNNN (bỏ URL prefix và version nếu cần)."""
@@ -110,7 +124,7 @@ class ArxivHarvester:
         return None
 
     def ingest_paper(self, paper_meta: Dict[str, Any], download_html: bool = True) -> Dict[str, Any]:
-        """Thu thập 1 bài báo và đẩy thẳng vào kho Bronze trên Cloudflare R2."""
+        """Thu thập 1 bài báo và đẩy thẳng vào kho Bronze trên MinIO S3."""
         paper_id = paper_meta["paper_id"]
         # Phân loại thư mục theo năm: 2401 -> 2024
         year_prefix = f"20{paper_id[:2]}" if paper_id[:2].isdigit() else "unknown"
@@ -118,7 +132,7 @@ class ArxivHarvester:
         meta_key = f"bronze/arxiv/raw_metadata/{year_prefix}/{paper_id}.json"
         html_key = f"bronze/arxiv/raw_html/{year_prefix}/{paper_id}.html"
 
-        # 1. Kiểm tra deduplication: nếu metadata đã tồn tại trên R2 thì bỏ qua
+        # 1. Kiểm tra deduplication: nếu metadata đã tồn tại trên MinIO thì bỏ qua
         if self.r2.object_exists(meta_key):
             return {
                 "paper_id": paper_id,
@@ -150,14 +164,23 @@ class ArxivHarvester:
 
         # 3. Làm giàu metadata và lưu vào Bronze
         paper_meta["has_html"] = html_saved
+        paper_meta["html_storage_uri"] = html_uri
         paper_meta["html_r2_uri"] = html_uri
         paper_meta["html_sha256"] = html_sha256
+
 
         meta_res = self.r2.upload_json(
             payload=paper_meta,
             key=meta_key,
             metadata={"paper_id": paper_id},
         )
+
+        # 4. Đẩy paper vào RabbitMQ ingestion queue để worker embed bất đồng bộ
+        if self.enable_queue and self.publisher:
+            try:
+                self.publisher.publish_paper(paper_meta)
+            except Exception:
+                pass
 
         return {
             "paper_id": paper_id,
@@ -167,6 +190,7 @@ class ArxivHarvester:
             "html_uri": html_uri,
             "sha256": meta_res["sha256"],
         }
+
 
     def harvest_daily_papers(self, max_per_category: int = 5) -> List[Dict[str, Any]]:
         """Chạy harvest bài báo hàng ngày trên tất cả các danh mục được cấu hình."""

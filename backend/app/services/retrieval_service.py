@@ -1,15 +1,15 @@
 """
 backend/app/services/retrieval_service.py
 -----------------------------------------
-Vector and Full-Text Retrieval Service wrapping LanceDB Gold Table.
+Vector and Full-Text Retrieval Service wrapping the Qdrant Gold collection.
 """
 
 import logging
 from typing import Any, Dict, List, Optional, Set, Tuple
-import lancedb
 from backend.app.core.config import settings
 from backend.app.schemas.search import ChunkDto, SearchRequest
 from backend.app.services.embedder_service import embedder_service
+from src.indexing.qdrant_manager import QdrantManager
 
 logger = logging.getLogger("retrieval_service")
 
@@ -18,6 +18,7 @@ import json
 import math
 import re
 from pathlib import Path
+from backend.app.services.lake import lake
 
 
 class RetrievalService:
@@ -32,35 +33,26 @@ class RetrievalService:
         self._init_graph_and_rules()
 
     def _init_graph_and_rules(self):
-        """Loads citation network influencers and frequent association rules from Lakehouse Gold."""
+        """Loads citation network influencers and frequent association rules from MinIO (gold/mining)."""
         try:
-            mining_dir = settings.MINING_ARTIFACTS_DIR
-            if not mining_dir.exists():
-                mining_dir = settings.PROJECT_ROOT_DIR / "data" / "gold" / "mining"
-
-            graph_path = mining_dir / "graph_coauthorship.json"
-            if graph_path.exists():
-                with open(graph_path, "r", encoding="utf-8") as f:
-                    g_data = json.load(f)
-                    infs = g_data.get("top_influencers", [])
-                    for item in infs:
-                        raw = item.get("author", "")
-                        m = re.search(r"\(([^)]+)\)", raw)
-                        author_part = m.group(1).replace("et al.", "").strip() if m else raw
-                        self.influencers.append({
-                            "raw": raw,
-                            "author_clean": author_part.lower(),
-                            "pagerank": float(item.get("pagerank", 0.0)),
-                        })
-                    if self.influencers:
-                        self.max_pagerank = max((i["pagerank"] for i in self.influencers), default=0.012632)
+            g_data = lake.get_json(f"{settings.MINING_PREFIX}/graph_coauthorship.json", ttl=0)
+            if g_data:
+                for item in g_data.get("top_influencers", []):
+                    raw = item.get("author", "")
+                    m = re.search(r"\(([^)]+)\)", raw)
+                    author_part = m.group(1).replace("et al.", "").strip() if m else raw
+                    self.influencers.append({
+                        "raw": raw,
+                        "author_clean": author_part.lower(),
+                        "pagerank": float(item.get("pagerank", 0.0)),
+                    })
+                if self.influencers:
+                    self.max_pagerank = max((i["pagerank"] for i in self.influencers), default=0.012632)
                 logger.info("[RETRIEVAL] [SUCCESS] Loaded %d graph influencers (Max PageRank: %.6f)", len(self.influencers), self.max_pagerank)
 
-            rules_path = mining_dir / "association_rules.json"
-            if rules_path.exists():
-                with open(rules_path, "r", encoding="utf-8") as f:
-                    r_data = json.load(f)
-                    self.rules = r_data.get("rules", [])
+            r_data = lake.get_json(f"{settings.MINING_PREFIX}/association_rules.json", ttl=0)
+            if r_data:
+                self.rules = r_data.get("rules", [])
                 logger.info("[RETRIEVAL] [SUCCESS] Loaded %d FP-Growth association rules", len(self.rules))
         except Exception as e:
             logger.warning("[RETRIEVAL] [WARN] Could not load graph/rules artifacts: %s", str(e))
@@ -184,60 +176,14 @@ class RetrievalService:
 
     def _init_db(self):
         try:
-            self.vector_dim = None
-            self.table_name = settings.LANCEDB_TABLE
-
-            # Check local Lakehouse Gold LanceDB first for sub-second retrieval
-            local_gold = settings.PROJECT_ROOT_DIR / "data" / "gold" / "lancedb"
-            if local_gold.exists():
-                try:
-                    logger.info("[RETRIEVAL] Checking local LanceDB at: %s", local_gold)
-                    local_conn = lancedb.connect(str(local_gold))
-                    tbl_list = local_conn.list_tables()
-                    table_names = tbl_list.tables if hasattr(tbl_list, "tables") else list(tbl_list)
-                    
-                    target_table = None
-                    if settings.LANCEDB_TABLE in table_names:
-                        target_table = settings.LANCEDB_TABLE
-                    elif settings.LANCEDB_URI.startswith("s3://"):
-                        logger.info("[RETRIEVAL] Target table '%s' not found locally. Connecting to remote Cloudflare R2...", settings.LANCEDB_TABLE)
-                    elif "scientific_papers_gold" in table_names:
-                        target_table = "scientific_papers_gold"
-                    elif "academic_chunks" in table_names:
-                        target_table = "academic_chunks"
-                    elif table_names:
-                        target_table = table_names[0]
-
-                    if target_table:
-                        self.db = local_conn
-                        self.table = self.db.open_table(target_table)
-                        self.table_name = target_table
-                        self._ready = True
-                        if "vector" in self.table.schema.names:
-                            self.vector_dim = getattr(self.table.schema.field("vector").type, "list_size", None)
-                        logger.info("[RETRIEVAL] [SUCCESS] Opened local LanceDB table: %s (%d rows, vector_dim=%s)", target_table, len(self.table), self.vector_dim)
-                        return
-                except Exception as local_err:
-                    logger.warning("[RETRIEVAL] Local LanceDB open failed (%s), falling back to remote config.", str(local_err))
-
-            logger.info("[RETRIEVAL] Connecting to LanceDB at: %s", settings.LANCEDB_URI)
-            storage_options = None
-            if settings.LANCEDB_URI.startswith("s3://"):
-                storage_options = {
-                    "endpoint": settings.R2_ENDPOINT_URL,
-                    "aws_access_key_id": settings.R2_ACCESS_KEY_ID,
-                    "aws_secret_access_key": settings.R2_SECRET_ACCESS_KEY,
-                    "region": "auto",
-                }
-            self.db = lancedb.connect(settings.LANCEDB_URI, storage_options=storage_options)
-            self.table = self.db.open_table(settings.LANCEDB_TABLE)
-            self.table_name = settings.LANCEDB_TABLE
-            if "vector" in self.table.schema.names:
-                self.vector_dim = getattr(self.table.schema.field("vector").type, "list_size", None)
+            self.qdrant = QdrantManager(url=settings.QDRANT_URL, collection_name=settings.QDRANT_COLLECTION)
+            self.table = self.qdrant.open_table(settings.QDRANT_COLLECTION)
+            self.table_name = settings.QDRANT_COLLECTION
+            self.vector_dim = 768
             self._ready = True
-            logger.info("[RETRIEVAL] [SUCCESS] Opened LanceDB table: %s (%d rows, vector_dim=%s)", settings.LANCEDB_TABLE, len(self.table), self.vector_dim)
+            logger.info("[RETRIEVAL] [SUCCESS] Connected to Qdrant collection: %s (%d vectors)", settings.QDRANT_COLLECTION, len(self.table))
         except Exception as e:
-            logger.error("[RETRIEVAL] [ERROR] Failed to connect to LanceDB: %s", str(e))
+            logger.error("[RETRIEVAL] [ERROR] Failed to connect to Qdrant: %s", str(e))
             self._ready = False
 
     def is_ready(self) -> bool:
@@ -254,38 +200,8 @@ class RetrievalService:
         return None
 
     def _lookup_paper_metadata(self, paper_id: str) -> dict:
-        """Looks up full metadata for a paper across all Silver Parquet catalogs."""
-        clean_pid = paper_id.replace("arXiv:", "").strip()
-        search_paths = [
-            settings.PROJECT_ROOT_DIR / "data" / "silver" / "tier1" / "landmark_papers.parquet",
-            settings.PROJECT_ROOT_DIR / "data" / "silver" / "tier2" / "near_past_papers.parquet",
-            settings.PROJECT_ROOT_DIR / "data" / "silver" / "papers.parquet",
-            settings.PROJECT_ROOT_DIR / "data" / "silver" / "year=2026" / "papers.parquet",
-            settings.SILVER_PARQUET,
-        ]
-
-        for p in search_paths:
-            if not p or not p.exists():
-                continue
-            try:
-                import pyarrow.parquet as pq
-                import pyarrow.compute as pc
-                tbl = pq.read_table(p)
-                col_names = tbl.schema.names
-
-                if "paper_id" in col_names:
-                    filt = tbl.filter(pc.equal(tbl["paper_id"], clean_pid))
-                    if filt.num_rows > 0:
-                        return filt.to_pylist()[0]
-
-                if "openalex_id" in col_names:
-                    bare_id = clean_pid.replace("openalex:", "")
-                    filt_oa = tbl.filter(pc.equal(tbl["openalex_id"], bare_id))
-                    if filt_oa.num_rows > 0:
-                        return filt_oa.to_pylist()[0]
-            except Exception as err:
-                logger.debug("[RETRIEVAL] Could not read metadata from %s: %s", p, err)
-        return {}
+        """Looks up full metadata for a paper across the Silver catalogs in MinIO."""
+        return lake.lookup_paper(paper_id.replace("arXiv:", "").strip())
 
     def _clean_query_for_title_matching(self, query: str) -> str:
         """Strips conversational noise, filler phrases, and common articles to extract core title/topic."""
@@ -306,44 +222,14 @@ class RetrievalService:
         return cleaned
 
     def _search_title_matches(self, cleaned_title: str) -> List[dict]:
-        """Queries Silver Parquet catalogs to find papers whose title closely matches the user's intent."""
+        """Finds papers whose title closely matches the user's intent in the Silver catalogs."""
         if not cleaned_title or len(cleaned_title) < 4:
             return []
-
-        search_paths = [
-            settings.PROJECT_ROOT_DIR / "data" / "silver" / "tier1" / "landmark_papers.parquet",
-            settings.PROJECT_ROOT_DIR / "data" / "silver" / "papers.parquet",
-            settings.PROJECT_ROOT_DIR / "data" / "silver" / "year=2026" / "papers.parquet",
-            settings.SILVER_PARQUET,
-        ]
-
-        import duckdb
-        for p in search_paths:
-            if not p or not p.exists():
-                continue
-            try:
-                con = duckdb.connect()
-                desc = con.execute(f"DESCRIBE SELECT * FROM '{p.as_posix()}'").df()
-                cols = set(desc["column_name"].tolist())
-                order_clause = "ORDER BY citation_count DESC" if "citation_count" in cols else ""
-                sql = f"""
-                    SELECT paper_id, title, year, doi
-                    FROM '{p.as_posix()}'
-                    WHERE lower(title) LIKE ?
-                    {order_clause}
-                    LIMIT 3
-                """
-                like_term = f"%{cleaned_title.lower()}%"
-                df = con.execute(sql, [like_term]).df()
-                if not df.empty:
-                    return df.to_dict(orient="records")
-            except Exception as err:
-                logger.debug("[RETRIEVAL] Title search error on %s: %s", p, err)
-        return []
+        return lake.search_titles(cleaned_title)
 
     def search(self, req: SearchRequest) -> List[ChunkDto]:
         if not self.is_ready():
-            logger.warning("[RETRIEVAL] LanceDB table not ready. Returning empty list.")
+            logger.warning("[RETRIEVAL] Qdrant collection not ready. Returning empty list.")
             return []
 
         try:
@@ -382,7 +268,7 @@ class RetrievalService:
                                     section_title=str(r.get("section_title", "")),
                                     doi=str(meta.get("doi")) if meta.get("doi") else (str(r.get("doi")) if r.get("doi") else None),
                                     score=c_score,
-                                    source=f"lancedb://{getattr(self, 'table_name', settings.LANCEDB_TABLE)}",
+                                    source=f"qdrant://{getattr(self, 'table_name', settings.QDRANT_COLLECTION)}",
                                     rule_expansions=rule_expansions if rule_expansions else None,
                                 )
                             )
@@ -442,7 +328,7 @@ class RetrievalService:
                                     section_title=str(tr.get("section_title", "")),
                                     doi=str(th.get("doi")) if th.get("doi") else (str(tr.get("doi")) if tr.get("doi") else None),
                                     score=0.96,
-                                    source=f"lancedb://{getattr(self, 'table_name', settings.LANCEDB_TABLE)}",
+                                    source=f"qdrant://{getattr(self, 'table_name', settings.QDRANT_COLLECTION)}",
                                     authority_score=round(norm_pr, 4) if norm_pr > 0 else None,
                                     authority_author=auth_author,
                                     rule_expansions=rule_expansions if rule_expansions else None,
@@ -543,7 +429,7 @@ class RetrievalService:
                         primary_category=str(r.get("primary_category", "")) if r.get("primary_category") else None,
                         section_title=str(r.get("section_title", "")) if r.get("section_title") else None,
                         score=clamped_score,
-                        source=f"lancedb://{getattr(self, 'table_name', settings.LANCEDB_TABLE)}",
+                        source=f"qdrant://{getattr(self, 'table_name', settings.QDRANT_COLLECTION)}",
                         authority_score=round(norm_pr, 4) if norm_pr > 0 else None,
                         authority_author=auth_author,
                         rule_expansions=rule_expansions if rule_expansions else None,
@@ -667,7 +553,7 @@ class RetrievalService:
                         section_title=str(r.get("section_title", "")),
                         doi=str(paper_meta.get("doi")) if paper_meta.get("doi") else (str(r.get("doi")) if r.get("doi") else None),
                         score=0.8510,
-                        source=f"{settings.LANCEDB_URI}/{settings.LANCEDB_TABLE}",
+                        source=f"qdrant://{settings.QDRANT_COLLECTION}",
                     )
                 )
             return results

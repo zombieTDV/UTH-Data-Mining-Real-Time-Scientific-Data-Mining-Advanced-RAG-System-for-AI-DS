@@ -29,8 +29,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config.settings import settings
-from src.storage.r2_client import R2Client
-from src.transformation.marker_extractor import MarkerPdfExtractor
+from src.storage.lakehouse_io import LakehouseIO
+from src.storage.minio_client import StorageClient as R2Client
 from src.transformation.silver_writer import SilverLakehouseWriter
 from src.utils.logger import setup_pipeline_logging
 
@@ -46,28 +46,17 @@ class ZenodoHarvester:
     def __init__(
         self,
         r2_client: Optional[R2Client] = None,
-        bronze_dir: Optional[Path] = None,
-        silver_dir: Optional[Path] = None,
-        pdf_dir: Optional[Path] = None,
         access_token: Optional[str] = None,
+        **_ignored,  # legacy bronze_dir/silver_dir/pdf_dir args: all storage is MinIO now
     ):
         self.r2 = r2_client or R2Client()
-        self.bronze_dir = bronze_dir or (settings.ROOT_DIR / "data" / "raw" / "zenodo")
-        self.silver_dir = silver_dir or (settings.ROOT_DIR / "data" / "silver" / "zenodo")
-        self.pdf_dir = pdf_dir or (settings.ROOT_DIR / "data" / "raw" / "zenodo" / "pdfs")
-        self.markdown_dir = settings.ROOT_DIR / "data" / "raw" / "zenodo" / "markdowns"
-
-        self.bronze_dir.mkdir(parents=True, exist_ok=True)
-        self.silver_dir.mkdir(parents=True, exist_ok=True)
-        self.pdf_dir.mkdir(parents=True, exist_ok=True)
-        self.markdown_dir.mkdir(parents=True, exist_ok=True)
+        self.io = LakehouseIO(self.r2)
 
         self.access_token = access_token or settings.ZENODO_ACCESS_TOKEN
-        self.silver_writer = SilverLakehouseWriter(r2_client=self.r2, local_silver_dir=self.silver_dir)
-        self.marker_extractor = MarkerPdfExtractor()
+        self.silver_writer = SilverLakehouseWriter(r2_client=self.r2)
 
         headers = {
-            "User-Agent": "UTH-Scientific-DataMining-ZenodoHarvester/2.0 (academic research; contact: data-mining@uth.edu.vn)",
+            "User-Agent": settings.ARXIV_USER_AGENT,
             "Accept": "application/json",
         }
         if self.access_token:
@@ -79,14 +68,11 @@ class ZenodoHarvester:
             follow_redirects=True,
         )
 
-        self.checkpoint_file = settings.ROOT_DIR / "data" / "manifests" / "zenodo_checkpoint.json"
-        self.checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
-
     def _broadcast_cdc_pulse(self, title: str, category: str = "Zenodo", count: int = 1):
         """Dispatches real-time ingestion pulse to the UI dashboard bridge."""
         try:
             httpx.post(
-                "http://localhost:8000/api/ingestion/broadcast",
+                settings.BACKEND_BROADCAST_URL,
                 json={
                     "event": "ingest_paper",
                     "title": title[:80] + "..." if len(title) > 80 else title,
@@ -204,40 +190,11 @@ class ZenodoHarvester:
 
         markdown_content = ""
         latex_count = 0
-        local_pdf_path = self.pdf_dir / f"{record_id}.pdf"
-        local_md_path = self.markdown_dir / f"{record_id}.md"
-
-        if pdf_url and not local_pdf_path.exists():
-            try:
-                logger.info("[ZENODO] Downloading PDF for %s from %s...", record_id, pdf_url)
-                with self.http_client.stream("GET", pdf_url) as r:
-                    if r.status_code == 200:
-                        with open(local_pdf_path, "wb") as f_out:
-                            for chunk in r.iter_bytes(chunk_size=65536):
-                                f_out.write(chunk)
-                        logger.info("[ZENODO] Downloaded PDF (%d bytes) to %s", local_pdf_path.stat().st_size, local_pdf_path.name)
-            except Exception as e:
-                logger.warning("[ZENODO] Failed to download PDF for %s: %s", record_id, e)
-
-        # Execute Marker PDF Engine immediately
-        if local_pdf_path.exists() and local_pdf_path.stat().st_size > 1024:
-            try:
-                logger.info("[ZENODO MARKER] Executing Marker PDF extraction on %s...", local_pdf_path.name)
-                markdown_content, marker_meta = self.marker_extractor.convert_pdf_to_markdown(local_pdf_path)
-                latex_count = marker_meta.get("latex_formulas_detected", 0)
-
-                # Save generated Markdown to lakehouse storage
-                if markdown_content:
-                    with open(local_md_path, "w", encoding="utf-8") as f_md:
-                        f_md.write(markdown_content)
-                    logger.info("[ZENODO MARKER] Extracted %d chars with %d LaTeX formulas for %s", len(markdown_content), latex_count, record_id)
-            except Exception as e:
-                logger.error("[ZENODO MARKER] Error executing Marker on %s: %s", record_id, e)
-
+        # Zenodo records are not on arXiv and have no HTML full text: abstract-level content only (no PDF download)
         return {
-            "has_pdf": local_pdf_path.exists(),
-            "pdf_path": str(local_pdf_path) if local_pdf_path.exists() else None,
-            "markdown_path": str(local_md_path) if local_md_path.exists() else None,
+            "has_pdf": False,
+            "pdf_path": None,
+            "markdown_path": None,
             "markdown_content": markdown_content,
             "latex_formulas_count": latex_count,
         }
@@ -246,7 +203,7 @@ class ZenodoHarvester:
         self,
         limit: int = 50,
         query: Optional[str] = None,
-        upload_to_r2: bool = False,
+        upload_to_r2: bool = False,  # legacy flag, MinIO is always used
     ) -> List[Dict[str, Any]]:
         """Harvests publications, immediately runs Marker PDF conversion, and writes Silver Parquet."""
         search_query = query or settings.ZENODO_DEFAULT_QUERY
@@ -312,36 +269,15 @@ class ZenodoHarvester:
 
         print(f"\n[ZENODO] Harvested & processed {len(harvested_records)} publications with Marker PDF Engine.")
 
-        # Save Bronze JSON Vault
+        # Bronze JSON vault + Silver Parquet, both in MinIO
         if harvested_records:
             now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            bronze_file = self.bronze_dir / f"zenodo_{now_str}.json"
-            with open(bronze_file, "w", encoding="utf-8") as f:
-                json.dump(harvested_records, f, ensure_ascii=False, indent=2)
-            print(f"[ZENODO] [SUCCESS] Saved Bronze JSON to {bronze_file}")
+            bronze_key = f"bronze/zenodo/zenodo_{now_str}.json"
+            self.io.put_json(bronze_key, harvested_records)
+            print(f"[ZENODO] [SUCCESS] Saved Bronze JSON to s3://{self.r2.bucket_name}/{bronze_key}")
 
-            # Save Silver Parquet
-            df_new = pd.DataFrame(harvested_records)
-            silver_parquet_path = self.silver_dir / "zenodo_all.parquet"
-
-            if silver_parquet_path.exists():
-                try:
-                    df_existing = pd.read_parquet(silver_parquet_path)
-                    combined = pd.concat([df_existing, df_new], ignore_index=True).drop_duplicates(subset=["paper_id"], keep="last")
-                    combined.to_parquet(silver_parquet_path, index=False)
-                    print(f"[ZENODO] [SILVER] Appended and deduped into {silver_parquet_path} ({len(combined):,} total rows)")
-                except Exception as e:
-                    logger.warning("[ZENODO] Error appending to existing parquet: %s. Overwriting.", e)
-                    df_new.to_parquet(silver_parquet_path, index=False)
-            else:
-                df_new.to_parquet(silver_parquet_path, index=False)
-                print(f"[ZENODO] [SILVER] Saved new Parquet to {silver_parquet_path} ({len(df_new):,} rows)")
-
-            # Optional R2 Cloud Sync
-            if upload_to_r2 and self.r2.is_configured:
-                r2_key = f"silver/zenodo/zenodo_all.parquet"
-                self.r2.upload_file(silver_parquet_path, r2_key, content_type="application/vnd.apache.parquet")
-                print(f"[ZENODO] [R2 SYNC] Silver Parquet uploaded to {r2_key}")
+            res = self.io.upsert_parquet("silver/zenodo/zenodo_all.parquet", pd.DataFrame(harvested_records), subset=["paper_id"])
+            print(f"[ZENODO] [SILVER] Upserted {res['uri']} ({res['rows']:,} total rows)")
 
         return harvested_records
 

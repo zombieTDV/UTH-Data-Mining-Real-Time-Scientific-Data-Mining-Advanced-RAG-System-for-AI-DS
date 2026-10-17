@@ -1,12 +1,16 @@
+import { useEffect, useState } from 'react';
 import type { FC } from 'react';
+import { fetchEdaSummary } from '../../services';
 import { StatCard } from './StatCard.component';
 import { AnimatedCounter } from './AnimatedCounter.component';
 import { useLakehouseStreamStore } from '../../store';
 
 export const MetricsBento: FC = () => {
   const {
-    sessionIngested,
     storageStats,
+    totalVectors,
+    totalCorpus,
+    live,
     viewMode,
     setViewMode,
   } = useLakehouseStreamStore();
@@ -20,29 +24,32 @@ export const MetricsBento: FC = () => {
 
   const sourceBreakdown = storageStats?.sourceBreakdown || activeData?.sourceBreakdown;
   const doiCount = sourceBreakdown?.doi ?? 0;
-  const arxivCount = (sourceBreakdown?.arxiv ?? 0) + sessionIngested;
+  const arxivCount = sourceBreakdown?.arxiv ?? 0;
   const cvfCount = sourceBreakdown?.cvf ?? 0;
   const openreviewCount = sourceBreakdown?.openreview ?? 0;
   const zenodoCount = sourceBreakdown?.zenodo ?? 0;
   const totalCorpusCount = doiCount + arxivCount + cvfCount + openreviewCount + zenodoCount;
-  const arxivGb = activeData?.arxivHtmlSizeGb ?? 1.054;
-  const doiGb = 1.897;
-  const silverMb = activeData?.silverParquetSizeMb ?? 172.0;
-  const activeVectors = activeData?.activeLanceDbVectors ?? 40399;
-  const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 257.34;
-  const backupGb = backupData?.totalSizeGb ?? 0.001;
+  const arxivGb = activeData?.arxivHtmlSizeGb ?? 0;
+  const doiGb = activeData?.openalexSizeGb ?? 0;
+  const silverMb = activeData?.silverParquetSizeMb ?? 0;
+  const activeVectors = totalVectors || (activeData?.activeLanceDbVectors ?? 0);
+  const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 0;
+  const backupGb = backupData?.totalSizeGb ?? 0;
 
   // Active vs Total calculations linked directly to real-time storageUsedGb
-  const activeGb = activeData?.totalSizeGb ?? 3.373;
-  const activePct = activeData?.usedPercentage ?? 33.73;
-  const totalGb = totalBucket?.totalSizeGb ?? 3.042;
-  const totalPct = totalBucket?.usedPercentage ?? 30.42;
+  const activeGb = activeData?.totalSizeGb ?? 0;
+  const activePct = activeData?.usedPercentage ?? 0;
+  const totalGb = totalBucket?.totalSizeGb ?? 0;
+  const totalPct = totalBucket?.usedPercentage ?? 0;
 
   const displayGb = isTotalView ? totalGb : activeGb;
   const displayPct = isTotalView ? totalPct : activePct;
   const remainingFreeGb = Math.max(0, 10.0 - activeGb).toFixed(3);
 
-  const currentFormulas = 2220938;
+  const [currentFormulas, setCurrentFormulas] = useState(0);
+  useEffect(() => {
+    fetchEdaSummary().then((eda) => setCurrentFormulas(eda?.dataset_overview?.total_math_formulas ?? 0)).catch(() => undefined);
+  }, []);
 
   // Segment widths relative to 10GB Free Tier
   const doiBarPct = Math.min(100, (doiGb / 10.0) * 100);
@@ -60,13 +67,13 @@ export const MetricsBento: FC = () => {
       {/* 1. Corpus Scale Card */}
       <StatCard
         label="Corpus Scale"
-        badge="Tier 2 Medallion"
+        badge="Unique papers (dedup registry)"
         badgeColor="var(--accent-emerald)"
-        value={<AnimatedCounter value={totalCorpusCount} />}
+        value={<AnimatedCounter value={totalCorpus || totalCorpusCount} />}
         unit="works"
-        description="5 Sources: DOI / Journals • arXiv • CVF • OpenReview • Zenodo"
-        footerLeft={<>DOI: <AnimatedCounter value={doiCount} /></>}
-        footerRight={<>arXiv: <AnimatedCounter value={arxivCount} /></>}
+        description="Tier 1 live stream · Tier 2 near-past · Tier 3 historical archive"
+        footerLeft={<>Tier 2: <AnimatedCounter value={live?.corpus.tier2_rows ?? 0} /> · Tier 3: <AnimatedCounter value={live?.corpus.tier3_rows ?? 0} /></>}
+        footerRight={<>Tier 1: <AnimatedCounter value={live?.corpus.tier1_rows ?? arxivCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
       />
 
@@ -76,13 +83,13 @@ export const MetricsBento: FC = () => {
         badge="768 Dim"
         badgeColor="var(--accent-gold)"
         value={<AnimatedCounter value={activeVectors} />}
-        description="LanceDB Contextual Chunks (12,816 Indexed Papers)"
-        footerLeft={<>Chunks: <AnimatedCounter value={activeVectors} /> ({activeVectorMb.toFixed(1)} MB)</>}
-        footerRight={<>Papers: <AnimatedCounter value={12816} /></>}
+        description="Qdrant contextual chunks (live count)"
+        footerLeft={<>Vectors: <AnimatedCounter value={activeVectors} /> ({activeVectorMb.toFixed(1)} MB)</>}
+        footerRight={<>Papers: <AnimatedCounter value={totalCorpus} /></>}
         glowColor="rgba(234, 179, 8, 0.08)"
       />
 
-      {/* 3. Cloudflare R2 Multi-Tier Storage Card */}
+      {/* 3. MinIO S3 Multi-Tier Storage Card */}
       <div style={{
         gridColumn: 'span 4',
         background: 'var(--bg-surface)',
@@ -112,7 +119,7 @@ export const MetricsBento: FC = () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Cloudflare R2 Storage Lens
+              MinIO S3 Storage Lens
             </span>
 
             {/* Toggle switch between Active vs Total */}
@@ -193,8 +200,8 @@ export const MetricsBento: FC = () => {
 
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {isTotalView
-              ? `Total Bucket: 36,673 files (${backupGb} GB LanceDB Cloud Snapshots)`
-              : `Active Pipeline: 36,619 files (Within 10 GB Free Tier)`}
+              ? `Total Bucket: ${(totalBucket?.totalObjects ?? 0).toLocaleString()} objects (${backupGb} GB archived snapshots)`
+              : `Active Pipeline: ${(activeData?.totalObjects ?? 0).toLocaleString()} objects (Within 10 GB Free Tier)`}
           </div>
 
           {/* Multi-Tier Segmented Progress Bar */}
@@ -234,10 +241,10 @@ export const MetricsBento: FC = () => {
                   background: '#10b981',
                 }}
               />
-              {/* Backup LanceDB Segment (Amber) - only displayed or highlighted */}
+              {/* Archive segment (Amber) */}
               {isTotalView && (
                 <div
-                  title={`LanceDB Backup: ${backupGb} GB`}
+                  title={`Archived snapshots: ${backupGb} GB`}
                   style={{
                     width: `${backupBarPct}%`,
                     height: '100%',
@@ -334,8 +341,8 @@ export const MetricsBento: FC = () => {
         badge="Zero Egress"
         badgeColor="var(--accent-emerald)"
         value="Unified MLOps & RAG"
-        description="Vector Dense ANN Retrieval · Fast LanceDB columnar disk access"
-        footerLeft="Cloudflare R2 S3 API"
+        description="Vector dense ANN retrieval · Qdrant HNSW (cosine)"
+        footerLeft="MinIO S3 API"
         footerRight="Sub-50ms Latency"
         gridColumn="span 6"
       >
