@@ -17,6 +17,7 @@ export {
 export {
   subscribeTelemetry,
   fetchStreamingStatus,
+  fetchPipelineLogs,
   startStreamingIngestion,
   stopStreamingIngestion,
   subscribeIngestionStream,

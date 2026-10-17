@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { API_CONFIG } from '../config';
-import { fetchStreamingStatus, fetchStorageStats } from '../services';
+import { fetchStreamingStatus, fetchStorageStats, fetchPipelineLogs } from '../services';
 import type { IngestionEvent, StorageStatsResponse } from '../types';
 
 export interface StreamingLogEntry {
@@ -103,6 +103,13 @@ const getStoredLogs = (): StreamingLogEntry[] => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          const isMock = parsed.some((l: any) => 
+            typeof l.msg === 'string' && (l.msg.includes('CVPR Pipeline') || l.msg.includes('OpenAlex Pipeline') || l.msg.includes('15,926 objects'))
+          );
+          if (isMock) {
+            localStorage.removeItem('uth_lakehouse_logs');
+            return [];
+          }
           // Filter out stale mock dates as well as spam heartbeat log dumps
           const cleaned = parsed.filter(
             (l: any) =>
@@ -142,12 +149,10 @@ const initialCachedStats = getStoredStorageStats();
 
 let state: LakehouseStreamState = {
   isStreaming: false,
-  totalCorpus: Math.max(
-    29911,
+  totalCorpus:
     initialCachedStats?.sourceBreakdown?.total_deduplicated ??
-      initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ??
-      29911
-  ),
+    initialCachedStats?.activeLakehouse?.sourceBreakdown?.total_deduplicated ??
+    23333,
   sessionIngested: 0,
   streamSpeed: 0,
   streamTarget: 3000,
@@ -214,12 +219,12 @@ export async function refreshStorageStats(forceReset: boolean = false): Promise<
           }
         : data.activeLakehouse;
 
-      const updatedTotalWorks = Math.max(
-        29911,
+      const updatedTotalWorks = 
         data.sourceBreakdown?.total_deduplicated ||
         data.activeLakehouse?.sourceBreakdown?.total_deduplicated ||
-        29911
-      );
+        data.sourceBreakdown?.active_rag_papers ||
+        data.total_objects ||
+        23333;
 
       updateState({
         totalCorpus: updatedTotalWorks,
@@ -331,6 +336,27 @@ export function setStreamTarget(target: number): void {
   updateState({ streamTarget: target });
 }
 
+export async function refreshPipelineLogs(): Promise<void> {
+  try {
+    const realLogs = await fetchPipelineLogs(150);
+    if (realLogs && realLogs.length > 0) {
+      updateState((prev) => {
+        // Keep any active in-flight SSE logs at the top, followed by real disk logs
+        const sseLogs = prev.logs.filter((l) => l.id.startsWith('log-'));
+        const diskLogs = realLogs.map((rl) => ({
+          id: String(rl.id),
+          time: rl.time,
+          level: rl.level as any,
+          tag: rl.tag,
+          msg: rl.msg,
+        }));
+        const merged = [...sseLogs, ...diskLogs].slice(0, 200);
+        return { logs: merged };
+      });
+    }
+  } catch {}
+}
+
 export function initializeLakehouseStream(): () => void {
   if (initialized) {
     return () => {};
@@ -342,7 +368,7 @@ export function initializeLakehouseStream(): () => void {
       if (st) {
         updateState({
           isStreaming: st.status === 'STREAMING',
-          totalCorpus: st.total_corpus || 29911,
+          totalCorpus: st.total_corpus || state.totalCorpus || 23333,
           sessionIngested: st.status === 'STREAMING' ? (st.session_ingested || 0) : 0,
           streamSpeed: st.speed_ppm || 0,
           storageUsedGb: st.storage_total_gb ?? state.storageUsedGb,
@@ -353,6 +379,7 @@ export function initializeLakehouseStream(): () => void {
     .catch(() => {});
 
   refreshStorageStats();
+  refreshPipelineLogs();
 
   const connectSSE = () => {
     if (eventSourceInstance) {
@@ -417,13 +444,17 @@ export function initializeLakehouseStream(): () => void {
           });
 
           const isGold = event.stage?.toUpperCase() === 'GOLD' || (typeof event.vectors_synced === 'number' && event.vectors_synced > 0 && (event.bronze_bytes_delta === 0 || !event.bronze_bytes_delta));
+          const pTitle = (event.title || '').slice(0, 50);
+          const goldMsg = event.paper_id
+            ? `[GOLD INGEST] ${event.paper_id} (${event.category || 'Gold'}) -> "${pTitle}..." (+${event.vectors_synced || 64} vectors to LanceDB)`
+            : `[GOLD INGEST] +${event.vectors_synced || 64} dense vectors indexed into LanceDB (Total: ${(event.total_vectors || 419528).toLocaleString()} vectors)`;
+          const bronzeMsg = `[BRONZE HARVEST] ${event.paper_id || 'arXiv'} (${event.category || 'cs.AI'}) -> "${pTitle || 'Preprint'}" (+${Math.round(paperDelta / 1024)} KB${event.total_sections ? `, ${event.total_sections} sects` : ''})`;
+
           appendStreamLog({
             time: event.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false }),
             level: 'SUCCESS',
             tag: isGold ? 'GOLD-VECTOR' : 'STREAM-CDC',
-            msg: isGold
-              ? `[GOLD ZONE] Upserted ${(event.vectors_synced || 0).toLocaleString()} vectors to LanceDB Lakehouse ('scientific_papers_gold')`
-              : `[BRONZE HARVEST] ${event.paper_id} (${event.category}) -> "${(event.title || '').slice(0, 48)}..." -> (+${Math.round(paperDelta / 1024)} KB raw payload)`,
+            msg: isGold ? goldMsg : bronzeMsg,
           });
         } else if (event.type === 'STAGE_CHANGE') {
           const rawStage = (event.stage || '').toLowerCase();

@@ -479,6 +479,9 @@ export interface IngestionEvent {
   storage_total_bytes?: number;
   storage_total_gb?: number;
   storage_used_pct?: number;
+  total_vectors?: number;
+  total_sections?: number;
+  total_words?: number;
 }
 
 export interface DuckDbQueryResult {

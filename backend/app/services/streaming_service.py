@@ -9,6 +9,7 @@ import asyncio
 import datetime
 import json
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Optional
@@ -80,11 +81,24 @@ class StreamingService:
     def get_status(self) -> Dict[str, Any]:
         elapsed = time.time() - self.start_time if self.start_time else 0
         storage = self.get_current_storage()
+        
+        # Query true corpus count from LanceDB
+        real_corpus = self.base_corpus_count
+        try:
+            from src.indexing.lancedb_manager import LanceDBManager
+            l_mgr = LanceDBManager()
+            if "scientific_papers_gold" in l_mgr.db.table_names():
+                tbl = l_mgr.db.open_table("scientific_papers_gold")
+                arr = tbl.search().select(["paper_id"]).to_arrow()
+                real_corpus = len(set(arr["paper_id"].to_pylist()))
+        except Exception:
+            pass
+
         return {
             "status": self.status,
             "target_papers": self.target_papers,
             "session_ingested": self.session_ingested,
-            "total_corpus": self.base_corpus_count + self.session_ingested,
+            "total_corpus": max(real_corpus, self.base_corpus_count + self.session_ingested),
             "speed_ppm": self.current_speed_ppm,
             "elapsed_seconds": round(elapsed, 1),
             "subscribers_connected": len(self.subscribers),
@@ -93,9 +107,87 @@ class StreamingService:
             "storage_used_pct": storage["used_pct"],
         }
 
+    def get_latest_pipeline_logs(self, limit: int = 150) -> List[Dict[str, Any]]:
+        """Reads and structures the latest real execution log lines directly from disk."""
+        logs_dir = getattr(settings, "PROJECT_ROOT_DIR", Path(__file__).resolve().parents[3]) / "logs"
+        if not logs_dir.exists():
+            return []
+
+        matched_files = list(logs_dir.glob("streaming_html_embed_*.log"))
+        if not matched_files:
+            matched_files = list(logs_dir.glob("tier2_*.log"))
+
+        if not matched_files:
+            return []
+
+        latest_file = max(matched_files, key=lambda p: p.stat().st_mtime)
+        parsed_logs = []
+        try:
+            with open(latest_file, "r", encoding="utf-8", errors="ignore") as f:
+                lines = [line.strip() for line in f if line.strip()]
+
+            recent_lines = lines[-limit:]
+            for idx, raw in enumerate(recent_lines):
+                time_match = re.search(r"(\d{2}:\d{2}:\d{2})", raw)
+                t_str = time_match.group(1) if time_match else datetime.datetime.now().strftime("%H:%M:%S")
+
+                level = "INFO"
+                if "[ERROR]" in raw or "Traceback" in raw:
+                    level = "WARN"
+                elif "[SUCCESS]" in raw or "LANCEDB STREAM" in raw or "SILVER SAVED" in raw:
+                    level = "SUCCESS"
+
+                tag = "STREAM"
+                if "HTML ACCEPTED" in raw:
+                    tag = "HTML5-CRAWL"
+                elif "LANCEDB STREAM" in raw:
+                    tag = "GOLD-VECTOR"
+                elif "SILVER SAVED" in raw or "Parquet" in raw:
+                    tag = "SILVER-VAULT"
+                elif "R2" in raw:
+                    tag = "R2-SYNC"
+                elif "FILTER CACHE" in raw or "CANDIDATE" in raw or "STARTING" in raw:
+                    tag = "INIT"
+
+                clean_msg = re.sub(r"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:,\d+)?\s+\[[A-Z]+\]\s+", "", raw).strip()
+                parsed_logs.append({
+                    "id": f"log-disk-{idx}-{abs(hash(clean_msg)) % 1000000}",
+                    "time": t_str,
+                    "level": level,
+                    "tag": tag,
+                    "msg": clean_msg or raw,
+                })
+        except Exception as e:
+            logger.error(f"[LOGS] Failed reading log file {latest_file}: {e}")
+
+        return parsed_logs
+
     async def broadcast_event(self, event: Dict[str, Any]):
         """Dispatches an event to all active SSE subscribers."""
-        if event.get("type") == "PAPER_INGESTED":
+        # Normalize external pipeline events
+        stage = event.get("stage", "")
+        if stage == "STREAMING_HARVEST":
+            self.status = "STREAMING"
+            self.session_ingested = event.get("papers_harvested", self.session_ingested + 1)
+            event["type"] = "PAPER_INGESTED"
+            event["stage"] = "harvest"
+            event["category"] = event.get("category", "cs.AI")
+            event["timestamp"] = datetime.datetime.now().strftime("%H:%M:%S")
+            self._save_persisted_state()
+        elif stage == "LANCEDB_INSERT":
+            self.status = "STREAMING"
+            event["type"] = "PAPER_INGESTED"
+            event["stage"] = "gold"
+            event["vectors_synced"] = event.get("new_vectors", 64)
+            event["total_vectors"] = event.get("total_vectors")
+            event["category"] = "Gold Vector"
+            event["timestamp"] = datetime.datetime.now().strftime("%H:%M:%S")
+        elif stage in ("harvest", "bronze", "duckdb", "silver", "embedding", "parallel", "gold", "r2_sync", "completed"):
+            self.status = "STREAMING" if stage != "completed" else "IDLE"
+            if not event.get("type"):
+                event["type"] = "STAGE_CHANGE"
+            event["timestamp"] = datetime.datetime.now().strftime("%H:%M:%S")
+        elif event.get("type") == "PAPER_INGESTED":
             self.session_ingested += 1
             if event.get("speed_ppm"):
                 self.current_speed_ppm = float(event["speed_ppm"])

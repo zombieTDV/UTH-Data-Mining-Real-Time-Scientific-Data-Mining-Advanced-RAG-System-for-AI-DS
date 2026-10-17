@@ -158,25 +158,21 @@ class StorageService:
             if "scientific_papers_gold" in table_names:
                 tbl = l_mgr.db.open_table("scientific_papers_gold")
                 active_rag_vectors = len(tbl)
-                arrow_data = tbl.search().select(["paper_id", "source", "content_origin"]).to_arrow()
+                arrow_data = tbl.search().select(["paper_id"]).to_arrow()
                 import duckdb
                 con_l = duckdb.connect()
                 df = con_l.execute("""
                     SELECT 
                         CASE 
-                            WHEN source ILIKE '%arxiv%' THEN 'arxiv'
-                            WHEN source ILIKE '%cvf%' THEN 'cvf'
-                            WHEN source ILIKE '%openreview%' THEN 'openreview'
-                            WHEN source ILIKE '%zenodo%' THEN 'zenodo'
-                            ELSE 'doi'
+                            WHEN paper_id LIKE 'cvf_%' THEN 'cvf'
+                            WHEN paper_id LIKE 'openreview_%' THEN 'openreview'
+                            WHEN paper_id LIKE 'doi_%' THEN 'doi'
+                            WHEN paper_id LIKE 'zenodo_%' THEN 'zenodo'
+                            WHEN paper_id LIKE 'oa_%' THEN 'openalex'
+                            ELSE 'arxiv'
                         END as src_clean,
                         count(distinct paper_id) as cnt
                     FROM arrow_data
-                    WHERE content_origin IN (
-                        'arxiv_html5_fulltext', 'silver_chunks_corpus', 'arxiv_marker_fulltext', 
-                        'cvf_marker_fulltext', 'doi_marker_fulltext', 'streaming_html_landmark_chunker',
-                        'arxiv_html_fulltext', 'marker-pdf-cuda', 'cvf_html_dom'
-                    )
                     GROUP BY src_clean
                 """).df()
                 src_map = dict(zip(df["src_clean"], df["cnt"]))
@@ -187,7 +183,7 @@ class StorageService:
                 zenodo_ft = int(src_map.get("zenodo", 2))
                 total_fulltext_papers = arxiv_ft + cvf_ft + doi_ft + openreview_ft + zenodo_ft
         except Exception as e:
-            logger.debug(f"[STORAGE] Could not tally from LanceDB, using verified fallback: {e}")
+            logger.warning(f"[STORAGE] Error querying LanceDB paper breakdown: {e}")
 
         return SourceBreakdownDto(
             arxiv=arxiv_ft,
@@ -404,7 +400,7 @@ class StorageService:
             silverParquetSizeBytes=self.base_silver_bytes,
             silverParquetSizeMb=round(self.base_silver_bytes / (1024**2), 2),
             conferenceCount=self.base_conferences_count,
-            activeLanceDbVectors=active_gold_vectors,
+            activeLanceDbVectors=source_breakdown.active_rag_vectors,
             activeLanceDbSizeBytes=active_gold_bytes,
             activeLanceDbSizeMb=round(active_gold_bytes / (1024**2), 2),
             sourceBreakdown=source_breakdown,

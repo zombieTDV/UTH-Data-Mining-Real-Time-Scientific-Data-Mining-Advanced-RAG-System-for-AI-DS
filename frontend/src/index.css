@@ -302,6 +302,61 @@ button:active {
   }
 }
 
+@keyframes stageGlowPurple {
+  0%, 100% {
+    box-shadow: 0 0 22px rgba(139, 92, 246, 0.5), 0 0 44px rgba(124, 58, 237, 0.25);
+    border-color: #7c3aed;
+  }
+  50% {
+    box-shadow: 0 0 36px rgba(168, 85, 247, 0.85), 0 0 64px rgba(139, 92, 246, 0.5);
+    border-color: #a855f7;
+  }
+}
+
+@keyframes stageGlowRose {
+  0%, 100% {
+    box-shadow: 0 0 22px rgba(244, 63, 94, 0.5), 0 0 44px rgba(225, 29, 72, 0.25);
+    border-color: #e11d48;
+  }
+  50% {
+    box-shadow: 0 0 36px rgba(251, 113, 133, 0.85), 0 0 64px rgba(244, 63, 94, 0.5);
+    border-color: #fb7185;
+  }
+}
+
+@keyframes stageGlowAmber {
+  0%, 100% {
+    box-shadow: 0 0 22px rgba(245, 158, 11, 0.5), 0 0 44px rgba(217, 119, 6, 0.25);
+    border-color: #f59e0b;
+  }
+  50% {
+    box-shadow: 0 0 36px rgba(251, 191, 36, 0.85), 0 0 64px rgba(245, 158, 11, 0.5);
+    border-color: #fbbf24;
+  }
+}
+
+@keyframes stageGlowEmerald {
+  0%, 100% {
+    box-shadow: 0 0 22px rgba(16, 185, 129, 0.5), 0 0 44px rgba(5, 150, 105, 0.25);
+    border-color: #10b981;
+  }
+  50% {
+    box-shadow: 0 0 36px rgba(52, 211, 153, 0.85), 0 0 64px rgba(16, 185, 129, 0.5);
+    border-color: #34d399;
+  }
+}
+
+@keyframes stageGlowBlue {
+  0%, 100% {
+    box-shadow: 0 0 22px rgba(59, 130, 246, 0.5), 0 0 44px rgba(37, 99, 235, 0.25);
+    border-color: #2563eb;
+  }
+  50% {
+    box-shadow: 0 0 36px rgba(96, 165, 250, 0.85), 0 0 64px rgba(59, 130, 246, 0.5);
+    border-color: #60a5fa;
+  }
+}
+
 @keyframes stageGlowOrange {
   0%, 100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.2); }
   50% { box-shadow: 0 0 16px 4px rgba(234, 88, 12, 0.45); }
