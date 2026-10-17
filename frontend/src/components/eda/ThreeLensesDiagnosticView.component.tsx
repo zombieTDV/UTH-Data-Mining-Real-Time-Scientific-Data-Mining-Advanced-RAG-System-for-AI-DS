@@ -851,83 +851,102 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 setHoveredPoint(null);
               }}
             >
+              {/* Defs: Clip path to ensure curves, ellipses, and regression lines stay neatly inside the data grid */}
+              <defs>
+                <clipPath id="scatterDataArea">
+                  <rect x="75" y="20" width="840" height="270" rx="3" />
+                </clipPath>
+              </defs>
+
               {/* Quadrant Background Zones */}
               {/* Q1: Top-Left (High Y, Low X) */}
               <rect
-                x="60"
+                x="75"
                 y="20"
-                width="425"
-                height="140"
-                fill={selectedQuadrant === 'Q1' ? (isDark ? 'rgba(245, 158, 11, 0.22)' : 'rgba(254, 243, 199, 0.7)') : (isDark ? 'rgba(245, 158, 11, 0.06)' : 'rgba(254, 243, 199, 0.3)')}
+                width="420"
+                height="135"
+                fill={selectedQuadrant === 'Q1' ? (isDark ? 'rgba(245, 158, 11, 0.22)' : 'rgba(254, 243, 199, 0.7)') : (isDark ? 'rgba(245, 158, 11, 0.05)' : 'rgba(254, 243, 199, 0.25)')}
                 stroke={selectedQuadrant === 'Q1' ? '#f59e0b' : 'transparent'}
                 strokeWidth="1.5"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q1' ? 'ALL' : 'Q1')}
               />
-              <text x="75" y="55" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#f59e0b' : '#d97706'} opacity="0.12" style={{ pointerEvents: 'none' }}>
-                Q1: LÝ THUYẾT NẶNG TOÁN
-              </text>
+              <g opacity={selectedQuadrant === 'Q1' ? 0.95 : 0.55} style={{ pointerEvents: 'none' }}>
+                <rect x="85" y="28" width="125" height="18" rx="4" fill={isDark ? 'rgba(245, 158, 11, 0.2)' : 'rgba(254, 243, 199, 0.88)'} stroke="#f59e0b" strokeWidth="1" />
+                <text x="147.5" y="40.5" textAnchor="middle" fontSize="9.5" fontFamily="var(--font-mono)" fontWeight="800" fill={isDark ? '#fbbf24' : '#b45309'}>
+                  Q1: NẶNG TOÁN
+                </text>
+              </g>
 
               {/* Q2: Top-Right (High Y, High X) */}
               <rect
-                x="485"
+                x="495"
                 y="20"
-                width="425"
-                height="140"
-                fill={selectedQuadrant === 'Q2' ? (isDark ? 'rgba(37, 99, 235, 0.22)' : 'rgba(219, 234, 254, 0.7)') : (isDark ? 'rgba(37, 99, 235, 0.06)' : 'rgba(219, 234, 254, 0.3)')}
+                width="420"
+                height="135"
+                fill={selectedQuadrant === 'Q2' ? (isDark ? 'rgba(37, 99, 235, 0.22)' : 'rgba(219, 234, 254, 0.7)') : (isDark ? 'rgba(37, 99, 235, 0.05)' : 'rgba(219, 234, 254, 0.25)')}
                 stroke={selectedQuadrant === 'Q2' ? '#3b82f6' : 'transparent'}
                 strokeWidth="1.5"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q2' ? 'ALL' : 'Q2')}
               />
-              <text x="880" y="55" textAnchor="end" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#60a5fa' : '#2563eb'} opacity="0.12" style={{ pointerEvents: 'none' }}>
-                Q2: CHUYÊN KHẢO TOÀN DIỆN
-              </text>
+              <g opacity={selectedQuadrant === 'Q2' ? 0.95 : 0.55} style={{ pointerEvents: 'none' }}>
+                <rect x="505" y="28" width="135" height="18" rx="4" fill={isDark ? 'rgba(37, 99, 235, 0.2)' : 'rgba(219, 234, 254, 0.88)'} stroke="#3b82f6" strokeWidth="1" />
+                <text x="572.5" y="40.5" textAnchor="middle" fontSize="9.5" fontFamily="var(--font-mono)" fontWeight="800" fill={isDark ? '#93c5fd' : '#1d4ed8'}>
+                  Q2: CHUYÊN KHẢO
+                </text>
+              </g>
 
               {/* Q3: Bottom-Left (Low Y, Low X) */}
               <rect
-                x="60"
-                y="160"
-                width="425"
-                height="130"
-                fill={selectedQuadrant === 'Q3' ? (isDark ? 'rgba(100, 116, 139, 0.25)' : 'rgba(203, 213, 225, 0.7)') : (isDark ? 'rgba(100, 116, 139, 0.06)' : 'rgba(241, 245, 249, 0.4)')}
+                x="75"
+                y="155"
+                width="420"
+                height="135"
+                fill={selectedQuadrant === 'Q3' ? (isDark ? 'rgba(100, 116, 139, 0.25)' : 'rgba(203, 213, 225, 0.7)') : (isDark ? 'rgba(100, 116, 139, 0.05)' : 'rgba(241, 245, 249, 0.3)')}
                 stroke={selectedQuadrant === 'Q3' ? '#94a3b8' : 'transparent'}
                 strokeWidth="1.5"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q3' ? 'ALL' : 'Q3')}
               />
-              <text x="75" y="275" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#94a3b8' : '#64748b'} opacity="0.12" style={{ pointerEvents: 'none' }}>
-                Q3: BÀI NGẮN / WORKSHOP
-              </text>
+              <g opacity={selectedQuadrant === 'Q3' ? 0.95 : 0.55} style={{ pointerEvents: 'none' }}>
+                <rect x="85" y="264" width="125" height="18" rx="4" fill={isDark ? 'rgba(100, 116, 139, 0.2)' : 'rgba(241, 245, 249, 0.92)'} stroke="#94a3b8" strokeWidth="1" />
+                <text x="147.5" y="276.5" textAnchor="middle" fontSize="9.5" fontFamily="var(--font-mono)" fontWeight="800" fill={isDark ? '#cbd5e1' : '#475569'}>
+                  Q3: BÀI NGẮN
+                </text>
+              </g>
 
               {/* Q4: Bottom-Right (Low Y, High X) */}
               <rect
-                x="485"
-                y="160"
-                width="425"
-                height="130"
-                fill={selectedQuadrant === 'Q4' ? (isDark ? 'rgba(16, 185, 129, 0.22)' : 'rgba(209, 250, 229, 0.7)') : (isDark ? 'rgba(16, 185, 129, 0.06)' : 'rgba(236, 253, 245, 0.4)')}
+                x="495"
+                y="155"
+                width="420"
+                height="135"
+                fill={selectedQuadrant === 'Q4' ? (isDark ? 'rgba(16, 185, 129, 0.22)' : 'rgba(209, 250, 229, 0.7)') : (isDark ? 'rgba(16, 185, 129, 0.05)' : 'rgba(236, 253, 245, 0.3)')}
                 stroke={selectedQuadrant === 'Q4' ? '#10b981' : 'transparent'}
                 strokeWidth="1.5"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q4' ? 'ALL' : 'Q4')}
               />
-              <text x="880" y="275" textAnchor="end" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#34d399' : '#059669'} opacity="0.12" style={{ pointerEvents: 'none' }}>
-                Q4: HỆ THỐNG THỰC NGHIỆM / LLMS
-              </text>
+              <g opacity={selectedQuadrant === 'Q4' ? 0.95 : 0.55} style={{ pointerEvents: 'none' }}>
+                <rect x="505" y="264" width="135" height="18" rx="4" fill={isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(209, 250, 229, 0.88)'} stroke="#10b981" strokeWidth="1" />
+                <text x="572.5" y="276.5" textAnchor="middle" fontSize="9.5" fontFamily="var(--font-mono)" fontWeight="800" fill={isDark ? '#6ee7b7' : '#047857'}>
+                  Q4: THỰC NGHIỆM
+                </text>
+              </g>
 
               {/* Axis Grid Lines */}
-              <line x1="485" y1="20" x2="485" y2="290" stroke={themeStyles.axisLine} strokeDasharray="3 3" strokeWidth="1" />
-              <line x1="60" y1="160" x2="910" y2="160" stroke={themeStyles.axisLine} strokeDasharray="3 3" strokeWidth="1" />
+              <line x1="495" y1="20" x2="495" y2="290" stroke={themeStyles.axisLine} strokeDasharray="3 3" strokeWidth="1" />
+              <line x1="75" y1="155" x2="915" y2="155" stroke={themeStyles.axisLine} strokeDasharray="3 3" strokeWidth="1" />
 
-              {/* Y Axis Grid & Labels */}
+              {/* Y Axis Grid & Labels (with generous 68px margin preventing number truncation) */}
               {[0, 0.25, 0.5, 0.75, 1.0].map((ratio) => {
                 const yVal = Math.round(ratio * maxY);
                 const py = 290 - ratio * 270;
                 return (
                   <g key={ratio}>
-                    <line x1="55" y1={py} x2="910" y2={py} stroke={themeStyles.gridLine} strokeWidth="1" />
-                    <text x="50" y={py + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                    <line x1="70" y1={py} x2="915" y2={py} stroke={themeStyles.gridLine} strokeWidth="1" />
+                    <text x="68" y={py + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
                       {yVal} {activePair.y_unit}
                     </text>
                   </g>
@@ -937,7 +956,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               {/* X Axis Grid & Labels */}
               {[0, 0.2, 0.4, 0.6, 0.8, 1.0].map((ratio) => {
                 const xVal = Math.round(ratio * maxX);
-                const px = 60 + ratio * 850;
+                const px = 75 + ratio * 840;
                 return (
                   <g key={ratio}>
                     <line x1={px} y1="20" x2={px} y2="295" stroke={themeStyles.gridLine} strokeWidth="1" />
@@ -953,27 +972,38 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 if (selectedGmmCluster !== 'ALL' && selectedGmmCluster !== c.cluster_id) return null;
                 if (!c.ellipse) return null;
                 const { cx, cy, rx, ry, angle_deg } = c.ellipse;
-                const pixCx = 60 + Math.min(850, Math.max(0, (cx / (maxX || 1)) * 850));
+                const pixCx = 75 + Math.min(840, Math.max(0, (cx / (maxX || 1)) * 840));
                 const pixCy = 290 - Math.min(270, Math.max(0, (cy / (maxY || 1)) * 270));
-                const safeRx = Math.max(16, isNaN(rx) ? 40 : (rx / (maxX || 1)) * 850);
-                const safeRy = Math.max(12, isNaN(ry) ? 28 : (ry / (maxY || 1)) * 270);
+                const safeRx = Math.min(420, Math.max(16, isNaN(rx) ? 40 : (rx / (maxX || 1)) * 840));
+                const safeRy = Math.min(135, Math.max(12, isNaN(ry) ? 28 : (ry / (maxY || 1)) * 270));
                 const safeAngle = isNaN(angle_deg) ? 0 : angle_deg;
+
+                const shortName = c.name
+                  ? c.name.replace(/^Cụm\s*\d+\s*:\s*/i, '').replace('Mô hình ', '').replace('Toàn diện', '').trim()
+                  : `Cụm ${c.cluster_id + 1}`;
+                const labelText = `C${c.cluster_id + 1}: ${shortName} (${(c.weight * 100).toFixed(0)}%)`;
+                const badgeW = Math.max(85, Math.min(220, labelText.length * 6.2 + 16));
+                const isNearTop = pixCy - safeRy - 22 < 20;
+                const badgeY = isNearTop ? Math.min(265, pixCy + safeRy + 6) : Math.max(26, pixCy - safeRy - 20);
+                const badgeX = Math.max(80, Math.min(915 - badgeW, pixCx - badgeW / 2));
 
                 return (
                   <g key={`gmm-ellipse-${c.cluster_id}`} style={{ pointerEvents: 'none' }}>
-                    {/* Confidence Ellipse Area */}
-                    <ellipse
-                      cx={pixCx}
-                      cy={pixCy}
-                      rx={safeRx}
-                      ry={safeRy}
-                      transform={`rotate(${safeAngle} ${pixCx} ${pixCy})`}
-                      fill={c.color}
-                      fillOpacity={isDark ? 0.16 : 0.12}
-                      stroke={c.color}
-                      strokeWidth="2"
-                      strokeDasharray="5 3"
-                    />
+                    {/* Confidence Ellipse Area (Clipped within chart boundaries) */}
+                    <g clipPath="url(#scatterDataArea)">
+                      <ellipse
+                        cx={pixCx}
+                        cy={pixCy}
+                        rx={safeRx}
+                        ry={safeRy}
+                        transform={`rotate(${safeAngle} ${pixCx} ${pixCy})`}
+                        fill={c.color}
+                        fillOpacity={isDark ? 0.16 : 0.12}
+                        stroke={c.color}
+                        strokeWidth="2"
+                        strokeDasharray="5 3"
+                      />
+                    </g>
                     {/* Gaussian Component Center Centroid */}
                     <circle
                       cx={pixCx}
@@ -983,38 +1013,28 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       stroke={isDark ? '#0f172a' : '#ffffff'}
                       strokeWidth="1.5"
                     />
-                    {/* Cluster Label Badge (Dynamically placed to avoid clipping at canvas top) */}
-                    {(() => {
-                      const isNearTop = pixCy - safeRy - 22 < 20;
-                      const badgeY = isNearTop ? pixCy + safeRy + 8 : pixCy - safeRy - 20;
-                      const textY = isNearTop ? pixCy + safeRy + 20 : pixCy - safeRy - 8;
-                      const badgeX = Math.max(65, Math.min(790, pixCx - 60));
-                      return (
-                        <g>
-                          <rect
-                            x={badgeX}
-                            y={badgeY}
-                            width="120"
-                            height="17"
-                            rx="3"
-                            fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)'}
-                            stroke={c.color}
-                            strokeWidth="1"
-                          />
-                          <text
-                            x={badgeX + 60}
-                            y={textY}
-                            textAnchor="middle"
-                            fontSize="9"
-                            fontFamily="var(--font-mono)"
-                            fontWeight="800"
-                            fill={c.color}
-                          >
-                            {c.name} ({(c.weight * 100).toFixed(0)}%)
-                          </text>
-                        </g>
-                      );
-                    })()}
+                    {/* Cluster Label Badge (Dynamically sized and padded to prevent text overflow) */}
+                    <rect
+                      x={badgeX}
+                      y={badgeY}
+                      width={badgeW}
+                      height="17"
+                      rx="3"
+                      fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
+                      stroke={c.color}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={badgeX + badgeW / 2}
+                      y={badgeY + 11.5}
+                      textAnchor="middle"
+                      fontSize="8.5"
+                      fontFamily="var(--font-mono)"
+                      fontWeight="800"
+                      fill={c.color}
+                    >
+                      {labelText}
+                    </text>
                   </g>
                 );
               })}
@@ -1027,31 +1047,51 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 const slope = activePair.linear_fit?.slope ?? 0.0001;
                 const y0 = intercept + slope * x0;
                 const y1 = intercept + slope * x1;
-                const px0 = 60;
+                const px0 = 75;
                 const py0 = 290 - Math.min(270, Math.max(0, (y0 / (maxY || 1)) * 270));
-                const px1 = 910;
+                const px1 = 915;
                 const py1 = 290 - Math.min(270, Math.max(0, (y1 / (maxY || 1)) * 270));
+
+                const labelW = 155;
+                const labelX = Math.min(745, Math.max(505, px1 - labelW - 15));
+                const labelY = Math.max(52, Math.min(265, py1 - 10));
+
                 return (
                   <g>
-                    <line
-                      x1={px0}
-                      y1={py0}
-                      x2={px1}
-                      y2={py1}
-                      stroke="#3b82f6"
-                      strokeWidth="2"
-                      strokeDasharray="6 4"
-                    />
-                    <text
-                      x="780"
-                      y={Math.max(35, py1 - 8)}
-                      fill="#3b82f6"
-                      fontSize="9"
-                      fontFamily="var(--font-mono)"
-                      fontWeight="700"
-                    >
-                      Hồi quy tuyến tính (r={activePair.pearson_r})
-                    </text>
+                    <g clipPath="url(#scatterDataArea)">
+                      <line
+                        x1={px0}
+                        y1={py0}
+                        x2={px1}
+                        y2={py1}
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                        strokeDasharray="6 4"
+                      />
+                    </g>
+                    <g style={{ pointerEvents: 'none' }}>
+                      <rect
+                        x={labelX}
+                        y={labelY}
+                        width={labelW}
+                        height="17"
+                        rx="3"
+                        fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.96)'}
+                        stroke="#3b82f6"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x={labelX + labelW / 2}
+                        y={labelY + 11.5}
+                        textAnchor="middle"
+                        fill="#3b82f6"
+                        fontSize="8.5"
+                        fontFamily="var(--font-mono)"
+                        fontWeight="700"
+                      >
+                        Hồi quy tuyến tính (r={activePair.pearson_r})
+                      </text>
+                    </g>
                   </g>
                 );
               })()}
@@ -1060,48 +1100,52 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               {activePair.spline_points && activePair.spline_points.length > 1 && (() => {
                 const pathD = activePair.spline_points
                   .map((pt, idx) => {
-                    const cx = 60 + Math.min(850, Math.max(0, (pt.x / (maxX || 1)) * 850));
+                    const cx = 75 + Math.min(840, Math.max(0, (pt.x / (maxX || 1)) * 840));
                     const cy = 290 - Math.min(270, Math.max(0, (pt.y / (maxY || 1)) * 270));
                     return `${idx === 0 ? 'M' : 'L'} ${cx.toFixed(1)} ${cy.toFixed(1)}`;
                   })
                   .join(' ');
                 return (
                   <g>
-                    <path
-                      d={pathD}
-                      fill="none"
-                      stroke="#ea580c"
-                      strokeWidth="3.2"
-                      strokeLinecap="round"
-                    />
-                    <rect
-                      x="180"
-                      y="26"
-                      width="230"
-                      height="18"
-                      rx="3"
-                      fill={isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.94)'}
-                      stroke="rgba(234, 88, 12, 0.45)"
-                      strokeWidth="1"
-                    />
-                    <text
-                      x="295"
-                      y="38.5"
-                      textAnchor="middle"
-                      fill="#ea580c"
-                      fontSize="9"
-                      fontFamily="var(--font-mono)"
-                      fontWeight="800"
-                    >
-                      ★ Xu hướng phi tuyến (MI={activePair.mutual_information})
-                    </text>
+                    <g clipPath="url(#scatterDataArea)">
+                      <path
+                        d={pathD}
+                        fill="none"
+                        stroke="#ea580c"
+                        strokeWidth="3.2"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                    <g style={{ pointerEvents: 'none' }}>
+                      <rect
+                        x="260"
+                        y="26"
+                        width="210"
+                        height="18"
+                        rx="4"
+                        fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
+                        stroke="rgba(234, 88, 12, 0.6)"
+                        strokeWidth="1.2"
+                      />
+                      <text
+                        x="365"
+                        y="38.5"
+                        textAnchor="middle"
+                        fill="#ea580c"
+                        fontSize="9"
+                        fontFamily="var(--font-mono)"
+                        fontWeight="800"
+                      >
+                        ★ Xu hướng phi tuyến (MI={activePair.mutual_information})
+                      </text>
+                    </g>
                   </g>
                 );
               })()}
 
               {/* Data Points */}
               {displayPoints.map((pt) => {
-                const cx = 60 + Math.min(850, Math.max(0, (pt.x / (maxX || 1)) * 850));
+                const cx = 75 + Math.min(840, Math.max(0, (pt.x / (maxX || 1)) * 840));
                 const cy = 290 - Math.min(270, Math.max(0, (pt.y / (maxY || 1)) * 270));
                 const isSelected = selectedPaperId === pt.id;
                 const isHovered = hoveredPoint?.id === pt.id;
@@ -1143,14 +1187,14 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
 
               {/* Crosshair Snapping */}
               {hoveredPoint && (() => {
-                const cx = 60 + Math.min(850, Math.max(0, (hoveredPoint.x / (maxX || 1)) * 850));
+                const cx = 75 + Math.min(840, Math.max(0, (hoveredPoint.x / (maxX || 1)) * 840));
                 const cy = 290 - Math.min(270, Math.max(0, (hoveredPoint.y / (maxY || 1)) * 270));
                 return (
                   <g style={{ pointerEvents: 'none' }}>
-                    <line x1="60" y1={cy} x2={cx} y2={cy} stroke="#ea580c" strokeWidth="1" strokeDasharray="3 2" />
+                    <line x1="75" y1={cy} x2={cx} y2={cy} stroke="#ea580c" strokeWidth="1" strokeDasharray="3 2" />
                     <line x1={cx} y1={cy} x2={cx} y2="290" stroke="#2563eb" strokeWidth="1" strokeDasharray="3 2" />
-                    <rect x="10" y={cy - 8} width="46" height="16" rx="3" fill="#ea580c" />
-                    <text x="33" y={cy + 4} textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
+                    <rect x="18" y={cy - 8} width="52" height="16" rx="3" fill="#ea580c" />
+                    <text x="44" y={cy + 4} textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
                       {hoveredPoint.y.toFixed(1)}
                     </text>
                     <rect x={cx - 24} y="292" width="48" height="16" rx="3" fill="#2563eb" />
@@ -1177,7 +1221,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     LENS 2.5X
                   </text>
                   {displayPoints.map((pt) => {
-                    const origX = 60 + Math.min(850, Math.max(0, (pt.x / (maxX || 1)) * 850));
+                    const origX = 75 + Math.min(840, Math.max(0, (pt.x / (maxX || 1)) * 840));
                     const origY = 290 - Math.min(270, Math.max(0, (pt.y / (maxY || 1)) * 270));
                     const dist = Math.hypot(origX - lensPos.x, origY - lensPos.y);
                     if (dist > 70) return null;
@@ -1285,8 +1329,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
 
             {/* Hover Tooltip Popup Card (Dynamically flipped to opposite side to avoid covering inspected points) */}
             {hoveredPoint && (() => {
-              const cx = 60 + Math.min(850, Math.max(0, (hoveredPoint.x / (maxX || 1)) * 850));
-              const isRightSide = cx > 480;
+              const cx = 75 + Math.min(840, Math.max(0, (hoveredPoint.x / (maxX || 1)) * 840));
+              const isRightSide = cx > 495;
               return (
                 <div
                   style={{
