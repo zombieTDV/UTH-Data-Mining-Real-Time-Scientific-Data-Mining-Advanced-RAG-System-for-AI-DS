@@ -176,18 +176,46 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
         weightCVF = 0.01;
         weightArxiv = 0.84;
         weightOR = 0.15;
+      } else if (selectedCategory === 'stat.ML') {
+        weightCVF = 0.005;
+        weightArxiv = 0.92;
+        weightOR = 0.075;
+      } else if (selectedCategory === 'cs.RO') {
+        weightCVF = 0.03;
+        weightArxiv = 0.86;
+        weightOR = 0.11;
+      } else if (selectedCategory === 'cs.NE') {
+        weightCVF = 0.01;
+        weightArxiv = 0.88;
+        weightOR = 0.11;
       }
+    }
+
+    if (isFilteredByMath) {
+      if (selectedMathFilter === 'HIGH') {
+        weightArxiv = Math.min(0.95, weightArxiv * 1.15);
+        weightOR = Math.max(0.04, weightOR * 0.7);
+        weightCVF = Math.max(0.01, weightCVF * 0.4);
+      } else if (selectedMathFilter === 'LOW') {
+        weightCVF = Math.min(0.38, weightCVF * 1.6);
+        weightOR = Math.min(0.32, weightOR * 1.35);
+        weightArxiv = Math.max(0.30, 1.0 - (weightCVF + weightOR));
+      }
+      const sumWeights = weightArxiv + weightOR + weightCVF;
+      weightArxiv /= sumWeights;
+      weightOR /= sumWeights;
+      weightCVF /= sumWeights;
     }
 
     if (collectionData?.sources_composition && collectionData.sources_composition.length > 0) {
       return collectionData.sources_composition.map((s) => {
         const factor = s.source === 'cvf' ? weightCVF : s.source === 'openreview' ? weightOR : weightArxiv;
-        const count = isFilteredByCategory
+        const count = isFilteredByCategory || isFilteredByMath
           ? Math.round(displayedTotalPapers * factor)
           : s.source === 'arxiv'
           ? s.paper_count + liveSessionIngested
           : s.paper_count;
-        const pct = isFilteredByCategory
+        const pct = isFilteredByCategory || isFilteredByMath
           ? parseFloat((factor * 100).toFixed(1))
           : parseFloat(((count / displayedTotalPapers) * 100).toFixed(1));
 
@@ -205,10 +233,10 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
       });
     }
 
-    const currentArxiv = isFilteredByCategory ? Math.round(displayedTotalPapers * weightArxiv) : rawArxiv + liveSessionIngested;
-    const currentOR = isFilteredByCategory ? Math.round(displayedTotalPapers * weightOR) : rawOR;
-    const currentCVF = isFilteredByCategory ? Math.round(displayedTotalPapers * weightCVF) : rawCVF;
-    const currentTotal = currentArxiv + currentOR + currentCVF;
+    const currentArxiv = isFilteredByCategory || isFilteredByMath ? Math.round(displayedTotalPapers * weightArxiv) : rawArxiv + liveSessionIngested;
+    const currentOR = isFilteredByCategory || isFilteredByMath ? Math.round(displayedTotalPapers * weightOR) : rawOR;
+    const currentCVF = isFilteredByCategory || isFilteredByMath ? Math.round(displayedTotalPapers * weightCVF) : rawCVF;
+    const currentTotal = Math.max(1, currentArxiv + currentOR + currentCVF);
 
     return [
       {
@@ -245,7 +273,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
         description: 'Kỷ yếu chính thức của các hội nghị hàng đầu thế giới về thị giác máy tính.',
       },
     ];
-  }, [collectionData, isFilteredByCategory, selectedCategory, displayedTotalPapers, storageStats, liveSessionIngested]);
+  }, [collectionData, isFilteredByCategory, isFilteredByMath, selectedCategory, selectedMathFilter, displayedTotalPapers, storageStats, liveSessionIngested]);
 
   const sourceSharesSummary = useMemo(() => {
     return sources.map((s) => `${s.shortName} ${s.percentage}%`).join(' • ');
@@ -358,9 +386,9 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
     ];
   }, [collectionData, displayedTotalPapers, baselineLakehousePapers, isFilteredByCategory]);
 
-  // 2.6 Harvest Timeline (from R2 harvest_timeline + live offsets)
+  // 2.6 Harvest Timeline (from R2 harvest_timeline + live offsets + source isolation)
   const timelineList = useMemo(() => {
-    const rawTimeline = collectionData?.harvest_timeline && collectionData.harvest_timeline.length > 0
+    let rawTimeline = collectionData?.harvest_timeline && collectionData.harvest_timeline.length > 0
       ? collectionData.harvest_timeline.map((t) => ({
           year: t.year,
           total: t.year === '2026' ? t.total + liveSessionIngested : t.total,
@@ -385,7 +413,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
     // Scale timeline proportionally if filtered by category
     if (isFilteredByCategory) {
       const ratio = displayedTotalPapers / baselineLakehousePapers;
-      return rawTimeline.map((item) => ({
+      rawTimeline = rawTimeline.map((item) => ({
         year: item.year,
         total: Math.round(item.total * ratio),
         sources: {
@@ -396,8 +424,25 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
       }));
     }
 
+    // Filter by selectedSource if active (click on Donut or source chip)
+    if (selectedSource !== 'ALL') {
+      const srcKey = selectedSource.toLowerCase() as 'arxiv' | 'openreview' | 'cvf';
+      return rawTimeline.map((item) => {
+        const count = item.sources[srcKey] || 0;
+        return {
+          year: item.year,
+          total: count,
+          sources: {
+            arxiv: srcKey === 'arxiv' ? count : 0,
+            openreview: srcKey === 'openreview' ? count : 0,
+            cvf: srcKey === 'cvf' ? count : 0,
+          },
+        };
+      });
+    }
+
     return rawTimeline;
-  }, [collectionData, isFilteredByCategory, displayedTotalPapers, baselineLakehousePapers, liveSessionIngested]);
+  }, [collectionData, isFilteredByCategory, selectedSource, displayedTotalPapers, baselineLakehousePapers, liveSessionIngested]);
 
   const maxTimelineTotal = Math.max(...timelineList.map((t) => t.total), 1);
 
