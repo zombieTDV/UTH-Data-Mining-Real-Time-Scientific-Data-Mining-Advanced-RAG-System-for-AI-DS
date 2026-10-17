@@ -941,20 +941,23 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               {/* GMM Gaussian Mixture Model Confidence Ellipses (1.5-sigma envelope, ~80% mass) */}
               {showGmmEllipses && activePair.gmm_clusters && activePair.gmm_clusters.map((c) => {
                 if (selectedGmmCluster !== 'ALL' && selectedGmmCluster !== c.cluster_id) return null;
+                if (!c.ellipse) return null;
                 const { cx, cy, rx, ry, angle_deg } = c.ellipse;
-                const safeRx = Math.max(8, isNaN(rx) ? 20 : rx);
-                const safeRy = Math.max(6, isNaN(ry) ? 15 : ry);
+                const pixCx = 60 + Math.min(850, Math.max(0, (cx / (maxX || 1)) * 850));
+                const pixCy = 290 - Math.min(270, Math.max(0, (cy / (maxY || 1)) * 270));
+                const safeRx = Math.max(16, isNaN(rx) ? 40 : (rx / (maxX || 1)) * 850);
+                const safeRy = Math.max(12, isNaN(ry) ? 28 : (ry / (maxY || 1)) * 270);
                 const safeAngle = isNaN(angle_deg) ? 0 : angle_deg;
 
                 return (
                   <g key={`gmm-ellipse-${c.cluster_id}`} style={{ pointerEvents: 'none' }}>
                     {/* Confidence Ellipse Area */}
                     <ellipse
-                      cx={cx}
-                      cy={cy}
+                      cx={pixCx}
+                      cy={pixCy}
                       rx={safeRx}
                       ry={safeRy}
-                      transform={`rotate(${safeAngle} ${cx} ${cy})`}
+                      transform={`rotate(${safeAngle} ${pixCx} ${pixCy})`}
                       fill={c.color}
                       fillOpacity={isDark ? 0.16 : 0.12}
                       stroke={c.color}
@@ -963,8 +966,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     />
                     {/* Gaussian Component Center Centroid */}
                     <circle
-                      cx={cx}
-                      cy={cy}
+                      cx={pixCx}
+                      cy={pixCy}
                       r="4"
                       fill={c.color}
                       stroke={isDark ? '#0f172a' : '#ffffff'}
@@ -972,10 +975,10 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     />
                     {/* Cluster Label Badge (Dynamically placed to avoid clipping at canvas top) */}
                     {(() => {
-                      const isNearTop = cy - safeRy - 22 < 20;
-                      const badgeY = isNearTop ? cy + safeRy + 8 : cy - safeRy - 20;
-                      const textY = isNearTop ? cy + safeRy + 20 : cy - safeRy - 8;
-                      const badgeX = Math.max(65, Math.min(790, cx - 60));
+                      const isNearTop = pixCy - safeRy - 22 < 20;
+                      const badgeY = isNearTop ? pixCy + safeRy + 8 : pixCy - safeRy - 20;
+                      const textY = isNearTop ? pixCy + safeRy + 20 : pixCy - safeRy - 8;
+                      const badgeX = Math.max(65, Math.min(790, pixCx - 60));
                       return (
                         <g>
                           <rect
@@ -1010,12 +1013,14 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               {(() => {
                 const x0 = 0;
                 const x1 = maxX;
-                const y0 = activePair.linear_fit.intercept + activePair.linear_fit.slope * x0;
-                const y1 = activePair.linear_fit.intercept + activePair.linear_fit.slope * x1;
+                const intercept = activePair.linear_fit?.intercept ?? 44;
+                const slope = activePair.linear_fit?.slope ?? 0.0001;
+                const y0 = intercept + slope * x0;
+                const y1 = intercept + slope * x1;
                 const px0 = 60;
-                const py0 = 290 - Math.min(270, Math.max(0, (y0 / maxY) * 270));
+                const py0 = 290 - Math.min(270, Math.max(0, (y0 / (maxY || 1)) * 270));
                 const px1 = 910;
-                const py1 = 290 - Math.min(270, Math.max(0, (y1 / maxY) * 270));
+                const py1 = 290 - Math.min(270, Math.max(0, (y1 / (maxY || 1)) * 270));
                 return (
                   <g>
                     <line
@@ -1045,8 +1050,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               {activePair.spline_points && activePair.spline_points.length > 1 && (() => {
                 const pathD = activePair.spline_points
                   .map((pt, idx) => {
-                    const cx = 60 + Math.min(850, Math.max(0, (pt.x / maxX) * 850));
-                    const cy = 290 - Math.min(270, Math.max(0, (pt.y / maxY) * 270));
+                    const cx = 60 + Math.min(850, Math.max(0, (pt.x / (maxX || 1)) * 850));
+                    const cy = 290 - Math.min(270, Math.max(0, (pt.y / (maxY || 1)) * 270));
                     return `${idx === 0 ? 'M' : 'L'} ${cx.toFixed(1)} ${cy.toFixed(1)}`;
                   })
                   .join(' ');
@@ -1086,8 +1091,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
 
               {/* Data Points */}
               {displayPoints.map((pt) => {
-                const cx = 60 + Math.min(850, Math.max(0, (pt.x / maxX) * 850));
-                const cy = 290 - Math.min(270, Math.max(0, (pt.y / maxY) * 270));
+                const cx = 60 + Math.min(850, Math.max(0, (pt.x / (maxX || 1)) * 850));
+                const cy = 290 - Math.min(270, Math.max(0, (pt.y / (maxY || 1)) * 270));
                 const isSelected = selectedPaperId === pt.id;
                 const isHovered = hoveredPoint?.id === pt.id;
                 const col = getPointColor(pt);
@@ -1128,8 +1133,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
 
               {/* Crosshair Snapping */}
               {hoveredPoint && (() => {
-                const cx = 60 + Math.min(850, Math.max(0, (hoveredPoint.x / maxX) * 850));
-                const cy = 290 - Math.min(270, Math.max(0, (hoveredPoint.y / maxY) * 270));
+                const cx = 60 + Math.min(850, Math.max(0, (hoveredPoint.x / (maxX || 1)) * 850));
+                const cy = 290 - Math.min(270, Math.max(0, (hoveredPoint.y / (maxY || 1)) * 270));
                 return (
                   <g style={{ pointerEvents: 'none' }}>
                     <line x1="60" y1={cy} x2={cx} y2={cy} stroke="#ea580c" strokeWidth="1" strokeDasharray="3 2" />
@@ -1162,8 +1167,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     LENS 2.5X
                   </text>
                   {displayPoints.map((pt) => {
-                    const origX = 60 + Math.min(850, Math.max(0, (pt.x / maxX) * 850));
-                    const origY = 290 - Math.min(270, Math.max(0, (pt.y / maxY) * 270));
+                    const origX = 60 + Math.min(850, Math.max(0, (pt.x / (maxX || 1)) * 850));
+                    const origY = 290 - Math.min(270, Math.max(0, (pt.y / (maxY || 1)) * 270));
                     const dist = Math.hypot(origX - lensPos.x, origY - lensPos.y);
                     if (dist > 70) return null;
                     const magX = lensPos.x + (origX - lensPos.x) * 2.2;
@@ -1270,7 +1275,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
 
             {/* Hover Tooltip Popup Card (Dynamically flipped to opposite side to avoid covering inspected points) */}
             {hoveredPoint && (() => {
-              const cx = 60 + Math.min(850, Math.max(0, (hoveredPoint.x / maxX) * 850));
+              const cx = 60 + Math.min(850, Math.max(0, (hoveredPoint.x / (maxX || 1)) * 850));
               const isRightSide = cx > 480;
               return (
                 <div

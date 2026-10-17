@@ -508,7 +508,7 @@ export const InteractiveQqPlot: FC<InteractiveQqPlotProps> = ({
           <div
             style={{
               position: 'absolute',
-              top: `${Math.min(140, Math.max(10, (hoveredPoint.y / 250) * 100))}%`,
+              top: `${Math.min(68, Math.max(4, (hoveredPoint.y / 250) * 100))}%`,
               left: `${hoveredPoint.x > 250 ? (hoveredPoint.x / 460) * 100 - 38 : (hoveredPoint.x / 460) * 100 + 4}%`,
               pointerEvents: 'none',
               backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',

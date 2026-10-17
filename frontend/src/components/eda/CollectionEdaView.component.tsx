@@ -1049,9 +1049,9 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
               {timelineList.map((item) => {
                 // Scale properly up to 88% of container height to eliminate vertical void
                 const heightPct = (item.total / maxTimelineTotal) * 100;
-                const arxivPct = item.total > 0 ? (item.sources.arxiv / item.total) * 100 : 80;
-                const orPct = item.total > 0 ? (item.sources.openreview / item.total) * 100 : 12;
-                const cvfPct = item.total > 0 ? (item.sources.cvf / item.total) * 100 : 8;
+                const arxivPct = item.total > 0 ? (item.sources.arxiv / item.total) * 100 : 0;
+                const orPct = item.total > 0 ? (item.sources.openreview / item.total) * 100 : 0;
+                const cvfPct = item.total > 0 ? (item.sources.cvf / item.total) * 100 : 0;
 
                 const isArxivDimmed = selectedSource !== 'ALL' && selectedSource !== 'arxiv';
                 const isOrDimmed = selectedSource !== 'ALL' && selectedSource !== 'openreview';
@@ -1092,7 +1092,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
                       style={{
                         width: '100%',
                         maxWidth: '34px',
-                        height: `${Math.max(14, heightPct * 0.88)}%`,
+                        height: item.total > 0 ? `${Math.max(6, heightPct * 0.88)}%` : '2px',
                         display: 'flex',
                         flexDirection: 'column-reverse',
                         borderRadius: '3px',
