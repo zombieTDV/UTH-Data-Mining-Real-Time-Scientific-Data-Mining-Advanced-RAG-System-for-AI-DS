@@ -10,7 +10,7 @@ import { MiningTelemetryStepper } from '../common';
 import { ThreeLensesDiagnosticView } from './ThreeLensesDiagnosticView.component';
 import { CollectionEdaView } from './CollectionEdaView.component';
 
-export type DeckType = 'collection' | 'scatter' | 'combo' | 'taxonomy' | 'authors' | 'correlations' | 'explorer' | 'rag_audit' | 'governance';
+export type DeckType = 'collection' | 'scatter' | 'combo' | 'taxonomy' | 'authors' | 'correlations' | 'explorer' | 'rag_audit';
 
 export interface ScatterPaperPoint {
   id: string;
@@ -909,8 +909,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               <button
                 type="button"
                 onClick={() => {
-                  if (!['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck)) {
-                    setActiveDeck('governance');
+                  if (!['explorer', 'rag_audit', 'authors'].includes(activeDeck)) {
+                    setActiveDeck('explorer');
                   }
                 }}
                 style={{
@@ -918,9 +918,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   borderRadius: '4px',
                   fontSize: '10px',
                   fontFamily: 'var(--font-mono)',
-                  fontWeight: ['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck) ? 800 : 600,
-                  backgroundColor: ['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck) ? (isDark ? 'rgba(124, 58, 237, 0.3)' : '#f5f3ff') : 'transparent',
-                  color: ['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck) ? (isDark ? '#c4b5fd' : '#7c3aed') : themeStyles.textSecondary,
+                  fontWeight: ['explorer', 'rag_audit', 'authors'].includes(activeDeck) ? 800 : 600,
+                  backgroundColor: ['explorer', 'rag_audit', 'authors'].includes(activeDeck) ? (isDark ? 'rgba(124, 58, 237, 0.3)' : '#f5f3ff') : 'transparent',
+                  color: ['explorer', 'rag_audit', 'authors'].includes(activeDeck) ? (isDark ? '#c4b5fd' : '#7c3aed') : themeStyles.textSecondary,
                   border: 'none',
                   cursor: 'pointer',
                   display: 'inline-flex',
@@ -970,13 +970,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             )}
 
             {/* Contextual Sub-Tabs (if Tier 3 active) */}
-            {['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck) && (
+            {['explorer', 'rag_audit', 'authors'].includes(activeDeck) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                 {[
-                  { id: 'governance' as DeckType, label: '⚙ Quy Tắc' },
-                  { id: 'authors' as DeckType, label: '👥 Tác Giả' },
+                  { id: 'explorer' as DeckType, label: '🔍 Tra Cứu (DuckDB)' },
                   { id: 'rag_audit' as DeckType, label: '🛡️ RAG Audit' },
-                  { id: 'explorer' as DeckType, label: '🔍 Tra Cứu' },
+                  { id: 'authors' as DeckType, label: '👥 Tác Giả' },
                 ].map((deck) => {
                   const isActive = activeDeck === deck.id;
                   return (
@@ -1612,26 +1611,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           />
         )}
 
-        {/* ------------------------------------------------------------ */}
-        {/* SUB-DECK 6: QUY TẮC ĐIỀU HƯỚNG LAKEHOUSE (PIPELINE GOVERNANCE) */}
-        {/* ------------------------------------------------------------ */}
-        {activeDeck === 'governance' && (
-          <ThreeLensesDiagnosticView
-            theme={theme}
-            isTheaterMode={isTheaterMode}
-            onToggleTheater={() => setIsTheaterMode((prev) => !prev)}
-            diagnosticData={data?.diagnostic_3lenses}
-            fallbackPoints={filteredScatterPoints}
-            onSelectPaper={(pt) => setSelectedPaperForDrawer(pt)}
-            selectedPaperId={selectedPaperForDrawer?.id}
-            activeTab="governance"
-            selectedCategory={selectedCategory}
-            onShowToast={(msg) => {
-              setFeedbackToast(msg);
-              setTimeout(() => setFeedbackToast(null), 2500);
-            }}
-          />
-        )}
         {/* ------------------------------------------------------------ */}
         {/* SUB-DECK 3: TAXONOMY DONUT & HEATMAP MATRIX                  */}
         {/* ------------------------------------------------------------ */}

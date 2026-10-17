@@ -25,8 +25,8 @@ interface ThreeLensesDiagnosticViewProps {
   onSelectPaper: (paper: ScatterPaperPoint) => void;
   selectedPaperId?: string;
   onShowToast: (msg: string) => void;
-  activeTab?: 'lens3_bivariate' | 'lens2_univariate' | 'governance';
-  onTabChange?: (tab: 'lens3_bivariate' | 'lens2_univariate' | 'governance') => void;
+  activeTab?: 'lens3_bivariate' | 'lens2_univariate';
+  onTabChange?: (tab: 'lens3_bivariate' | 'lens2_univariate') => void;
   selectedCategory?: string;
 }
 
@@ -241,7 +241,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               flexShrink: 0,
             }}
           >
-            {activeTab === 'lens3_bivariate' ? '[EDA-03]' : activeTab === 'lens2_univariate' ? '[EDA-02]' : '[EDA-08]'}
+            {activeTab === 'lens3_bivariate' ? '[EDA-03]' : '[EDA-02]'}
           </span>
           <h3
             style={{
@@ -256,9 +256,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
           >
             {activeTab === 'lens3_bivariate'
               ? 'TƯƠNG TÁC ĐA BIẾN & PHÂN CỤM GMM 2D (BIVARIATE INTERACTIONS & GMM)'
-              : activeTab === 'lens2_univariate'
-              ? 'PHÂN PHỐI ĐƠN BIẾN & KIỂM ĐỊNH CHUẨN TẮC Q-Q (UNIVARIATE & NORMALITY)'
-              : 'MA TRẬN QUY TẮC ĐIỀU HƯỚNG LAKEHOUSE (PIPELINE GOVERNANCE)'}
+              : 'PHÂN PHỐI ĐƠN BIẾN & KIỂM ĐỊNH CHUẨN TẮC Q-Q (UNIVARIATE & NORMALITY)'}
           </h3>
         </div>
 
@@ -1405,79 +1403,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               theme={theme}
               svgRef={qqSvgRef}
             />
-          </div>
-        </div>
-      )}
-
-      {/* ---------------------------------------------------------------- */}
-      {/* TAB 3: DOWNSTREAM PIPELINE GOVERNANCE                            */}
-      {/* ---------------------------------------------------------------- */}
-      {activeTab === 'governance' && (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '8px', overflowY: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', flex: 1 }}>
-            {diagnosticData?.downstream_governance?.map((gov) => (
-              <div
-                key={gov.rule_id}
-                style={{
-                  backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.02)',
-                  borderRadius: '6px',
-                  border: `1px solid ${themeStyles.border}`,
-                  borderTop: `3px solid ${gov.badge_color}`,
-                  padding: '10px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      padding: '1px 5px',
-                      borderRadius: '3px',
-                      backgroundColor: `${gov.badge_color}22`,
-                      color: gov.badge_color,
-                      border: `1px solid ${gov.badge_color}55`,
-                    }}
-                  >
-                    {gov.tag}
-                  </span>
-                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 800 }}>
-                    ✓ PRODUCTION VALIDATED
-                  </span>
-                </div>
-
-                <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                  {gov.observed_geometry}
-                </div>
-
-                <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: gov.badge_color }}>
-                  Bằng chứng: <strong>{gov.empirical_evidence}</strong>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: themeStyles.textSecondary,
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc',
-                    padding: '6px 8px',
-                    borderRadius: '4px',
-                    borderLeft: `2px solid ${gov.badge_color}`,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  <strong style={{ color: themeStyles.textPrimary }}>Yêu cầu kiến trúc: </strong>
-                  {gov.pipeline_requirement}
-                </div>
-
-                <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: 'auto', paddingTop: '4px' }}>
-                  <strong>Thực thi trong Lakehouse: </strong>
-                  {gov.applied_in_lakehouse}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}
