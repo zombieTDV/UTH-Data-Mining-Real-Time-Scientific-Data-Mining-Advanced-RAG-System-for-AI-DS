@@ -823,110 +823,217 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       <div
         style={{
           backgroundColor: themeStyles.cardBg,
-          borderRadius: '10px',
+          borderRadius: '8px',
           border: `1px solid ${themeStyles.border}`,
-          padding: isFocusMode ? '4px 10px' : '6px 12px',
+          padding: '4px 10px',
           boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
           display: 'flex',
           flexDirection: 'column',
-          gap: isFocusMode ? '3px' : '5px',
+          gap: '4px',
           flexShrink: 0,
-          transition: 'all 0.2s ease',
         }}
       >
-        {/* Title Bar with Live Pulse, Focus Toggle, and Actions */}
+        {/* ROW 1: Branding, Tier Navigation, Lakehouse Status & Actions */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Left: Branding + 3-Tier Segmented Switcher */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ fontSize: '13px', color: '#f59e0b' }}>✦</span>
+              <h1 style={{ fontSize: '11px', fontWeight: 900, color: themeStyles.textPrimary, margin: 0, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>
+                LAKEHOUSE EDA
+              </h1>
+            </div>
+
+            {/* 3-Tier Master Segmented Control */}
             <div
               style={{
-                width: isFocusMode ? '18px' : '22px',
-                height: isFocusMode ? '18px' : '22px',
-                borderRadius: '5px',
-                backgroundColor: '#f59e0b',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                flexShrink: 0,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                padding: '2px',
+                borderRadius: '6px',
+                border: `1px solid ${themeStyles.border}`,
+                gap: '2px',
               }}
             >
-              <svg width={isFocusMode ? '11' : '13'} height={isFocusMode ? '11' : '13'} viewBox="0 0 24 24" fill="currentColor">
-                <rect x="3" y="12" width="4" height="9" rx="1" />
-                <rect x="10" y="7" width="4" height="14" rx="1" />
-                <rect x="17" y="3" width="4" height="18" rx="1" />
-              </svg>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h1 style={{ fontSize: isFocusMode ? '11px' : '12px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, letterSpacing: '-0.2px' }}>
-                {language === 'vi' ? 'KHÔNG GIAN EDA KHOA HỌC // TRỰC QUAN HÓA' : 'SCIENTIFIC EDA WORKSPACE // POWERBI VISUALS'}
-              </h1>
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#059669', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)', padding: '1px 5px', borderRadius: '4px' }}>
-                ● DUCKDB OLAP
-              </span>
-            </div>
-
-            {/* Real-Time Lakehouse Status & Sync Trigger */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div
+              <button
+                type="button"
+                onClick={() => setActiveDeck('collection')}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : '#f0fdf4',
-                  border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.25)' : '#bbf7d0'}`,
                   padding: '2px 8px',
-                  borderRadius: '9999px',
+                  borderRadius: '4px',
                   fontSize: '10px',
                   fontFamily: 'var(--font-mono)',
-                  color: isDark ? '#4ade80' : '#166534',
-                  fontWeight: 700,
+                  fontWeight: activeDeck === 'collection' ? 800 : 600,
+                  backgroundColor: activeDeck === 'collection' ? '#f59e0b' : 'transparent',
+                  color: activeDeck === 'collection' ? '#000000' : themeStyles.textSecondary,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <span
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    backgroundColor: isStreaming ? '#22c55e' : '#38bdf8',
-                    display: 'inline-block',
-                    boxShadow: isStreaming ? '0 0 6px #22c55e' : 'none',
-                  }}
-                />
-                <span>LAKEHOUSE: {totalCorpus.toLocaleString()} {language === 'vi' ? 'BÀI BÁO' : 'WORKS'} {isStreaming ? `• ${streamSpeed.toFixed(1)} p/s` : '• ACTIVE'}</span>
-              </div>
+                <span>📥</span>
+                <span>TẦNG 1: THU THẬP &amp; THÔ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck)) {
+                    setActiveDeck('scatter');
+                  }
+                }}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: ['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck) ? 800 : 600,
+                  backgroundColor: ['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck) ? (isDark ? 'rgba(37, 99, 235, 0.3)' : '#eff6ff') : 'transparent',
+                  color: ['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck) ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>⚙️</span>
+                <span>TẦNG 2: HÌNH HỌC &amp; ĐẶC TRƯNG</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck)) {
+                    setActiveDeck('governance');
+                  }
+                }}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: ['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck) ? 800 : 600,
+                  backgroundColor: ['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck) ? (isDark ? 'rgba(124, 58, 237, 0.3)' : '#f5f3ff') : 'transparent',
+                  color: ['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck) ? (isDark ? '#c4b5fd' : '#7c3aed') : themeStyles.textSecondary,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>🛡️</span>
+                <span>TẦNG 3: ĐIỀU HƯỚNG &amp; RAG</span>
+              </button>
             </div>
+
+            {/* Contextual Sub-Tabs (if Tier 2 active) */}
+            {['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                {[
+                  { id: 'scatter' as DeckType, label: '☍ GMM 2D' },
+                  { id: 'combo' as DeckType, label: '◬ Q-Q & Chuẩn' },
+                  { id: 'taxonomy' as DeckType, label: '☷ Chuyên Ngành' },
+                  { id: 'correlations' as DeckType, label: '📐 Tương Quan' },
+                ].map((deck) => {
+                  const isActive = activeDeck === deck.id;
+                  return (
+                    <button
+                      key={deck.id}
+                      type="button"
+                      onClick={() => setActiveDeck(deck.id)}
+                      style={{
+                        padding: '1px 6px',
+                        borderRadius: '3px',
+                        border: isActive ? '1px solid #3b82f6' : '1px solid transparent',
+                        backgroundColor: isActive ? '#2563eb' : 'transparent',
+                        color: isActive ? '#ffffff' : themeStyles.textSecondary,
+                        cursor: 'pointer',
+                        fontSize: '9.5px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: isActive ? 800 : 500,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {deck.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Contextual Sub-Tabs (if Tier 3 active) */}
+            {['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                {[
+                  { id: 'governance' as DeckType, label: '⚙ Quy Tắc' },
+                  { id: 'authors' as DeckType, label: '👥 Tác Giả' },
+                  { id: 'rag_audit' as DeckType, label: '🛡️ RAG Audit' },
+                  { id: 'explorer' as DeckType, label: '🔍 Tra Cứu' },
+                ].map((deck) => {
+                  const isActive = activeDeck === deck.id;
+                  return (
+                    <button
+                      key={deck.id}
+                      type="button"
+                      onClick={() => setActiveDeck(deck.id)}
+                      style={{
+                        padding: '1px 6px',
+                        borderRadius: '3px',
+                        border: isActive ? '1px solid #8b5cf6' : '1px solid transparent',
+                        backgroundColor: isActive ? '#7c3aed' : 'transparent',
+                        color: isActive ? '#ffffff' : themeStyles.textSecondary,
+                        cursor: 'pointer',
+                        fontSize: '9.5px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: isActive ? 800 : 500,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {deck.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Quick Action Controls */}
+          {/* Right: Lakehouse Live Badge, Outlier Test, Focus & Selected */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            {/* Focus / Zen Mode Toggle */}
-            <button
-              type="button"
-              onClick={() => setIsFocusMode((prev) => !prev)}
+            <div
               style={{
-                backgroundColor: isFocusMode ? '#2563eb' : themeStyles.cardSubtle,
-                border: `1px solid ${isFocusMode ? '#1d4ed8' : themeStyles.border}`,
-                borderRadius: '4px',
-                padding: '2px 8px',
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                color: isFocusMode ? '#ffffff' : themeStyles.textSecondary,
-                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                transition: 'all 0.15s ease',
+                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : '#f0fdf4',
+                border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.25)' : '#bbf7d0'}`,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '9.5px',
+                fontFamily: 'var(--font-mono)',
+                color: isDark ? '#4ade80' : '#166534',
+                fontWeight: 700,
               }}
-              title={language === 'vi' ? 'Nhấn phím F để bật / tắt chế độ phóng to biểu đồ' : 'Press F to toggle chart focus mode'}
             >
-              <span>{isFocusMode ? '⤡' : '⤢'}</span>
-              <span>{isFocusMode ? (language === 'vi' ? 'THOÁT FOCUS' : 'EXIT FOCUS') : (language === 'vi' ? 'CHẾ ĐỘ FOCUS' : 'FOCUS MODE')}</span>
-              <span style={{ opacity: 0.65, fontSize: '10px' }}>(F)</span>
-            </button>
+              <span
+                style={{
+                  width: '5px',
+                  height: '5px',
+                  borderRadius: '50%',
+                  backgroundColor: isStreaming ? '#22c55e' : '#38bdf8',
+                  display: 'inline-block',
+                }}
+              />
+              <span>LAKEHOUSE: {totalCorpus.toLocaleString()} BÀI {isStreaming ? `• ${streamSpeed.toFixed(1)} p/s` : '• 100% MD'}</span>
+            </div>
 
-            {/* Simulate Outlier Button */}
             <button
               type="button"
               onClick={handleSimulateOutlier}
@@ -934,8 +1041,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 backgroundColor: isDark ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed',
                 border: `1px solid ${isDark ? 'rgba(234, 88, 12, 0.35)' : '#fed7aa'}`,
                 borderRadius: '4px',
-                padding: '2px 7px',
-                fontSize: '10px',
+                padding: '2px 6px',
+                fontSize: '9.5px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 800,
                 color: '#ea580c',
@@ -944,15 +1051,33 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 alignItems: 'center',
                 gap: '3px',
               }}
-              title={language === 'vi' ? 'Kích hoạt thử nghiệm phát hiện bài báo dị biệt đa biến (Z-Score > 3.5)' : 'Simulate multivariate outlier detection test (Z-Score > 3.5)'}
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              <span>OUTLIER TEST</span>
+              <span>⚡ OUTLIER</span>
             </button>
 
-            {/* Reset Slicers */}
+            <button
+              type="button"
+              onClick={() => setIsFocusMode((prev) => !prev)}
+              style={{
+                backgroundColor: isFocusMode ? '#2563eb' : themeStyles.cardSubtle,
+                border: `1px solid ${isFocusMode ? '#1d4ed8' : themeStyles.border}`,
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '9.5px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                color: isFocusMode ? '#ffffff' : themeStyles.textSecondary,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+              }}
+              title="Nhấn F để phóng to / thu nhỏ"
+            >
+              <span>{isFocusMode ? '⤡' : '⤢'}</span>
+              <span>FOCUS (F)</span>
+            </button>
+
             {(selectedCategory !== 'ALL' || selectedMathFilter !== 'ALL') && (
               <button
                 type="button"
@@ -961,163 +1086,145 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#fee2e2',
                   border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.35)' : '#fca5a5'}`,
                   borderRadius: '4px',
-                  padding: '2px 7px',
-                  fontSize: '10px',
+                  padding: '2px 6px',
+                  fontSize: '9.5px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 800,
                   color: '#ef4444',
                   cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
                 }}
               >
-                <span>&times;</span>
-                <span>{language === 'vi' ? 'ĐẶT LẠI' : 'RESET'}</span>
+                &times; ĐẶT LẠI
               </button>
             )}
 
-            <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, backgroundColor: themeStyles.cardSubtle, padding: '2px 7px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
-              {language === 'vi' ? 'Đang chọn:' : 'Selected:'} <strong style={{ color: themeStyles.textPrimary }}>{filteredKpi.totalPapers.toLocaleString()}</strong> {language === 'vi' ? 'bài' : 'papers'} ({filteredKpi.sharePercent}%)
+            <div
+              style={{
+                fontSize: '9.5px',
+                fontFamily: 'var(--font-mono)',
+                color: themeStyles.textSecondary,
+                backgroundColor: themeStyles.cardSubtle,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                border: `1px solid ${themeStyles.border}`,
+              }}
+            >
+              Đang chọn: <strong style={{ color: themeStyles.textPrimary }}>{filteredKpi.totalPapers.toLocaleString()}</strong> ({filteredKpi.sharePercent}%)
             </div>
           </div>
         </div>
 
-        {/* Slicer Pills Row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap', paddingTop: isFocusMode ? '0' : '3px', borderTop: isFocusMode ? 'none' : `1px solid ${themeStyles.borderSubtle}` }}>
-          <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-            SLICER:
-          </span>
-
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('ALL')}
-            style={{
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: selectedCategory === 'ALL' ? 800 : 600,
-              border: selectedCategory === 'ALL' ? `1px solid ${themeStyles.slicerAllActiveBg}` : `1px solid ${themeStyles.border}`,
-              backgroundColor: selectedCategory === 'ALL' ? themeStyles.slicerAllActiveBg : themeStyles.cardInner,
-              color: selectedCategory === 'ALL' ? themeStyles.slicerAllActiveText : themeStyles.textSecondary,
-              cursor: 'pointer',
-            }}
-          >
-            TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
-          </button>
-
-          {categoryList.slice(0, 8).map((cat) => {
-            const isSelected = selectedCategory === cat.category;
-            const color = getCategoryColor(cat.category);
-            return (
-              <button
-                key={cat.category}
-                type="button"
-                onClick={() => setSelectedCategory(isSelected ? 'ALL' : cat.category)}
-                style={{
-                  padding: '2px 7px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: isSelected ? 800 : 600,
-                  border: isSelected ? `1px solid ${color}` : `1px solid ${themeStyles.border}`,
-                  backgroundColor: isSelected ? color : themeStyles.cardInner,
-                  color: isSelected ? '#ffffff' : themeStyles.textSecondary,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: isSelected ? '#ffffff' : color }} />
-                <span>{cat.category}</span>
-                <span style={{ fontSize: '10px', opacity: 0.85 }}>({cat.count.toLocaleString()})</span>
-              </button>
-            );
-          })}
-
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-              {language === 'vi' ? 'MẬT ĐỘ TOÁN:' : 'MATH DENSITY:'}
-            </span>
-            {(['ALL', 'HIGH', 'MED', 'LOW'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setSelectedMathFilter(m)}
-                style={{
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: selectedMathFilter === m ? 800 : 600,
-                  backgroundColor: selectedMathFilter === m ? '#ea580c' : themeStyles.cardInner,
-                  color: selectedMathFilter === m ? '#ffffff' : themeStyles.textMuted,
-                  border: `1px solid ${themeStyles.border}`,
-                  cursor: 'pointer',
-                }}
-              >
-                {m === 'ALL' ? (language === 'vi' ? 'Tất cả' : 'All') : m === 'HIGH' ? '> 300' : m === 'MED' ? '100-300' : '< 100'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Data Inflow Pipeline Funnel Strip -> Consolidated into sleek ticker below */}
-      </div>
-
-      {/* ============================================================== */}
-      {/* 2. COMPACT SINGLE-ROW KPI TICKER & TELEMETRY TOGGLE             */}
-      {/* ============================================================== */}
-      {!isFocusMode && (
+        {/* ROW 2: Slicers (Left) + Math Density (Center) + Quick KPIs & Telemetry (Right) */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: themeStyles.cardBg,
-            borderRadius: '6px',
-            border: `1px solid ${themeStyles.border}`,
-            padding: '3px 10px',
-            flexShrink: 0,
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            gap: '8px',
+            gap: '6px',
+            flexWrap: 'wrap',
+            paddingTop: '2px',
+            borderTop: `1px solid ${themeStyles.borderSubtle}`,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <div>
-              <span style={{ color: themeStyles.textMuted }}>TỔNG BÀI: </span>
-              <strong style={{ color: themeStyles.textPrimary }}>{filteredKpi.totalPapers.toLocaleString()}</strong>
-              <span style={{ color: '#059669', marginLeft: '4px' }}>({filteredKpi.sharePercent}%)</span>
-            </div>
-            <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border }} />
-            <div>
-              <span style={{ color: themeStyles.textMuted }}>TOÀN VĂN RAG: </span>
-              <strong style={{ color: '#059669' }}>{(overview.fulltext_papers_count || 29911).toLocaleString()}</strong>
-              <span style={{ color: '#059669', marginLeft: '4px' }}>(100.0%)</span>
-            </div>
-            <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border }} />
-            <div>
-              <span style={{ color: themeStyles.textMuted }}>CÔNG THỨC TOÁN: </span>
-              <strong style={{ color: '#ea580c' }}>{filteredKpi.totalMath.toLocaleString()}</strong>
-              <span style={{ color: themeStyles.textMuted, marginLeft: '4px' }}>({filteredKpi.avgMath} eq/bài)</span>
-            </div>
-            <div style={{ width: '1px', height: '12px', backgroundColor: themeStyles.border }} />
-            <div>
-              <span style={{ color: themeStyles.textMuted }}>DUNG LƯỢNG TỪ: </span>
-              <strong style={{ color: '#2563eb' }}>{(overview.total_words / 1_000_000).toFixed(2)}M từ</strong>
-              <span style={{ color: themeStyles.textMuted, marginLeft: '4px' }}>({filteredKpi.avgWords} w/p)</span>
+          {/* Left: Category Slicers */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '9.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+              SLICER:
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('ALL')}
+              style={{
+                padding: '1px 6px',
+                borderRadius: '3px',
+                fontSize: '9.5px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: selectedCategory === 'ALL' ? 800 : 600,
+                border: selectedCategory === 'ALL' ? `1px solid ${themeStyles.slicerAllActiveBg}` : `1px solid ${themeStyles.border}`,
+                backgroundColor: selectedCategory === 'ALL' ? themeStyles.slicerAllActiveBg : themeStyles.cardInner,
+                color: selectedCategory === 'ALL' ? themeStyles.slicerAllActiveText : themeStyles.textSecondary,
+                cursor: 'pointer',
+              }}
+            >
+              TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
+            </button>
+
+            {categoryList.slice(0, 7).map((cat) => {
+              const isSelected = selectedCategory === cat.category;
+              const color = getCategoryColor(cat.category);
+              return (
+                <button
+                  key={cat.category}
+                  type="button"
+                  onClick={() => setSelectedCategory(isSelected ? 'ALL' : cat.category)}
+                  style={{
+                    padding: '1px 6px',
+                    borderRadius: '3px',
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: isSelected ? 800 : 600,
+                    border: isSelected ? `1px solid ${color}` : `1px solid ${themeStyles.border}`,
+                    backgroundColor: isSelected ? color : themeStyles.cardInner,
+                    color: isSelected ? '#ffffff' : themeStyles.textSecondary,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                  }}
+                >
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: isSelected ? '#ffffff' : color }} />
+                  <span>{cat.category}</span>
+                  <span style={{ fontSize: '8.5px', opacity: 0.85 }}>({cat.count.toLocaleString()})</span>
+                </button>
+              );
+            })}
+
+            {/* Math Density Filter */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', marginLeft: '6px' }}>
+              <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                TOÁN:
+              </span>
+              {(['ALL', 'HIGH', 'MED', 'LOW'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setSelectedMathFilter(m)}
+                  style={{
+                    padding: '1px 5px',
+                    borderRadius: '3px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: selectedMathFilter === m ? 800 : 600,
+                    backgroundColor: selectedMathFilter === m ? '#ea580c' : themeStyles.cardInner,
+                    color: selectedMathFilter === m ? '#ffffff' : themeStyles.textMuted,
+                    border: `1px solid ${themeStyles.border}`,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {m === 'ALL' ? 'All' : m === 'HIGH' ? '>300' : m === 'MED' ? '100-300' : '<100'}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          {/* Right: Quick KPIs & Telemetry */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9.5px', fontFamily: 'var(--font-mono)' }}>
+            <div>
+              <span style={{ color: themeStyles.textMuted }}>Σ TOÁN: </span>
+              <strong style={{ color: '#ea580c' }}>{(filteredKpi.totalMath / 1_000_000).toFixed(2)}M</strong>
+            </div>
+            <div style={{ width: '1px', height: '10px', backgroundColor: themeStyles.border }} />
+            <div>
+              <span style={{ color: themeStyles.textMuted }}>Σ TỪ: </span>
+              <strong style={{ color: '#2563eb' }}>{(overview.total_words / 1_000_000).toFixed(1)}M</strong>
+            </div>
+            <div style={{ width: '1px', height: '10px', backgroundColor: themeStyles.border }} />
             <button
               type="button"
               onClick={() => setShowTelemetry((v) => !v)}
               style={{
-                padding: '2px 7px',
+                padding: '1px 6px',
                 borderRadius: '3px',
                 fontSize: '9px',
                 fontFamily: 'var(--font-mono)',
@@ -1128,16 +1235,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: '3px',
               }}
-              title="Nhấn để xem hoặc ẩn quy trình kiểm định 5 trạm khai phá dữ liệu"
             >
               <span>{showTelemetry ? '▲' : '▼'}</span>
-              <span>5/5 Telemetry {showTelemetry ? 'Ẩn' : 'Xem'}</span>
+              <span>5/5 Telemetry</span>
             </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Floating Popover Telemetry Stepper (Zero-Push Overlay) */}
       {!isFocusMode && showTelemetry && (
@@ -1183,193 +1289,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
           />
         </div>
       )}
-
-      {/* ============================================================== */}
-      {/* 3. 3-TIER LAKEHOUSE MASTER SWITCHER & CONTEXTUAL SUB-TABS      */}
-      {/* ============================================================== */}
-      {(() => {
-        const isTier1 = activeDeck === 'collection';
-        const isTier2 = ['scatter', 'combo', 'taxonomy', 'correlations'].includes(activeDeck);
-        const isTier3 = ['governance', 'authors', 'rag_audit', 'explorer'].includes(activeDeck);
-
-        return (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: themeStyles.cardBg,
-              borderRadius: '6px',
-              border: `1px solid ${themeStyles.border}`,
-              padding: '3px 8px',
-              flexShrink: 0,
-              gap: '6px',
-              flexWrap: 'wrap',
-            }}
-          >
-            {/* 3-Tier Master Switcher */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <button
-                type="button"
-                onClick={() => setActiveDeck('collection')}
-                style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: isTier1 ? 800 : 600,
-                  backgroundColor: isTier1 ? '#f59e0b' : 'transparent',
-                  color: isTier1 ? '#000000' : themeStyles.textSecondary,
-                  border: `1px solid ${isTier1 ? '#f59e0b' : themeStyles.border}`,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>📥</span>
-                <span>TẦNG 1: THU THẬP &amp; THÔ</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isTier2) setActiveDeck('scatter');
-                }}
-                style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: isTier2 ? 800 : 600,
-                  backgroundColor: isTier2 ? (isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff') : 'transparent',
-                  color: isTier2 ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary,
-                  border: `1px solid ${isTier2 ? '#3b82f6' : themeStyles.border}`,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>⚙️</span>
-                <span>TẦNG 2: HÌNH HỌC &amp; ĐẶC TRƯNG</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isTier3) setActiveDeck('governance');
-                }}
-                style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: isTier3 ? 800 : 600,
-                  backgroundColor: isTier3 ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#f5f3ff') : 'transparent',
-                  color: isTier3 ? (isDark ? '#c4b5fd' : '#7c3aed') : themeStyles.textSecondary,
-                  border: `1px solid ${isTier3 ? '#8b5cf6' : themeStyles.border}`,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>🛡️</span>
-                <span>TẦNG 3: ĐIỀU HƯỚNG &amp; RAG</span>
-              </button>
-            </div>
-
-            {/* Contextual Sub-Tabs for Tier 2 */}
-            {isTier2 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
-                {[
-                  { id: 'scatter' as DeckType, label: '☍ 1. GMM 2D & Phân Vị' },
-                  { id: 'combo' as DeckType, label: '◬ 2. Phân Phối Đơn Biến & Q-Q' },
-                  { id: 'taxonomy' as DeckType, label: '☷ 3. Chuyên Ngành & Giao Thoa' },
-                  { id: 'correlations' as DeckType, label: '📐 4. Tương Quan Đa Biến & ANOVA' },
-                ].map((deck) => {
-                  const isActive = activeDeck === deck.id;
-                  return (
-                    <button
-                      key={deck.id}
-                      type="button"
-                      onClick={() => setActiveDeck(deck.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '3px',
-                        padding: '2px 7px',
-                        borderRadius: '4px',
-                        border: isActive ? '1px solid #3b82f6' : '1px solid transparent',
-                        backgroundColor: isActive ? '#2563eb' : (isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'),
-                        color: isActive ? '#ffffff' : themeStyles.textSecondary,
-                        cursor: 'pointer',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: isActive ? 800 : 500,
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span>{deck.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Contextual Sub-Tabs for Tier 3 */}
-            {isTier3 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
-                {[
-                  { id: 'governance' as DeckType, label: '⚙ 1. Quy Tắc Lakehouse (§6.4)' },
-                  { id: 'authors' as DeckType, label: '👥 2. Tác Giả & Phân Vị' },
-                  { id: 'rag_audit' as DeckType, label: '🛡️ 3. Kiểm Toán RAG & Vectors' },
-                  { id: 'explorer' as DeckType, label: '🔍 4. Tra Cứu DuckDB OLAP' },
-                ].map((deck) => {
-                  const isActive = activeDeck === deck.id;
-                  return (
-                    <button
-                      key={deck.id}
-                      type="button"
-                      onClick={() => setActiveDeck(deck.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '3px',
-                        padding: '2px 7px',
-                        borderRadius: '4px',
-                        border: isActive ? '1px solid #8b5cf6' : '1px solid transparent',
-                        backgroundColor: isActive ? '#7c3aed' : (isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'),
-                        color: isActive ? '#ffffff' : themeStyles.textSecondary,
-                        cursor: 'pointer',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: isActive ? 800 : 500,
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span>{deck.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Contextual Info for Tier 1 */}
-            {isTier1 && (
-              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                arXiv (25,000) • OpenReview (3,000) • CVF (1,911) | Bronze Data Matrix
-              </div>
-            )}
-          </div>
-        );
-      })()}
 
       {/* ============================================================== */}
       {/* 5. ACTIVE SUB-DECK VIEWPORT AREA (FLEX 1 // ZERO-SCROLL)        */}

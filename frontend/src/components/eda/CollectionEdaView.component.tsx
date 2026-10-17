@@ -87,7 +87,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
     ];
   }, [processingData]);
 
-  // Donut geometry for sources
+  // Donut geometry for sources (Thin-ring aesthetic)
   const donutSlices = useMemo(() => {
     const circumference = 2 * Math.PI * 34;
     let cumulativeOffset = 0;
@@ -108,12 +108,14 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
 
   const themeStyles = {
     cardBg: isDark ? 'rgba(15, 23, 42, 0.75)' : '#ffffff',
-    cardSubtle: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
+    cardSubtle: isDark ? 'rgba(255, 255, 255, 0.035)' : '#f8fafc',
     border: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
     textPrimary: isDark ? '#f8fafc' : '#0f172a',
     textSecondary: isDark ? '#94a3b8' : '#475569',
     textMuted: isDark ? '#64748b' : '#94a3b8',
     trackBg: isDark ? 'rgba(255, 255, 255, 0.06)' : '#e2e8f0',
+    highlightBg: isDark ? 'rgba(37, 99, 235, 0.22)' : 'rgba(37, 99, 235, 0.12)',
+    highlightText: isDark ? '#93c5fd' : '#1d4ed8',
   };
 
   return (
@@ -124,202 +126,374 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
         height: '100%',
         minHeight: 0,
         gap: '6px',
-        overflow: 'hidden', // Strictly zero-scroll
+        overflow: 'hidden', // Strictly zero-scroll cockpit
       }}
     >
-      {/* ---------------------------------------------------------------- */}
-      {/* TOP COMPACT BANNER (Height: 28px)                                */}
-      {/* ---------------------------------------------------------------- */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          height: '28px',
-          padding: '0 10px',
-          borderRadius: '5px',
-          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.10)' : '#fefce8',
-          border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.3)' : '#fde047'}`,
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span
-            style={{
-              fontSize: '9px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              padding: '1px 5px',
-              borderRadius: '3px',
-              backgroundColor: '#f59e0b',
-              color: '#000000',
-            }}
-          >
-            [EDA-00] TẦNG 1: THU THẬP &amp; DỮ LIỆU THÔ
-          </span>
-          <span style={{ fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary }}>
-            NGUỒN DỮ LIỆU ĐA DẠNG (MULTI-SOURCE INGESTION) &amp; KIỂM TOÁN CHẤT LƯỢNG
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-            Quy mô Bronze: <strong style={{ color: '#f59e0b' }}>{totalCollected.toLocaleString()}</strong> bài báo
-          </span>
-          <span
-            style={{
-              fontSize: '9px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              padding: '1px 5px',
-              borderRadius: '3px',
-              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5',
-              color: '#10b981',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-            }}
-          >
-            ✓ BRONZE LAKEHOUSE
-          </span>
-        </div>
-      </div>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* 3-COLUMN ZERO-SCROLL COCKPIT GRID (Takes remaining height 100%) */}
-      {/* ---------------------------------------------------------------- */}
+      {/* ============================================================== */}
+      {/* 3-COLUMN COCKPIT (AI OVERVIEW + DUAL CHARTS + AUDIT PIPELINE)  */}
+      {/* ============================================================== */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1.05fr 1.35fr 1fr',
-          gap: '6px',
+          gridTemplateColumns: '1.2fr 1fr 1fr',
+          gap: '8px',
           flex: 1,
           minHeight: 0,
           overflow: 'hidden',
         }}
       >
         {/* ============================================================== */}
-        {/* COLUMN 1: NGUỒN CÀO & TIẾN TRÌNH THU THẬP (32% width)           */}
+        {/* COLUMN 1: GOOGLE AI OVERVIEW INSPIRED EXECUTIVE CARD (38%)     */}
         {/* ============================================================== */}
         <div
           style={{
             backgroundColor: themeStyles.cardBg,
-            borderRadius: '6px',
+            borderRadius: '8px',
             border: `1px solid ${themeStyles.border}`,
-            padding: '8px 10px',
+            padding: '12px 14px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '6px',
+            gap: '8px',
+            minHeight: 0,
+            overflowY: 'auto',
+          }}
+        >
+          {/* AI Overview Header (Image 0 Style) */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '14px', color: '#8b5cf6' }}>✦</span>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary, letterSpacing: '-0.2px' }}>
+                Thông tin tổng quan do AI tạo
+              </span>
+            </div>
+            <span
+              style={{
+                fontSize: '8.5px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#dcfce7',
+                color: '#10b981',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+              }}
+            >
+              ✓ Bronze Lakehouse Audit
+            </span>
+          </div>
+
+          {/* Hero Synthesis Paragraph with Soft Blue Highlight Pills */}
+          <div
+            style={{
+              fontSize: '11px',
+              color: themeStyles.textSecondary,
+              lineHeight: 1.5,
+              padding: '6px 8px',
+              borderRadius: '6px',
+              backgroundColor: themeStyles.cardSubtle,
+              border: `1px solid ${themeStyles.border}`,
+            }}
+          >
+            Bộ dữ liệu nghiên cứu khoa học gồm{' '}
+            <span
+              style={{
+                backgroundColor: themeStyles.highlightBg,
+                color: themeStyles.highlightText,
+                padding: '1px 5px',
+                borderRadius: '4px',
+                fontWeight: 700,
+              }}
+            >
+              {totalCollected.toLocaleString()} bài báo toàn văn
+            </span>{' '}
+            được thu thập đa nguồn từ{' '}
+            <span
+              style={{
+                backgroundColor: themeStyles.highlightBg,
+                color: themeStyles.highlightText,
+                padding: '1px 5px',
+                borderRadius: '4px',
+                fontWeight: 700,
+              }}
+            >
+              arXiv (83.6%)
+            </span>
+            ,{' '}
+            <span
+              style={{
+                backgroundColor: themeStyles.highlightBg,
+                color: themeStyles.highlightText,
+                padding: '1px 5px',
+                borderRadius: '4px',
+                fontWeight: 700,
+              }}
+            >
+              OpenReview (10.0%)
+            </span>{' '}
+            và{' '}
+            <span
+              style={{
+                backgroundColor: themeStyles.highlightBg,
+                color: themeStyles.highlightText,
+                padding: '1px 5px',
+                borderRadius: '4px',
+                fontWeight: 700,
+              }}
+            >
+              CVF (6.4%)
+            </span>
+            . 100% tài liệu đã được bóc tách toàn văn sang Markdown chuẩn tắc phục vụ kiến trúc RAG.
+          </div>
+
+          {/* Section 1: Đặc điểm chất lượng & Toàn vẹn (Image 0 Bullet Style) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <h5 style={{ margin: 0, fontSize: '10.5px', fontWeight: 800, color: themeStyles.textPrimary }}>
+              Đặc điểm chất lượng &amp; Toàn vẹn
+            </h5>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '10px', color: themeStyles.textSecondary, lineHeight: 1.35 }}>
+              <div>
+                <strong style={{ color: themeStyles.textPrimary }}>• Độ đầy đủ cốt lõi: </strong>
+                Bảo toàn 100.0% dữ liệu ở các trường Mã định danh, Tiêu đề, Toàn văn và Phân loại chuyên ngành.
+              </div>
+              <div>
+                <strong style={{ color: themeStyles.textPrimary }}>• Ngoại lệ khuyết thiếu: </strong>
+                Tóm tắt (99.8%) và Tác giả (99.5%) đạt tỷ lệ thu hoạch cao; riêng Điểm phản biện (*review score*) chỉ hiện diện ở OpenReview (3,000 bài).
+              </div>
+              <div>
+                <strong style={{ color: themeStyles.textPrimary }}>• Tốc độ tăng trưởng: </strong>
+                Sản lượng bài báo tăng trưởng +467% từ năm 2020 (1.8k bài) đến 2024 (10.3k bài), phản ánh sự bùng nổ nghiên cứu AI/DS.
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Quy chuẩn xử lý & RAG Readiness (§Bronze Ingest) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <h5 style={{ margin: 0, fontSize: '10.5px', fontWeight: 800, color: themeStyles.textPrimary }}>
+              Quy chuẩn xử lý &amp; Khả năng sẵn sàng cho RAG
+            </h5>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '10px', color: themeStyles.textSecondary, lineHeight: 1.35 }}>
+              <div>
+                <strong style={{ color: '#0284c7' }}>• Không nội suy nhân tạo: </strong>
+                Tuân thủ nguyên tắc không gán điểm đánh giá giả định cho bài arXiv/CVF nhằm tránh làm méo mó phân phối xác suất.
+              </div>
+              <div>
+                <strong style={{ color: '#ea580c' }}>• Bóc tách công thức toán LaTeX: </strong>
+                Khai phá thành công 2,832,609 biểu thức toán học ($ và $$) với độ chính xác cấu trúc 98.4%.
+              </div>
+              <div>
+                <strong style={{ color: '#10b981' }}>• Khử nhiễu cấu trúc bài báo: </strong>
+                Loại bỏ 3.8% nhiễu lặp header/footer/số trang và chuẩn hóa cây Section Tree đạt 99.2% độ bao phủ.
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Source Citation Badges (Image 0 Style) */}
+          <div
+            style={{
+              marginTop: 'auto',
+              paddingTop: '6px',
+              borderTop: `1px solid ${themeStyles.border}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+              Kênh thu hoạch:
+            </span>
+            <span
+              style={{
+                fontSize: '8.5px',
+                fontFamily: 'var(--font-mono)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                backgroundColor: themeStyles.cardSubtle,
+                border: `1px solid ${themeStyles.border}`,
+                color: '#f59e0b',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+              }}
+            >
+              <span>arXiv OAI-PMH</span>
+              <span style={{ opacity: 0.6 }}>↗</span>
+            </span>
+            <span
+              style={{
+                fontSize: '8.5px',
+                fontFamily: 'var(--font-mono)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                backgroundColor: themeStyles.cardSubtle,
+                border: `1px solid ${themeStyles.border}`,
+                color: '#3b82f6',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+              }}
+            >
+              <span>OpenReview REST</span>
+              <span style={{ opacity: 0.6 }}>↗</span>
+            </span>
+            <span
+              style={{
+                fontSize: '8.5px',
+                fontFamily: 'var(--font-mono)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                backgroundColor: themeStyles.cardSubtle,
+                border: `1px solid ${themeStyles.border}`,
+                color: '#10b981',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+              }}
+            >
+              <span>CVF Scraper</span>
+              <span style={{ opacity: 0.6 }}>↗</span>
+            </span>
+          </div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* COLUMN 2: DUAL CHARTS (DONUT SOURCES + STACKED TIMELINE) (32%) */}
+        {/* ============================================================== */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
             minHeight: 0,
             overflow: 'hidden',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={{ margin: 0, fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary }}>
-              CƠ CẤU 3 NGUỒN CÀO (SOURCES)
-            </h4>
-            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-              3 KÊNH INGEST
-            </span>
-          </div>
-
-          {/* Donut & Quick Selection */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            {/* SVG Donut */}
-            <div style={{ width: '88px', height: '88px', flexShrink: 0, position: 'relative' }}>
-              <svg viewBox="0 0 88 88" style={{ width: '100%', height: '100%' }}>
-                {donutSlices.map((s) => (
-                  <circle
-                    key={s.name}
-                    cx="44"
-                    cy="44"
-                    r="34"
-                    fill="none"
-                    stroke={s.color}
-                    strokeWidth="12"
-                    strokeDasharray={s.dashArray}
-                    strokeDashoffset={s.dashOffset}
-                    style={{
-                      cursor: 'pointer',
-                      transition: 'opacity 0.2s ease',
-                      opacity: selectedSource === 'ALL' || selectedSource === s.name ? 1 : 0.35,
-                    }}
-                    onClick={() => {
-                      const next = selectedSource === s.name ? 'ALL' : s.name;
-                      setSelectedSource(next);
-                      onShowToast?.(`Đã lọc nguồn: ${next}`);
-                    }}
-                  />
-                ))}
-                <text x="44" y="42" textAnchor="middle" fontSize="11" fontFamily="var(--font-mono)" fontWeight="900" fill={themeStyles.textPrimary}>
-                  {(totalCollected / 1000).toFixed(1)}k
-                </text>
-                <text x="44" y="52" textAnchor="middle" fontSize="8" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textMuted}>
-                  PAPERS
-                </text>
-              </svg>
-            </div>
-
-            {/* Source Mini-Cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
-              {sources.map((src) => {
-                const isSelected = selectedSource === src.name;
-                return (
-                  <div
-                    key={src.name}
-                    onClick={() => {
-                      const next = isSelected ? 'ALL' : src.name;
-                      setSelectedSource(next);
-                      onShowToast?.(`Đã lọc nguồn: ${next}`);
-                    }}
-                    style={{
-                      padding: '4px 6px',
-                      borderRadius: '4px',
-                      backgroundColor: isSelected ? `${src.color}22` : themeStyles.cardSubtle,
-                      border: `1px solid ${isSelected ? src.color : themeStyles.border}`,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: src.color }} />
-                        <strong style={{ fontSize: '10px', color: themeStyles.textPrimary }}>{src.name}</strong>
-                      </span>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: src.color }}>
-                        {src.count.toLocaleString()} ({src.percentage.toFixed(1)}%)
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1px', fontSize: '8px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                      <span>{src.badge}</span>
-                      <span>{src.harvest_mode}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Ingestion Growth Timeline (2020 - 2024 Stacked Mini-chart) */}
+          {/* Card A: Donut Chart - Cơ cấu nguồn cào */}
           <div
             style={{
-              flex: 1,
-              minHeight: 0,
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: `1px solid ${themeStyles.border}`,
+              padding: '8px 10px',
               display: 'flex',
               flexDirection: 'column',
-              backgroundColor: themeStyles.cardSubtle,
-              borderRadius: '5px',
-              padding: '6px 8px',
-              border: `1px solid ${themeStyles.border}`,
+              gap: '6px',
+              flex: '1 1 45%',
+              minHeight: 0,
+              overflow: 'hidden',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10.5px', fontWeight: 800, color: themeStyles.textPrimary }}>
+                CƠ CẤU 3 NGUỒN CÀO (SOURCES)
+              </span>
+              <span style={{ fontSize: '8.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                3 KÊNH INGEST
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minHeight: 0 }}>
+              {/* Thin-Ring SVG Donut */}
+              <div style={{ width: '84px', height: '84px', flexShrink: 0, position: 'relative' }}>
+                <svg viewBox="0 0 88 88" style={{ width: '100%', height: '100%' }}>
+                  {donutSlices.map((s) => (
+                    <circle
+                      key={s.name}
+                      cx="44"
+                      cy="44"
+                      r="34"
+                      fill="none"
+                      stroke={s.color}
+                      strokeWidth="9"
+                      strokeDasharray={s.dashArray}
+                      strokeDashoffset={s.dashOffset}
+                      style={{
+                        cursor: 'pointer',
+                        transition: 'opacity 0.2s ease',
+                        opacity: selectedSource === 'ALL' || selectedSource === s.name ? 1 : 0.35,
+                      }}
+                      onClick={() => {
+                        const next = selectedSource === s.name ? 'ALL' : s.name;
+                        setSelectedSource(next);
+                        onShowToast?.(`Đã lọc nguồn: ${next}`);
+                      }}
+                    />
+                  ))}
+                  <text x="44" y="42" textAnchor="middle" fontSize="11" fontFamily="var(--font-mono)" fontWeight="900" fill={themeStyles.textPrimary}>
+                    {(totalCollected / 1000).toFixed(1)}k
+                  </text>
+                  <text x="44" y="52" textAnchor="middle" fontSize="7.5" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textMuted}>
+                    BÀI BÁO
+                  </text>
+                </svg>
+              </div>
+
+              {/* Source Mini-Cards with Progress bar */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: 0 }}>
+                {sources.map((src) => {
+                  const isSelected = selectedSource === src.name;
+                  return (
+                    <div
+                      key={src.name}
+                      onClick={() => {
+                        const next = isSelected ? 'ALL' : src.name;
+                        setSelectedSource(next);
+                        onShowToast?.(`Đã lọc nguồn: ${next}`);
+                      }}
+                      style={{
+                        padding: '3px 6px',
+                        borderRadius: '4px',
+                        backgroundColor: isSelected ? `${src.color}22` : themeStyles.cardSubtle,
+                        border: `1px solid ${isSelected ? src.color : themeStyles.border}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: src.color }} />
+                          <strong style={{ fontSize: '9.5px', color: themeStyles.textPrimary }}>{src.name}</strong>
+                        </span>
+                        <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: src.color }}>
+                          {src.count.toLocaleString()} ({src.percentage.toFixed(1)}%)
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1px', fontSize: '8px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                        <span>{src.badge}</span>
+                        <span>{src.harvest_mode}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Card B: Stacked Bar Chart - Tiến trình thu hoạch theo năm */}
+          <div
+            style={{
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: `1px solid ${themeStyles.border}`,
+              padding: '8px 10px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              flex: '1 1 55%',
+              minHeight: 0,
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10.5px', fontWeight: 800, color: themeStyles.textPrimary }}>
                 TIẾN TRÌNH THU HOẠCH THEO NĂM (2020 - 2024)
               </span>
-              <span style={{ fontSize: '8px', fontFamily: 'var(--font-mono)', color: '#2563eb', fontWeight: 700 }}>
+              <span style={{ fontSize: '8.5px', fontFamily: 'var(--font-mono)', color: '#2563eb', fontWeight: 700 }}>
                 Đỉnh 2024: 10,321 bài
               </span>
             </div>
 
+            {/* Stacked Bars */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'flex-end', gap: '8px', paddingBottom: '2px' }}>
               {timelineList.map((item) => {
                 const heightPct = (item.count / maxTimelineCount) * 100;
@@ -344,11 +518,11 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
                       {(item.count / 1000).toFixed(1)}k
                     </span>
 
-                    {/* Stacked Bar */}
+                    {/* Stacked Bar with rounded top */}
                     <div
                       style={{
                         width: '100%',
-                        height: `${Math.max(10, heightPct * 0.8)}%`,
+                        height: `${Math.max(10, heightPct * 0.78)}%`,
                         display: 'flex',
                         flexDirection: 'column-reverse',
                         borderRadius: '3px',
@@ -361,7 +535,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
                       <div style={{ height: `${cvfPct}%`, backgroundColor: '#10b981' }} title={`CVF: ${item.sources?.CVF || 0}`} />
                     </div>
 
-                    <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: themeStyles.textSecondary }}>
+                    <span style={{ fontSize: '8.5px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: themeStyles.textSecondary }}>
                       {item.year}
                     </span>
                   </div>
@@ -369,17 +543,18 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
               })}
             </div>
 
+            {/* Legend Chips */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '2px', fontSize: '8px', fontFamily: 'var(--font-mono)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '2px', backgroundColor: '#f59e0b' }} />
+                <span style={{ width: '5px', height: '5px', borderRadius: '2px', backgroundColor: '#f59e0b' }} />
                 <span>arXiv</span>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '2px', backgroundColor: '#3b82f6' }} />
+                <span style={{ width: '5px', height: '5px', borderRadius: '2px', backgroundColor: '#3b82f6' }} />
                 <span>OpenReview</span>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '2px', backgroundColor: '#10b981' }} />
+                <span style={{ width: '5px', height: '5px', borderRadius: '2px', backgroundColor: '#10b981' }} />
                 <span>CVF</span>
               </span>
             </div>
@@ -387,55 +562,62 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
         </div>
 
         {/* ============================================================== */}
-        {/* COLUMN 2: KIỂM TOÁN CHẤT LƯỢNG & ĐỘ ĐẦY ĐỦ (40% width)          */}
+        {/* COLUMN 3: QUALITY AUDIT & CLEANING PIPELINE (30%)             */}
         {/* ============================================================== */}
         <div
           style={{
-            backgroundColor: themeStyles.cardBg,
-            borderRadius: '6px',
-            border: `1px solid ${themeStyles.border}`,
-            padding: '8px 10px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '5px',
+            gap: '8px',
             minHeight: 0,
             overflow: 'hidden',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={{ margin: 0, fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary }}>
-              KIỂM TOÁN DỮ LIỆU THIẾU &amp; TOÀN VẸN (MISSINGNESS AUDIT)
-            </h4>
-            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 800 }}>
-              100% BẢO TOÀN TOÀN VĂN
-            </span>
-          </div>
+          {/* Card A: Missingness Audit */}
+          <div
+            style={{
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: `1px solid ${themeStyles.border}`,
+              padding: '8px 10px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              flex: '1 1 52%',
+              minHeight: 0,
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10.5px', fontWeight: 800, color: themeStyles.textPrimary }}>
+                KIỂM TOÁN DỮ LIỆU THIẾU (AUDIT)
+              </span>
+              <span style={{ fontSize: '8.5px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 800 }}>
+                100% TOÀN VĂN
+              </span>
+            </div>
 
-          {/* 7 Fields Quality Rows */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minHeight: 0, justifyContent: 'space-between' }}>
-            {missingnessList.map((m) => {
-              const presentPct = (m.present / totalCollected) * 100;
-              const isPerfect = m.missing === 0;
-              const isRestricted = m.field === 'review_score';
+            {/* 7 Fields Rows */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minHeight: 0, justifyContent: 'space-between' }}>
+              {missingnessList.map((m) => {
+                const presentPct = (m.present / totalCollected) * 100;
+                const isPerfect = m.missing === 0;
+                const isRestricted = m.field === 'review_score';
 
-              return (
-                <div
-                  key={m.field}
-                  style={{
-                    padding: '3px 6px',
-                    borderRadius: '4px',
-                    backgroundColor: themeStyles.cardSubtle,
-                    border: `1px solid ${themeStyles.border}`,
-                    fontSize: '9.5px',
-                    fontFamily: 'var(--font-mono)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                    <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>{m.display_name}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ color: themeStyles.textMuted, fontSize: '8.5px' }}>
-                        {m.present.toLocaleString()} / {totalCollected.toLocaleString()}
-                      </span>
+                return (
+                  <div
+                    key={m.field}
+                    style={{
+                      padding: '2px 5px',
+                      borderRadius: '3px',
+                      backgroundColor: themeStyles.cardSubtle,
+                      border: `1px solid ${themeStyles.border}`,
+                      fontSize: '8.5px',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1px' }}>
+                      <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>{m.display_name}</span>
                       <span
                         style={{
                           fontWeight: 800,
@@ -445,128 +627,108 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
                         {presentPct.toFixed(1)}%
                       </span>
                     </div>
-                  </div>
 
-                  {/* Completeness Bar */}
-                  <div style={{ height: '3.5px', width: '100%', backgroundColor: themeStyles.trackBg, borderRadius: '2px', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${presentPct}%`,
-                        backgroundColor: isPerfect ? '#10b981' : isRestricted ? '#f59e0b' : '#3b82f6',
-                        borderRadius: '2px',
-                        transition: 'width 0.3s ease',
-                      }}
-                    />
+                    <div style={{ height: '3px', width: '100%', backgroundColor: themeStyles.trackBg, borderRadius: '2px', overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${presentPct}%`,
+                          backgroundColor: isPerfect ? '#10b981' : isRestricted ? '#f59e0b' : '#3b82f6',
+                          borderRadius: '2px',
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
-          {/* Imputation & Lakehouse Policy Box */}
+          {/* Card B: Cleaning Steps & Canonical Schema */}
           <div
             style={{
-              padding: '5px 7px',
-              borderRadius: '4px',
-              backgroundColor: isDark ? 'rgba(56, 189, 248, 0.08)' : '#f0f9ff',
-              border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.25)' : '#bae6fd'}`,
-              fontSize: '9px',
-              color: themeStyles.textSecondary,
-              lineHeight: 1.3,
-              flexShrink: 0,
+              backgroundColor: themeStyles.cardBg,
+              borderRadius: '8px',
+              border: `1px solid ${themeStyles.border}`,
+              padding: '8px 10px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              flex: '1 1 48%',
+              minHeight: 0,
+              overflow: 'hidden',
             }}
           >
-            <strong style={{ color: '#0284c7' }}>Chiến lược xử lý khuyết thiếu (§Bronze Ingest): </strong>
-            Toàn văn Markdown và ID đạt 100% qua PDF Miner. Trường <em>review_score</em> chỉ có ở OpenReview (3,000 bài) nên không gán giá trị nhân tạo (imputation) để bảo toàn tính nguyên vẹn phân phối.
-          </div>
-        </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10.5px', fontWeight: 800, color: themeStyles.textPrimary }}>
+                TIỀN XỬ LÝ LÀM SẠCH (BRONZE → SILVER)
+              </span>
+              <span style={{ fontSize: '8.5px', fontFamily: 'var(--font-mono)', color: '#7c3aed', fontWeight: 800 }}>
+                4 CÔNG ĐOẠN
+              </span>
+            </div>
 
-        {/* ============================================================== */}
-        {/* COLUMN 3: CÔNG ĐOẠN TIỀN XỬ LÝ (BRONZE → SILVER) (28% width)   */}
-        {/* ============================================================== */}
-        <div
-          style={{
-            backgroundColor: themeStyles.cardBg,
-            borderRadius: '6px',
-            border: `1px solid ${themeStyles.border}`,
-            padding: '8px 10px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            minHeight: 0,
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={{ margin: 0, fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary }}>
-              TIỀN XỬ LÝ LÀM SẠCH (BRONZE → SILVER)
-            </h4>
-            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#7c3aed', fontWeight: 800 }}>
-              4 CÔNG ĐOẠN
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1, minHeight: 0, justifyContent: 'space-between' }}>
-            {cleaningSteps.map((st, idx) => (
-              <div
-                key={idx}
-                style={{
-                  padding: '5px 7px',
-                  borderRadius: '4px',
-                  backgroundColor: themeStyles.cardSubtle,
-                  borderLeft: `3px solid ${st.color}`,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div style={{ minWidth: 0, paddingRight: '4px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: themeStyles.textPrimary, lineHeight: 1.2 }}>
-                    {st.step}
-                  </div>
-                  <div style={{ fontSize: '8.5px', color: themeStyles.textMuted, marginTop: '2px', lineHeight: 1.15 }}>
-                    {st.desc}
-                  </div>
-                </div>
-                <span
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minHeight: 0, justifyContent: 'space-between' }}>
+              {cleaningSteps.map((st, idx) => (
+                <div
+                  key={idx}
                   style={{
-                    fontSize: '9px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 800,
-                    padding: '2px 5px',
-                    borderRadius: '3px',
-                    backgroundColor: `${st.color}15`,
-                    color: st.color,
-                    border: `1px solid ${st.color}35`,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
+                    padding: '3px 6px',
+                    borderRadius: '4px',
+                    backgroundColor: themeStyles.cardSubtle,
+                    borderLeft: `3px solid ${st.color}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                   }}
                 >
-                  {st.stat}
-                </span>
-              </div>
-            ))}
-          </div>
+                  <div style={{ minWidth: 0, paddingRight: '4px' }}>
+                    <div style={{ fontSize: '9px', fontWeight: 700, color: themeStyles.textPrimary, lineHeight: 1.2 }}>
+                      {st.step}
+                    </div>
+                    <div style={{ fontSize: '8px', color: themeStyles.textMuted, marginTop: '1px', lineHeight: 1.15 }}>
+                      {st.desc}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '8px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 800,
+                      padding: '1px 4px',
+                      borderRadius: '3px',
+                      backgroundColor: `${st.color}15`,
+                      color: st.color,
+                      border: `1px solid ${st.color}35`,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {st.stat}
+                  </span>
+                </div>
+              ))}
+            </div>
 
-          {/* Canonical Schema Pill Strip */}
-          <div
-            style={{
-              padding: '4px 6px',
-              borderRadius: '4px',
-              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : '#ecfdf5',
-              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#a7f3d0'}`,
-              fontSize: '8.5px',
-              fontFamily: 'var(--font-mono)',
-              color: isDark ? '#34d399' : '#059669',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexShrink: 0,
-            }}
-          >
-            <span>✓ CANONICAL SCHEMA:</span>
-            <strong>ID • TITLE • CLEAN_MD • LATEX • SECTIONS</strong>
+            {/* Canonical Schema Pill Strip */}
+            <div
+              style={{
+                padding: '3px 6px',
+                borderRadius: '4px',
+                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : '#ecfdf5',
+                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#a7f3d0'}`,
+                fontSize: '8px',
+                fontFamily: 'var(--font-mono)',
+                color: isDark ? '#34d399' : '#059669',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexShrink: 0,
+              }}
+            >
+              <span>✓ CANONICAL SCHEMA:</span>
+              <strong>ID • TITLE • CLEAN_MD • LATEX • SECTIONS</strong>
+            </div>
           </div>
         </div>
       </div>
