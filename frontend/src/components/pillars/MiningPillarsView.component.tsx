@@ -6,6 +6,7 @@ import type {
   TrendsResponse,
   ScatterPointItem,
   AssociationRuleItem,
+  GraphNodeItem,
 } from '../../types';
 import {
   fetchAssociationRules,
@@ -19,6 +20,7 @@ import { useLakehouseStreamStore, appendStreamLog } from '../../store';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { useSvgPanZoom, useTranslation } from '../../hooks';
 import { MiningTelemetryStepper } from '../common';
+import { LatexPreviewModal } from './LatexPreviewModal.component';
 
 export interface MiningPillarsViewProps {
   theme?: 'dark' | 'light';
@@ -101,21 +103,25 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   const [inspectedRule, setInspectedRule] = useState<AssociationRuleItem | null>(null);
   const p1PanZoom = useSvgPanZoom({ nominalWidth: 720, nominalHeight: 280, minZoom: 0.75, maxZoom: 3.5 });
 
-  // Pillar 2: Gaussian Mixture Models (GMM) State & Zoom/Pan
+  // Pillar 2: Gaussian Mixture Models (GMM) State & Zoom/Pan & Lens
   const [clustersData, setClustersData] = useState<ClustersResponse | null>(null);
   const [selectedClusterFilter, setSelectedClusterFilter] = useState<number | 'ALL'>('ALL');
   const [gmmViewMode, setGmmViewMode] = useState<'ALL' | 'CORE' | 'CROSS_DOMAIN'>('ALL');
   const [hoveredPoint, setHoveredPoint] = useState<{ point: ScatterPointItem; x: number; y: number } | null>(null);
   const [inspectedPoint, setInspectedPoint] = useState<ScatterPointItem | null>(null);
+  const [isP2LensActive, setIsP2LensActive] = useState<boolean>(false);
+  const [p2LensPos, setP2LensPos] = useState<{ x: number; y: number } | null>(null);
   const p2PanZoom = useSvgPanZoom({ nominalWidth: 2.4, nominalHeight: 2.4, centerOrigin: true, minZoom: 0.75, maxZoom: 3.5 });
 
-  // Pillar 3: Graph State & Degree Filter & Zoom
+  // Pillar 3: Graph State & Degree Filter & Zoom & Lens
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
   const [searchAuthorQuery, setSearchAuthorQuery] = useState<string>('');
   const [degreeFilter, setDegreeFilter] = useState<number>(0);
   const [graphLayout, setGraphLayout] = useState<'circular' | 'force'>('circular');
   const [hoveredGraphNode, setHoveredGraphNode] = useState<{ node: any; x: number; y: number } | null>(null);
   const [selectedGraphNode, setSelectedGraphNode] = useState<any | null>(null);
+  const [isP3LensActive, setIsP3LensActive] = useState<boolean>(false);
+  const [p3LensPos, setP3LensPos] = useState<{ x: number; y: number } | null>(null);
   const p3PanZoom = useSvgPanZoom({ nominalWidth: 580, nominalHeight: 320, minZoom: 0.6, maxZoom: 3.5 });
 
   // Pillar 4: Trend Velocity & Isolation Forest State & Zooms
@@ -124,6 +130,59 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   const [inspectedAnomaly, setInspectedAnomaly] = useState<any | null>(null);
   const p4VelocityPanZoom = useSvgPanZoom({ nominalWidth: 520, nominalHeight: 220, minZoom: 0.5, maxZoom: 3.5 });
   const p4AnomalyPanZoom = useSvgPanZoom({ nominalWidth: 460, nominalHeight: 210, minZoom: 0.5, maxZoom: 3.5 });
+
+  // LaTeX Preview Modal State for All 4 Pillars
+  const [latexModalData, setLatexModalData] = useState<{
+    isOpen: boolean;
+    title: string;
+    code: string;
+    filename: string;
+  } | null>(null);
+
+  // Dynamic Antecedent Filter Categories extracted from rules
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>(['ALL', 'cs.CV', 'cs.AI', 'cs.LG', 'cs.CL', 'cs.RO', 'stat.ML']);
+    if (rulesData?.rules) {
+      rulesData.rules.forEach((r) => {
+        r.antecedents.forEach((a) => {
+          if (a.includes('.')) cats.add(a);
+        });
+        r.consequents.forEach((c) => {
+          if (c.includes('.')) cats.add(c);
+        });
+      });
+    }
+    return Array.from(cats);
+  }, [rulesData]);
+
+  // O(1) Node Lookup Map for Graph links to eliminate O(N^2) render bottleneck
+  const p3NodeMap = useMemo(() => {
+    if (!graphData?.graph_export?.nodes) return new Map<string, { node: GraphNodeItem; index: number }>();
+    const map = new Map<string, { node: GraphNodeItem; index: number }>();
+    graphData.graph_export.nodes.forEach((n, idx) => {
+      map.set(n.id, { node: n, index: idx });
+    });
+    return map;
+  }, [graphData]);
+
+  // Dynamic Scale and Grid ticks for Pillar 4 Outliers
+  const outlierScales = useMemo(() => {
+    if (!trendsData?.anomalies || trendsData.anomalies.length === 0) {
+      return {
+        maxWord: 80000,
+        maxMath: 6000,
+        wordTicks: [0, 20000, 40000, 60000, 80000],
+        mathTicks: [0, 1500, 3000, 4500, 6000],
+      };
+    }
+    const rawMaxWord = Math.max(...trendsData.anomalies.map((a) => a.word_count));
+    const rawMaxMath = Math.max(...trendsData.anomalies.map((a) => a.math_count));
+    const maxWord = Math.max(40000, Math.ceil(rawMaxWord / 20000) * 20000);
+    const maxMath = Math.max(3000, Math.ceil(rawMaxMath / 1500) * 1500);
+    const wordTicks = [0, 0.25, 0.5, 0.75, 1.0].map((f) => Math.round(f * maxWord));
+    const mathTicks = [0, 0.25, 0.5, 0.75, 1.0].map((f) => Math.round(f * maxMath));
+    return { maxWord, maxMath, wordTicks, mathTicks };
+  }, [trendsData]);
 
   const maxVelocityPapers = useMemo(() => {
     if (!trendsData?.trend_velocity || trendsData.trend_velocity.length === 0) return 800;
@@ -513,7 +572,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     return connected;
   }, [selectedGraphNode, hoveredGraphNode, graphData]);
 
-  // LaTeX Export Functions
+  // LaTeX Export Functions with Modal Preview & Direct Download
   const handleCopyLatexRules = () => {
     if (!rulesData) return;
     const lines = [
@@ -529,7 +588,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
       '\\midrule',
     ];
 
-    filteredRules.slice(0, 10).forEach((r) => {
+    filteredRules.slice(0, 15).forEach((r) => {
       const ant = r.antecedents.map((a) => a.replace(/_/g, '\\_')).join(', ');
       const con = r.consequents.map((c) => c.replace(/_/g, '\\_')).join(', ');
       lines.push(
@@ -538,8 +597,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     });
 
     lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
-    navigator.clipboard.writeText(lines.join('\n'));
-    showToast(language === 'vi' ? 'Đã sao chép bảng mã LaTeX Quy tắc kết hợp vào Clipboard!' : 'Copied Association Rules LaTeX Table to Clipboard!');
+    const code = lines.join('\n');
+    setLatexModalData({
+      isOpen: true,
+      title: language === 'vi' ? 'Bảng Mã LaTeX: Quy Tắc Kết Hợp FP-Growth' : 'LaTeX Table: FP-Growth Association Rules',
+      code,
+      filename: 'fp-growth-association-rules.tex',
+    });
   };
 
   const handleCopyLatexClusters = () => {
@@ -548,7 +612,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
       '% - Generated by UTH Scientific Data Mining System -',
       '\\begin{table}[htbp]',
       '\\centering',
-      '\\caption{Semantic Topic Clusters Validity and Distribution (K-Means, 768-D Embeddings)}',
+      '\\caption{Semantic Topic Clusters Validity and Distribution (K-Means / GMM, 768-D Embeddings)}',
       '\\label{tab:cluster_metrics}',
       '\\small',
       '\\begin{tabular}{cclcc}',
@@ -565,8 +629,54 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     });
 
     lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
-    navigator.clipboard.writeText(lines.join('\n'));
-    showToast(language === 'vi' ? 'Đã sao chép bảng mã LaTeX Phân cụm ngữ nghĩa vào Clipboard!' : 'Copied Semantic Clustering LaTeX Table to Clipboard!');
+    const code = lines.join('\n');
+    setLatexModalData({
+      isOpen: true,
+      title: language === 'vi' ? 'Bảng Mã LaTeX: Phân Cụm Ngữ Nghĩa K-Means & GMM' : 'LaTeX Table: Semantic Topic Clustering',
+      code,
+      filename: 'semantic-topic-clusters.tex',
+    });
+  };
+
+  const handleCopyLatexGraph = () => {
+    if (!graphData) return;
+    const lines = [
+      '% - Generated by UTH Scientific Data Mining System -',
+      '\\begin{table}[htbp]',
+      '\\centering',
+      '\\caption{Top Influential Authors by PageRank and Louvain Community Detection}',
+      '\\label{tab:coauthorship_network}',
+      '\\small',
+      '\\begin{tabular}{rllrrr}',
+      '\\toprule',
+      '\\textbf{Rank} & \\textbf{Author} & \\textbf{Community} & \\textbf{PageRank} & \\textbf{Degree} & \\textbf{Papers} \\\\',
+      '\\midrule',
+    ];
+
+    const topNodes = (graphData.top_influencers && graphData.top_influencers.length > 0)
+      ? graphData.top_influencers.slice(0, 15)
+      : [...graphData.graph_export.nodes].sort((a, b) => b.pagerank - a.pagerank).slice(0, 15).map((n) => ({
+          author: n.label || n.id,
+          pagerank: n.pagerank,
+          degree: n.degree,
+          paper_count: n.paper_count || 1,
+          community_id: n.community,
+        }));
+
+    topNodes.forEach((node, idx) => {
+      lines.push(
+        `${idx + 1} & ${node.author.replace(/_/g, '\\_')} & Comm \\#${node.community_id} & ${node.pagerank.toFixed(6)} & ${node.degree} & ${node.paper_count} \\\\`
+      );
+    });
+
+    lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
+    const code = lines.join('\n');
+    setLatexModalData({
+      isOpen: true,
+      title: language === 'vi' ? 'Bảng Mã LaTeX: Mạng Lưới Đồng Tác Giả & PageRank' : 'LaTeX Table: Co-Authorship Network & PageRank',
+      code,
+      filename: 'coauthorship-network-pagerank.tex',
+    });
   };
 
   const handleCopyLatexOutliers = () => {
@@ -584,16 +694,85 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
       '\\midrule',
     ];
 
-    trendsData.anomalies.slice(0, 10).forEach((a) => {
+    trendsData.anomalies.slice(0, 15).forEach((a) => {
       lines.push(
         `${a.paper_id} & ${a.primary_category} & ${a.word_count.toLocaleString()} & ${a.math_count} \\\\`
       );
     });
 
     lines.push('\\bottomrule', '\\end{tabular}', '\\end{table}');
-    navigator.clipboard.writeText(lines.join('\n'));
-    showToast(language === 'vi' ? 'Đã sao chép bảng mã LaTeX Điểm dị biệt vào Clipboard!' : 'Copied Novelty Outliers LaTeX Table to Clipboard!');
+    const code = lines.join('\n');
+    setLatexModalData({
+      isOpen: true,
+      title: language === 'vi' ? 'Bảng Mã LaTeX: Điểm Dị Biệt Isolation Forest' : 'LaTeX Table: Isolation Forest Novelty Outliers',
+      code,
+      filename: 'novelty-outliers.tex',
+    });
   };
+
+  // Reusable Empty State Card for Resilient Pillars
+  const renderPillarEmptyCard = (pillarNum: number, pillarTitle: string) => (
+    <div
+      style={{
+        height: '100%',
+        minHeight: '380px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: themeStyles.cardBg,
+        borderRadius: '8px',
+        border: `1px dashed ${themeStyles.cardBorder}`,
+        padding: '32px',
+        textAlign: 'center',
+        gap: '12px',
+      }}
+    >
+      <div
+        style={{
+          width: '52px',
+          height: '52px',
+          borderRadius: '12px',
+          backgroundColor: 'rgba(234, 88, 12, 0.12)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#ea580c',
+          fontSize: '20px',
+          fontWeight: 800,
+          fontFamily: 'var(--font-mono)',
+        }}
+      >
+        P{pillarNum}
+      </div>
+      <div style={{ fontSize: '15px', fontWeight: 700, color: themeStyles.textPrimary }}>
+        {language === 'vi' ? `Dữ liệu ${pillarTitle} chưa sẵn sàng` : `${pillarTitle} data not loaded`}
+      </div>
+      <div style={{ fontSize: '12px', color: themeStyles.textSecondary, maxWidth: '440px', lineHeight: 1.5 }}>
+        {language === 'vi'
+          ? 'Dữ liệu phân tích đang được tổng hợp từ Lakehouse Parquet trên Cloudflare R2 hoặc tiến trình khai phá nền đang xử lý.'
+          : 'Analytics data is being synchronized from Lakehouse Parquet on Cloudflare R2 or background mining worker is computing.'}
+      </div>
+      <button
+        type="button"
+        onClick={() => handleRecomputePillars(false)}
+        style={{
+          marginTop: '6px',
+          padding: '8px 18px',
+          borderRadius: '6px',
+          fontSize: '12px',
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 700,
+          backgroundColor: '#ea580c',
+          color: '#ffffff',
+          border: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        {language === 'vi' ? '🔄 Tải lại dữ liệu (Reload Data)' : '🔄 Reload Mining Data'}
+      </button>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -1229,7 +1408,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   >
                     {language === 'vi' ? 'Tiền đề:' : 'Antecedent:'}
                   </span>
-                  {['ALL', 'cs.CV', 'cs.AI', 'cs.LG', 'stat.ML'].map((cat) => (
+                  {availableCategories.slice(0, 8).map((cat) => (
                     <button
                       key={cat}
                       type="button"
@@ -1859,7 +2038,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           <div
                             key={idx}
                             onClick={() => setInspectedRule(rule)}
-                            onMouseEnter={() => setHoveredRule({ rule, x: 0, y: 0 })}
+                            onMouseEnter={(e: MouseEvent<HTMLDivElement>) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setHoveredRule({
+                                rule,
+                                x: rect.left + rect.width / 2,
+                                y: rect.top - 8,
+                              });
+                            }}
                             onMouseLeave={() => setHoveredRule(null)}
                             style={{
                               backgroundColor: isSelected
@@ -1925,6 +2111,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             </div>
           </div>
         )}
+        {activePillar === 1 && !rulesData && renderPillarEmptyCard(1, language === 'vi' ? 'Quy tắc kết hợp (FP-Growth)' : 'Association Rules (FP-Growth)')}
 
         {/* ============================================================ */}
         {/* PILLAR 2: TOPIC CLUSTERING 2D VECTOR MANIFOLD (K-MEANS)      */}
@@ -2362,6 +2549,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                     isTheater={isTheaterMode}
                     onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
+                    isLensActive={isP2LensActive}
+                    onToggleLens={() => setIsP2LensActive(!isP2LensActive)}
                     onShowToast={showToast}
                   />
                 </div>
@@ -2381,9 +2570,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                 {/* SVG 2D Canvas */}
                 <div
-                  {...p2PanZoom.containerProps}
+                  {...(isP2LensActive ? {} : p2PanZoom.containerProps)}
                   style={{
-                    ...p2PanZoom.containerProps.style,
+                    ...(isP2LensActive ? {} : p2PanZoom.containerProps.style),
                     flex: 1,
                     minHeight: 0,
                     width: '100%',
@@ -2397,7 +2586,25 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   <svg
                     ref={p2SvgRef}
                     viewBox={p2PanZoom.viewBox}
-                    style={{ width: '100%', height: '100%' }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      cursor: isP2LensActive ? 'crosshair' : (p2PanZoom.containerProps.style?.cursor || 'default'),
+                    }}
+                    onMouseMove={(e: MouseEvent<SVGSVGElement>) => {
+                      if (!isP2LensActive) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const [vx, vy, vw, vh] = p2PanZoom.viewBox.split(' ').map(Number);
+                      const scaleX = (vw || 2.4) / rect.width;
+                      const scaleY = (vh || 2.4) / rect.height;
+                      setP2LensPos({
+                        x: (vx !== undefined ? vx : -1.2) + (e.clientX - rect.left) * scaleX,
+                        y: (vy !== undefined ? vy : -1.2) + (e.clientY - rect.top) * scaleY,
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      if (isP2LensActive) setP2LensPos(null);
+                    }}
                   >
                     {/* Crosshairs & Polar Concentric Rings */}
                     <line
@@ -2499,7 +2706,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                   const labelText = isSelected
                                     ? `CỤM #${ellipse.cluster_id}: ${shortTopic} (W: ${(ellipse.weight * 100).toFixed(1)}%)`
                                     : `C#${ellipse.cluster_id}: ${shortTopic}`;
-                                  const pillWidth = (isSelected ? 0.58 : 0.36) / p2PanZoom.zoom;
+                                  const charWidth = (isSelected ? 0.022 : 0.017) / p2PanZoom.zoom;
+                                  const minWidth = (isSelected ? 0.60 : 0.38) / p2PanZoom.zoom;
+                                  const pillWidth = Math.max(minWidth, labelText.length * charWidth + (0.08 / p2PanZoom.zoom));
                                   const pillHeight = (isSelected ? 0.065 : 0.048) / p2PanZoom.zoom;
                                   return (
                                     <g opacity={isDimmed ? 0.3 : 0.95}>
@@ -2641,6 +2850,71 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             </g>
                           );
                         })}
+
+                        {/* Magnifier Lens 2.5x Tool for Dense GMM Point Clusters */}
+                        {isP2LensActive && p2LensPos && (
+                          <g style={{ pointerEvents: 'none' }}>
+                            <circle
+                              cx={p2LensPos.x}
+                              cy={p2LensPos.y}
+                              r={0.42 / p2PanZoom.zoom}
+                              fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
+                              stroke="#38bdf8"
+                              strokeWidth={0.012 / p2PanZoom.zoom}
+                            />
+                            <circle
+                              cx={p2LensPos.x}
+                              cy={p2LensPos.y}
+                              r={0.42 / p2PanZoom.zoom}
+                              fill="none"
+                              stroke="rgba(255, 255, 255, 0.2)"
+                              strokeWidth={0.006 / p2PanZoom.zoom}
+                            />
+                            <text
+                              x={p2LensPos.x}
+                              y={p2LensPos.y - 0.33 / p2PanZoom.zoom}
+                              textAnchor="middle"
+                              fontSize={0.045 / p2PanZoom.zoom}
+                              fontFamily="var(--font-mono)"
+                              fontWeight="800"
+                              fill="#38bdf8"
+                            >
+                              LENS 2.5X
+                            </text>
+                            {filteredClusterPoints.map((pt) => {
+                              const { nx, ny } = getNormalizedPointCoord(pt.x, pt.y);
+                              const dist = Math.hypot(nx - p2LensPos.x, ny - p2LensPos.y);
+                              if (dist > 0.40 / p2PanZoom.zoom) return null;
+                              const magX = p2LensPos.x + (nx - p2LensPos.x) * 2.2;
+                              const magY = p2LensPos.y + (ny - p2LensPos.y) * 2.2;
+                              if (Math.hypot(magX - p2LensPos.x, magY - p2LensPos.y) > 0.40 / p2PanZoom.zoom) return null;
+                              const ptColor = clusterColors[pt.cluster % clusterColors.length];
+                              return (
+                                <g key={`lens-p2-${pt.paper_id}`}>
+                                  <circle
+                                    cx={magX}
+                                    cy={magY}
+                                    r={0.038 / p2PanZoom.zoom}
+                                    fill={ptColor}
+                                    stroke="#ffffff"
+                                    strokeWidth={0.008 / p2PanZoom.zoom}
+                                  />
+                                  <text
+                                    x={magX}
+                                    y={magY - 0.045 / p2PanZoom.zoom}
+                                    textAnchor="middle"
+                                    fontSize={0.030 / p2PanZoom.zoom}
+                                    fontFamily="var(--font-mono)"
+                                    fontWeight="800"
+                                    fill={themeStyles.textPrimary}
+                                  >
+                                    {pt.paper_id}
+                                  </text>
+                                </g>
+                              );
+                            })}
+                          </g>
+                        )}
                       </svg>
                       {p2PanZoom.hasPannedOrZoomed && (
                         <div
@@ -3108,6 +3382,75 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                   }}
                                 />
                               </div>
+
+                              {/* Cross-Pillar 1-Click Drilldown Actions */}
+                              {isFiltered && (
+                                <div
+                                  style={{
+                                    marginTop: '8px',
+                                    paddingTop: '6px',
+                                    borderTop: `1px dashed ${color}50`,
+                                    display: 'flex',
+                                    gap: '6px',
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const cat = meta.domain.split(',')[0].trim();
+                                      setAntecedentFilter(cat || 'ALL');
+                                      setActivePillar(1);
+                                      showToast(
+                                        language === 'vi'
+                                          ? `Đã lọc luật FP-Growth theo chuyên ngành ${cat}`
+                                          : `Filtered FP-Growth rules for ${cat}`
+                                      );
+                                    }}
+                                    style={{
+                                      flex: 1,
+                                      padding: '4px 6px',
+                                      borderRadius: '4px',
+                                      fontSize: '9px',
+                                      fontFamily: 'var(--font-mono)',
+                                      fontWeight: 800,
+                                      backgroundColor: isDark ? 'rgba(234, 88, 12, 0.2)' : '#ffedd5',
+                                      color: '#ea580c',
+                                      border: '1px solid #ea580c',
+                                      cursor: 'pointer',
+                                    }}
+                                    title={language === 'vi' ? 'Xem các luật kết hợp liên quan ở Trụ cột 1' : 'View associated rules in Pillar 1'}
+                                  >
+                                    ⚡ {language === 'vi' ? 'Luật (P1)' : 'Rules (P1)'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActivePillar(3);
+                                      showToast(
+                                        language === 'vi'
+                                          ? `Khảo sát mạng lưới tác giả chủ đề ${meta.title}`
+                                          : `Exploring author network for ${meta.title}`
+                                      );
+                                    }}
+                                    style={{
+                                      flex: 1,
+                                      padding: '4px 6px',
+                                      borderRadius: '4px',
+                                      fontSize: '9px',
+                                      fontFamily: 'var(--font-mono)',
+                                      fontWeight: 800,
+                                      backgroundColor: isDark ? 'rgba(168, 85, 247, 0.2)' : '#f3e8ff',
+                                      color: '#a855f7',
+                                      border: '1px solid #a855f7',
+                                      cursor: 'pointer',
+                                    }}
+                                    title={language === 'vi' ? 'Xem mạng lưới đồng tác giả ở Trụ cột 3' : 'View co-authorship network in Pillar 3'}
+                                  >
+                                    🌐 {language === 'vi' ? 'Tác giả (P3)' : 'Authors (P3)'}
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -3119,6 +3462,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             </div>
           </div>
         )}
+        {activePillar === 2 && !clustersData && renderPillarEmptyCard(2, language === 'vi' ? 'Phân cụm chủ đề 2D (K-Means & GMM)' : 'Semantic Topic Clusters (K-Means & GMM)')}
 
         {/* ============================================================ */}
         {/* PILLAR 3: CO-AUTHORSHIP COLLABORATION GRAPH & PAGERANK       */}
@@ -3308,6 +3652,32 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       ))}
                     </div>
 
+                    {/* LaTeX Export Button for Pillar 3 */}
+                    <button
+                      type="button"
+                      onClick={handleCopyLatexGraph}
+                      style={{
+                        backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f3e8ff',
+                        color: '#a855f7',
+                        border: '1px solid rgba(168, 85, 247, 0.3)',
+                        borderRadius: '4px',
+                        padding: '3px 8px',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                      title={language === 'vi' ? 'Xem trước và sao chép mã LaTeX bảng tác giả' : 'Preview and export LaTeX table for top authors'}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                        <span>LaTeX Table</span>
+                      </span>
+                    </button>
+
                     <ChartToolbar
                       theme={theme}
                       language={language}
@@ -3327,6 +3697,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                       isTheater={isTheaterMode}
                       onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
+                      isLensActive={isP3LensActive}
+                      onToggleLens={() => setIsP3LensActive(!isP3LensActive)}
                       onShowToast={showToast}
                     />
                   </div>
@@ -3347,9 +3719,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                 {/* SVG Graph Canvas */}
                 <div
-                  {...p3PanZoom.containerProps}
+                  {...(isP3LensActive ? {} : p3PanZoom.containerProps)}
                   style={{
-                    ...p3PanZoom.containerProps.style,
+                    ...(isP3LensActive ? {} : p3PanZoom.containerProps.style),
                     flex: 1,
                     minHeight: 0,
                     width: '100%',
@@ -3363,20 +3735,41 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   <svg
                     ref={p3SvgRef}
                     viewBox={p3PanZoom.viewBox}
-                    style={{ width: '100%', height: '100%' }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      cursor: isP3LensActive ? 'crosshair' : (p3PanZoom.containerProps.style?.cursor || 'default'),
+                    }}
+                    onMouseMove={(e: MouseEvent<SVGSVGElement>) => {
+                      if (!isP3LensActive) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const [vx, vy, vw, vh] = p3PanZoom.viewBox.split(' ').map(Number);
+                      const scaleX = (vw || 580) / rect.width;
+                      const scaleY = (vh || 320) / rect.height;
+                      setP3LensPos({
+                        x: (vx !== undefined ? vx : 0) + (e.clientX - rect.left) * scaleX,
+                        y: (vy !== undefined ? vy : 0) + (e.clientY - rect.top) * scaleY,
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      if (isP3LensActive) setP3LensPos(null);
+                    }}
                   >
-                    {/* Edges with Ego-network and Inter-community bridge highlighting */}
+                    {/* Edges with Ego-network and Inter-community bridge highlighting (O(1) Hash Map Traversal) */}
                     {graphData.graph_export.links.slice(0, 160).map((link, idx) => {
-                      const srcNode = graphData.graph_export.nodes.find((n) => n.id === link.source);
-                      const tgtNode = graphData.graph_export.nodes.find((n) => n.id === link.target);
-                      if (!srcNode || !tgtNode) return null;
+                      const srcEntry = p3NodeMap.get(link.source);
+                      const tgtEntry = p3NodeMap.get(link.target);
+                      if (!srcEntry || !tgtEntry) return null;
+
+                      const srcNode = srcEntry.node;
+                      const tgtNode = tgtEntry.node;
 
                       if (degreeFilter > 0 && (srcNode.degree < degreeFilter || tgtNode.degree < degreeFilter)) {
                         return null;
                       }
 
-                      const srcIdx = graphData.graph_export.nodes.indexOf(srcNode);
-                      const tgtIdx = graphData.graph_export.nodes.indexOf(tgtNode);
+                      const srcIdx = srcEntry.index;
+                      const tgtIdx = tgtEntry.index;
 
                       const srcCoord = getNodeCoordinates(srcNode, srcIdx, graphData.graph_export.nodes.length);
                       const tgtCoord = getNodeCoordinates(tgtNode, tgtIdx, graphData.graph_export.nodes.length);
@@ -3428,26 +3821,38 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       );
                     })}
 
-                    {/* Community Sector Badge Labels for Circular Layout */}
+                    {/* Community Sector Badge Labels for Circular Layout with Shielding Backdrop */}
                     {graphLayout === 'circular' && [0, 1, 2, 3, 4, 5].map((cId) => {
                       const commAngle = (cId * 60) * (Math.PI / 180);
                       const labelX = 290 + Math.cos(commAngle) * 168;
                       const labelY = 160 + Math.sin(commAngle) * 130;
+                      const commColor = clusterColors[cId % clusterColors.length];
                       return (
-                        <text
-                          key={cId}
-                          x={labelX}
-                          y={labelY + 3}
-                          textAnchor="middle"
-                          fontSize="9"
-                          fontFamily="var(--font-mono)"
-                          fontWeight="800"
-                          fill={clusterColors[cId % clusterColors.length]}
-                          opacity="0.85"
-                          style={{ pointerEvents: 'none' }}
-                        >
-                          COMMUNITY #{cId}
-                        </text>
+                        <g key={cId} style={{ pointerEvents: 'none' }}>
+                          <rect
+                            x={labelX - 44}
+                            y={labelY - 7}
+                            width="88"
+                            height="18"
+                            rx="4"
+                            fill={isDark ? 'rgba(15, 23, 42, 0.90)' : 'rgba(255, 255, 255, 0.94)'}
+                            stroke={commColor}
+                            strokeWidth="1"
+                            strokeOpacity="0.65"
+                          />
+                          <text
+                            x={labelX}
+                            y={labelY + 5}
+                            textAnchor="middle"
+                            fontSize="9"
+                            fontFamily="var(--font-mono)"
+                            fontWeight="800"
+                            fill={commColor}
+                            opacity="0.95"
+                          >
+                            COMMUNITY #{cId}
+                          </text>
+                        </g>
                       );
                     })}
 
@@ -3516,6 +3921,72 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         </g>
                       );
                     })}
+
+                    {/* Magnifier Lens 2.5x Tool for Dense Co-authorship Networks */}
+                    {isP3LensActive && p3LensPos && (
+                      <g style={{ pointerEvents: 'none' }}>
+                        <circle
+                          cx={p3LensPos.x}
+                          cy={p3LensPos.y}
+                          r={65 / p3PanZoom.zoom}
+                          fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
+                          stroke="#a855f7"
+                          strokeWidth={2 / p3PanZoom.zoom}
+                        />
+                        <circle
+                          cx={p3LensPos.x}
+                          cy={p3LensPos.y}
+                          r={65 / p3PanZoom.zoom}
+                          fill="none"
+                          stroke="rgba(255, 255, 255, 0.2)"
+                          strokeWidth={1 / p3PanZoom.zoom}
+                        />
+                        <text
+                          x={p3LensPos.x}
+                          y={p3LensPos.y - 52 / p3PanZoom.zoom}
+                          textAnchor="middle"
+                          fontSize={9 / p3PanZoom.zoom}
+                          fontFamily="var(--font-mono)"
+                          fontWeight="800"
+                          fill="#a855f7"
+                        >
+                          LENS 2.5X
+                        </text>
+                        {graphData.graph_export.nodes.slice(0, 80).map((node, idx) => {
+                          if (degreeFilter > 0 && node.degree < degreeFilter) return null;
+                          const { cx, cy } = getNodeCoordinates(node, idx, 80);
+                          const dist = Math.hypot(cx - p3LensPos.x, cy - p3LensPos.y);
+                          if (dist > 60 / p3PanZoom.zoom) return null;
+                          const magX = p3LensPos.x + (cx - p3LensPos.x) * 2.2;
+                          const magY = p3LensPos.y + (cy - p3LensPos.y) * 2.2;
+                          if (Math.hypot(magX - p3LensPos.x, magY - p3LensPos.y) > 60 / p3PanZoom.zoom) return null;
+                          const nodeColor = clusterColors[node.community % clusterColors.length];
+                          return (
+                            <g key={`lens-p3-${node.id}`}>
+                              <circle
+                                cx={magX}
+                                cy={magY}
+                                r={Math.max(4.5, node.pagerank * 1600) / p3PanZoom.zoom}
+                                fill={nodeColor}
+                                stroke="#ffffff"
+                                strokeWidth={1.5 / p3PanZoom.zoom}
+                              />
+                              <text
+                                x={magX}
+                                y={magY - 8 / p3PanZoom.zoom}
+                                textAnchor="middle"
+                                fontSize={8 / p3PanZoom.zoom}
+                                fontFamily="var(--font-mono)"
+                                fontWeight="800"
+                                fill={themeStyles.textPrimary}
+                              >
+                                {node.label || node.id}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </g>
+                    )}
                   </svg>
                   {p3PanZoom.hasPannedOrZoomed && (
                     <div
@@ -3893,6 +4364,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             </div>
           </div>
         )}
+        {activePillar === 3 && !graphData && renderPillarEmptyCard(3, language === 'vi' ? 'Mạng lưới đồng tác giả (Louvain & PageRank)' : 'Co-Authorship Network (Louvain & PageRank)')}
 
         {/* ============================================================ */}
         {/* PILLAR 4: TREND VELOCITY & NOVELTY OUTLIER CHARTS            */}
@@ -4340,22 +4812,22 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               </g>
                             )}
 
-                        {/* X-Axis Grid & Labels (Words: 0 to 80k) */}
-                        {[0, 20000, 40000, 60000, 80000].map((w) => {
-                          const x = 45 + (w / 80000) * 375;
+                        {/* X-Axis Grid & Labels (Words: Dynamic Scale) */}
+                        {outlierScales.wordTicks.map((w) => {
+                          const x = 45 + (w / outlierScales.maxWord) * 375;
                           return (
                             <g key={w}>
                               <line x1={x} y1="22" x2={x} y2="188" stroke={themeStyles.gridLine} strokeDasharray="2 3" strokeWidth="1" />
                               <text x={x} y="199" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                                {w > 0 ? `${w / 1000}k` : '0'}
+                                {w > 0 ? `${Math.round(w / 1000)}k` : '0'}
                               </text>
                             </g>
                           );
                         })}
 
-                        {/* Y-Axis Grid & Labels (Math Formulas: 0 to 6k) */}
-                        {[0, 1500, 3000, 4500, 6000].map((m) => {
-                          const y = 188 - (m / 6000) * 160;
+                        {/* Y-Axis Grid & Labels (Math Formulas: Dynamic Scale) */}
+                        {outlierScales.mathTicks.map((m) => {
+                          const y = 188 - (m / outlierScales.maxMath) * 160;
                           return (
                             <g key={m}>
                               <line x1="45" y1={y} x2="425" y2={y} stroke={themeStyles.gridLine} strokeDasharray="2 3" strokeWidth="1" />
@@ -4385,8 +4857,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                         {/* Outlier Dots */}
                         {trendsData.anomalies.map((anom, idx) => {
-                          const cx = 45 + Math.min(375, (anom.word_count / 80000) * 375);
-                          const cy = 188 - Math.min(160, (anom.math_count / 6000) * 160);
+                          const cx = 45 + Math.min(375, (anom.word_count / outlierScales.maxWord) * 375);
+                          const cy = 188 - Math.min(160, (anom.math_count / outlierScales.maxMath) * 160);
                           const isHovered = hoveredAnomaly?.item.paper_id === anom.paper_id;
                           const isSelected = inspectedAnomaly?.paper_id === anom.paper_id;
 
@@ -4566,6 +5038,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             </div>
           </div>
         )}
+        {activePillar === 4 && !trendsData && renderPillarEmptyCard(4, language === 'vi' ? 'Tốc độ tăng trưởng & Điểm dị biệt' : 'Trend Velocity & Novelty Outliers')}
       </div>
 
       {/* ============================================================== */}
@@ -4697,6 +5170,21 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             {hoveredAnomaly.item.math_count} equations &bull; {hoveredAnomaly.item.word_count.toLocaleString()} words
           </div>
         </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* SCIENTIFIC LATEX EXPORT & PREVIEW MODAL                        */}
+      {/* ============================================================== */}
+      {latexModalData && (
+        <LatexPreviewModal
+          isOpen={latexModalData.isOpen}
+          onClose={() => setLatexModalData(null)}
+          title={latexModalData.title}
+          latexCode={latexModalData.code}
+          filename={latexModalData.filename}
+          language={language}
+          theme={theme}
+        />
       )}
     </div>
   );
