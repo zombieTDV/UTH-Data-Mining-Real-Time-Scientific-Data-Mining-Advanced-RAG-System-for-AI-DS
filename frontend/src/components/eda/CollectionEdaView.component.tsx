@@ -81,7 +81,6 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
   const [selectedSource, setSelectedSource] = useState<string>('ALL');
   const [hoveredSource, setHoveredSource] = useState<string | null>(null);
   const [hoveredYear, setHoveredYear] = useState<string | null>(null);
-  const [isAiInsightExpanded, setIsAiInsightExpanded] = useState<boolean>(false);
 
   // -------------------------------------------------------------------------
   // 1. SLICER & CATEGORY SYNCHRONIZATION
@@ -826,82 +825,7 @@ export const CollectionEdaView: FC<CollectionEdaViewProps> = ({
         </div>
       </div>
 
-      {/* ============================================================== */}
-      {/* 4. COLLAPSIBLE SMART AI EXECUTIVE INSIGHT PILL                 */}
-      {/* ============================================================== */}
-      <div
-        style={{
-          borderRadius: '6px',
-          backgroundColor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#f8fafc',
-          border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.25)' : '#e2e8f0'}`,
-          padding: '5px 10px',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
-            <span style={{ color: '#8b5cf6', fontSize: '12px' }}>✦</span>
-            <span style={{ fontSize: '10px', fontWeight: 800, color: themeStyles.textPrimary, whiteSpace: 'nowrap' }}>
-              AI Executive Insight:
-            </span>
-            <span style={{ fontSize: '9.5px', color: themeStyles.textSecondary, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-              Toàn bộ {displayedTotalPapers.toLocaleString()} bài báo toàn văn từ 3 nguồn ({sourceSharesSummary}) đạt 100% chuẩn cấu trúc RAG; không áp dụng nội suy điểm giả cho review_score nhằm tránh méo mó phân phối.
-            </span>
-          </div>
 
-          <button
-            type="button"
-            onClick={() => setIsAiInsightExpanded((v) => !v)}
-            style={{
-              background: 'none',
-              border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.35)' : '#c4b5fd'}`,
-              borderRadius: '4px',
-              padding: '1px 6px',
-              fontSize: '8.5px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              color: isDark ? '#c4b5fd' : '#7c3aed',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              marginLeft: '8px',
-            }}
-          >
-            {isAiInsightExpanded ? '▲ Thu gọn' : '▼ Chi tiết phân tích'}
-          </button>
-        </div>
-
-        {/* Expandable Breakdown Drawer */}
-        {isAiInsightExpanded && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '8px',
-              marginTop: '6px',
-              paddingTop: '6px',
-              borderTop: `1px dashed ${themeStyles.border}`,
-              fontSize: '9px',
-              color: themeStyles.textSecondary,
-              lineHeight: 1.45,
-            }}
-          >
-            <div style={{ backgroundColor: themeStyles.cardBg, padding: '6px 8px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
-              <strong style={{ color: themeStyles.textPrimary, display: 'block', marginBottom: '2px' }}>
-                1. Toàn Vẹn &amp; Khuyết Thiếu Dữ Liệu
-              </strong>
-              • Bảo toàn 100.0% dữ liệu ở các trường định danh ID, Title, Clean Fulltext.<br />
-              • Tóm tắt đạt 99.8% và Tác giả đạt 99.5% độ đầy đủ; điểm phản biện chỉ hiện diện tại OpenReview ({(sources.find((s) => s.key === 'openreview')?.count || 3000).toLocaleString()} bài).
-            </div>
-            <div style={{ backgroundColor: themeStyles.cardBg, padding: '6px 8px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
-              <strong style={{ color: themeStyles.textPrimary, display: 'block', marginBottom: '2px' }}>
-                2. Quy Chuẩn Sẵn Sàng Cho RAG
-              </strong>
-              • Không gán điểm đánh giá giả định cho bài arXiv/CVF để bảo toàn phân phối xác suất gốc.<br />
-              • Khử 3.8% nhiễu header/footer, bóc tách {displayedMath.toLocaleString()} công thức toán LaTeX phục vụ truy hồi chính xác.
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* ============================================================== */}
       {/* 5. BALANCED 2-COLUMN COMMAND CENTER (ZERO-SCROLL VIEWPORT)     */}
