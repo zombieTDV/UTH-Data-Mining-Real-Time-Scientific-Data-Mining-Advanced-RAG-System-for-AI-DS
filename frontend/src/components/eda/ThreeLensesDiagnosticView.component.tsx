@@ -29,6 +29,8 @@ interface ThreeLensesDiagnosticViewProps {
   onTabChange?: (tab: 'lens3_bivariate' | 'lens2_univariate') => void;
   selectedCategory?: string;
   selectedMathFilter?: 'ALL' | 'HIGH' | 'MED' | 'LOW';
+  selectedPairKey?: string;
+  onSelectPairKey?: (key: string) => void;
 }
 
 export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
@@ -43,11 +45,18 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   activeTab = 'lens3_bivariate',
   selectedCategory = 'ALL',
   selectedMathFilter = 'ALL',
+  selectedPairKey: propSelectedPairKey,
+  onSelectPairKey,
 }) => {
   const isDark = theme === 'dark';
 
   // Pair selection in Lens 3 (default: words_x_math_density from lecture case study)
-  const [selectedPairKey, setSelectedPairKey] = useState<string>('words_x_math_density');
+  const [internalPairKey, setInternalPairKey] = useState<string>('words_x_math_density');
+  const selectedPairKey = propSelectedPairKey || internalPairKey;
+  const setSelectedPairKey = (key: string) => {
+    setInternalPairKey(key);
+    onSelectPairKey?.(key);
+  };
 
   // Feature selection in Lens 2
   const [selectedUnivariateKey, setSelectedUnivariateKey] = useState<string>('math_density');

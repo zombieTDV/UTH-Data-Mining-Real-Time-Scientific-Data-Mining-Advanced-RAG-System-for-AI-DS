@@ -410,16 +410,22 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
     handleRunExplorerQuery(sql);
   };
 
-  useEffect(() => {
-    handleRunExplorerQuery('SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers LIMIT 20;');
-  }, []);
-
   // Slide-over Paper Detail Drawer state
   const [selectedPaperForDrawer, setSelectedPaperForDrawer] = useState<ScatterPaperPoint | null>(null);
 
   // PowerBI Interactive Slicers / Filters
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedMathFilter, setSelectedMathFilter] = useState<'ALL' | 'HIGH' | 'MED' | 'LOW'>('ALL');
+  const [selectedPairKey, setSelectedPairKey] = useState<string>('words_x_math_density');
+
+  // Auto-sync DuckDB Explorer query when Slicer changes category
+  useEffect(() => {
+    const sql = selectedCategory !== 'ALL'
+      ? `SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers WHERE primary_category = '${selectedCategory}' LIMIT 20;`
+      : 'SELECT paper_id, title, primary_category, total_math_count, total_words, authors FROM papers LIMIT 20;';
+    setExplorerQuery(sql);
+    handleRunExplorerQuery(sql);
+  }, [selectedCategory]);
 
   // Toast feedback message (e.g. for Copy LaTeX, Copy BibTeX)
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
@@ -1571,6 +1577,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
             activeTab="lens2_univariate"
             selectedCategory={selectedCategory}
             selectedMathFilter={selectedMathFilter}
+            selectedPairKey={selectedPairKey}
+            onSelectPairKey={setSelectedPairKey}
             onShowToast={(msg) => {
               setFeedbackToast(msg);
               setTimeout(() => setFeedbackToast(null), 2500);
@@ -1593,6 +1601,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
             activeTab="lens3_bivariate"
             selectedCategory={selectedCategory}
             selectedMathFilter={selectedMathFilter}
+            selectedPairKey={selectedPairKey}
+            onSelectPairKey={setSelectedPairKey}
             onShowToast={(msg) => {
               setFeedbackToast(msg);
               setTimeout(() => setFeedbackToast(null), 2500);
@@ -3030,6 +3040,39 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                                   <td
                                     key={colF.key}
                                     onMouseEnter={() => setHoveredCorrelationCell({ row: rowF.label, col: colF.label, val: cell.r, p: cell.p, stars: cell.stars, note: cell.note })}
+                                    onClick={() => {
+                                      let matchedPair: string | null = null;
+                                      const k1 = rowF.key;
+                                      const k2 = colF.key;
+                                      if ((k1 === 'words' && k2 === 'math') || (k1 === 'math' && k2 === 'words')) {
+                                        matchedPair = 'words_x_math';
+                                      } else if ((k1 === 'words' && k2 === 'math_density') || (k1 === 'math_density' && k2 === 'words')) {
+                                        matchedPair = 'words_x_math_density';
+                                      } else if ((k1 === 'math' && k2 === 'authors') || (k1 === 'authors' && k2 === 'math')) {
+                                        matchedPair = 'math_x_authors';
+                                      } else if ((k1 === 'words' && k2 === 'citations') || (k1 === 'citations' && k2 === 'words')) {
+                                        matchedPair = 'words_x_citations';
+                                      }
+
+                                      if (matchedPair) {
+                                        setSelectedPairKey(matchedPair);
+                                        setActiveDeck('scatter');
+                                        setFeedbackToast(
+                                          language === 'vi'
+                                            ? `Mở phân tích phân cụm GMM 2D cho cặp biến [${rowF.short} × ${colF.short}]`
+                                            : `Opening 2D GMM clustering for [${rowF.short} × ${colF.short}]`
+                                        );
+                                        setTimeout(() => setFeedbackToast(null), 2500);
+                                      } else {
+                                        setFeedbackToast(
+                                          language === 'vi'
+                                            ? `Tương quan [${rowF.short} × ${colF.short}]: ${correlationMetric === 'pearson' ? 'r' : 'ρ'} = ${cell.r}`
+                                            : `Correlation [${rowF.short} × ${colF.short}]: ${correlationMetric === 'pearson' ? 'r' : 'ρ'} = ${cell.r}`
+                                        );
+                                        setTimeout(() => setFeedbackToast(null), 2500);
+                                      }
+                                    }}
+                                    title={`Click để mở phân tích phân cụm 2D cho cặp [${rowF.short} × ${colF.short}]`}
                                     style={{
                                       padding: correlationDimensionMode === 'extended' ? '6px 4px' : '9px 6px',
                                       textAlign: 'center',
@@ -3547,12 +3590,29 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
         {/* SLIDE-OVER PAPER DETAIL DRAWER (Trượt từ cạnh phải)           */}
         {/* ============================================================ */}
         {selectedPaperForDrawer && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              bottom: 0,
+          <>
+            {/* Backdrop click to dismiss */}
+            <div
+              onClick={() => setSelectedPaperForDrawer(null)}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(15, 23, 42, 0.25)',
+                backdropFilter: 'blur(2px)',
+                zIndex: 55,
+                cursor: 'pointer',
+              }}
+              title={language === 'vi' ? 'Nhấp để đóng ngăn kéo chi tiết' : 'Click to close paper details'}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                bottom: 0,
               width: '420px',
               maxWidth: '90%',
               backgroundColor: isDark ? '#0b1120' : '#ffffff',
@@ -3741,7 +3801,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
               </div>
             </div>
           </div>
-        )}
+        </>
+      )}
       </div>
 
 
