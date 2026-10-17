@@ -305,10 +305,26 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   };
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const [drawerHeight, setDrawerHeight] = useState<number>(280);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('start-flow');
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [harvesterSubTab, setHarvesterSubTab] = useState<'ingestion' | 'scheduler'>('ingestion');
   const [r2SubTab, setR2SubTab] = useState<'overview' | 'partitions'>('overview');
+
+  useEffect(() => {
+    if (drawerOpen && drawerRef.current) {
+      const updateHeight = () => {
+        if (drawerRef.current) {
+          setDrawerHeight(drawerRef.current.offsetHeight || 280);
+        }
+      };
+      updateHeight();
+      const ro = new ResizeObserver(updateHeight);
+      ro.observe(drawerRef.current);
+      return () => ro.disconnect();
+    }
+  }, [drawerOpen]);
 
   useEffect(() => {
     if (inspectNodeTrigger) {
@@ -564,6 +580,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     if (!el) return;
 
     const onWheel = (e: WheelEvent) => {
+      if ((e.target as HTMLElement).closest('section, aside, textarea, input, select, table, .drawer-scroll')) {
+        return;
+      }
       e.preventDefault();
       const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
       setZoom((prev) => {
@@ -1097,7 +1116,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
       >
         <div
           style={{
-            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -130 : 15)}px) scale(${drawerOpen ? Math.min(zoom, 0.76) : zoom})`,
+            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -75 : 0)}px) scale(${zoom})`,
             transformOrigin: 'center center',
             transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
             display: 'flex',
@@ -3585,13 +3604,14 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
       {/* ============================================================== */}
       {drawerOpen && selectedTool && (
         <section
+          ref={drawerRef}
           style={{
             position: 'fixed',
             bottom: 0,
             left: '58px',   // Aligned beside the 58px sidebar rail
             right: 0,
             height: 'auto',
-            maxHeight: 'min(500px, 60vh)',
+            maxHeight: 'min(380px, 45vh)',
             backgroundColor: themeStyles.drawerBg,
             borderTop: `2px solid ${themeStyles.drawerBorder}`,
             boxShadow: isDark ? '0 -10px 32px rgba(0, 0, 0, 0.55)' : '0 -10px 32px rgba(0, 0, 0, 0.12)',
@@ -5324,22 +5344,22 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
       <div
         style={{
           position: 'fixed',
-          bottom: drawerOpen ? 'min(520px, calc(60vh + 16px))' : '18px',
+          bottom: drawerOpen ? `${drawerHeight + 12}px` : '18px',
           right: '24px',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '6px',
           backgroundColor: themeStyles.zoomBarBg,
           backdropFilter: 'blur(12px)',
           borderRadius: '8px',
           border: `1px solid ${themeStyles.zoomBarBorder}`,
-          padding: '4px 10px',
+          padding: '4px 8px',
           boxShadow: isDark ? '0 4px 16px rgba(0, 0, 0, 0.45)' : '0 4px 12px rgba(0, 0, 0, 0.08)',
-          zIndex: 35,
+          zIndex: 45,
           transition: 'bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginRight: '4px' }}>
+        <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginRight: '2px', fontWeight: 700 }}>
           CANVAS
         </span>
 
@@ -5348,18 +5368,19 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           onClick={() => setZoom((z) => Math.max(parseFloat((z - 0.1).toFixed(2)), 0.4))}
           title={language === 'vi' ? 'Thu nhỏ (Cuộn chuột xuống)' : 'Zoom Out (Mouse Wheel Down)'}
           style={{
-            width: '28px',
-            height: '28px',
+            width: '26px',
+            height: '26px',
             border: `1px solid ${themeStyles.zoomBtnBorder}`,
             borderRadius: '6px',
             backgroundColor: themeStyles.zoomBtnBg,
             color: themeStyles.zoomBtnText,
-            fontSize: '15px',
+            fontSize: '14px',
             fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            transition: 'all 0.15s ease',
           }}
         >
           -
@@ -5369,7 +5390,7 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           type="button"
           onClick={() => {
             setZoom(1.0);
-            setPan({ x: 0, y: 0 });
+            setPan({ x: 0, y: drawerOpen ? -70 : 0 });
           }}
           title={language === 'vi' ? 'Đặt lại Thu phóng & Vị trí (100%)' : 'Reset Zoom & Pan (100%)'}
           style={{
@@ -5380,8 +5401,10 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
             fontSize: '11px',
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
-            padding: '4px 8px',
+            padding: '4px 6px',
             cursor: 'pointer',
+            minWidth: '40px',
+            textAlign: 'center',
           }}
         >
           {Math.round(zoom * 100)}%
@@ -5392,81 +5415,49 @@ Grounded Source Context (${liveVectors.toLocaleString()} indexed vectors):
           onClick={() => setZoom((z) => Math.min(parseFloat((z + 0.1).toFixed(2)), 2.4))}
           title={language === 'vi' ? 'Phóng to (Cuộn chuột lên)' : 'Zoom In (Mouse Wheel Up)'}
           style={{
-            width: '28px',
-            height: '28px',
+            width: '26px',
+            height: '26px',
             border: `1px solid ${themeStyles.zoomBtnBorder}`,
             borderRadius: '6px',
             backgroundColor: themeStyles.zoomBtnBg,
             color: themeStyles.zoomBtnText,
-            fontSize: '15px',
+            fontSize: '14px',
             fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            transition: 'all 0.15s ease',
           }}
         >
           +
         </button>
 
-        <div style={{ width: '1px', height: '18px', backgroundColor: themeStyles.zoomBtnBorder, margin: '0 2px' }} />
+        <div style={{ width: '1px', height: '16px', backgroundColor: themeStyles.zoomBtnBorder, margin: '0 2px' }} />
 
+        {/* Fit to View with Intuitive Reticle Target Icon */}
         <button
           type="button"
-          onClick={() => {
-            handleFitView();
-          }}
-          title={language === 'vi' ? 'Căn vừa khung hình toàn bộ luồng quy trình (Fit View)' : 'Fit Entire Pipeline to View'}
+          onClick={handleFitView}
+          title={language === 'vi' ? 'Căn vừa khung hình toàn bộ luồng quy trình (Fit View)' : 'Fit Entire Pipeline to View (Fit View)'}
           style={{
+            width: '26px',
+            height: '26px',
             border: `1px solid ${themeStyles.zoomBtnBorder}`,
             borderRadius: '6px',
             backgroundColor: themeStyles.zoomBtnBg,
-            color: themeStyles.textMuted,
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 800,
-            padding: '5px 9px',
+            color: themeStyles.zoomBtnText,
             cursor: 'pointer',
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
-            gap: '4px',
+            justifyContent: 'center',
             transition: 'all 0.15s ease',
           }}
         >
-          <span style={{ fontSize: '11px' }}>⌖</span>
-          <span>{language === 'vi' ? 'CĂN GIỮA' : 'FIT VIEW'}</span>
-        </button>
-
-        <div style={{ width: '1px', height: '18px', backgroundColor: themeStyles.zoomBtnBorder, margin: '0 2px' }} />
-
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedNodeId('bronze-instance');
-          }}
-          title={language === 'vi' ? 'Mở thanh thanh tra chi tiết Cloudflare R2 Multi-Tier Lakehouse' : 'Open Cloudflare R2 Multi-Tier Lakehouse Inspector'}
-          style={{
-            border: `1px solid ${selectedNodeId === 'bronze-instance' ? 'rgba(245, 158, 11, 0.6)' : themeStyles.zoomBtnBorder}`,
-            borderRadius: '6px',
-            backgroundColor: selectedNodeId === 'bronze-instance' ? 'rgba(245, 158, 11, 0.15)' : themeStyles.zoomBtnBg,
-            color: selectedNodeId === 'bronze-instance' ? '#f59e0b' : themeStyles.textMuted,
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 800,
-            padding: '5px 9px',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-            <line x1="12" y1="22.08" x2="12" y2="12" />
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
           </svg>
-          <span>{language === 'vi' ? 'LĂNG KÍNH R2' : 'R2 LENS'}</span>
         </button>
       </div>
     </div>
