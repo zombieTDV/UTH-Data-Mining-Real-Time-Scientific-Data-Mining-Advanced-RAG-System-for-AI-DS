@@ -310,6 +310,23 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               >
                 ★ I(X; Y) = <strong>{activePair.mutual_information}</strong>
               </div>
+              {selectedCategory !== 'ALL' && (
+                <div
+                  style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    backgroundColor: '#2563eb',
+                    color: '#ffffff',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={`Dữ liệu biểu đồ 2D đang được lọc theo chuyên ngành ${selectedCategory}`}
+                >
+                  LỌC: {selectedCategory} ({displayPoints.length} bài)
+                </div>
+              )}
             </div>
           )}
 

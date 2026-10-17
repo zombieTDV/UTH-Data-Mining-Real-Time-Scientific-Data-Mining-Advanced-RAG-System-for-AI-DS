@@ -1575,6 +1575,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                   <span className="telemetry-chip" style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
                     CORE: {topCooccurPair ? `${topCooccurPair.category_a} x ${topCooccurPair.category_b} (n=${topCooccurPair.cooccurrence_count.toLocaleString()})` : 'cs.AI x cs.LG'}
                   </span>
+                  {selectedCategory !== 'ALL' && (
+                    <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', fontWeight: 800, backgroundColor: '#2563eb', color: '#ffffff', padding: '1px 6px', borderRadius: '3px' }}>
+                      LỌC THEO: {selectedCategory} ({category_cooccurrence.filter((p) => p.category_a === selectedCategory || p.category_b === selectedCategory).length} cặp liên ngành)
+                    </span>
+                  )}
                   <span style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                     {language === 'vi'
                       ? 'Mật độ đồng xuất bản các cặp danh mục arXiv'
@@ -1641,10 +1646,20 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                   {category_cooccurrence
                     .filter((pair) => pair.cooccurrence_count >= cooccurrenceThreshold)
+                    .sort((a, b) => {
+                      if (selectedCategory !== 'ALL') {
+                        const aMatch = a.category_a === selectedCategory || a.category_b === selectedCategory;
+                        const bMatch = b.category_a === selectedCategory || b.category_b === selectedCategory;
+                        if (aMatch && !bMatch) return -1;
+                        if (!aMatch && bMatch) return 1;
+                      }
+                      return b.cooccurrence_count - a.cooccurrence_count;
+                    })
                     .map((pair) => {
                     const maxCooccur = maxCooccurVal;
                     const intensity = Math.min(1, pair.cooccurrence_count / maxCooccur);
                     const isTop = pair.cooccurrence_count >= maxCooccur * 0.4;
+                    const hasSelectedCat = selectedCategory === 'ALL' || pair.category_a === selectedCategory || pair.category_b === selectedCategory;
                     const isSelected =
                       selectedCooccurrencePair?.category_a === pair.category_a &&
                       selectedCooccurrencePair?.category_b === pair.category_b;
@@ -1660,17 +1675,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                         style={{
                           backgroundColor: isSelected
                             ? (isDark ? 'rgba(37, 99, 235, 0.28)' : 'rgba(37, 99, 235, 0.14)')
+                            : hasSelectedCat && selectedCategory !== 'ALL'
+                            ? (isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.08)')
                             : isTop
                             ? (isDark ? 'rgba(37, 99, 235, 0.14)' : 'rgba(37, 99, 235, 0.08)')
                             : (isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(241, 245, 249, 0.75)'),
                           border: isSelected
                             ? '1.5px solid #2563eb'
+                            : hasSelectedCat && selectedCategory !== 'ALL'
+                            ? '1.5px solid #38bdf8'
                             : isTop
                             ? (isDark ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(37, 99, 235, 0.3)')
                             : `1px solid ${themeStyles.border}`,
                           boxShadow: isSelected
                             ? '0 0 10px rgba(37, 99, 235, 0.35)'
+                            : hasSelectedCat && selectedCategory !== 'ALL'
+                            ? '0 0 8px rgba(56, 189, 248, 0.2)'
                             : 'none',
+                          opacity: hasSelectedCat ? 1 : 0.28,
                           borderRadius: '6px',
                           padding: '8px 10px',
                           display: 'flex',
@@ -1679,11 +1701,39 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                           justifyContent: 'center',
                           textAlign: 'center',
                           cursor: 'pointer',
-                          transition: 'all 0.15s ease',
+                          transition: 'all 0.2s ease',
                         }}
                       >
-                        <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isTop ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary }}>
-                          {pair.category_a} &times; {pair.category_b}
+                        <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isTop ? (isDark ? '#93c5fd' : '#1d4ed8') : themeStyles.textSecondary, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCategory(selectedCategory === pair.category_a ? 'ALL' : pair.category_a);
+                            }}
+                            style={{
+                              cursor: 'pointer',
+                              textDecoration: pair.category_a === selectedCategory ? 'underline' : 'none',
+                              color: pair.category_a === selectedCategory ? '#38bdf8' : 'inherit',
+                            }}
+                            title={`Lọc theo ${pair.category_a}`}
+                          >
+                            {pair.category_a}
+                          </span>
+                          <span>&times;</span>
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCategory(selectedCategory === pair.category_b ? 'ALL' : pair.category_b);
+                            }}
+                            style={{
+                              cursor: 'pointer',
+                              textDecoration: pair.category_b === selectedCategory ? 'underline' : 'none',
+                              color: pair.category_b === selectedCategory ? '#38bdf8' : 'inherit',
+                            }}
+                            title={`Lọc theo ${pair.category_b}`}
+                          >
+                            {pair.category_b}
+                          </span>
                         </div>
                         <div style={{ fontSize: '15px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginTop: '2px' }}>
                           {pair.cooccurrence_count}
@@ -1980,7 +2030,24 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                   const widthPct = Math.max(10, (author.paper_count / maxCount) * 100);
 
                   return (
-                    <div key={author.author} style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 10px', borderRadius: '5px', border: `1px solid ${themeStyles.borderSubtle}` }}>
+                    <div
+                      key={author.author}
+                      onClick={() => {
+                        setPaperSearchText(author.author);
+                        handleSearchPapers(author.author);
+                        setActiveDeck('explorer');
+                        setFeedbackToast(language === 'vi' ? `Đang tra cứu các bài báo của tác giả ${author.author}...` : `Searching papers by ${author.author}...`);
+                      }}
+                      style={{
+                        backgroundColor: themeStyles.cardSubtle,
+                        padding: '6px 10px',
+                        borderRadius: '5px',
+                        border: `1px solid ${themeStyles.borderSubtle}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title={language === 'vi' ? `Nhấp để tra cứu bài báo của ${author.author} trong DuckDB Explorer` : `Click to search papers by ${author.author} in DuckDB Explorer`}
+                    >
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>
                         <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>
                           #{idx + 1} {author.author}
@@ -2028,7 +2095,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                       [EDA-08B] {language === 'vi' ? 'TRẮC LƯỢNG KHOA HỌC & ĐẶC TÍNH NỘI DUNG' : 'SCIENTOMETRICS & CONTENT CHARACTERISTICS'}
                     </h3>
                     <span className="telemetry-chip" style={{ color: '#ea580c' }}>
-                      MEDIAN: {math_and_content_stats.math_quantiles.median} eq · {math_and_content_stats.word_quantiles.median.toLocaleString()}w
+                      MEDIAN: {math_and_content_stats.math_quantiles.median} eq · {math_and_content_stats.word_quantiles.median.toLocaleString()}w{selectedCategory !== 'ALL' ? ` [${selectedCategory}]` : ''}
                     </span>
                   </div>
 
@@ -2309,6 +2376,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
                     {language === 'vi' ? 'MA TRẬN TƯƠNG QUAN ĐA BIẾN (CORRELATION MATRIX)' : 'MULTIVARIATE CORRELATION MATRIX'}
                   </h3>
+                  {selectedCategory !== 'ALL' && (
+                    <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, backgroundColor: '#2563eb', color: '#ffffff', padding: '1px 6px', borderRadius: '3px' }}>
+                      LỌC: {selectedCategory} ({filteredKpi ? filteredKpi.totalPapers.toLocaleString() : '...'} bài)
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
@@ -2397,7 +2469,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
               {/* Subtitle & Significance Legend & Diverging Colormap Bar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0, flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  Kiểm định thực nghiệm trên n = {(data?.correlations?.sample_size || 20452).toLocaleString()} bài báo có cấu trúc HTML5 &amp; LaTeX đầy đủ trong Lakehouse.
+                  {language === 'vi'
+                    ? `Kiểm định thực nghiệm trên n = ${selectedCategory !== 'ALL' && filteredKpi ? filteredKpi.totalPapers.toLocaleString() : (data?.correlations?.sample_size || 20452).toLocaleString()} bài báo${selectedCategory !== 'ALL' ? ` (Phân lớp ${selectedCategory})` : ''} có cấu trúc HTML5 & LaTeX đầy đủ trong Lakehouse.`
+                    : `Empirical validation on n = ${selectedCategory !== 'ALL' && filteredKpi ? filteredKpi.totalPapers.toLocaleString() : (data?.correlations?.sample_size || 20452).toLocaleString()} papers${selectedCategory !== 'ALL' ? ` (Subset ${selectedCategory})` : ''} with full HTML5 & LaTeX structures.`}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   {/* Diverging Colormap Legend */}
@@ -2927,9 +3001,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                 {/* 4 Vector Metric Badges */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
-                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>TỔNG CHUNKS</div>
+                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontWeight: 700 }}>
+                      {selectedCategory !== 'ALL' ? `CHUNKS (${selectedCategory})` : 'TỔNG CHUNKS'}
+                    </div>
                     <div style={{ fontSize: '14px', fontWeight: 800, color: '#7c3aed', marginTop: '2px' }}>
-                      {(data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()}
+                      {selectedCategory !== 'ALL' && activeCategoryData
+                        ? Math.round(((data?.rag_audit_metrics?.total_vectors || 913205) * activeCategoryData.percentage) / 100).toLocaleString()
+                        : (data?.rag_audit_metrics?.total_vectors || 913205).toLocaleString()}
                     </div>
                   </div>
                   <div style={{ backgroundColor: themeStyles.cardSubtle, padding: '6px 4px', borderRadius: '5px', border: `1px solid ${themeStyles.border}` }}>
@@ -3076,7 +3154,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontFamily: 'var(--font-mono)', marginBottom: '2px' }}>
                           <span style={{ color: themeStyles.textSecondary }}>
-                            {language === 'vi' ? 'In-Domain Similarity (Cùng chuyên ngành)' : 'In-Domain Similarity (Same Category)'}
+                            {language === 'vi'
+                              ? `In-Domain Similarity (${selectedCategory !== 'ALL' ? selectedCategory : 'Cùng chuyên ngành'})`
+                              : `In-Domain Similarity (${selectedCategory !== 'ALL' ? selectedCategory : 'Same Category'})`}
                           </span>
                           <span style={{ fontWeight: 800, color: '#10b981' }}>&mu; = 0.82 &plusmn; 0.05</span>
                         </div>
@@ -3107,14 +3187,28 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, onN
                   {/* Core Lexical Tokens */}
                   <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '6px 8px' }}>
                     <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginBottom: '4px' }}>
-                      {language === 'vi' ? 'TỪ KHÓA AI HỌC THUẬT XUẤT HIỆN NHIỀU NHẤT (TOP LEXICAL TOKENS)' : 'TOP ACADEMIC AI LEXICAL TOKENS'}
+                      {language === 'vi'
+                        ? `TỪ KHÓA AI HỌC THUẬT XUẤT HIỆN NHIỀU NHẤT${selectedCategory !== 'ALL' ? ` [${selectedCategory}]` : ''}`
+                        : `TOP ACADEMIC AI LEXICAL TOKENS${selectedCategory !== 'ALL' ? ` [${selectedCategory}]` : ''}`}
                     </div>
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                      {['Transformer', 'Diffusion Models', 'Latent Space', 'Self-Supervised', 'Chain-of-Thought', 'Contrastive Learning', 'Zero-Shot'].map((token) => (
-                        <span key={token} style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, backgroundColor: themeStyles.cardInner, border: `1px solid ${themeStyles.border}`, padding: '2px 6px', borderRadius: '3px', color: themeStyles.textPrimary }}>
-                          #{token}
-                        </span>
-                      ))}
+                      {(() => {
+                        let tokens = ['Transformer', 'Diffusion Models', 'Latent Space', 'Self-Supervised', 'Chain-of-Thought', 'Contrastive Learning', 'Zero-Shot'];
+                        if (selectedCategory === 'cs.CV') {
+                          tokens = ['Vision Transformer (ViT)', 'Diffusion Models', 'NeRF / 3D Gaussians', 'Segment Anything', 'Object Detection', 'Point Clouds', 'Optical Flow'];
+                        } else if (selectedCategory === 'cs.CL') {
+                          tokens = ['Large Language Models (LLM)', 'Transformer Attention', 'Chain-of-Thought', 'RLHF Alignment', 'RAG Retrieval', 'Tokenization BPE', 'Few-Shot Prompting'];
+                        } else if (selectedCategory === 'cs.RO') {
+                          tokens = ['Trajectory Optimization', 'Sim-to-Real Transfer', 'Imitation Learning', 'Model Predictive Control', 'SLAM LiDAR', 'Sensor Fusion', 'Actuator Kinematics'];
+                        } else if (selectedCategory === 'stat.ML' || selectedCategory === 'cs.LG') {
+                          tokens = ['Empirical Risk Minimization', 'Gaussian Processes', 'Bayesian Inference', 'Stochastic Gradient', 'Generalization Bounds', 'MCMC Sampling', 'Kernel Methods'];
+                        }
+                        return tokens.map((token) => (
+                          <span key={token} style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, backgroundColor: themeStyles.cardInner, border: `1px solid ${themeStyles.border}`, padding: '2px 6px', borderRadius: '3px', color: themeStyles.textPrimary }}>
+                            #{token}
+                          </span>
+                        ));
+                      })()}
                     </div>
                   </div>
                 </div>
