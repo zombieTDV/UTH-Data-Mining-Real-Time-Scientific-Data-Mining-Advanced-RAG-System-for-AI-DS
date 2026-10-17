@@ -37,7 +37,11 @@ async def lifespan(app: FastAPI):
     llm_client.preload()
 
     logger.info("================================================================================")
+    from backend.app.services.streaming_service import streaming_service
+
+    streaming_service.start_monitor()
     yield
+    streaming_service.stop_monitor()
     logger.info("[SHUTDOWN] Stopping FastAPI Backend.")
     llm_client.close()
 

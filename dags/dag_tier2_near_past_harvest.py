@@ -18,7 +18,7 @@ from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 
-from _common import categories, ensure_published, http_headers, ping_infrastructure, publish_paper
+from _common import emit, on_failure, categories, ensure_published, http_headers, ping_infrastructure, publish_paper
 
 logger = logging.getLogger("airflow.task")
 local_tz = pendulum.timezone("Asia/Ho_Chi_Minh")
@@ -30,6 +30,7 @@ MAX_FETCH_FAILURES = 3
 CURSOR_VAR = "tier2_cursor_{cat}"
 
 default_args = {
+    "on_failure_callback": on_failure,
     "owner": "uth_data_mining",
     "depends_on_past": False,
     "email_on_failure": False,
@@ -53,6 +54,7 @@ def harvest_tier2_batch_10k(**context):
     cats = categories()
     per_cat = target // len(cats)
     ingested = queued = 0
+    emit("INFO", "HARVEST", f"Tier 2 harvest started: target {target} papers, newest first, down to {FLOOR[:4]}-{FLOOR[4:6]}-{FLOOR[6:8]}.", tier="tier2")
 
     for cat in cats:
         upper = Variable.get(CURSOR_VAR.format(cat=cat), default_var=datetime.now(timezone.utc).strftime("%Y%m%d%H%M"))
@@ -117,11 +119,13 @@ def harvest_tier2_batch_10k(**context):
             logger.info("[TIER 2] %s: %d/%d (total %d)", cat, got, per_cat, ingested)
             time.sleep(3.0)  # arXiv API terms: be polite
 
+        emit("INFO", "HARVEST", f"Tier 2 {cat}: {got} paper(s) queued, now back to {oldest[:4]}-{oldest[4:6]}-{oldest[6:8]}.", tier="tier2")
         # Move the cursor back only after the batch reached the queue
         if oldest < upper:
             Variable.set(CURSOR_VAR.format(cat=cat), oldest)
 
     logger.info("[TIER 2 COMPLETE] ingested=%d queued=%d", ingested, queued)
+    emit("SUCCESS" if queued else "ERROR", "HARVEST", f"Tier 2 harvest done: {ingested} fetched, {queued} queued to RabbitMQ.", tier="tier2", refresh=True)
     ensure_published(ingested, queued)
     return {"ingested": ingested, "queued": queued}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import {
   fetchSchedulerStatus,
@@ -15,6 +15,7 @@ interface SourceItem {
   key: string;
   name: string;
   frequency: string;
+  kind: string;
   enabled: boolean;
   status: string;
   last_run: string | null;
@@ -24,39 +25,61 @@ interface SourceItem {
   last_error: string | null;
 }
 
+const fmtTime = (iso?: string | null): string => {
+  if (!iso) return 'N/A';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? 'N/A' : d.toLocaleString('vi-VN', { hour12: false, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
+
+/**
+ * Airflow orchestration panel. DAG state, queue depth and consumer count are read from the same live SSE snapshot as the
+ * rest of the dashboard (refreshed every ~3 s by the backend monitor); the buttons call Airflow through the backend.
+ */
 export const AdaptiveSchedulerControl: FC = () => {
   const { language } = useTranslation();
-  const { storageStats } = useLakehouseStreamStore();
-  const [daemonRunning, setDaemonRunning] = useState(false);
-  const [activeSource, setActiveSource] = useState<string | null>(null);
-  const [activePid, setActivePid] = useState<number | null>(null);
-  const [sources, setSources] = useState<Record<string, SourceItem>>({});
+  const { live } = useLakehouseStreamStore();
   const [loading, setLoading] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [triggeringSource, setTriggeringSource] = useState<string | null>(null);
 
+  const dags = live?.airflow.dags ?? [];
+  const queue = live?.queue;
+  const sources: Record<string, SourceItem> = useMemo(() => {
+    const out: Record<string, SourceItem> = {};
+    for (const d of dags) {
+      const start = d.last_run?.start ? new Date(d.last_run.start).getTime() : 0;
+      const end = d.last_run?.end ? new Date(d.last_run.end).getTime() : 0;
+      out[d.key] = {
+        key: d.key,
+        name: d.name,
+        frequency: d.frequency,
+        kind: d.kind,
+        enabled: !d.paused,
+        status: d.running ? 'RUNNING' : (d.last_run?.state || 'never_run').toUpperCase(),
+        last_run: d.last_run?.start ?? null,
+        next_run: d.next_run ?? null,
+        last_duration_s: start && end ? Math.round((end - start) / 1000) : 0,
+        total_papers_harvested: live?.session.by_tier?.[d.key] ?? 0,
+        last_error: d.last_run?.state === 'failed' ? 'Last Airflow run failed' : null,
+      };
+    }
+    return out;
+  }, [dags, live?.session.by_tier]);
+
+  const harvestDags = dags.filter((d) => d.kind === 'harvest');
+  const daemonRunning = !!live?.airflow.scheduler_healthy && harvestDags.some((d) => !d.paused);
+  const runningDag = dags.find((d) => d.running);
+  const activeSource: string | null = runningDag ? runningDag.key : null;
+  const activePid: number | null = null;
+
   const loadStatus = async () => {
+    // The SSE snapshot refreshes within ~3 s; this only forces an immediate round trip so errors surface right away.
     try {
-      const res = await fetchSchedulerStatus();
-      if (res) {
-        setDaemonRunning(!!res.daemon_running);
-        setActiveSource(res.active_source || null);
-        setActivePid(res.active_pid || null);
-        if (res.sources) {
-          setSources(res.sources);
-        }
-      }
+      await fetchSchedulerStatus();
     } catch (e: any) {
       console.warn('[SchedulerControl] Failed to load scheduler status:', e);
     }
   };
-
-  useEffect(() => {
-    loadStatus();
-    // Low-frequency polling (every 10s) to keep next_run / status updated with negligible network footprint
-    const timer = setInterval(loadStatus, 10000);
-    return () => clearInterval(timer);
-  }, []);
 
   const showFeedback = (msg: string) => {
     setActionFeedback(msg);
@@ -120,21 +143,9 @@ export const AdaptiveSchedulerControl: FC = () => {
     }
   };
 
-  const sourceKeys = Object.keys(sources).length > 0
-    ? Object.keys(sources).filter((k) => k !== 'openalex')
-    : ['arxiv', 'openreview', 'cvf', 'zenodo', 'tier2', 'tier1'];
+  const sourceKeys = Object.keys(sources);
 
-  const getHarvestedCount = (key: string, reported: number): number => {
-    if (reported > 0) return reported;
-    const sb = storageStats?.sourceBreakdown;
-    if (key === 'arxiv') return sb?.arxiv ?? 39189;
-    if (key === 'cvf') return sb?.cvf ?? 8418;
-    if (key === 'openreview') return sb?.openreview ?? 5137;
-    if (key === 'zenodo') return sb?.zenodo ?? 2287;
-    if (key === 'tier2') return sb?.tier2_near_past ?? 100000;
-    if (key === 'tier1') return sb?.tier1_landmark ?? 3000;
-    return reported;
-  };
+  const getHarvestedCount = (_key: string, reported: number): number => reported;
 
   return (
     <div
@@ -266,6 +277,27 @@ export const AdaptiveSchedulerControl: FC = () => {
         </div>
       )}
 
+      {/* RabbitMQ / worker strip: live numbers from the backend monitor */}
+      {queue && (
+        <div
+          style={{
+            display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px', padding: '8px 12px',
+            borderRadius: '6px', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+            fontSize: '11.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)',
+          }}
+        >
+          <span>RabbitMQ: <b style={{ color: queue.status === 'HEALTHY' ? 'var(--accent-emerald)' : '#ef4444' }}>{queue.status}</b></span>
+          <span>chờ xử lý <b style={{ color: 'var(--text-primary)' }}>{queue.ready.toLocaleString()}</b></span>
+          <span>đang xử lý <b style={{ color: 'var(--text-primary)' }}>{queue.unacked.toLocaleString()}</b></span>
+          <span>worker <b style={{ color: queue.consumers > 0 ? 'var(--accent-emerald)' : '#ef4444' }}>{queue.consumers}</b></span>
+          <span>dead-letter <b style={{ color: queue.dead > 0 ? '#ef4444' : 'var(--text-primary)' }}>{queue.dead}</b></span>
+          <span>Airflow: <b style={{ color: live?.airflow.reachable ? 'var(--accent-emerald)' : '#ef4444' }}>{live?.airflow.reachable ? (live.airflow.scheduler_healthy ? 'scheduler OK' : 'scheduler DOWN') : 'OFFLINE'}</b></span>
+          {queue.ready + queue.unacked > 0 && queue.consumers === 0 && (
+            <span style={{ color: '#ef4444', fontWeight: 700 }}>⚠ Có tin trong hàng đợi nhưng chưa có worker: hãy chạy ingestion worker.</span>
+          )}
+        </div>
+      )}
+
       {/* 4 Academic Sources Matrix */}
       <div
         style={{
@@ -308,7 +340,7 @@ export const AdaptiveSchedulerControl: FC = () => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
-                  {key.toUpperCase()}
+                  {item.name}
                 </span>
 
                 {/* Source Switch (ON / OFF) */}
@@ -348,9 +380,9 @@ export const AdaptiveSchedulerControl: FC = () => {
                   marginBottom: '10px',
                 }}
               >
-                <div>Lần cào cuối: <span style={{ color: 'var(--text-primary)' }}>{item.last_run ? item.last_run.split(' ')[1] : 'Chưa'}</span></div>
-                <div>Lần tới: <span style={{ color: 'var(--accent-blue)' }}>{item.next_run ? item.next_run.split(' ')[1] : 'N/A'}</span></div>
-                <div>Đã thu thập: <span style={{ color: 'var(--accent-emerald)', fontWeight: 700 }}>{getHarvestedCount(key, item.total_papers_harvested).toLocaleString()} bài</span></div>
+                <div>Lần chạy cuối: <span style={{ color: 'var(--text-primary)' }}>{item.last_run ? fmtTime(item.last_run) : 'Chưa'}</span> <span style={{ color: item.status === 'FAILED' ? '#ef4444' : 'var(--accent-emerald)' }}>{item.status}</span></div>
+                <div>Lần tới: <span style={{ color: 'var(--accent-blue)' }}>{fmtTime(item.next_run)}</span></div>
+                <div>Phiên này: <span style={{ color: 'var(--accent-emerald)', fontWeight: 700 }}>{getHarvestedCount(key, item.total_papers_harvested).toLocaleString()} bài</span></div>
               </div>
 
               {/* Action: Trigger Now */}
@@ -376,7 +408,7 @@ export const AdaptiveSchedulerControl: FC = () => {
                   transition: 'background 0.15s ease',
                 }}
               >
-                {isRunning ? '🔵 Đang cào...' : isTriggering ? '⏳ Đang khởi động...' : '▶ Cào Ngay'}
+                {isRunning ? '🔵 Đang chạy trong Airflow...' : isTriggering ? '⏳ Đang khởi động...' : '▶ Cào Ngay'}
               </button>
             </div>
           );

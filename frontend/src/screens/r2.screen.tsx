@@ -173,7 +173,7 @@ export const R2Screen: FC<R2ScreenProps> = () => {
       {/* Top HUD Component */}
       <R2StorageHud
         bucketName={treeData?.bucket_name || 'uth-scientific-lakehouse'}
-        totalSizeGb={treeData?.total_size_gb || 4.774}
+        totalSizeGb={treeData?.total_size_gb ?? 0}
         totalObjects={treeData?.total_objects || 11807}
         freeTierQuotaGb={treeData?.free_tier_quota_gb || 10.0}
         usedPercentage={treeData?.used_percentage || 47.7}

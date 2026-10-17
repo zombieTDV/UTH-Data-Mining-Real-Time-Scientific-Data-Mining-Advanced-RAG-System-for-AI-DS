@@ -1,240 +1,59 @@
-import { useState, useEffect } from 'react';
-import { subscribeTelemetry, fetchPipelineLogs } from '../../services';
-import { useLakehouseStreamStore, type StreamingLogEntry } from '../../store';
+import { useState, useEffect, useRef } from 'react';
+import { useLakehouseStreamStore } from '../../store';
 
 export interface LogLine {
   id: string;
   time: string;
-  level: 'SUCCESS' | 'INFO' | 'QUERY' | 'STORAGE' | 'START';
+  level: string;
   tag: string;
+  tier?: string | null;
   message: string;
 }
 
-export const PIPELINE_LOGS: LogLine[] = [
-  {
-    id: 'l-01',
-    time: '2026-10-03 13:41:55',
-    level: 'SUCCESS',
-    tag: 'RAG/ANSWER',
-    message: 'Grounded synthesis completed in 18.51s (5.9 words/s) citing [Paper: 2310.01407, Section: 5 Experiments]'
-  },
-  {
-    id: 'l-02',
-    time: '2026-10-03 13:41:37',
-    level: 'QUERY',
-    tag: 'RAG/RETRIEVE',
-    message: 'LanceDB Cosine ANN returned 3 chunks (Top Sim: 0.8510) for query: "sampling z_t in CoDi"'
-  },
-  {
-    id: 'l-03',
-    time: '2026-10-03 13:41:35',
-    level: 'INFO',
-    tag: 'RAG/EMBED',
-    message: 'Query vectorized via nomic-embed-text-v1.5: 768 dimensions in 18.2ms'
-  },
-  {
-    id: 'l-04',
-    time: '2026-10-11 19:30:42',
-    level: 'INFO',
-    tag: 'LLM/INIT',
-    message: 'Qwen2.5-7B-Instruct (GGUF Q4_K_M) loaded into GPU memory with CUDA acceleration'
-  },
-  {
-    id: 'l-05',
-    time: '2026-10-13 06:35:14',
-    level: 'STORAGE',
-    tag: 'R2/SYNC',
-    message: 'Cloudflare R2 lakehouse synchronized: 4.77 GB total across Bronze (3.02 GB), Silver (103.8 MB), Gold (257.3 MB) · Zero Egress'
-  },
-  {
-    id: 'l-06',
-    time: '2026-10-13 07:40:48',
-    level: 'SUCCESS',
-    tag: 'GOLD/INDEX',
-    message: '29,911 fulltext papers indexed into LanceDB table scientific_papers_gold (913,205 chunks, IVF-PQ K=1024, M=192)'
-  },
-  {
-    id: 'l-07',
-    time: '2026-10-13 08:25:10',
-    level: 'INFO',
-    tag: 'GOLD/EMBED',
-    message: 'Nomic Embed 768-D dense embeddings accelerated on Hardware Accelerator (CUDA & MPS Multi-Backend)'
-  },
-  {
-    id: 'l-08',
-    time: '2026-10-13 08:30:22',
-    level: 'INFO',
-    tag: 'GOLD/EMBED',
-    message: 'GPU memory cache managed between batches (torch empty_cache applied, zero tensor fragmentation)'
-  },
-  {
-    id: 'l-09',
-    time: '2026-10-13 08:55:40',
-    level: 'INFO',
-    tag: 'GOLD/EMBED',
-    message: 'All 913,205 chunks vectorized and indexed into Gold LanceDB (0 unindexed rows remaining)'
-  },
-  {
-    id: 'l-10',
-    time: '2026-10-13 09:10:15',
-    level: 'INFO',
-    tag: 'GOLD/EMBED',
-    message: 'IVF-PQ index training completed in 158.24s (K=1024 centroids, M=192 sub-vectors, metric=cosine)'
-  },
-  {
-    id: 'l-11',
-    time: '2026-10-13 09:14:20',
-    level: 'SUCCESS',
-    tag: 'SILVER/WRITE',
-    message: '29,911 papers enriched with full sections and 7.2M+ LaTeX formulas written to Silver Lakehouse Parquet'
-  },
-  {
-    id: 'l-12',
-    time: '2026-10-03 04:52:10',
-    level: 'INFO',
-    tag: 'SILVER/DUCKDB',
-    message: 'DuckDB engine registered view over Silver Parquet partition (Row count: 10,000, 13.98 KB)'
-  },
-  {
-    id: 'l-13',
-    time: '2026-10-03 04:30:11',
-    level: 'INFO',
-    tag: 'SILVER/PARQUET',
-    message: 'PyArrow serialized columnar table: 10,000 rows with SNAPPY compression (Compression Ratio: 3.82:1)'
-  },
-  {
-    id: 'l-14',
-    time: '2026-10-03 04:15:30',
-    level: 'INFO',
-    tag: 'ENRICH/HTML',
-    message: 'Parsed ar5iv document 2312.17591: 5 sections extracted, 142 LaTeX math equations preserved'
-  },
-  {
-    id: 'l-15',
-    time: '2026-10-03 03:45:18',
-    level: 'INFO',
-    tag: 'ENRICH/HTML',
-    message: 'Parsed ar5iv document 2310.01407: 6 sections extracted, 88 LaTeX math equations preserved'
-  },
-  {
-    id: 'l-16',
-    time: '2026-10-03 03:10:00',
-    level: 'SUCCESS',
-    tag: 'BRONZE/HARVEST',
-    message: '10,000 metadata records harvested from arXiv OAI-PMH across categories: cs.AI, cs.LG, cs.CV, cs.CL, stat.ML'
-  },
-  {
-    id: 'l-17',
-    time: '2026-10-03 02:40:12',
-    level: 'INFO',
-    tag: 'BRONZE/OAI',
-    message: 'Batch 10/12 harvested: 1,000 XML records dumped to bronze/oai_batches/batch_10.json (resumptionToken verified)'
-  },
-  {
-    id: 'l-18',
-    time: '2026-10-03 02:05:44',
-    level: 'INFO',
-    tag: 'BRONZE/OAI',
-    message: 'Batch 05/12 harvested: 1,000 XML records dumped to bronze/oai_batches/batch_05.json (resumptionToken verified)'
-  },
-  {
-    id: 'l-19',
-    time: '2026-10-03 01:30:19',
-    level: 'INFO',
-    tag: 'BRONZE/OAI',
-    message: 'Batch 01/12 harvested: Initial 1,000 records stream established from http://export.arxiv.org/oai2'
-  },
-  {
-    id: 'l-20',
-    time: '2026-10-11 19:25:55',
-    level: 'INFO',
-    tag: 'ENV/HARDWARE',
-    message: 'Hardware inspection: NVIDIA GeForce RTX 4060 Laptop GPU (8 GB GDDR6, CUDA 12.4, Windows 11 x64)'
-  },
-  {
-    id: 'l-21',
-    time: '2026-10-11 19:25:50',
-    level: 'START',
-    tag: 'MASTER/INIT',
-    message: 'Master Lakehouse pipeline initiated on Windows 11 (Dual logging stream to logs/tier1_bootstrap_strategy_b.log)'
-  }
-];
+const LEVEL_FILTERS = ['ALL', 'SUCCESS', 'INFO', 'WARN', 'ERROR'];
 
+/**
+ * Pipeline log view. Every line comes from the backend's single log buffer (Airflow runs, harvest DAGs, the queue consumer,
+ * RabbitMQ/Qdrant monitor), delivered over the same SSE connection that carries the counters, so what is written here is
+ * exactly what the numbers on the dashboard did.
+ */
 export function LiveTelemetryFeed() {
-  const [logs, setLogs] = useState<LogLine[]>([]);
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [follow, setFollow] = useState(true);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const { logs: storeLogs } = useLakehouseStreamStore();
+  const { logs: storeLogs, connectionStatus, live } = useLakehouseStreamStore();
 
-  useEffect(() => {
-    // Load real execution logs from disk
-    const loadRealLogs = async () => {
-      try {
-        const diskLogs = await fetchPipelineLogs(150);
-        if (diskLogs && diskLogs.length > 0) {
-          setLogs(diskLogs.map((l, i) => ({
-            id: String(l.id || `disk-${i}`),
-            time: l.time,
-            level: (l.level === 'STORAGE' ? 'SUCCESS' : l.level === 'QUERY' ? 'INFO' : l.level) as any,
-            tag: l.tag,
-            message: l.msg,
-          })));
-        }
-      } catch {}
-    };
-
-    loadRealLogs();
-    const interval = setInterval(loadRealLogs, 3000);
-
-    const unsub = subscribeTelemetry((data: any) => {
-      if (data && (data.event || data.message || data.status)) {
-        const newLog: LogLine = {
-          id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          time: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          level: (data.level || (data.status === 'ONLINE' ? 'SUCCESS' : 'INFO')) as any,
-          tag: data.tag || 'TELEMETRY/SSE',
-          message: data.message || `System event: ${JSON.stringify(data)}`,
-        };
-        setLogs((prev) => [newLog, ...prev.slice(0, 99)]);
-      }
-    });
-
-    return () => {
-      clearInterval(interval);
-      unsub();
-    };
-  }, []);
-
-  // Merge store live logs with disk logs
-  const mappedStoreLogs = storeLogs.map((sl: StreamingLogEntry) => ({
+  const allLogs: LogLine[] = storeLogs.map((sl) => ({
     id: sl.id,
     time: sl.time,
-    level: sl.level as LogLine['level'],
+    level: sl.level,
     tag: sl.tag,
+    tier: sl.tier,
     message: sl.msg,
   }));
-
-  const allLogs = mappedStoreLogs.length > 0
-    ? [...mappedStoreLogs, ...logs.filter(l => !mappedStoreLogs.some(m => m.message === l.message))]
-    : logs.length > 0 ? logs : PIPELINE_LOGS;
 
   const filteredLogs = allLogs.filter((l) => {
     if (filterLevel !== 'ALL' && l.level !== filterLevel) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      return l.message.toLowerCase().includes(q) || l.tag.toLowerCase().includes(q) || l.time.includes(q);
+      return l.message.toLowerCase().includes(q) || l.tag.toLowerCase().includes(q) || l.time.includes(q) || (l.tier || '').includes(q);
     }
     return true;
   });
 
+  // newest line first at the top; keep the view pinned there while "follow" is on
+  useEffect(() => {
+    if (follow && scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [filteredLogs.length, follow]);
+
   const getTagColor = (level: LogLine['level']) => {
     switch (level) {
       case 'SUCCESS': return 'var(--accent-emerald)';
-      case 'QUERY': return 'var(--accent-silver)';
-      case 'STORAGE': return 'var(--accent-bronze)';
-      case 'START': return 'var(--accent-gold)';
+      case 'WARN': return 'var(--accent-gold)';
+      case 'ERROR': return '#ef4444';
       default: return 'var(--text-secondary)';
     }
   };
@@ -287,7 +106,7 @@ export function LiveTelemetryFeed() {
             padding: '2px 8px',
             borderRadius: '3px'
           }}>
-            logs/master_pipeline_20261003.log
+            {connectionStatus === 'CONNECTED' ? 'LIVE' : connectionStatus} · Airflow {live?.airflow.reachable ? 'online' : 'offline'} · queue {live ? live.queue.ready + live.queue.unacked : 0}
           </span>
         </div>
 
@@ -300,7 +119,7 @@ export function LiveTelemetryFeed() {
             borderRadius: '4px',
             padding: '2px'
           }}>
-            {['ALL', 'SUCCESS', 'QUERY', 'STORAGE', 'INFO'].map(lvl => (
+            {LEVEL_FILTERS.map(lvl => (
               <button
                 key={lvl}
                 onClick={() => setFilterLevel(lvl)}
@@ -343,6 +162,7 @@ export function LiveTelemetryFeed() {
 
       {/* Main Log Window with Dedicated Visible Scrollbar */}
       <div 
+        ref={scrollRef}
         className="log-scrollbar"
         style={{
         background: 'var(--bg-canvas)',
@@ -407,6 +227,7 @@ export function LiveTelemetryFeed() {
                 wordBreak: 'break-word',
                 flex: 1
               }}>
+                {log.tier ? <span style={{ color: 'var(--text-secondary)', marginRight: 8 }}>({log.tier})</span> : null}
                 {log.message}
               </span>
 
@@ -438,8 +259,14 @@ export function LiveTelemetryFeed() {
         color: 'var(--text-secondary)',
         paddingTop: '4px'
       }}>
-        <span>SHOWING {filteredLogs.length} OF {PIPELINE_LOGS.length} RECORDED PIPELINE EVENTS</span>
-        <span>CLICK ANY LINE TO COPY TO CLIPBOARD · DUAL LOGGING STREAM ACTIVE</span>
+        <span>SHOWING {filteredLogs.length} OF {allLogs.length} PIPELINE EVENTS (AIRFLOW · RABBITMQ · WORKER · QDRANT)</span>
+        <span>
+          <label style={{ cursor: 'pointer' }}>
+            <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} style={{ marginRight: 6 }} />
+            FOLLOW LATEST
+          </label>
+          {' · '}CLICK A LINE TO COPY
+        </span>
       </div>
     </div>
   );

@@ -70,16 +70,16 @@ export function StorageInspector() {
   const backupData = activeStats?.backupStorage;
   const totalBucket = activeStats?.totalBucket;
 
-  const arxivCount = (activeData?.arxivHtmlCount ?? 1381) + sessionIngested;
-  const arxivGb = (activeData?.arxivHtmlSizeGb ?? 1.054).toFixed(3);
-  const doiCount = (activeStats?.sourceBreakdown?.doi ?? 8890).toLocaleString();
-  const doiGb = (Number((activeStats?.activeLakehouse?.openalexSizeBytes ?? 1897363178) / (1024**3))).toFixed(3);
-  const silverMb = (activeData?.silverParquetSizeMb ?? 103.8).toFixed(2);
-  const goldChunks = (activeData?.activeLanceDbVectors ?? 913205).toLocaleString();
-  const goldMb = (activeData?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
-  const backupGb = (backupData?.totalSizeGb ?? 1.344).toFixed(3);
+  const arxivCount = (activeData?.arxivHtmlCount ?? 0);
+  const arxivGb = (activeData?.arxivHtmlSizeGb ?? 0).toFixed(3);
+  const doiCount = (activeStats?.sourceBreakdown?.doi ?? 0).toLocaleString();
+  const doiGb = (Number((activeStats?.activeLakehouse?.openalexSizeBytes ?? 0) / (1024**3))).toFixed(3);
+  const silverMb = (activeData?.silverParquetSizeMb ?? 0).toFixed(2);
+  const goldChunks = (activeData?.activeLanceDbVectors ?? 0).toLocaleString();
+  const goldMb = (activeData?.activeLanceDbSizeMb ?? 0).toFixed(2);
+  const backupGb = (backupData?.totalSizeGb ?? 0).toFixed(3);
 
-  const activeGb = (Number(activeData?.totalSizeGb ?? 3.373)).toFixed(3);
+  const activeGb = (Number(activeData?.totalSizeGb ?? 0)).toFixed(3);
   const activePct = (Number(activeData?.usedPercentage ?? 33.73)).toFixed(1);
   const totalGb = (totalBucket?.totalSizeGb ?? 4.774).toFixed(3);
   const totalPct = (totalBucket?.usedPercentage ?? 47.74).toFixed(1);
@@ -145,7 +145,7 @@ export function StorageInspector() {
       name: 'Curated Canonical Lakehouse',
       storageType: 'Apache Arrow & Cloudflare R2',
       format: 'Apache Parquet (Snappy & Zstd)',
-      itemsCount: '29,911 works (Tier 1 + Tier 2 HTML5 lakehouse)',
+      itemsCount: `${(storageStats?.sourceBreakdown?.active_rag_papers ?? 0).toLocaleString()} papers (Silver across Tier 1, 2, 3)`,
       sizeBytes: `${silverMb} MB`,
       r2Location: 's3://uth-scientific-lakehouse/silver/tier2/fulltext_papers.parquet',
       color: '#10b981',
@@ -167,7 +167,7 @@ export function StorageInspector() {
       name: 'High-Performance Vector Engine Store',
       storageType: 'Qdrant In-Memory Vector Store',
       format: 'Rust HNSW Multi-Segment Graph',
-      itemsCount: '673,909 points',
+      itemsCount: `${(activeData?.activeLanceDbVectors ?? 0).toLocaleString()} points`,
       sizeBytes: `${backupGb} GB`,
       r2Location: 's3://uth-scientific-lakehouse/gold/qdrant/ & localhost:6333',
       color: '#f59e0b',
@@ -375,7 +375,7 @@ export function StorageInspector() {
             </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            36,673 files · 1.14 GB overage (~$0.017/month / 400 VND)
+            {(totalBucket?.totalObjects ?? 0).toLocaleString()} objects · {(totalBucket?.overageGb ?? 0).toFixed(2)} GB over the free tier (~${(totalBucket?.estimatedOverageCostUsd ?? 0).toFixed(3)}/month)
           </div>
         </div>
       </div>

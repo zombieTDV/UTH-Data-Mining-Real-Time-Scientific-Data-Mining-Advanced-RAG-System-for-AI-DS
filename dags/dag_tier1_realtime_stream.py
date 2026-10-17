@@ -16,13 +16,14 @@ import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-from _common import categories, ensure_published, fetch_recent, ping_infrastructure, publish_paper
+from _common import emit, on_failure, categories, ensure_published, fetch_recent, ping_infrastructure, publish_paper
 
 logger = logging.getLogger("airflow.task")
 local_tz = pendulum.timezone("Asia/Ho_Chi_Minh")
 PER_CATEGORY = 10
 
 default_args = {
+    "on_failure_callback": on_failure,
     "owner": "uth_data_mining",
     "depends_on_past": False,
     "email_on_failure": False,
@@ -34,7 +35,10 @@ default_args = {
 
 def harvest_tier1_realtime(**_context):
     harvested = queued = 0
+    per_cat = {}
+    emit("INFO", "HARVEST", f"Tier 1 real-time harvest started ({PER_CATEGORY} newest per category).", tier="tier1")
     for cat in categories():
+        got = 0
         for item in fetch_recent(cat, PER_CATEGORY):
             pid = item["paper_id"]
             paper = {
@@ -53,9 +57,14 @@ def harvest_tier1_realtime(**_context):
                 "tier": "tier1",
             }
             harvested += 1
+            got += 1
             queued += publish_paper(paper)
+        per_cat[cat] = got
 
     logger.info("[TIER 1 COMPLETE] harvested=%d queued=%d", harvested, queued)
+    emit("SUCCESS" if queued else "ERROR", "HARVEST",
+         f"Tier 1 harvest: {harvested} paper(s) fetched, {queued} queued to RabbitMQ (" + ", ".join(f"{c} {n}" for c, n in per_cat.items()) + ")",
+         tier="tier1", refresh=True)
     ensure_published(harvested, queued)
     return {"harvested": harvested, "queued": queued}
 

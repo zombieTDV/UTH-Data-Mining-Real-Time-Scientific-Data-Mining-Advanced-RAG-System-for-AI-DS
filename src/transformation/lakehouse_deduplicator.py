@@ -95,6 +95,8 @@ class LakehouseDeduplicator:
             }
             try:
                 self.io.put_json(self.manifest_key, manifest_data)
+                # Tiny side file so the backend can show the registry size without downloading the whole manifest
+                self.io.put_json(self.manifest_key.replace(".json", ".count.json"), {"total": len(self._hashes), "updated_at": manifest_data["updated_at"]})
                 logger.info("[DEDUP] Saved %d total hashes (+%d new) to MinIO", len(self._hashes), self._new_entries)
                 self._new_entries = 0
             except Exception as e:

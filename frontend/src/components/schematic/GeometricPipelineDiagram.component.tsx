@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useLakehouseStreamStore } from '../../store';
+import { useEdaFormulas } from '../../hooks';
 
 export interface DiagramNode {
   id: string;
@@ -22,29 +23,28 @@ export function GeometricPipelineDiagram() {
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   const {
-    sessionIngested,
     storageUsedGb,
     storageStats,
     isStreaming,
   } = useLakehouseStreamStore();
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
-  const currentArxivCount = (sourceBreakdown?.arxiv ?? 1485) + sessionIngested;
-  const currentDoiCount = sourceBreakdown?.doi ?? 8890;
+  const currentArxivCount = sourceBreakdown?.arxiv ?? 0;
+  const currentDoiCount = sourceBreakdown?.doi ?? 0;
   const currentOpenAlexCount = sourceBreakdown?.openalex ?? 0;
-  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 999;
-  const currentCvfCount = sourceBreakdown?.cvf ?? 1267;
+  const currentOpenReviewCount = sourceBreakdown?.openreview ?? 0;
+  const currentCvfCount = sourceBreakdown?.cvf ?? 0;
   const currentZenodoCount = sourceBreakdown?.zenodo ?? 0;
   const currentTotalCorpus = sourceBreakdown?.total_deduplicated ?? (currentDoiCount + currentArxivCount + currentOpenAlexCount + currentOpenReviewCount + currentCvfCount + currentZenodoCount);
   const currentCorpus = currentTotalCorpus;
   const currentBronzeCount = currentArxivCount;
-  const currentBatchesCount = 12;
+  const currentBatchesCount = 0;
   const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
     ?? storageStats?.zones?.goldChunkCount 
-    ?? 40399;
-  const currentFormulas = 2220938;
+    ?? 0;
+  const currentFormulas = useEdaFormulas();
   const currentEnriched = currentBronzeCount;
-  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 257.34).toFixed(2);
+  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 0).toFixed(2);
 
   const [statusText, setStatusText] = useState<string>(
     `PIPELINE READY · ${currentTotalCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`

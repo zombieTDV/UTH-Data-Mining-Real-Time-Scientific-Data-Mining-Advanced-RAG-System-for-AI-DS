@@ -31,7 +31,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
   return (
     <div
       onClick={() => !isSyncingR2 && triggerR2ManualSync()}
-      title={`Cloudflare R2 Storage Bucket (Bấm để Fetch R2 live)\n• Đã dùng: ${storageUsedGb.toFixed(2)} GB (${pct.toFixed(1)}%)\n• Hạn mức Free Tier: ${quotaGb.toFixed(2)} GB\n• Đồng bộ lần cuối: ${lastSyncedR2 || 'Mới đây'}\n• Zero Egress Fees`}
+      title={`MinIO Storage Bucket (bấm để quét lại)\n• Đã dùng: ${storageUsedGb.toFixed(2)} GB (${pct.toFixed(1)}%)\n• Hạn mức Free Tier: ${quotaGb.toFixed(2)} GB\n• Đồng bộ lần cuối: ${lastSyncedR2 || 'Mới đây'}\n• Zero Egress Fees`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -48,7 +48,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
         userSelect: 'none',
       }}
     >
-      {/* Cloudflare R2 Identity Icon & Label */}
+      {/* MinIO storage icon and label */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
         <svg
           width="13"
@@ -68,7 +68,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
           <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
         </svg>
         <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
-          {isSyncingR2 ? '...' : 'R2'}
+          {isSyncingR2 ? '...' : 'S3'}
         </span>
       </div>
 

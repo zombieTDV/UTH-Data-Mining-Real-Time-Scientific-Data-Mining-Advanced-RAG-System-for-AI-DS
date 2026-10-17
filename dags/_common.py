@@ -125,3 +125,23 @@ def fetch_recent(cat: str, limit: int) -> List[Dict[str, Any]]:
                 "published": getattr(e, "published", ""),
             })
     return out
+
+
+def emit(level: str, tag: str, msg: str, tier: str = "", refresh: bool = False) -> None:
+    """Post a log line to the dashboard backend (best effort; the DAG never fails because the dashboard is down)."""
+    url = env("BACKEND_BROADCAST_URL")
+    if not url:
+        return
+    try:
+        requests.post(url, json={"type": "LOG", "level": level, "tag": tag, "msg": msg, "tier": tier, "refresh": refresh}, timeout=2)
+    except Exception:
+        pass
+
+
+def on_failure(context) -> None:
+    ti = context.get("task_instance")
+    emit("ERROR", "AIRFLOW", f"Task {ti.dag_id}.{ti.task_id} failed (try {ti.try_number}): {context.get('exception')}", tier=_tier_of(ti.dag_id))
+
+
+def _tier_of(dag_id: str) -> str:
+    return "tier1" if "tier1" in dag_id else "tier2" if "tier2" in dag_id else ""

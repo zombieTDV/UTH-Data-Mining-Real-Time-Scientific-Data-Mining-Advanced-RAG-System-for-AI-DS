@@ -22,16 +22,16 @@ async def get_streaming_status() -> Dict[str, Any]:
 
 @router.post("/start")
 async def start_streaming_ingestion(
-    target: int = Query(3000, description="Target preprints to ingest incrementally (default: 3000)"),
-    delay: float = Query(2.0, description="Delay between papers (seconds)"),
+    target: int = Query(0, description="Unused; kept for client compatibility"),
+    delay: float = Query(0.0, description="Unused; kept for client compatibility"),
 ) -> Dict[str, Any]:
-    """Starts or resumes the real-time streaming ingestion worker."""
+    """Triggers the Tier 1 real-time harvest DAG in Airflow now."""
     return await streaming_service.start_streaming(target=target, delay=delay)
 
 
 @router.post("/stop")
 async def stop_streaming_ingestion() -> Dict[str, Any]:
-    """Gracefully pauses or stops the active streaming worker."""
+    """Cancels every running DAG run in Airflow."""
     return await streaming_service.stop_streaming()
 
 
@@ -57,7 +57,7 @@ async def reset_streaming_session() -> Dict[str, Any]:
 
 @router.get("/pipeline-logs")
 async def get_real_pipeline_logs(limit: int = 150) -> Dict[str, Any]:
-    """Fetches real structured pipeline execution logs directly from disk."""
+    """Pipeline log buffer (newest first): the same entries, ids and order as the LOG events on the SSE stream."""
     logs = streaming_service.get_latest_pipeline_logs(limit=limit)
     return {"status": "SUCCESS", "count": len(logs), "logs": logs}
 

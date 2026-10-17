@@ -128,6 +128,9 @@ class QueueConsumer:
         ok: List[Dict[str, Any]] = []
         failed: List[Tuple[Dict[str, Any], str]] = []
         fresh: List[Tuple[Dict[str, Any], Dict[str, Any], str, str]] = []  # paper, silver_rec, year, hash
+        t_batch = time.time()
+        n_dups = 0
+        tier_of = lambda p: str(p.get("tier") or "tier1")  # noqa: E731
 
         todo: List[Tuple[Dict[str, Any], str, str, str]] = []  # paper, paper_id, year, hash
         for paper in papers:
@@ -138,6 +141,7 @@ class QueueConsumer:
             is_dup, abs_hash = self.dedup.is_duplicate(paper.get("abstract", ""), paper.get("title", ""))
             if is_dup:
                 logger.info("[Worker][Dedup] Skipping duplicate %s", paper_id)
+                n_dups += 1
                 ok.append(paper)
                 continue
             todo.append((paper, paper_id, _year_of(paper), abs_hash))
@@ -148,7 +152,9 @@ class QueueConsumer:
         if need:
             for r in self.resolver.resolve_batch_concurrent(need, max_workers=4):
                 resolved[str(r["paper_id"])] = r
-            logger.info("[Worker][Content] %s", dict(collections.Counter(r.get("content_origin") for r in resolved.values())))
+            origins = dict(collections.Counter(r.get("content_origin") for r in resolved.values()))
+            logger.info("[Worker][Content] %s", origins)
+            self._emit_log("INFO", "HTML-FETCH", f"{len(resolved)} paper(s) resolved: " + ", ".join(f"{k} {v}" for k, v in origins.items()), tier=tier_of(todo[0][0]))
 
         for paper, paper_id, year, abs_hash in todo:
             try:
@@ -157,7 +163,11 @@ class QueueConsumer:
             except Exception as e:
                 failed.append((paper, f"bronze/silver prep: {e}"))
 
+        if n_dups:
+            self._emit_log("INFO", "DEDUP", f"{n_dups} duplicate paper(s) skipped (abstract hash already in the lakehouse).", tier=tier_of(papers[0]))
         if not fresh:
+            for paper, reason in failed:
+                self._emit_log("ERROR", "WORKER", f"{paper.get('paper_id')}: {reason}", tier=tier_of(paper))
             return ok, failed
 
         # Silver: one immutable part per year in this batch
@@ -167,7 +177,8 @@ class QueueConsumer:
         silver_failed_years = set()
         for year, recs in by_year.items():
             try:
-                self.silver_writer.append_part(recs, year=year)
+                part = self.silver_writer.append_part(recs, year=year)
+                self._emit_log("SUCCESS", "SILVER-VAULT", f"+{len(recs)} row(s) -> {part['key']} ({part['size_bytes'] // 1024} KB)", tier=tier_of(recs[0]))
             except Exception as e:
                 silver_failed_years.add(year)
                 logger.error("[Worker][Silver] Failed writing year=%s part: %s", year, e)
@@ -181,6 +192,7 @@ class QueueConsumer:
 
         # Gold: chunk + embed + upsert, per paper so one bad paper does not poison the batch
         landed: List[Dict[str, Any]] = []
+        chunk_counts: Dict[str, int] = {}
         for paper, rec, abs_hash in good:
             pid = str(rec["paper_id"])
             try:
@@ -190,6 +202,7 @@ class QueueConsumer:
                     for c, vec in zip(chunks, vectors):
                         c["vector"] = vec
                     self.qdrant.insert_chunks(chunks)
+                chunk_counts[pid] = len(chunks)
                 self.dedup.record(abs_hash, pid)  # only after Bronze+Silver+Gold are durable
                 ok.append(paper)
                 landed.append(rec)
@@ -198,27 +211,50 @@ class QueueConsumer:
 
         self.dedup.save()
         self.last_ingested = landed
-        self._broadcast(landed)
+        if landed:
+            try:
+                total_vectors = int(self.qdrant.count())
+            except Exception:
+                total_vectors = 0
+            self._emit_log(
+                "SUCCESS", "GOLD-VECTOR",
+                f"+{sum(chunk_counts.values())} chunk(s) from {len(landed)} paper(s) upserted to Qdrant"
+                + (f" (collection total {total_vectors:,})" if total_vectors else "") + f" in {time.time() - t_batch:.1f}s",
+                tier=tier_of(landed[0]), refresh=True,
+            )
+            self._broadcast(landed, chunk_counts)
+        for paper, reason in failed:
+            self._emit_log("ERROR", "WORKER", f"{paper.get('paper_id')}: {reason}", tier=tier_of(paper))
         return ok, failed
 
     @staticmethod
-    def _broadcast(landed: List[Dict[str, Any]]) -> None:
-        """Best-effort telemetry to the backend (one pulse per paper); disabled when BACKEND_BROADCAST_URL is empty."""
+    def _post_event(payload: Dict[str, Any]) -> None:
+        """Best-effort POST to the backend monitor; skipped when BACKEND_BROADCAST_URL is empty or the backend is down."""
         if not settings.BACKEND_BROADCAST_URL:
             return
+        try:
+            httpx.post(settings.BACKEND_BROADCAST_URL, json=payload, timeout=1.0)
+        except Exception:
+            pass
+
+    def _emit_log(self, level: str, tag: str, msg: str, tier: Optional[str] = None, refresh: bool = False) -> None:
+        self._post_event({"type": "LOG", "level": level, "tag": tag, "msg": msg, "tier": tier, "refresh": refresh})
+
+    def _broadcast(self, landed: List[Dict[str, Any]], chunk_counts: Dict[str, int]) -> None:
+        """One PAPER_INGESTED event per paper that is now in Bronze, Silver and Gold."""
         for rec in landed:
-            try:
-                httpx.post(settings.BACKEND_BROADCAST_URL, timeout=0.5, json={
-                    "type": "PAPER_INGESTED",
-                    "stage": "gold",
-                    "paper_id": rec.get("paper_id"),
-                    "title": str(rec.get("title", ""))[:120],
-                    "category": rec.get("primary_category", ""),
-                    "source": rec.get("source", ""),
-                    "tier": rec.get("tier", ""),
-                })
-            except Exception:
-                return  # backend not running: skip the rest of this batch's pulses
+            self._post_event({
+                "type": "PAPER_INGESTED",
+                "paper_id": rec.get("paper_id"),
+                "title": str(rec.get("title", ""))[:140],
+                "category": rec.get("primary_category", ""),
+                "tier": rec.get("tier", ""),
+                "source": rec.get("source", ""),
+                "content_origin": rec.get("content_origin", ""),
+                "total_words": rec.get("total_words"),
+                "total_sections": rec.get("total_sections"),
+                "vectors_synced": chunk_counts.get(str(rec.get("paper_id")), 0),
+            })
 
     def process_paper(self, paper: Dict[str, Any]) -> bool:
         """Single-paper convenience wrapper around process_batch (used by tests/scripts)."""
@@ -238,12 +274,14 @@ class QueueConsumer:
                 properties=pika.BasicProperties(delivery_mode=2, content_type="application/json"),
             )
             logger.error("[Worker] Paper %s dead-lettered after %d retries: %s", paper.get("paper_id"), retries, reason)
+            self._emit_log("ERROR", "WORKER", f"{paper.get('paper_id')} moved to the dead-letter queue after {retries} retries: {reason}", tier=paper.get("tier"))
         else:
             channel.basic_publish(
                 exchange="", routing_key=self.queue_name, body=body,
                 properties=pika.BasicProperties(delivery_mode=2, content_type="application/json", headers={RETRY_HEADER: retries + 1}),
             )
             logger.warning("[Worker] Paper %s requeued (retry %d/%d): %s", paper.get("paper_id"), retries + 1, self.max_retries, reason)
+            self._emit_log("WARN", "WORKER", f"{paper.get('paper_id')} requeued (retry {retries + 1}/{self.max_retries}): {reason}", tier=paper.get("tier"))
 
     def run_pika(self) -> None:
         import pika
@@ -259,6 +297,7 @@ class QueueConsumer:
 
         signal.signal(signal.SIGINT, stop)
         signal.signal(signal.SIGTERM, stop)
+        self._emit_log("SUCCESS", "WORKER", f"Ingestion worker started (batch={self.batch_size}) on queue '{self.queue_name}'.")
         logger.info("[*] Listening on '%s' (batch=%d, dead-letter='%s'). Ctrl+C to exit.", self.queue_name, self.batch_size, self.dead_queue)
 
         pending: List[Tuple[int, Dict[str, Any], int]] = []  # (delivery_tag, paper, retries)

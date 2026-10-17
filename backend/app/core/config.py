@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     RABBITMQ_MGMT_URL: str
     RABBITMQ_QUEUE_INGEST: str = "scientific_paper_ingest"
 
+    # Apache Airflow REST API (DAG monitoring and control)
+    AIRFLOW_API_URL: str
+    AIRFLOW_USER: str
+    AIRFLOW_PASSWORD: str
+
     # Lakehouse object keys (inside the MinIO bucket)
     SILVER_PRIMARY_KEY: str = "silver/papers/year=2026/papers.parquet"
     SILVER_CATALOG_KEYS: str = (

@@ -6,9 +6,9 @@ import {
   fetchHealth,
   subscribeTelemetry,
   triggerMiningPipeline,
-  fetchStorageStats,
   fetchEdaSummary,
 } from './services';
+import { API_CONFIG } from './config';
 import { useThemeStore, useLakehouseStreamStore } from './store';
 import type { AppTab, PipelineStatus, BackendStatus, SchematicViewMode } from './types';
 
@@ -17,25 +17,23 @@ export default function App() {
   const {
     isStreaming,
     totalCorpus,
+    totalVectors,
     sessionIngested,
     streamSpeed,
     storageUsedGb,
     storageUsedPct,
     storageStats,
+    connectionStatus,
     initializeStream,
-    refreshStorageStats,
   } = useLakehouseStreamStore();
 
   const [activeTab, setActiveTab] = useState<AppTab>('schematic');
   const [schematicViewMode, setSchematicViewMode] = useState<SchematicViewMode>('canvas');
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('IDLE');
-  const [backendStatus, setBackendStatus] = useState<BackendStatus>('ONLINE');
+  const [healthStatus, setHealthStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
 
-  // Real-time Streaming State for Lakehouse Counter (Active Lakehouse: 29,911 fulltext papers, 913,205 vectors)
-  const [totalPapers, setTotalPapers] = useState<number>(29911);
-  const [totalFormulas, setTotalFormulas] = useState<number>(2765395);
-  const [totalVectors, setTotalVectors] = useState<number>(913205);
+  const [totalFormulas, setTotalFormulas] = useState<number>(0);
 
   const [ragInitialQuery, setRagInitialQuery] = useState<string>('');
 
@@ -47,8 +45,8 @@ export default function App() {
   // Check health, load live EDA and storage stats, and subscribe to SSE telemetry
   useEffect(() => {
     fetchHealth()
-      .then(() => setBackendStatus('ONLINE'))
-      .catch(() => setBackendStatus('OFFLINE'));
+      .then(() => setHealthStatus('ONLINE'))
+      .catch(() => setHealthStatus('OFFLINE'));
 
     fetchEdaSummary()
       .then((eda) => {
@@ -58,40 +56,15 @@ export default function App() {
       })
       .catch(() => {});
 
-    const syncStorageStats = () => {
-      refreshStorageStats();
-      fetchStorageStats()
-        .then((data) => {
-          if (data?.activeLakehouse) {
-            const works =
-              data.sourceBreakdown?.total_deduplicated ||
-              data.activeLakehouse.sourceBreakdown?.total_deduplicated ||
-              29911;
-            setTotalPapers(works);
-            if (data.activeLakehouse.activeLanceDbVectors) {
-              setTotalVectors(data.activeLakehouse.activeLanceDbVectors);
-            }
-          } else if (data?.sourceBreakdown?.total_deduplicated) {
-            setTotalPapers(data.sourceBreakdown.total_deduplicated);
-            if (data?.zones?.goldChunkCount) {
-              setTotalVectors(data.zones.goldChunkCount);
-            }
-          }
-        })
-        .catch(() => {});
-    };
-
-    // Initial cold-start fetch once; real-time updates are delivered via SSE stream
-    syncStorageStats();
+    // Counters, queue, DAG state and logs arrive from the backend monitor over one SSE stream (see streaming.store.ts).
 
     const unsubscribeTelemetry = subscribeTelemetry(
       (data) => {
-        setBackendStatus('ONLINE');
         if (data?.timestamp) {
           setLastTelemetryTick(data.timestamp.split('T')[1]?.split('.')[0] || '');
         }
       },
-      () => setBackendStatus('OFFLINE')
+      () => undefined
     );
 
     // Initialize singleton SSE stream with auto-reconnect
@@ -121,14 +94,24 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [toggleTheme]);
 
+  // Re-run the mining engine and follow it until the backend publishes a manifest newer than the one we started from.
   const handleTriggerPipeline = async () => {
     try {
+      const manifestUrl = `${API_CONFIG.baseUrl}/api/mining/manifest`;
+      const before = await fetch(manifestUrl).then((r) => r.json()).catch(() => null);
       setPipelineStatus('RUNNING');
       await triggerMiningPipeline();
-      setTimeout(() => {
-        setPipelineStatus('COMPLETED');
-        setTimeout(() => setPipelineStatus('IDLE'), 6000);
-      }, 5000);
+      const startedAt = before?.execution_timestamp;
+      for (let i = 0; i < 90; i += 1) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const m = await fetch(manifestUrl).then((r) => r.json()).catch(() => null);
+        if (m && m.execution_timestamp !== startedAt && m.status === 'COMPLETED') {
+          setPipelineStatus('COMPLETED');
+          setTimeout(() => setPipelineStatus('IDLE'), 6000);
+          return;
+        }
+      }
+      setPipelineStatus('IDLE');
     } catch {
       setPipelineStatus('IDLE');
     }
@@ -141,11 +124,13 @@ export default function App() {
     setActiveTab('rag');
   };
 
-  const effectiveTotalPapers = Math.max(29911, storageStats?.sourceBreakdown?.total_deduplicated || totalCorpus || totalPapers || 29911) + (isStreaming ? sessionIngested : 0);
-  const effectiveTotalVectors = Math.max(913205, storageStats?.activeLakehouse?.activeLanceDbVectors || totalVectors || 913205);
-  const effectiveTotalFormulas = totalFormulas || 2765395;
-  const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb || storageUsedGb || 4.774;
-  const effectiveStoragePct = storageStats?.totalBucket?.usedPercentage || storageUsedPct || 47.7;
+  // ONLINE only while the live monitor stream is connected and the health check passed
+  const backendStatus: BackendStatus = connectionStatus === 'CONNECTED' && healthStatus === 'ONLINE' ? 'ONLINE' : 'OFFLINE';
+  const effectiveTotalPapers = totalCorpus;
+  const effectiveTotalVectors = totalVectors;
+  const effectiveTotalFormulas = totalFormulas;
+  const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb ?? storageUsedGb;
+  const effectiveStoragePct = storageStats?.totalBucket?.usedPercentage ?? storageUsedPct;
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: 'transparent', position: 'relative', overflow: 'hidden' }}>
@@ -175,7 +160,7 @@ export default function App() {
           totalPapers={effectiveTotalPapers}
           totalFormulas={effectiveTotalFormulas}
           totalVectors={effectiveTotalVectors}
-          sessionIngested={isStreaming ? sessionIngested : 0}
+          sessionIngested={sessionIngested}
           streamSpeed={streamSpeed}
           storageUsedGb={effectiveStorageGb}
           storageUsedPct={effectiveStoragePct}

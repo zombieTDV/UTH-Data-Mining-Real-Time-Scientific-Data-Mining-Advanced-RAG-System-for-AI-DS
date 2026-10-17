@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent, type F
 import type { ChatResponse } from '../../types';
 import { sendChatQuery, streamChatQuery, fetchPaper } from '../../services';
 import { ScientificMath } from '../common/ScientificMath.component';
+import { useLakehouseStreamStore } from '../../store';
 
 export interface GroundedRagChatProps {
   theme?: 'dark' | 'light';
@@ -60,7 +61,7 @@ const RESEARCH_PROMPT_SUGGESTIONS = [
 ];
 
 const RAG_STREAMING_STATUSES = [
-  'Querying Qdrant Gold Lakehouse (673,909 vectors 768-D)...',
+  'Querying Qdrant Gold Lakehouse (768-D vectors)...',
   'Verifying context & multi-source citations...',
   'Qwen2.5-7B synthesizing grounded academic response...',
 ];
@@ -79,6 +80,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   initialQuery = '',
   onClearInitialQuery,
 }) => {
+  const { totalCorpus, totalVectors } = useLakehouseStreamStore();
   const isDark = theme === 'dark';
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState<string>(initialQuery);
@@ -629,7 +631,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
           <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
-            36,414 Works · 673,909 Qdrant Vectors (Nomic 768-D)
+            {totalCorpus.toLocaleString()} Works · {totalVectors.toLocaleString()} Qdrant Vectors (Nomic 768-D)
           </span>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
