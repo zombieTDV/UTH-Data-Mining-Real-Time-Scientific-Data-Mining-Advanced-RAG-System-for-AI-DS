@@ -1,6 +1,7 @@
-import { useState, useMemo, type FC } from 'react';
+import { useState, useMemo, useEffect, type FC } from 'react';
 
 export interface JsonTreeViewerProps {
+  theme?: string;
   fileName: string;
   jsonData: any;
   sizeFormatted?: string;
@@ -8,14 +9,17 @@ export interface JsonTreeViewerProps {
 }
 
 export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
+  theme = 'dark',
   fileName,
   jsonData,
   sizeFormatted,
   lastModified,
 }) => {
+  const isLight = theme === 'light';
   const [searchTerm, setSearchTerm] = useState('');
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<'formatted' | 'raw'>('formatted');
+  const [visibleLinesCount, setVisibleLinesCount] = useState<number>(500);
 
   const jsonString = useMemo(() => {
     try {
@@ -40,6 +44,17 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
     const term = searchTerm.toLowerCase();
     return lines.filter(line => line.toLowerCase().includes(term));
   }, [lines, searchTerm]);
+
+  // Reset pagination when data or search query changes
+  useEffect(() => {
+    setVisibleLinesCount(500);
+  }, [jsonData, searchTerm]);
+
+  const displayedLines = useMemo(() => {
+    return filteredLines.slice(0, visibleLinesCount);
+  }, [filteredLines, visibleLinesCount]);
+
+  const hasMoreLines = filteredLines.length > visibleLinesCount;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '12px' }}>
@@ -95,10 +110,10 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
           <div
             style={{
               display: 'flex',
-              backgroundColor: 'var(--bg-card, #1e293b)',
+              backgroundColor: isLight ? '#f1f5f9' : 'var(--bg-card, #1e293b)',
               padding: '2px',
               borderRadius: '6px',
-              border: '1px solid var(--border-subtle, #334155)',
+              border: isLight ? '1px solid #cbd5e1' : '1px solid var(--border-subtle, #334155)',
             }}
           >
             <button
@@ -110,7 +125,7 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
                 border: 'none',
                 cursor: 'pointer',
                 backgroundColor: viewMode === 'formatted' ? '#f59e0b' : 'transparent',
-                color: viewMode === 'formatted' ? '#0f172a' : 'inherit',
+                color: viewMode === 'formatted' ? '#0f172a' : isLight ? '#475569' : 'inherit',
                 fontWeight: viewMode === 'formatted' ? 700 : 500,
               }}
             >
@@ -125,7 +140,7 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
                 border: 'none',
                 cursor: 'pointer',
                 backgroundColor: viewMode === 'raw' ? '#f59e0b' : 'transparent',
-                color: viewMode === 'raw' ? '#0f172a' : 'inherit',
+                color: viewMode === 'raw' ? '#0f172a' : isLight ? '#475569' : 'inherit',
                 fontWeight: viewMode === 'raw' ? 700 : 500,
               }}
             >
@@ -207,9 +222,9 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
               padding: '7px 12px 7px 32px',
               fontSize: '12px',
               borderRadius: '6px',
-              border: '1px solid var(--border-subtle, #334155)',
-              backgroundColor: 'var(--bg-card, #1e293b)',
-              color: 'inherit',
+              border: isLight ? '1px solid #cbd5e1' : '1px solid var(--border-subtle, #334155)',
+              backgroundColor: isLight ? '#ffffff' : 'var(--bg-card, #1e293b)',
+              color: isLight ? '#0f172a' : 'inherit',
               outline: 'none',
               fontFamily: 'var(--font-mono)',
             }}
@@ -227,25 +242,25 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
         style={{
           flex: 1,
           overflow: 'auto',
-          backgroundColor: '#0a0f1d',
-          border: '1px solid var(--border-subtle, #1e293b)',
+          backgroundColor: isLight ? '#f8fafc' : '#0a0f1d',
+          border: isLight ? '1px solid #cbd5e1' : '1px solid var(--border-subtle, #1e293b)',
           borderRadius: '8px',
           padding: '12px',
           fontFamily: 'var(--font-mono, monospace)',
           fontSize: '12px',
           lineHeight: '1.6',
-          color: '#e2e8f0',
+          color: isLight ? '#0f172a' : '#e2e8f0',
         }}
       >
         {viewMode === 'raw' ? (
-          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-            {searchTerm
-              ? filteredLines.join('\n')
-              : jsonString}
-          </pre>
+          <div>
+            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {displayedLines.join('\n')}
+            </pre>
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {filteredLines.map((line, idx) => {
+            {displayedLines.map((line, idx) => {
               // Highlight keys vs values
               const colonIdx = line.indexOf(':');
               let renderedContent = line;
@@ -259,7 +274,7 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
                     <span
                       style={{
                         userSelect: 'none',
-                        color: '#475569',
+                        color: isLight ? '#94a3b8' : '#475569',
                         width: '36px',
                         textAlign: 'right',
                         paddingRight: '6px',
@@ -269,9 +284,15 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
                       {idx + 1}
                     </span>
                     <span style={{ flex: 1, whiteSpace: 'pre' }}>
-                      <span style={{ color: '#38bdf8' }}>{keyPart}</span>
-                      <span style={{ color: '#94a3b8' }}>:</span>
-                      <span style={{ color: valPart.includes('"') ? '#a5b4fc' : '#34d399' }}>
+                      <span style={{ color: isLight ? '#0284c7' : '#38bdf8' }}>{keyPart}</span>
+                      <span style={{ color: isLight ? '#64748b' : '#94a3b8' }}>:</span>
+                      <span
+                        style={{
+                          color: valPart.includes('"')
+                            ? (isLight ? '#4f46e5' : '#a5b4fc')
+                            : (isLight ? '#059669' : '#34d399'),
+                        }}
+                      >
                         {valPart}
                       </span>
                     </span>
@@ -284,7 +305,7 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
                   <span
                     style={{
                       userSelect: 'none',
-                      color: '#475569',
+                      color: isLight ? '#94a3b8' : '#475569',
                       width: '36px',
                       textAlign: 'right',
                       paddingRight: '6px',
@@ -293,10 +314,89 @@ export const JsonTreeViewer: FC<JsonTreeViewerProps> = ({
                   >
                     {idx + 1}
                   </span>
-                  <span style={{ flex: 1, whiteSpace: 'pre', color: '#94a3b8' }}>{renderedContent}</span>
+                  <span
+                    style={{
+                      flex: 1,
+                      whiteSpace: 'pre',
+                      color: isLight ? '#334155' : '#94a3b8',
+                    }}
+                  >
+                    {renderedContent}
+                  </span>
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Windowing Pagination / Load More Bar */}
+        {hasMoreLines && (
+          <div
+            style={{
+              marginTop: '16px',
+              padding: '10px 14px',
+              borderRadius: '6px',
+              backgroundColor: isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.04)',
+              border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
+            }}
+          >
+            <div style={{ fontSize: '11.5px', color: isLight ? '#64748b' : '#94a3b8' }}>
+              Showing <strong>1 – {Math.min(visibleLinesCount, filteredLines.length).toLocaleString()}</strong> of{' '}
+              <strong>{filteredLines.length.toLocaleString()}</strong> lines
+              {filteredLines.length > 5000 && ' (paginated to maintain 60 FPS rendering)'}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setVisibleLinesCount(prev => Math.min(prev + 500, filteredLines.length))}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  backgroundColor: isLight ? '#fef3c7' : 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  color: isLight ? '#b45309' : '#f59e0b',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                + Load Next 500
+              </button>
+              <button
+                onClick={() => setVisibleLinesCount(prev => Math.min(prev + 2000, filteredLines.length))}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  backgroundColor: isLight ? '#fef3c7' : 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  color: isLight ? '#b45309' : '#f59e0b',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                + Load 2,000
+              </button>
+              <button
+                onClick={() => setVisibleLinesCount(filteredLines.length)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
+                  border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                  color: isLight ? '#334155' : '#cbd5e1',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Show All ({filteredLines.length.toLocaleString()})
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -29,6 +29,8 @@ export interface FilePreviewData {
 }
 
 export interface R2FileInspectorProps {
+  theme?: string;
+  bucketName?: string;
   selectedFile: R2FileItem | null;
   previewData: FilePreviewData | null;
   isLoading: boolean;
@@ -37,6 +39,8 @@ export interface R2FileInspectorProps {
 }
 
 export const R2FileInspector: FC<R2FileInspectorProps> = ({
+  theme = 'dark',
+  bucketName = 'uth-scientific-lakehouse',
   selectedFile,
   previewData,
   isLoading,
@@ -47,7 +51,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
 
   const handleCopyKey = () => {
     if (!selectedFile) return;
-    navigator.clipboard.writeText(`s3://uth-scientific-lakehouse/${selectedFile.key}`);
+    navigator.clipboard.writeText(`s3://${bucketName}/${selectedFile.key}`);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
   };
@@ -309,7 +313,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            s3://uth-scientific-lakehouse/{selectedFile.key}
+            s3://{bucketName}/{selectedFile.key}
           </span>
         </div>
 
@@ -337,6 +341,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
       <div style={{ flex: 1, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
         {previewType === 'parquet' && (
           <ParquetTableViewer
+            theme={theme}
             fileName={previewData?.name || selectedFile.name}
             totalRows={previewData?.total_rows ?? selectedFile.row_count}
             columns={previewData?.schema_columns || []}
@@ -348,6 +353,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
 
         {previewType === 'json' && (
           <JsonTreeViewer
+            theme={theme}
             fileName={previewData?.name || selectedFile.name}
             jsonData={previewData?.json_data ?? {}}
             sizeFormatted={previewData?.size_formatted || selectedFile.size_formatted}
@@ -357,6 +363,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
 
         {previewType === 'lance' && (
           <LanceDbInspector
+            theme={theme}
             fileName={previewData?.name || selectedFile.name}
             meta={previewData?.lance_meta}
             columns={previewData?.schema_columns || []}

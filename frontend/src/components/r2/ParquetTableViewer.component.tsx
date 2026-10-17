@@ -18,6 +18,7 @@ interface CellPopoverInfo {
 }
 
 export interface ParquetTableViewerProps {
+  theme?: string;
   fileName: string;
   totalRows?: number;
   columns?: ParquetColumn[];
@@ -27,6 +28,7 @@ export interface ParquetTableViewerProps {
 }
 
 export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
+  theme = 'dark',
   fileName,
   totalRows,
   columns = [],
@@ -290,7 +292,7 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
             placeholder="Filter sample records..."
             style={{
               width: '240px',
-              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+              backgroundColor: theme === 'light' ? '#f1f5f9' : 'rgba(0, 0, 0, 0.25)',
               border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
               borderRadius: '6px',
               padding: '6px 10px',
@@ -300,6 +302,25 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
               outline: 'none',
             }}
           />
+          {Object.values(expandedColumns).some(Boolean) && (
+            <button
+              type="button"
+              onClick={() => setExpandedColumns({})}
+              title="Collapse all expanded columns back to standard width"
+              style={{
+                padding: '4px 8px',
+                fontSize: '11px',
+                borderRadius: '5px',
+                backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                color: '#38bdf8',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              Reset Column Widths
+            </button>
+          )}
           <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', fontFamily: 'var(--font-mono)' }}>
             Showing {filteredRows.length} of {sampleRows.length} sample rows (First 50 sampled)
           </span>
@@ -313,7 +334,7 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
               setCurrentPage(1);
             }}
             style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+              backgroundColor: theme === 'light' ? '#f1f5f9' : 'rgba(0, 0, 0, 0.25)',
               border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
               borderRadius: '6px',
               padding: '5px 8px',
@@ -391,7 +412,7 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
           }}
         >
           <thead>
-            <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', position: 'sticky', top: 0, zIndex: 10 }}>
+            <tr style={{ backgroundColor: theme === 'light' ? '#f1f5f9' : 'rgba(0, 0, 0, 0.35)', position: 'sticky', top: 0, zIndex: 10 }}>
               <th
                 style={{
                   padding: '10px 12px',
@@ -550,127 +571,140 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
         </table>
       </div>
 
-      {/* Floating Anchored Overlay Card (Destroys on Mouse Leave or ESC) */}
+      {/* Floating Anchored Overlay Card with click-outside backdrop */}
       {activePopover && (
-        <div
-          onMouseLeave={() => setActivePopover(null)}
-          style={{
-            position: 'fixed',
-            top: `${activePopover.y}px`,
-            left: `${activePopover.x}px`,
-            width: '500px',
-            maxWidth: '90vw',
-            maxHeight: '340px',
-            zIndex: 9999,
-            backgroundColor: 'rgba(15, 23, 42, 0.96)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(56, 189, 248, 0.4)',
-            borderRadius: '10px',
-            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.65), 0 0 20px rgba(56, 189, 248, 0.15)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Popover Header */}
+        <>
+          <div
+            onClick={() => setActivePopover(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 9998,
+              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+            }}
+          />
           <div
             style={{
+              position: 'fixed',
+              top: `${activePopover.y}px`,
+              left: `${activePopover.x}px`,
+              width: '500px',
+              maxWidth: '90vw',
+              maxHeight: '340px',
+              zIndex: 9999,
+              backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(15, 23, 42, 0.96)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(56, 189, 248, 0.4)',
+              borderRadius: '10px',
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(56, 189, 248, 0.15)',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 14px',
-              backgroundColor: 'rgba(56, 189, 248, 0.1)',
-              borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+              flexDirection: 'column',
+              overflow: 'hidden',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontWeight: 800, fontSize: '12px', fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>
-                {activePopover.colName}
-              </span>
-              <ParquetTypePill type={activePopover.colType} />
-              <span style={{ fontSize: '10.5px', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
-                Row #{activePopover.rowIdx}
-              </span>
+            {/* Popover Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontWeight: 800, fontSize: '12px', fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>
+                  {activePopover.colName}
+                </span>
+                <ParquetTypePill type={activePopover.colType} />
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
+                  Row #{activePopover.rowIdx}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
+                  {activePopover.formattedValue.length.toLocaleString()} chars
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(activePopover.formattedValue);
+                    setCopiedCellKey(activePopover.cellKey);
+                    setTimeout(() => setCopiedCellKey(null), 1500);
+                  }}
+                  title="Copy content to clipboard"
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(56, 189, 248, 0.2)',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    color: '#38bdf8',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePopover(null)}
+                  title="Close popup"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted, #94a3b8)',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    padding: '2px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
-                {activePopover.formattedValue.length.toLocaleString()} chars
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(activePopover.formattedValue);
-                  setCopiedCellKey(activePopover.cellKey);
-                  setTimeout(() => setCopiedCellKey(null), 1500);
-                }}
-                title="Copy content to clipboard"
-                style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(56, 189, 248, 0.2)',
-                  border: '1px solid rgba(56, 189, 248, 0.4)',
-                  color: '#38bdf8',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Copy
-              </button>
-              <button
-                type="button"
-                onClick={() => setActivePopover(null)}
-                title="Close (or move mouse away)"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted, #94a3b8)',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  padding: '2px',
-                }}
-              >
-                ✕
-              </button>
+            {/* Popover Content */}
+            <div
+              style={{
+                flex: 1,
+                padding: '12px 14px',
+                overflowY: 'auto',
+                fontSize: '12px',
+                lineHeight: '1.6',
+                color: theme === 'light' ? '#0f172a' : '#f8fafc',
+                fontFamily: 'var(--font-mono)',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {activePopover.formattedValue}
+            </div>
+
+            {/* Popover Footer Hint */}
+            <div
+              style={{
+                padding: '6px 14px',
+                backgroundColor: theme === 'light' ? '#f8fafc' : 'rgba(0, 0, 0, 0.35)',
+                borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))',
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '10px',
+                color: 'var(--text-muted, #64748b)',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              <span>Click outside or press ESC to dismiss</span>
+              <span>Triple-click any cell to copy</span>
             </div>
           </div>
-
-          {/* Popover Content */}
-          <div
-            style={{
-              flex: 1,
-              padding: '12px 14px',
-              overflowY: 'auto',
-              fontSize: '12px',
-              lineHeight: '1.6',
-              color: '#f8fafc',
-              fontFamily: 'var(--font-mono)',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {activePopover.formattedValue}
-          </div>
-
-          {/* Popover Footer Hint */}
-          <div
-            style={{
-              padding: '6px 14px',
-              backgroundColor: 'rgba(0, 0, 0, 0.35)',
-              borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: '10px',
-              color: 'var(--text-muted, #64748b)',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            <span>Hover cursor outside or press ESC to dismiss</span>
-            <span>Triple-click any cell to copy</span>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

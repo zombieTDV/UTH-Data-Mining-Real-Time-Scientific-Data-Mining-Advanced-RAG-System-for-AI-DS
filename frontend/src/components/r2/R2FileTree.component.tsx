@@ -20,6 +20,7 @@ export interface R2FileItem {
 }
 
 export interface R2FileTreeProps {
+  theme?: string;
   zones: Record<string, R2FileItem[]>;
   zoneStats: Record<string, { count: number; size_bytes: number; size_formatted: string }>;
   selectedKey: string | null;
@@ -27,6 +28,7 @@ export interface R2FileTreeProps {
 }
 
 export const R2FileTree: FC<R2FileTreeProps> = ({
+  theme = 'dark',
   zones,
   zoneStats,
   selectedKey,
@@ -132,7 +134,7 @@ export const R2FileTree: FC<R2FileTreeProps> = ({
             placeholder="Search files by name or ext..."
             style={{
               width: '100%',
-              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+              backgroundColor: theme === 'light' ? '#f1f5f9' : 'rgba(0, 0, 0, 0.25)',
               border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
               borderRadius: '7px',
               padding: '7px 10px 7px 30px',
@@ -196,8 +198,8 @@ export const R2FileTree: FC<R2FileTreeProps> = ({
                   justifyContent: 'space-between',
                   padding: '8px 10px',
                   borderRadius: '7px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.04)',
+                  backgroundColor: theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
+                  border: `1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.04)'}`,
                   color: 'var(--text-primary, #f8fafc)',
                   cursor: 'pointer',
                   transition: 'background-color 0.15s ease',

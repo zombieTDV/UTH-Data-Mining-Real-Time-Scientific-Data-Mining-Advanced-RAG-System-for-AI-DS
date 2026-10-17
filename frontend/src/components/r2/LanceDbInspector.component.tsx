@@ -32,6 +32,7 @@ export interface LanceColumn {
 }
 
 export interface LanceDbInspectorProps {
+  theme?: string;
   fileName: string;
   meta?: LanceMetaInfo;
   columns?: LanceColumn[];
@@ -53,6 +54,7 @@ interface CellPopoverInfo {
 }
 
 export const LanceDbInspector: FC<LanceDbInspectorProps> = ({
+  theme = 'dark',
   fileName,
   meta,
   columns: propColumns,
@@ -86,9 +88,9 @@ export const LanceDbInspector: FC<LanceDbInspectorProps> = ({
     vector_column: 'vector',
     vector_dimension: 768,
     embedding_model: 'nomic-ai/nomic-embed-text-v1.5 (Matryoshka 768-D)',
-    total_chunks: 164750,
-    openreview_chunks: 26187,
-    cvpr_chunks: 22790,
+    total_chunks: totalRows || 164750,
+    openreview_chunks: undefined,
+    cvpr_chunks: undefined,
     indices: [
       {
         name: 'text_idx',
@@ -338,7 +340,9 @@ export const LanceDbInspector: FC<LanceDbInspectorProps> = ({
             {(totalRows ?? currentMeta.total_chunks).toLocaleString()}
           </div>
           <div style={{ fontSize: '10px', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
-            OpenReview: {currentMeta.openreview_chunks} | CVPR: {currentMeta.cvpr_chunks}
+            {currentMeta.openreview_chunks != null && currentMeta.cvpr_chunks != null
+              ? `OpenReview: ${currentMeta.openreview_chunks.toLocaleString()} | CVPR: ${currentMeta.cvpr_chunks.toLocaleString()}`
+              : 'Indexed with Tantivy & IVF-PQ'}
           </div>
         </div>
 
@@ -875,128 +879,141 @@ export const LanceDbInspector: FC<LanceDbInspectorProps> = ({
         </div>
       </div>
 
-      {/* Floating Anchored Overlay Card (Destroys on Mouse Leave or ESC) */}
+      {/* Floating Anchored Overlay Card with click-outside backdrop */}
       {activePopover && (
-        <div
-          onMouseLeave={() => setActivePopover(null)}
-          style={{
-            position: 'fixed',
-            top: `${activePopover.y}px`,
-            left: `${activePopover.x}px`,
-            width: '520px',
-            maxWidth: '90vw',
-            maxHeight: '340px',
-            zIndex: 9999,
-            backgroundColor: 'rgba(15, 23, 42, 0.96)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(167, 139, 250, 0.4)',
-            borderRadius: '10px',
-            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.65), 0 0 20px rgba(167, 139, 250, 0.15)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Popover Header */}
+        <>
+          <div
+            onClick={() => setActivePopover(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 9998,
+              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+            }}
+          />
           <div
             style={{
+              position: 'fixed',
+              top: `${activePopover.y}px`,
+              left: `${activePopover.x}px`,
+              width: '520px',
+              maxWidth: '90vw',
+              maxHeight: '340px',
+              zIndex: 9999,
+              backgroundColor: theme === 'light' ? '#ffffff' : 'rgba(15, 23, 42, 0.96)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(167, 139, 250, 0.4)',
+              borderRadius: '10px',
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(167, 139, 250, 0.15)',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 14px',
-              backgroundColor: 'rgba(167, 139, 250, 0.1)',
-              borderBottom: '1px solid rgba(167, 139, 250, 0.2)',
+              flexDirection: 'column',
+              overflow: 'hidden',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontWeight: 800, fontSize: '12px', fontFamily: 'var(--font-mono)', color: '#c084fc' }}>
-                {activePopover.colName}
-              </span>
-              <ParquetTypePill type={activePopover.colType} />
-              <span style={{ fontSize: '10.5px', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
-                Row #{activePopover.rowIdx}
-              </span>
+            {/* Popover Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                backgroundColor: 'rgba(167, 139, 250, 0.1)',
+                borderBottom: '1px solid rgba(167, 139, 250, 0.2)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontWeight: 800, fontSize: '12px', fontFamily: 'var(--font-mono)', color: '#c084fc' }}>
+                  {activePopover.colName}
+                </span>
+                <ParquetTypePill type={activePopover.colType} />
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
+                  Row #{activePopover.rowIdx}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
+                  {activePopover.formattedValue.length.toLocaleString()} chars
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(activePopover.formattedValue);
+                    setCopiedCellKey(activePopover.cellKey);
+                    setTimeout(() => setCopiedCellKey(null), 1500);
+                  }}
+                  title="Copy content to clipboard"
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(167, 139, 250, 0.2)',
+                    border: '1px solid rgba(167, 139, 250, 0.4)',
+                    color: '#c084fc',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePopover(null)}
+                  title="Close popup"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted, #94a3b8)',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    padding: '2px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
-                {activePopover.formattedValue.length.toLocaleString()} chars
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(activePopover.formattedValue);
-                  setCopiedCellKey(activePopover.cellKey);
-                  setTimeout(() => setCopiedCellKey(null), 1500);
-                }}
-                title="Copy content to clipboard"
-                style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(167, 139, 250, 0.2)',
-                  border: '1px solid rgba(167, 139, 250, 0.4)',
-                  color: '#c084fc',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Copy
-              </button>
-              <button
-                type="button"
-                onClick={() => setActivePopover(null)}
-                title="Close (or move mouse away)"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted, #94a3b8)',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  padding: '2px',
-                }}
-              >
-                ✕
-              </button>
+            {/* Popover Content */}
+            <div
+              style={{
+                padding: '14px',
+                overflowY: 'auto',
+                flex: 1,
+                fontSize: '12px',
+                lineHeight: '1.65',
+                fontFamily: 'var(--font-mono)',
+                color: theme === 'light' ? '#0f172a' : 'var(--text-primary, #f8fafc)',
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
+                backgroundColor: theme === 'light' ? '#f8fafc' : 'rgba(0, 0, 0, 0.3)',
+              }}
+            >
+              {activePopover.formattedValue}
+            </div>
+
+            {/* Popover Footer */}
+            <div
+              style={{
+                padding: '6px 14px',
+                fontSize: '10px',
+                color: 'var(--text-muted, #64748b)',
+                borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: theme === 'light' ? '#f1f5f9' : 'rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              <span>Click outside or press ESC to dismiss // Triple-click cell to copy</span>
+              <span style={{ color: '#a78bfa', fontWeight: 600 }}>LanceDB Vector Table</span>
             </div>
           </div>
-
-          {/* Popover Content */}
-          <div
-            style={{
-              padding: '14px',
-              overflowY: 'auto',
-              flex: 1,
-              fontSize: '12px',
-              lineHeight: '1.65',
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--text-primary, #f8fafc)',
-              wordBreak: 'break-word',
-              whiteSpace: 'pre-wrap',
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-            }}
-          >
-            {activePopover.formattedValue}
-          </div>
-
-          {/* Popover Footer */}
-          <div
-            style={{
-              padding: '6px 14px',
-              fontSize: '10px',
-              color: 'var(--text-muted, #64748b)',
-              borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              backgroundColor: 'rgba(0, 0, 0, 0.2)',
-            }}
-          >
-            <span>Hover outside to dismiss // Press ESC // Triple-click cell to copy</span>
-            <span style={{ color: '#a78bfa', fontWeight: 600 }}>LanceDB Vector Table</span>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import type { FC } from 'react';
 import { CostShieldBadge } from './R2Glyphs.component';
 
 export interface R2StorageHudProps {
+  theme?: string;
   bucketName: string;
   totalSizeGb: number;
   totalObjects: number;
@@ -19,6 +20,7 @@ export interface R2StorageHudProps {
 }
 
 export const R2StorageHud: FC<R2StorageHudProps> = ({
+  theme = 'dark',
   bucketName,
   totalSizeGb,
   totalObjects,
@@ -35,7 +37,7 @@ export const R2StorageHud: FC<R2StorageHudProps> = ({
   estimatedOverageCostUsd = 0.0,
 }) => {
   const isOverage = totalSizeGb > freeTierQuotaGb;
-  const meterColor = isOverage ? '#f59e0b' : usedPercentage > 85 ? '#ef4444' : '#06b6d4';
+  const meterColor = isOverage ? '#ef4444' : usedPercentage > 85 ? '#f59e0b' : '#06b6d4';
 
   return (
     <div
@@ -214,10 +216,10 @@ export const R2StorageHud: FC<R2StorageHudProps> = ({
         <div
           style={{
             height: '8px',
-            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            backgroundColor: theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
             borderRadius: '999px',
             overflow: 'hidden',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
+            border: `1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.05)'}`,
             display: 'flex',
           }}
         >

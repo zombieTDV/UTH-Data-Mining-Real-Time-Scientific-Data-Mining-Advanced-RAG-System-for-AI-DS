@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type FC } from 'react';
+import { useState, useEffect, useCallback, useRef, type FC } from 'react';
 import type { AppTheme } from '../types';
 import {
   R2StorageHud,
@@ -8,12 +8,14 @@ import {
   type FilePreviewData,
 } from '../components/r2';
 import { fetchR2Tree, syncR2Bucket, fetchFilePreview, type R2TreeResponseData } from '../services/r2/r2.service';
+import { useLakehouseStreamStore } from '../store';
 
 export interface R2ScreenProps {
   theme: AppTheme;
 }
 
-export const R2Screen: FC<R2ScreenProps> = () => {
+export const R2Screen: FC<R2ScreenProps> = ({ theme }) => {
+  const { storageStats, miningSyncVersion, lastSyncedR2 } = useLakehouseStreamStore();
   const [treeData, setTreeData] = useState<R2TreeResponseData | null>(null);
   const [selectedFile, setSelectedFile] = useState<R2FileItem | null>(null);
   const [previewData, setPreviewData] = useState<FilePreviewData | null>(null);
@@ -23,6 +25,8 @@ export const R2Screen: FC<R2ScreenProps> = () => {
   const [treeError, setTreeError] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
+  const currentPreviewKeyRef = useRef<string | null>(null);
 
   // Load tree on initial mount (from disk cache, 0 remote cost)
   useEffect(() => {
@@ -57,18 +61,35 @@ export const R2Screen: FC<R2ScreenProps> = () => {
     };
   }, []);
 
+  // Synchronize when store triggers an R2 sync action from Header or Canvas
+  useEffect(() => {
+    if (miningSyncVersion > 0) {
+      fetchR2Tree()
+        .then((data) => setTreeData(data))
+        .catch(() => {});
+    }
+  }, [miningSyncVersion, lastSyncedR2]);
+
+  // Prevent async race hazard: only update previewData if response matches active file key
   const handleSelectFile = useCallback(async (file: R2FileItem) => {
     setSelectedFile(file);
     setIsLoadingPreview(true);
     setPreviewError(null);
+    currentPreviewKeyRef.current = file.key;
     try {
       const pData = await fetchFilePreview(file.key);
-      setPreviewData(pData);
+      if (currentPreviewKeyRef.current === file.key) {
+        setPreviewData(pData);
+      }
     } catch (err: any) {
-      setPreviewError(err?.message || `Failed to extract preview for ${file.name}`);
-      setPreviewData(null);
+      if (currentPreviewKeyRef.current === file.key) {
+        setPreviewError(err?.message || `Failed to extract preview for ${file.name}`);
+        setPreviewData(null);
+      }
     } finally {
-      setIsLoadingPreview(false);
+      if (currentPreviewKeyRef.current === file.key) {
+        setIsLoadingPreview(false);
+      }
     }
   }, []);
 
@@ -158,26 +179,33 @@ export const R2Screen: FC<R2ScreenProps> = () => {
     );
   }
 
+  const liveBucketName = treeData?.bucket_name || storageStats?.bucket || 'uth-scientific-lakehouse';
+  const liveTotalSize = treeData?.total_size_gb ?? (storageStats?.total_size_gb ?? storageStats?.totalBucket?.totalSizeGb ?? 0);
+  const liveTotalObjects = treeData?.total_objects ?? (storageStats?.total_objects ?? storageStats?.totalBucket?.totalObjects ?? 0);
+  const liveUsedPercentage = treeData?.used_percentage ?? (storageStats?.used_percentage ?? storageStats?.activeLakehouse?.usedPercentage ?? 0);
+
   return (
     <div
       style={{
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100%',
+        height: '100%',
         width: '100%',
         gap: '12px',
         padding: '12px 20px 24px 20px',
         boxSizing: 'border-box',
+        minHeight: 0,
       }}
     >
       {/* Top HUD Component */}
       <R2StorageHud
-        bucketName={treeData?.bucket_name || 'uth-scientific-lakehouse'}
-        totalSizeGb={treeData?.total_size_gb || 4.774}
-        totalObjects={treeData?.total_objects || 11807}
+        theme={theme}
+        bucketName={liveBucketName}
+        totalSizeGb={liveTotalSize}
+        totalObjects={liveTotalObjects}
         freeTierQuotaGb={treeData?.free_tier_quota_gb || 10.0}
-        usedPercentage={treeData?.used_percentage || 47.7}
-        lastSynced={treeData?.last_synced || 'Local Disk Snapshot'}
+        usedPercentage={liveUsedPercentage}
+        lastSynced={treeData?.last_synced || lastSyncedR2 || 'Local Disk Snapshot'}
         isSyncing={isSyncing}
         onSync={handleSyncRemoteSnapshot}
         classAOperations={treeData?.class_a_operations || '12.4k'}
@@ -231,7 +259,7 @@ export const R2Screen: FC<R2ScreenProps> = () => {
           display: 'flex',
           flex: 1,
           gap: '14px',
-          minHeight: 'calc(100vh - 200px)',
+          minHeight: 0,
         }}
       >
         {/* Left Pane: Medallion Zone Tree */}
@@ -241,9 +269,12 @@ export const R2Screen: FC<R2ScreenProps> = () => {
             minWidth: '320px',
             display: 'flex',
             flexDirection: 'column',
+            height: '100%',
+            minHeight: 0,
           }}
         >
           <R2FileTree
+            theme={theme}
             zones={treeData?.zones || {}}
             zoneStats={treeData?.zone_stats || {}}
             selectedKey={selectedFile?.key || null}
@@ -256,12 +287,15 @@ export const R2Screen: FC<R2ScreenProps> = () => {
           style={{
             flex: 1,
             minWidth: 0,
-            minHeight: '100%',
+            height: '100%',
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
           }}
         >
           <R2FileInspector
+            theme={theme}
+            bucketName={liveBucketName}
             selectedFile={selectedFile}
             previewData={previewData}
             isLoading={isLoadingPreview}
