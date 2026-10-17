@@ -987,60 +987,6 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Lakehouse Mining Gold Layer Sync & Cockpit Header */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '10px',
-              flexWrap: 'wrap',
-              padding: '6px 12px',
-              backgroundColor: themeStyles.cardBg,
-              borderRadius: '8px',
-              border: `1px solid ${themeStyles.cardBorder}`,
-              boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{
-                  width: '7px',
-                  height: '7px',
-                  borderRadius: '50%',
-                  backgroundColor: isStreaming ? '#22c55e' : '#38bdf8',
-                  boxShadow: isStreaming ? '0 0 8px #22c55e' : '0 0 8px #38bdf8',
-                }}
-              />
-              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textPrimary }}>
-                LAKEHOUSE CORPUS: {totalCorpus.toLocaleString()} {language === 'vi' ? 'BÀI BÁO' : 'WORKS'}
-              </span>
-              <span style={{ color: themeStyles.textMuted, fontSize: '11px' }}>&bull;</span>
-              <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                {language === 'vi'
-                  ? 'ĐỘNG CƠ 4 TRỤ CỘT ML (FP-GROWTH • K-MEANS • LOUVAIN • ISOLATION FOREST)'
-                  : '4 PILLARS ML ENGINE (FP-GROWTH • K-MEANS • LOUVAIN • ISOLATION FOREST)'}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  padding: '2px 7px',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                  color: '#10b981',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
-                  fontWeight: 700,
-                }}
-              >
-                GOLD ZONE PARTITION
-              </span>
-            </div>
-          </div>
-
           {/* Real-time Data Mining 5-Checkpoint Telemetry Stepper */}
           <MiningTelemetryStepper
             isExecuting={isRecomputingPipeline}
