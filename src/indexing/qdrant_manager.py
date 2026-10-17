@@ -39,7 +39,10 @@ class QdrantManager:
         """Initialize official qdrant-client if installed, otherwise fallback to REST."""
         try:
             from qdrant_client import QdrantClient
-            self._client = QdrantClient(url=self.url, timeout=30.0)
+            try:
+                self._client = QdrantClient(url=self.url, timeout=30.0, check_compatibility=False)
+            except TypeError:
+                self._client = QdrantClient(url=self.url, timeout=30.0)
             logger.info("[Qdrant] Connected via official qdrant_client to %s", self.url)
         except ImportError:
             logger.info("[Qdrant] qdrant-client not installed; using REST API via %s", self.url)
