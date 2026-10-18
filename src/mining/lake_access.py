@@ -79,7 +79,12 @@ def put_artifact(filename: str, payload: Any) -> str:
 def qdrant_client():
     from qdrant_client import QdrantClient
 
-    return QdrantClient(url=settings.QDRANT_URL, timeout=60.0, check_compatibility=False)
+    return QdrantClient(
+        url=settings.QDRANT_URL,
+        api_key=getattr(settings, "QDRANT_API_KEY", None) or None,
+        timeout=60.0,
+        check_compatibility=False,
+    )
 
 
 def ensure_keyword_index(client, field: str) -> None:

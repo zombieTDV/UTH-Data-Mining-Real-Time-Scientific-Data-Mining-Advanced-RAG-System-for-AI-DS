@@ -493,22 +493,47 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       const p = item.period;
       const c = item.count;
       const year = p.slice(0, 4);
-      if (year >= '2022' && year <= '2026') {
+      if (/^\d{4}$/.test(year)) {
         yearCounts[year] = (yearCounts[year] || 0) + c;
       }
     }
 
-    const rawPoints = [
-      { label: "'22", count: yearCounts['2022'] ?? 0 },
-      { label: "'23", count: yearCounts['2023'] ?? 0 },
-      { label: "'24", count: yearCounts['2024'] ?? 0 },
-      { label: "'25", count: yearCounts['2025'] ?? 0 },
-      { label: "'26", count: yearCounts['2026'] ?? 0 },
-    ];
+    const sortedYears = Object.keys(yearCounts).sort();
+    const maxRecentYears = 13;
+    const rawPoints: { label: string; count: number }[] = [];
+
+    if (sortedYears.length === 0) {
+      for (const y of ['2022', '2023', '2024', '2025', '2026']) {
+        rawPoints.push({ label: `'${y.slice(2)}`, count: 0 });
+      }
+    } else {
+      const minYearNum = Number(sortedYears[0]);
+      const maxYearNum = Number(sortedYears[sortedYears.length - 1]);
+      const startYear = Math.max(minYearNum, maxYearNum - maxRecentYears + 1);
+
+      let priorCount = 0;
+      for (const [y, c] of Object.entries(yearCounts)) {
+        if (Number(y) < startYear) priorCount += c;
+      }
+      if (priorCount > 0) {
+        rawPoints.push({
+          label: `≤'${String(startYear - 1).slice(2)}`,
+          count: priorCount,
+        });
+      }
+      for (let y = startYear; y <= maxYearNum; y++) {
+        const yStr = String(y);
+        rawPoints.push({
+          label: `'${yStr.slice(2)}`,
+          count: yearCounts[yStr] ?? 0,
+        });
+      }
+    }
 
     const effectivePoints = temporalSmoothing
       ? rawPoints.map((p, idx, arr) => {
           let count = p.count;
+          if (arr.length < 2) return { label: p.label, count };
           if (idx === 0) {
             count = Math.round(0.75 * p.count + 0.25 * arr[1].count);
           } else if (idx === arr.length - 1) {
@@ -524,13 +549,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
     // The axis has 3 equal steps: pick a round step (1-2-5 series) so every tick label is a readable number
     const stepMag = 10 ** Math.floor(Math.log10(Math.max(1, maxC / 3)));
     const yCeil = 3 * ([1, 2, 5, 10].map((m) => m * stepMag).find((v) => v * 3 >= maxC) ?? maxC);
-    const stepX = 360 / (effectivePoints.length - 1);
+    const stepX = 365 / Math.max(1, effectivePoints.length - 1);
 
     const points = effectivePoints.map((p, idx) => ({
       label: p.label,
       count: p.count,
       pct: `${((p.count / total) * 100).toFixed(1)}%`,
-      x: Math.round(55 + idx * stepX),
+      x: Math.round(52 + idx * stepX),
       y: Math.round(180 - (p.count / yCeil) * 140),
     }));
 
@@ -1880,14 +1905,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           const peakPoint = temporalAggregatedPoints.peakPoint;
                           const lineD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
                           const areaD = `${lineD} L ${points[points.length - 1].x} 180 L ${points[0].x} 180 Z`;
+                          const badgeX = Math.min(382, Math.max(45, peakPoint.x - 35));
+                          const badgeY = Math.max(12, peakPoint.y - 22);
 
                           return (
                             <g>
                               <path d={areaD} fill="url(#areaGradient)" />
-                              <path d={lineD} fill="none" stroke="#2563eb" strokeWidth="3" />
+                              <path d={lineD} fill="none" stroke="#2563eb" strokeWidth="2.5" />
 
-                              <rect x={peakPoint.x - 35} y={Math.max(16, peakPoint.y - 20)} width="70" height="18" rx="3" fill="#2563eb" />
-                              <text x={peakPoint.x} y={Math.max(16, peakPoint.y - 20) + 13} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
+                              <rect x={badgeX} y={badgeY} width="70" height="18" rx="3" fill="#2563eb" />
+                              <text x={badgeX + 35} y={badgeY + 13} textAnchor="middle" fontSize="9.5" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
                                 {peakPoint.count.toLocaleString()} BÀI
                               </text>
 
@@ -1896,10 +1923,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                                   <circle
                                     cx={p.x}
                                     cy={p.y}
-                                    r={p.count > 1000 ? '5.5' : '4'}
+                                    r={p.label === peakPoint.label ? '4.5' : '3.2'}
                                     fill={themeStyles.cardInner}
                                     stroke="#2563eb"
-                                    strokeWidth="2.5"
+                                    strokeWidth="2"
                                     style={{ cursor: 'pointer' }}
                                     onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
                                       const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
@@ -1913,7 +1940,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                                     }}
                                     onMouseLeave={() => setHoveredTimelineYear(null)}
                                   />
-                                  <text x={p.x} y="196" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textSecondary}>
+                                  <text x={p.x} y="195" textAnchor="middle" fontSize="8.5" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textSecondary}>
                                     {p.label}
                                   </text>
                                 </g>

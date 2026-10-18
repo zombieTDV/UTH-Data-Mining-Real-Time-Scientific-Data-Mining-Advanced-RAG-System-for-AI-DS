@@ -176,7 +176,11 @@ class RetrievalService:
 
     def _init_db(self):
         try:
-            self.qdrant = QdrantManager(url=settings.QDRANT_URL, collection_name=settings.QDRANT_COLLECTION)
+            self.qdrant = QdrantManager(
+                url=settings.QDRANT_URL,
+                collection_name=settings.QDRANT_COLLECTION,
+                api_key=settings.QDRANT_API_KEY,
+            )
             self.table = self.qdrant.open_table(settings.QDRANT_COLLECTION)
             self.table_name = settings.QDRANT_COLLECTION
             self.vector_dim = 768

@@ -7,6 +7,7 @@ Reads environment variables from root .env.
 
 import os
 from pathlib import Path
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +36,7 @@ class Settings(BaseSettings):
     # Qdrant Vector Database
     QDRANT_URL: str
     QDRANT_COLLECTION: str = "scientific_papers_gold"
+    QDRANT_API_KEY: Optional[str] = None
 
     # RabbitMQ Message Broker (management API used for queue stats)
     RABBITMQ_USER: str

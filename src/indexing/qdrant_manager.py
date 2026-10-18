@@ -29,20 +29,30 @@ class QdrantManager:
         self,
         url: Optional[str] = None,
         collection_name: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         self.url = (url or settings.QDRANT_URL).rstrip("/")
         self.collection_name = collection_name or settings.QDRANT_COLLECTION
+        self.api_key = api_key or getattr(settings, "QDRANT_API_KEY", None) or None
         self._client = None
         self._init_client()
+
+    @property
+    def _headers(self) -> Dict[str, str]:
+        """Headers required for Qdrant REST endpoints, including API key if set."""
+        headers = {}
+        if self.api_key:
+            headers["api-key"] = self.api_key
+        return headers
 
     def _init_client(self):
         """Initialize official qdrant-client if installed, otherwise fallback to REST."""
         try:
             from qdrant_client import QdrantClient
             try:
-                self._client = QdrantClient(url=self.url, timeout=30.0, check_compatibility=False)
+                self._client = QdrantClient(url=self.url, api_key=self.api_key, timeout=30.0, check_compatibility=False)
             except TypeError:
-                self._client = QdrantClient(url=self.url, timeout=30.0)
+                self._client = QdrantClient(url=self.url, api_key=self.api_key, timeout=30.0)
             logger.info("[Qdrant] Connected via official qdrant_client to %s", self.url)
         except ImportError:
             logger.info("[Qdrant] qdrant-client not installed; using REST API via %s", self.url)
@@ -58,7 +68,7 @@ class QdrantManager:
         col = collection_name or self.collection_name
         try:
             # Check existence via REST
-            resp = requests.get(f"{self.url}/collections/{col}", timeout=5)
+            resp = requests.get(f"{self.url}/collections/{col}", headers=self._headers, timeout=5)
             if resp.status_code == 200:
                 return True
 
@@ -69,7 +79,7 @@ class QdrantManager:
                     "distance": "Cosine",
                 }
             }
-            create_resp = requests.put(f"{self.url}/collections/{col}", json=payload, timeout=10)
+            create_resp = requests.put(f"{self.url}/collections/{col}", json=payload, headers=self._headers, timeout=10)
             if create_resp.status_code in (200, 201):
                 logger.info("[Qdrant] Created collection '%s' (dim=%d, distance=Cosine)", col, self.VECTOR_DIM)
                 # Create payload indexes for fast filtering
@@ -90,6 +100,7 @@ class QdrantManager:
             requests.put(
                 url,
                 json={"field_name": field_name, "field_schema": field_type},
+                headers=self._headers,
                 timeout=5,
             )
         except Exception as e:
@@ -99,7 +110,7 @@ class QdrantManager:
         """Returns the total number of vectors in the collection."""
         col = collection_name or self.collection_name
         try:
-            resp = requests.get(f"{self.url}/collections/{col}", timeout=5)
+            resp = requests.get(f"{self.url}/collections/{col}", headers=self._headers, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("result", {}).get("points_count", 0)
@@ -111,7 +122,7 @@ class QdrantManager:
         """Remove every chunk of one paper (used before re-indexing it with new content)."""
         col = collection_name or self.collection_name
         body = {"filter": {"must": [{"key": "paper_id", "match": {"value": str(paper_id)}}]}}
-        resp = requests.post(f"{self.url}/collections/{col}/points/delete?wait=true", json=body, timeout=30)
+        resp = requests.post(f"{self.url}/collections/{col}/points/delete?wait=true", json=body, headers=self._headers, timeout=30)
         resp.raise_for_status()
 
     def insert_chunks(
@@ -163,6 +174,7 @@ class QdrantManager:
                 resp = requests.put(
                     f"{self.url}/collections/{col}/points?wait=true",
                     json={"points": batch},
+                    headers=self._headers,
                     timeout=30,
                 )
                 if resp.status_code in (200, 201):
@@ -224,6 +236,7 @@ class QdrantManager:
             resp = requests.post(
                 f"{self.url}/collections/{col}/points/query",
                 json=search_payload,
+                headers=self._headers,
                 timeout=15,
             )
             data = resp.json()
@@ -241,6 +254,7 @@ class QdrantManager:
                 resp2 = requests.post(
                     f"{self.url}/collections/{col}/points/search",
                     json=legacy_payload,
+                    headers=self._headers,
                     timeout=15,
                 )
                 points = resp2.json().get("result", [])
@@ -274,6 +288,7 @@ class QdrantManager:
             resp = requests.post(
                 f"{self.url}/collections/{self.collection_name}/points/scroll",
                 json=payload,
+                headers=self._headers,
                 timeout=10,
             )
             if resp.status_code == 200:
