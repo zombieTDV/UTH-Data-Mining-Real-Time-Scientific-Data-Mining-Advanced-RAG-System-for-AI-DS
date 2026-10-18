@@ -6,11 +6,11 @@ import {
   fetchHealth,
   subscribeTelemetry,
   triggerMiningPipeline,
+  fetchMiningStatus,
   fetchEdaSummary,
 } from './services';
-import { API_CONFIG } from './config';
 import { useThemeStore, useLakehouseStreamStore } from './store';
-import type { AppTab, PipelineStatus, BackendStatus, SchematicViewMode } from './types';
+import type { AppTab, PipelineStatus, BackendStatus, SchematicViewMode, MiningRunStatus } from './types';
 
 export default function App() {
   const { theme, toggleTheme } = useThemeStore();
@@ -33,6 +33,8 @@ export default function App() {
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('IDLE');
   const [healthStatus, setHealthStatus] = useState<BackendStatus>('ONLINE');
   const [lastTelemetryTick, setLastTelemetryTick] = useState<string>('');
+  // Mining run state; last_run is the version of the EDA / Model artifacts, and EDA + Model refetch when it changes
+  const [miningRun, setMiningRun] = useState<MiningRunStatus | null>(null);
 
   const [totalFormulas, setTotalFormulas] = useState<number>(0);
 
@@ -71,6 +73,13 @@ export default function App() {
     // Initialize singleton SSE stream with auto-reconnect
     const unsubscribeStream = initializeStream();
 
+    fetchMiningStatus()
+      .then((s) => {
+        setMiningRun(s);
+        if (s.running) followMiningRun();
+      })
+      .catch(() => {});
+
     return () => {
       unsubscribeTelemetry();
       unsubscribeStream();
@@ -95,24 +104,27 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [toggleTheme]);
 
-  // Re-run the mining engine and follow it until the backend publishes a manifest newer than the one we started from.
-  const handleTriggerPipeline = async () => {
-    try {
-      const manifestUrl = `${API_CONFIG.baseUrl}/api/mining/manifest`;
-      const before = await fetch(manifestUrl).then((r) => r.json()).catch(() => null);
-      setPipelineStatus('RUNNING');
-      await triggerMiningPipeline();
-      const startedAt = before?.execution_timestamp;
-      for (let i = 0; i < 90; i += 1) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const m = await fetch(manifestUrl).then((r) => r.json()).catch(() => null);
-        if (m && m.execution_timestamp !== startedAt && m.status === 'COMPLETED') {
-          setPipelineStatus('COMPLETED');
-          setTimeout(() => setPipelineStatus('IDLE'), 6000);
-          return;
-        }
+  // Follow the mining run until the backend reports it finished; the new last_run makes EDA and Model refetch.
+  const followMiningRun = async () => {
+    setPipelineStatus('RUNNING');
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const s = await fetchMiningStatus().catch(() => null);
+      if (!s) continue;
+      setMiningRun(s);
+      if (!s.running) {
+        setPipelineStatus(s.error ? 'IDLE' : 'COMPLETED');
+        if (!s.error) setTimeout(() => setPipelineStatus('IDLE'), 6000);
+        return;
       }
-      setPipelineStatus('IDLE');
+    }
+  };
+
+  const handleTriggerPipeline = async () => {
+    if (pipelineStatus === 'RUNNING') return;
+    try {
+      await triggerMiningPipeline();
+      await followMiningRun();
     } catch {
       setPipelineStatus('IDLE');
     }
@@ -195,11 +207,17 @@ export default function App() {
           )}
 
           {activeTab === 'eda' && (
-            <EdaScreen theme={theme} onNavigateToRag={handleNavigateToRag} />
+            <EdaScreen
+              theme={theme}
+              onNavigateToRag={handleNavigateToRag}
+              miningRun={miningRun}
+              pipelineStatus={pipelineStatus}
+              onRefreshMining={handleTriggerPipeline}
+            />
           )}
 
           {activeTab === 'pillars' && (
-            <PillarsScreen theme={theme} onNavigateToRag={handleNavigateToRag} />
+            <PillarsScreen theme={theme} onNavigateToRag={handleNavigateToRag} dataVersion={miningRun?.last_run ?? null} />
           )}
 
           {activeTab === 'rag' && (

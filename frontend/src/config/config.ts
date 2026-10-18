@@ -40,6 +40,7 @@ export const API_CONFIG = {
     chat: '/api/chat',
     chatStream: '/api/chat/stream',
     triggerPipeline: '/api/mining/trigger',
+    miningStatus: '/api/mining/status',
     telemetryStream: '/api/mining/telemetry/stream',
     ingestionStatus: '/api/ingestion/status',
     ingestionStart: '/api/ingestion/start',

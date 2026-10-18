@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
-import type { EdaResponse, CategoryDistItem } from '../../types';
+import type { EdaResponse, CategoryDistItem, MiningRunStatus, PipelineStatus } from '../../types';
 import { fetchEdaSummary } from '../../services';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
@@ -37,6 +37,9 @@ export interface AnomalyNotification {
 interface EdaViewProps {
   theme?: 'dark' | 'light';
   onNavigateToRag?: (paperTitle?: string) => void;
+  miningRun?: MiningRunStatus | null; // a new last_run refetches the EDA artifact
+  pipelineStatus?: PipelineStatus;
+  onRefreshMining?: () => void;
 }
 
 // 70 realistic curated scientific papers representing the lakehouse distribution
@@ -332,7 +335,7 @@ const SCATTER_DATASET: ScatterPaperPoint[] = [
   },
 ];
 
-export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) => {
+export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, miningRun, pipelineStatus = 'IDLE', onRefreshMining }) => {
   const isDark = theme === 'dark';
 
   const [data, setData] = useState<EdaResponse | null>(null);
@@ -397,17 +400,19 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   });
 
 
+  const dataVersion = miningRun?.last_run ?? null;
   useEffect(() => {
     fetchEdaSummary()
       .then((res) => {
         setData(res);
+        setError(null);
         setLoading(false);
       })
       .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [dataVersion]);
 
   // Keyboard shortcut listener:
   // - '1' to '5': Switch Deck
@@ -837,29 +842,83 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               </span>
             </div>
 
-            {/* Live Influx Velocity Pulse */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : '#f0fdf4',
-                border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.25)' : '#bbf7d0'}`,
-                padding: '2px 8px',
-                borderRadius: '9999px',
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                color: isDark ? '#4ade80' : '#166534',
-                fontWeight: 700,
-              }}
-            >
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
-              <span>LIVE INGESTION: 14.2 p/s &bull; 84.2k w/s</span>
-            </div>
+            {/* Freshness of the served artifacts (EDA + Model), from the last mining run */}
+            {(() => {
+              const running = pipelineStatus === 'RUNNING';
+              const failed = !running && !!miningRun?.error;
+              const fmt = (iso?: string | null) => (iso ? iso.replace('T', ' ').slice(0, 16) : '—');
+              const tone = failed ? '#ef4444' : running ? '#f59e0b' : '#22c55e';
+              return (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    border: `1px solid ${themeStyles.border}`,
+                    backgroundColor: themeStyles.cardSubtle,
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    color: themeStyles.textSecondary,
+                    fontWeight: 700,
+                  }}
+                  title={failed ? `Lần chạy gần nhất lỗi: ${miningRun?.error}` : 'Thời điểm engine tính EDA + Model và số bài trong Silver lúc đó'}
+                >
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: tone, display: 'inline-block' }} />
+                  {running ? (
+                    <span>Đang tính lại EDA + Model (bắt đầu {fmt(miningRun?.started_at).slice(11)})…</span>
+                  ) : failed ? (
+                    <span style={{ color: '#ef4444' }}>Lần cập nhật lỗi · dữ liệu cũ từ {fmt(miningRun?.last_run)}</span>
+                  ) : (
+                    <span>
+                      Dữ liệu: <strong style={{ color: themeStyles.textPrimary }}>{(miningRun?.total_papers ?? 0).toLocaleString()}</strong> bài · cập nhật {fmt(miningRun?.last_run)}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Quick Action Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            {/* Re-run the mining engine on the current Silver; EDA and Model reload when it finishes */}
+            <button
+              type="button"
+              onClick={onRefreshMining}
+              disabled={pipelineStatus === 'RUNNING' || !onRefreshMining}
+              style={{
+                backgroundColor: pipelineStatus === 'RUNNING' ? themeStyles.cardSubtle : '#2563eb',
+                border: `1px solid ${pipelineStatus === 'RUNNING' ? themeStyles.border : '#1d4ed8'}`,
+                borderRadius: '4px',
+                padding: '2px 8px',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                color: pipelineStatus === 'RUNNING' ? themeStyles.textSecondary : '#ffffff',
+                cursor: pipelineStatus === 'RUNNING' ? 'progress' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+              title="Chạy lại engine trên toàn bộ Silver hiện có, rồi tải lại tab EDA và Model"
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                style={pipelineStatus === 'RUNNING' ? { animation: 'spin 1s linear infinite' } : undefined}
+              >
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                <polyline points="21 3 21 9 15 9" />
+              </svg>
+              <span>{pipelineStatus === 'RUNNING' ? 'ĐANG CẬP NHẬT…' : 'CẬP NHẬT'}</span>
+            </button>
+
             {/* Focus / Zen Mode Toggle */}
             <button
               type="button"

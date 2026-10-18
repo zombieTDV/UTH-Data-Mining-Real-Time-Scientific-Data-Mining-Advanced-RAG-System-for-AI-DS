@@ -2,6 +2,7 @@ export {
   fetchHealth,
   fetchStorageStats,
   triggerMiningPipeline,
+  fetchMiningStatus,
   executeDuckDbQuery,
   searchLakehouse,
   syncStorage,

@@ -74,7 +74,7 @@ class MiningService:
         try:
             return self._load_json("mining_manifest.json")
         except Exception:
-            return {"status": "STANDBY", "total_papers": 10000}
+            return {"status": "STANDBY"}
 
     async def stream_telemetry(self) -> AsyncGenerator[str, None]:
         """Asynchronously streams telemetry heartbeats via Server-Sent Events (SSE)."""
@@ -84,8 +84,8 @@ class MiningService:
             payload = {
                 "timestamp": datetime.datetime.now().isoformat(),
                 "status": manifest.get("status", "READY"),
-                "total_execution_seconds": manifest.get("total_execution_seconds", 64.56),
-                "total_papers": 10000,
+                "total_execution_seconds": manifest.get("total_execution_seconds"),
+                "total_papers": manifest.get("modules", {}).get("eda", {}).get("total_papers"),
                 "modules": manifest.get("modules", {}),
             }
             yield json.dumps(payload)

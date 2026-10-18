@@ -26,6 +26,7 @@ import pendulum
 import requests
 from airflow import DAG
 from airflow.models import Variable
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.operators.python import PythonOperator
 from airflow.timetables.trigger import CronTriggerTimetable
 
@@ -295,6 +296,10 @@ with DAG(
 ) as dag:
     ping = PythonOperator(task_id="ping_infrastructure", python_callable=ping_infrastructure)
     venues = PythonOperator(task_id="harvest_venues", python_callable=harvest_venues, execution_timeout=timedelta(hours=8))
-    arxiv = PythonOperator(task_id="harvest_arxiv", python_callable=harvest_arxiv, execution_timeout=timedelta(hours=12))
-    workshops = PythonOperator(task_id="harvest_cvf_workshops", python_callable=harvest_cvf_workshops, execution_timeout=timedelta(hours=8))
+    # all_done: a CVF step that fails or hits its timeout must not hold back the next source; each step
+    # reads the budget from Qdrant/MinIO first, so it still fails fast when the infrastructure is down
+    arxiv = PythonOperator(task_id="harvest_arxiv", python_callable=harvest_arxiv, execution_timeout=timedelta(hours=12),
+                           trigger_rule=TriggerRule.ALL_DONE)
+    workshops = PythonOperator(task_id="harvest_cvf_workshops", python_callable=harvest_cvf_workshops,
+                               execution_timeout=timedelta(hours=8), trigger_rule=TriggerRule.ALL_DONE)
     ping >> venues >> arxiv >> workshops

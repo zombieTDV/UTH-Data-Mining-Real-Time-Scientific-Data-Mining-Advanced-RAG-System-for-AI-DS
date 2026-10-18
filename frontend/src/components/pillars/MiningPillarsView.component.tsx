@@ -21,6 +21,7 @@ import { useSvgPanZoom } from '../../hooks';
 export interface MiningPillarsViewProps {
   theme?: 'dark' | 'light';
   onNavigateToRag?: (title: string) => void;
+  dataVersion?: string | null; // last mining run; a new value refetches every pillar
 }
 
 // Decoded Semantic Topic Profiles for K-Means Clusters
@@ -66,6 +67,7 @@ const CLUSTER_TOPIC_MAP: Record<number, { title: string; shortTitle: string; sub
 export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   theme = 'dark',
   onNavigateToRag,
+  dataVersion,
 }) => {
   const isDark = theme === 'dark';
   const { totalCorpus, totalVectors } = useLakehouseStreamStore();
@@ -151,13 +153,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
         if (trends?.anomalies?.length > 0) {
           setInspectedAnomaly(trends.anomalies[0]);
         }
+        setError(null);
         setLoading(false);
       })
       .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [dataVersion]);
 
   // Keyboard Navigation: 1-4 for Pillars, F for Focus Mode, T for Theater Mode, Esc to close/exit
   useEffect(() => {

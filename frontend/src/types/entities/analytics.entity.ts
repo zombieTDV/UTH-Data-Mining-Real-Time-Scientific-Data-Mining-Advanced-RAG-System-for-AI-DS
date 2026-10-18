@@ -428,6 +428,16 @@ export interface TriggerPipelineResponse {
   message: string;
 }
 
+/** GET /api/mining/status: the run in progress (if any) and the artifacts currently served. */
+export interface MiningRunStatus {
+  running: boolean;
+  started_at: string | null;
+  finished_at: string | null;
+  error: string | null;
+  last_run: string | null;
+  total_papers: number | null;
+}
+
 export interface IngestionStatus {
   status: string;
   target_papers: number;

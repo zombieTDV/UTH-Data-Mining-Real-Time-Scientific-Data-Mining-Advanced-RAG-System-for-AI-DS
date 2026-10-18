@@ -1,3 +1,4 @@
+import datetime
 from typing import Dict, Any
 import logging
 import threading
@@ -10,6 +11,8 @@ from backend.app.schemas.mining import (
     GraphResponse,
     TrendsResponse,
 )
+from backend.app.core.config import settings
+from backend.app.services.lake import lake
 from backend.app.services.mining_service import mining_service
 
 logger = logging.getLogger("mining_api")
@@ -74,6 +77,11 @@ async def telemetry_event_stream():
 
 
 _mining_lock = threading.Lock()
+_run_state: Dict[str, Any] = {"running": False, "started_at": None, "finished_at": None, "error": None}
+
+
+def _now() -> str:
+    return datetime.datetime.now().isoformat(timespec="seconds")
 
 
 def _run_mining() -> None:
@@ -81,9 +89,13 @@ def _run_mining() -> None:
         from src.mining.mining_engine import MiningEngine
 
         MiningEngine().run_all()
-    except Exception:
+        _run_state["error"] = None
+    except Exception as e:
         logger.exception("[MINING] Background mining run failed")
+        _run_state["error"] = str(e)
     finally:
+        lake.invalidate(settings.MINING_PREFIX)  # the engine wrote new artifacts; serve them now, not after the cache TTL
+        _run_state.update(running=False, finished_at=_now())
         _mining_lock.release()
 
 
@@ -93,5 +105,17 @@ async def trigger_mining_execution(background_tasks: BackgroundTasks) -> Dict[st
     artifacts published to MinIO gold/mining/). Only one run at a time."""
     if not _mining_lock.acquire(blocking=False):
         raise HTTPException(status_code=409, detail="A mining run is already in progress.")
+    _run_state.update(running=True, started_at=_now(), finished_at=None, error=None)
     background_tasks.add_task(_run_mining)
     return {"status": "QUEUED", "message": "Data Mining pipeline has been triggered in the background."}
+
+
+@router.get("/status")
+async def get_mining_run_status() -> Dict[str, Any]:
+    """Whether a mining run is in progress, plus the timestamp and paper count of the artifacts currently served."""
+    manifest = mining_service.get_manifest()
+    return {
+        **_run_state,
+        "last_run": manifest.get("execution_timestamp"),
+        "total_papers": manifest.get("modules", {}).get("eda", {}).get("total_papers"),
+    }

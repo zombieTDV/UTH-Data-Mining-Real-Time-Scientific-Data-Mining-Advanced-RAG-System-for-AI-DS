@@ -95,6 +95,12 @@ class Lake:
             self._json_cache[key] = (now, data)
         return data
 
+    def invalidate(self, prefix: str) -> None:
+        """Drop cached JSON under a prefix (artifacts rewritten by another process, e.g. the mining engine)."""
+        with self._lock:
+            for k in [k for k in self._json_cache if k.startswith(prefix)]:
+                del self._json_cache[k]
+
     def put_json(self, key: str, payload: Any) -> None:
         self.storage.upload_json(payload, key)
         with self._lock:
