@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     RABBITMQ_PASSWORD: str
     RABBITMQ_MGMT_URL: str
     RABBITMQ_QUEUE_INGEST: str = "scientific_paper_ingest"
+    RABBITMQ_QUEUE_EMBED: str = "scientific_chunk_embed"
 
     # Apache Airflow REST API (DAG monitoring and control)
     AIRFLOW_API_URL: str

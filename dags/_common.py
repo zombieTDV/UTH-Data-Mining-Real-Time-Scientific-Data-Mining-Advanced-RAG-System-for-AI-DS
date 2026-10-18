@@ -8,6 +8,7 @@ Optional env: RABBITMQ_QUEUE_INGEST, ARXIV_CATEGORIES, HARVESTER_USER_AGENT.
 import json
 import logging
 import os
+import time
 from typing import Any, Dict, List
 
 import requests
@@ -140,6 +141,25 @@ def queue_depth() -> int:
     r.raise_for_status()
     q = r.json()
     return int(q.get("messages_ready", 0)) + int(q.get("messages_unacknowledged", 0))
+
+
+HARVEST_BATCH = int(os.environ.get("HARVEST_BATCH", "1000"))  # Tier 2/3 queue this many papers, then wait
+HARVEST_LOW_WATER = int(os.environ.get("HARVEST_LOW_WATER", "200"))  # ... until the ingest queue is back under this
+
+
+def wait_for_queue_room(tier: str, low: int = HARVEST_LOW_WATER, poll_seconds: int = 30) -> float:
+    """Backpressure for the bulk tiers: block until the ingest queue holds at most `low` papers, so harvesting never
+    runs far ahead of what the workers can fetch and embed. Returns the seconds spent waiting."""
+    t0 = time.time()
+    announced = False
+    while (depth := queue_depth()) > low:
+        if not announced:
+            emit("INFO", "BACKPRESSURE", f"Ingest queue holds {depth:,} papers: harvesting paused until it drops to {low:,}.", tier=tier)
+            announced = True
+        time.sleep(poll_seconds)
+    if announced:
+        emit("INFO", "BACKPRESSURE", f"Ingest queue drained after {(time.time() - t0) / 60:.0f} min: harvesting resumes.", tier=tier)
+    return time.time() - t0
 
 
 def budget_papers_left() -> int:

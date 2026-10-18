@@ -10,6 +10,8 @@ where its last slot stopped, and once one is exhausted the other gets all the ti
   to 2024-01-01. The Airflow Variable tier2_arxiv_cursor is the next day to fetch; a day is only marked done once all
   of its papers are queued, so an interrupted day is simply fetched again (known papers are skipped).
 
+Papers are queued in batches of HARVEST_BATCH (1000); before each batch the task waits until the ingest queue is
+back under HARVEST_LOW_WATER, so harvesting keeps pace with the fetch + embed workers instead of piling up.
 Every task skips what Silver already holds (paper_id or abstract hash) and stops when the lakehouse disk budget
 (LAKEHOUSE_BUDGET_GB, MinIO + Qdrant) is full, so a run never queues more than the disk can take. Real arXiv
 metadata is kept (all categories, primary category, DOI, journal ref); withdrawn papers are dropped.
@@ -31,8 +33,8 @@ from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 from airflow.timetables.trigger import CronTriggerTimetable
 
-from _common import (budget_papers_left, categories, emit, http_headers, is_known, known_paper_ids, on_failure,
-                     ping_infrastructure, publish_paper, remember)
+from _common import (HARVEST_BATCH, budget_papers_left, categories, emit, http_headers, is_known, known_paper_ids,
+                     on_failure, ping_infrastructure, publish_paper, remember, wait_for_queue_room)
 
 logger = logging.getLogger("airflow.task")
 local_tz = pendulum.timezone("Asia/Ho_Chi_Minh")
@@ -70,6 +72,7 @@ class Harvest:
         self.name = name
         self.known = known_paper_ids()
         self.queued = self.skipped = self.dropped = 0
+        self.batch_left = 0  # papers still allowed before the next wait for the ingest queue to drain
         self.refresh_budget()
         emit("INFO", "HARVEST", f"Tier 2 {name} started: room for {self.room:,} new papers in the disk budget.", tier="tier2")
 
@@ -87,7 +90,15 @@ class Harvest:
         if is_known(self.known, paper["paper_id"], paper["abstract"]):
             self.skipped += 1
             return True
+        if self.batch_left <= 0:
+            # Batches of HARVEST_BATCH: wait for the workers to catch up, then re-measure the budget
+            wait_for_queue_room("tier2")
+            self.refresh_budget()
+            if self.full:
+                return False
+            self.batch_left = HARVEST_BATCH
         remember(self.known, paper["paper_id"], paper["abstract"])
+        self.batch_left -= 1
         self.queued += publish_paper({**paper, "tier": "tier2", "crawled_at": datetime.now(timezone.utc).isoformat()})
         return True
 

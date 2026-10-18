@@ -178,11 +178,15 @@ class StreamingService:
 
             main = q(settings.RABBITMQ_QUEUE_INGEST)
             dead = q(f"{settings.RABBITMQ_QUEUE_INGEST}.dead") or {}
+            embed = q(settings.RABBITMQ_QUEUE_EMBED) or {}  # second stage: Silver records waiting for the model
+            embed_dead = q(f"{settings.RABBITMQ_QUEUE_EMBED}.dead") or {}
+            stage2 = {"embed_ready": embed.get("messages_ready", 0), "embed_unacked": embed.get("messages_unacknowledged", 0),
+                      "embed_consumers": embed.get("consumers", 0)}
             if main is None:
-                self.queue = {"status": "QUEUE_MISSING", "ready": 0, "unacked": 0, "consumers": 0, "dead": 0}
+                self.queue = {"status": "QUEUE_MISSING", "ready": 0, "unacked": 0, "consumers": 0, "dead": 0, **stage2}
             else:
                 self.queue = {"status": "HEALTHY", "ready": main.get("messages_ready", 0), "unacked": main.get("messages_unacknowledged", 0),
-                              "consumers": main.get("consumers", 0), "dead": dead.get("messages", 0)}
+                              "consumers": main.get("consumers", 0), "dead": dead.get("messages", 0) + embed_dead.get("messages", 0), **stage2}
         except Exception:
             self.queue = {**self.queue, "status": "OFFLINE"}
 
@@ -282,7 +286,7 @@ class StreamingService:
         self._load_persisted_state()
         now = time.time()
         running = [d for d in self.airflow_dags if d.get("running") and d["kind"] == "harvest"]
-        queue_active = (self.queue["ready"] + self.queue["unacked"]) > 0
+        queue_active = (self.queue["ready"] + self.queue["unacked"] + self.queue.get("embed_ready", 0) + self.queue.get("embed_unacked", 0)) > 0
         recent = now - self._last_paper_at < ACTIVE_GRACE_SECONDS
         if running:
             stage = "harvest"

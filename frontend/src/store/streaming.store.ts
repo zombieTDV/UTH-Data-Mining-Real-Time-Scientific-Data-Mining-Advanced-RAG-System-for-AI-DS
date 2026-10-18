@@ -39,7 +39,8 @@ export interface LiveSnapshot {
   status: 'STREAMING' | 'IDLE';
   stage: 'idle' | 'harvest' | 'queued' | 'embedding' | 'gold';
   time: string;
-  queue: { status: string; ready: number; unacked: number; consumers: number; dead: number };
+  // ready/unacked/consumers: ingest queue (metadata -> fetch worker); embed_*: Silver records -> embed worker
+  queue: { status: string; ready: number; unacked: number; consumers: number; dead: number; embed_ready?: number; embed_unacked?: number; embed_consumers?: number };
   airflow: { reachable: boolean; scheduler_healthy: boolean; dags: LiveDag[] };
   corpus: {
     vectors: number;

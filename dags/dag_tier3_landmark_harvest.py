@@ -23,7 +23,8 @@ import requests
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-from _common import emit, env, ensure_published, http_headers, is_known, known_paper_ids, remember, on_failure, ping_infrastructure, publish_paper
+from _common import (HARVEST_BATCH, emit, env, ensure_published, http_headers, is_known, known_paper_ids, remember, on_failure,
+                     ping_infrastructure, publish_paper, wait_for_queue_room)
 
 logger = logging.getLogger("airflow.task")
 local_tz = pendulum.timezone("Asia/Ho_Chi_Minh")
@@ -158,6 +159,8 @@ def harvest_tier3_landmarks(**context):
             if is_known(known, paper["paper_id"], paper["abstract"]):
                 skipped += 1
                 continue
+            if queued % HARVEST_BATCH == 0:
+                wait_for_queue_room("tier3")  # batches of HARVEST_BATCH, each after the workers caught up
             remember(known, paper["paper_id"], paper["abstract"])
             queued += publish_paper(paper)
         logger.info("[TIER 3] %d/%d selected (scanned %d, last cite_count %s, %d already in Silver)",
