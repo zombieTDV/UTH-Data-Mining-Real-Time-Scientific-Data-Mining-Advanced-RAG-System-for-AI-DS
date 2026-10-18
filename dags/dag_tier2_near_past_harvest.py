@@ -1,6 +1,6 @@
 """Apache Airflow DAG: Tier 2 - Near-Past Ingestion, newest -> oldest down to 2024-01-01.
 
-Schedule: daily 05:00 ICT. Sources, in order:
+Schedule: daily 19:10 ICT, 10 minutes after the Tier 1 stream. Sources, in order:
 1. harvest_venues: CVF main conferences (CVPR / ICCV / WACV, findings included), newest first. CVF papers that link
    an arXiv id use it as paper_id, so the consumer fetches their arXiv HTML full text; the rest keep their abstract
    (Tier 2 is HTML-only). OpenReview is not harvested: its API and pages now require a logged-in account.
@@ -139,6 +139,10 @@ def _cvf_entries(listing_html: str) -> List[Dict[str, Any]]:
     return out
 
 
+def _cvf_slug(page_url: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_\-]", "_", page_url.rsplit("/", 1)[-1].replace("_paper.html", ""))
+
+
 def _cvf_abstract(page_url: str) -> str:
     m = re.search(r'<div id="abstract"\s*>(.*?)</div>', _cvf_get(page_url), re.S)
     return _clean(re.sub(r"<[^>]+>", " ", m.group(1))) if m else ""
@@ -150,7 +154,8 @@ def _harvest_cvf(h: Harvest, workshops: bool) -> str:
             return "budget full"
         venue = re.search(r"/((?:CVPR|ICCV|WACV)20\d\d[^/?]*)", listing).group(1)
         year = re.search(r"20\d\d", venue).group(0)
-        entries = [e for e in _cvf_entries(_cvf_get(listing)) if not (e["arxiv_id"] and e["arxiv_id"] in h.known)]
+        # Skip papers Silver already holds before fetching their abstract page (by arXiv id, or by the CVF page slug)
+        entries = [e for e in _cvf_entries(_cvf_get(listing)) if (e["arxiv_id"] or f"cvf_{_cvf_slug(e['page'])}") not in h.known]
         # Abstracts live on each paper's page: fetch them a few at a time, politely, and only for papers we may queue
         for i in range(0, len(entries), 60):
             if h.full:
@@ -162,8 +167,7 @@ def _harvest_cvf(h: Harvest, workshops: bool) -> str:
                 if not abstract:
                     h.dropped += 1
                     continue
-                slug = re.sub(r"[^A-Za-z0-9_\-]", "_", e["page"].rsplit("/", 1)[-1].replace("_paper.html", ""))
-                pid = e["arxiv_id"] or f"cvf_{slug}"
+                pid = e["arxiv_id"] or f"cvf_{_cvf_slug(e['page'])}"
                 h.publish({
                     "paper_id": pid,
                     "title": e["title"],
@@ -282,8 +286,8 @@ def harvest_arxiv(**_context):
 with DAG(
     dag_id="dag_tier2_near_past_harvest",
     default_args=default_args,
-    description="Tier 2: CVF + arXiv, newest -> 2024-01-01, within the lakehouse disk budget (05:00 ICT daily)",
-    schedule=CronTriggerTimetable("0 5 * * *", timezone=local_tz),  # fires exactly at 05:00 ICT
+    description="Tier 2: CVF + arXiv, newest -> 2024-01-01, within the lakehouse disk budget (19:10 ICT daily)",
+    schedule=CronTriggerTimetable("10 19 * * *", timezone=local_tz),  # fires exactly at 19:10 ICT, 10 min after Tier 1
     start_date=datetime(2025, 1, 1, tzinfo=local_tz),
     catchup=False,
     max_active_runs=1,

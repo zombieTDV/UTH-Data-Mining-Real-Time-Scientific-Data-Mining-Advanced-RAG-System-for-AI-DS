@@ -32,11 +32,12 @@ SILVER_PREFIX = "silver/papers/"  # every tier lands here (year=YYYY/papers.parq
 
 
 def _silver_counts() -> Dict[str, Any]:
-    """Row counts per tier, non-arXiv rows and the parsed-formula total, read from the Silver `tier`,
-    `paper_id` and `total_math_count` columns only."""
-    out = {"total": 0, "tier1": 0, "tier2": 0, "tier3": 0, "non_arxiv": 0, "formulas": 0}
+    """Row counts per tier and per source, non-arXiv rows and the parsed-formula total, read from the Silver
+    `tier`, `source`, `paper_id` and `total_math_count` columns only."""
+    out = {"total": 0, "tier1": 0, "tier2": 0, "tier3": 0, "non_arxiv": 0, "formulas": 0,
+           "src_arxiv": 0, "src_cvf": 0, "src_semantic_scholar": 0, "src_openreview": 0}
     try:
-        t = lake.dataset(SILVER_PREFIX).to_table(columns=["tier", "paper_id", "total_math_count"])
+        t = lake.dataset(SILVER_PREFIX).to_table(columns=["tier", "source", "paper_id", "total_math_count"])
     except Exception as e:
         logger.debug("[STORAGE] Silver not readable yet: %s", e)
         return out
@@ -48,6 +49,11 @@ def _silver_counts() -> Dict[str, Any]:
             out[tier] = int(n)
     out["non_arxiv"] = int(df["paper_id"].astype(str).str.startswith("s2_").sum())
     out["formulas"] = int(df["total_math_count"].fillna(0).sum())
+    src = df["source"].fillna("").astype(str)
+    out["src_arxiv"] = int(src.str.startswith("arxiv").sum())
+    out["src_cvf"] = int((src == "cvf").sum())
+    out["src_semantic_scholar"] = int((src == "semantic_scholar").sum())
+    out["src_openreview"] = int((src == "openreview").sum())
     return out
 
 
@@ -88,7 +94,8 @@ class StorageService:
         }
         counts = _silver_counts()
         snap["rows"] = {"tier1": counts["tier1"], "tier2": counts["tier2"], "tier3": counts["tier3"], "non_arxiv": counts["non_arxiv"],
-                        "cvf": 0, "openreview": 0, "openalex": 0, "zenodo": 0}
+                        "arxiv": counts["src_arxiv"], "cvf": counts["src_cvf"], "openreview": counts["src_openreview"],
+                        "semantic_scholar": counts["src_semantic_scholar"], "openalex": 0, "zenodo": 0}
         snap["silver_papers_rows"] = counts["total"]
         snap["formulas"] = counts["formulas"]
         snap["dedup_hashes"] = counts["total"]  # unique papers = Silver rows (deduplicated by paper_id + abstract hash)
@@ -128,8 +135,8 @@ class StorageService:
     def _source_breakdown(self, snap: Dict[str, Any]) -> SourceBreakdownDto:
         rows = snap["rows"]
         return SourceBreakdownDto(
-            arxiv=snap["silver_papers_rows"] - rows["non_arxiv"],
-            doi=rows["non_arxiv"],  # classics not on arXiv (journal / conference records from Semantic Scholar)
+            arxiv=rows["arxiv"],  # papers harvested from arXiv itself (Tier 1 RSS, Tier 2 API)
+            doi=rows["semantic_scholar"],  # Tier 3 landmarks ranked by Semantic Scholar (journal / conference records)
             openalex=rows["openalex"],
             openreview=rows["openreview"],
             cvf=rows["cvf"],

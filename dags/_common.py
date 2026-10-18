@@ -159,7 +159,10 @@ def budget_papers_left() -> int:
     minio = sum(o["Size"] for page in s3.get_paginator("list_objects_v2").paginate(Bucket=require_env("MINIO_BUCKET_NAME"))
                 for o in page.get("Contents", []))
     qdrant = require_env("QDRANT_URL").rstrip("/")
-    points = requests.get(f"{qdrant}/collections/{env('QDRANT_COLLECTION', 'scientific_papers_gold')}", timeout=10).json()["result"]["points_count"]
+    headers = {"api-key": env("QDRANT_API_KEY")} if env("QDRANT_API_KEY") else {}
+    r = requests.get(f"{qdrant}/collections/{env('QDRANT_COLLECTION', 'scientific_papers_gold')}", headers=headers, timeout=10)
+    r.raise_for_status()  # a 401 here means QDRANT_API_KEY is missing on the Airflow worker
+    points = r.json()["result"]["points_count"]
     queued = queue_depth()
 
     used = minio + points * per_point + queued * per_paper

@@ -1,6 +1,6 @@
 """Apache Airflow DAG: Tier 1 - Live Real-Time Forward Stream.
 
-Schedule: daily 07:00 ICT (Asia/Ho_Chi_Minh).
+Schedule: daily 19:00 ICT (Asia/Ho_Chi_Minh); Tier 2 follows at 19:10.
 Tasks:
 1. ping_infrastructure: fail fast if MinIO / RabbitMQ are down.
 2. harvest_tier1_realtime: read arXiv RSS and publish new preprints to RabbitMQ.
@@ -81,8 +81,8 @@ def harvest_tier1_realtime(**_context):
 with DAG(
     dag_id="dag_tier1_realtime_stream",
     default_args=default_args,
-    description="Tier 1: daily arXiv AI/DS live preprint stream (07:00 AM ICT)",
-    schedule=CronTriggerTimetable("0 7 * * *", timezone=local_tz),  # fires exactly at 07:00 ICT (not at the end of an interval)
+    description="Tier 1: daily arXiv AI/DS live preprint stream (19:00 ICT)",
+    schedule=CronTriggerTimetable("0 19 * * *", timezone=local_tz),  # fires exactly at 19:00 ICT (not at the end of an interval)
     start_date=datetime(2025, 1, 1, tzinfo=local_tz),
     catchup=False,
     tags=["tier1", "realtime", "arxiv", "rabbitmq"],
