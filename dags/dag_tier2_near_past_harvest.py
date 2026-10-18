@@ -1,13 +1,14 @@
 """Apache Airflow DAG: Tier 2 - Near-Past Ingestion, newest -> oldest down to 2024-01-01.
 
-Schedule: daily 19:10 ICT, 10 minutes after the Tier 1 stream. Sources, in order:
-1. harvest_venues: CVF main conferences (CVPR / ICCV / WACV, findings included), newest first. CVF papers that link
-   an arXiv id use it as paper_id, so the consumer fetches their arXiv HTML full text; the rest keep their abstract
-   (Tier 2 is HTML-only). OpenReview is not harvested: its API and pages now require a logged-in account.
-2. harvest_arxiv: every paper of the ARXIV_CATEGORIES (one OR query), one submission day at a time, walking back from
-   today to 2024-01-01. The Airflow Variable tier2_arxiv_cursor is the next day to fetch; a day is only marked done
-   once all of its papers are queued, so an interrupted day is simply fetched again (known papers are skipped).
-3. harvest_cvf_workshops: CVF workshop papers, only with whatever budget is left.
+Schedule: daily 19:10 ICT, 10 minutes after the Tier 1 stream. One task, harvest_rotation, takes turns between the
+two sources in SLICE-long slots (CVF 1 h, arXiv 1 h, CVF 1 h, ...) so neither starves the other; each source resumes
+where its last slot stopped, and once one is exhausted the other gets all the time.
+- CVF: main conferences (CVPR / ICCV / WACV, findings included), newest first, then the 2024+ workshops. CVF papers
+  that link an arXiv id use it as paper_id, so the consumer fetches their arXiv HTML full text; the rest keep their
+  abstract (Tier 2 is HTML-only). OpenReview is not harvested: its API and pages now require a logged-in account.
+- arXiv: every paper of the ARXIV_CATEGORIES (one OR query), one submission day at a time, walking back from today
+  to 2024-01-01. The Airflow Variable tier2_arxiv_cursor is the next day to fetch; a day is only marked done once all
+  of its papers are queued, so an interrupted day is simply fetched again (known papers are skipped).
 
 Every task skips what Silver already holds (paper_id or abstract hash) and stops when the lakehouse disk budget
 (LAKEHOUSE_BUDGET_GB, MinIO + Qdrant) is full, so a run never queues more than the disk can take. Real arXiv
@@ -19,6 +20,7 @@ import logging
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
+from itertools import chain
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Iterator, List
 
@@ -26,7 +28,6 @@ import pendulum
 import requests
 from airflow import DAG
 from airflow.models import Variable
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.operators.python import PythonOperator
 from airflow.timetables.trigger import CronTriggerTimetable
 
@@ -41,6 +42,7 @@ ARXIV_CURSOR = "tier2_arxiv_cursor"
 ARXIV_PAGE = 1000
 CVF = "https://openaccess.thecvf.com"
 YEARS = ("2026", "2025", "2024")
+SLICE_SECONDS = 3600  # one source's turn in the rotation
 
 default_args = {
     "on_failure_callback": on_failure,
@@ -67,9 +69,13 @@ class Harvest:
     def __init__(self, name: str):
         self.name = name
         self.known = known_paper_ids()
-        self.room = budget_papers_left()
         self.queued = self.skipped = self.dropped = 0
+        self.refresh_budget()
         emit("INFO", "HARVEST", f"Tier 2 {name} started: room for {self.room:,} new papers in the disk budget.", tier="tier2")
+
+    def refresh_budget(self) -> None:
+        """Re-measure the disk budget (a run lasts hours: the consumer keeps writing what was queued)."""
+        self.room = self.queued + budget_papers_left()
 
     @property
     def full(self) -> bool:
@@ -149,10 +155,11 @@ def _cvf_abstract(page_url: str) -> str:
     return _clean(re.sub(r"<[^>]+>", " ", m.group(1))) if m else ""
 
 
-def _harvest_cvf(h: Harvest, workshops: bool) -> str:
+def _cvf_stream(h: Harvest, workshops: bool) -> Iterator[None]:
+    """Queues CVF papers, yielding after every chunk so the rotation can pause it between chunks."""
     for listing in _cvf_listings(workshops):
         if h.full:
-            return "budget full"
+            return
         venue = re.search(r"/((?:CVPR|ICCV|WACV)20\d\d[^/?]*)", listing).group(1)
         year = re.search(r"20\d\d", venue).group(0)
         # Skip papers Silver already holds before fetching their abstract page (by arXiv id, or by the CVF page slug)
@@ -160,7 +167,7 @@ def _harvest_cvf(h: Harvest, workshops: bool) -> str:
         # Abstracts live on each paper's page: fetch them a few at a time, politely, and only for papers we may queue
         for i in range(0, len(entries), 60):
             if h.full:
-                return "budget full"
+                return
             chunk = entries[i:i + 60]
             with ThreadPoolExecutor(max_workers=3) as pool:
                 abstracts = list(pool.map(_cvf_abstract, [e["page"] for e in chunk]))
@@ -183,18 +190,8 @@ def _harvest_cvf(h: Harvest, workshops: bool) -> str:
                     "html_url": f"https://arxiv.org/html/{pid}" if e["arxiv_id"] else "",
                     "source": "cvf",
                 })
+            yield
         logger.info("[TIER 2] CVF %s done (queued so far %d)", venue, h.queued)
-    return ""
-
-
-def harvest_venues(**_context):
-    h = Harvest("CVF conferences")
-    return h.done(_harvest_cvf(h, workshops=False))
-
-
-def harvest_cvf_workshops(**_context):
-    h = Harvest("CVF workshops")
-    return h.done(_harvest_cvf(h, workshops=True))
 
 
 # ---------------------------------------------------------------- arXiv
@@ -257,8 +254,8 @@ def _arxiv_day(day: date, cats: List[str]) -> Iterator[Dict[str, Any]]:
         time.sleep(3.0)  # arXiv API terms
 
 
-def harvest_arxiv(**_context):
-    h = Harvest("arXiv")
+def _arxiv_stream(h: Harvest) -> Iterator[None]:
+    """Walks arXiv back one submission day at a time, yielding after each finished day."""
     cats = categories()
     day = date.fromisoformat(Variable.get(ARXIV_CURSOR, default_var=datetime.now(timezone.utc).date().isoformat()))
     days = 0
@@ -273,7 +270,7 @@ def harvest_arxiv(**_context):
                 break
             n += 1
         if h.full:
-            break  # this day is not finished: it is fetched again next run (queued papers are then known)
+            return  # this day is not finished: it is fetched again next run (queued papers are then known)
         logger.info("[TIER 2] arXiv %s: %d paper(s) (queued so far %d)", day, n, h.queued)
         day -= timedelta(days=1)
         Variable.set(ARXIV_CURSOR, day.isoformat())
@@ -281,7 +278,29 @@ def harvest_arxiv(**_context):
         if days % 7 == 0:
             emit("INFO", "HARVEST", f"Tier 2 arXiv: back to {day} ({h.queued:,} new so far).", tier="tier2")
         time.sleep(3.0)
-    return h.done(f"cursor now {day}" + (" (reached 2024-01-01)" if day < FLOOR else ""))
+        yield
+
+
+def harvest_rotation(**_context):
+    """CVF and arXiv take turns, SLICE_SECONDS each, until both are exhausted or the disk budget is full."""
+    h = Harvest("CVF + arXiv rotation")
+    sources = {"CVF": chain(_cvf_stream(h, workshops=False), _cvf_stream(h, workshops=True)), "arXiv": _arxiv_stream(h)}
+    while sources and not h.full:
+        for name in list(sources):
+            h.refresh_budget()
+            if h.full:
+                break
+            before = h.queued
+            emit("INFO", "HARVEST", f"Tier 2 rotation: {name} turn ({SLICE_SECONDS // 60} min), {h.queued:,} new so far.", tier="tier2")
+            end = time.monotonic() + SLICE_SECONDS
+            try:
+                while time.monotonic() < end and not h.full:
+                    next(sources[name])
+            except StopIteration:
+                del sources[name]
+                emit("SUCCESS", "HARVEST", f"Tier 2 rotation: {name} has nothing left to harvest.", tier="tier2")
+            logger.info("[TIER 2] %s turn over: %d new paper(s) this turn", name, h.queued - before)
+    return h.done("all sources harvested" if not sources else f"arXiv cursor {Variable.get(ARXIV_CURSOR, default_var='-')}")
 
 
 with DAG(
@@ -295,11 +314,7 @@ with DAG(
     tags=["tier2", "arxiv", "cvf", "rabbitmq"],
 ) as dag:
     ping = PythonOperator(task_id="ping_infrastructure", python_callable=ping_infrastructure)
-    venues = PythonOperator(task_id="harvest_venues", python_callable=harvest_venues, execution_timeout=timedelta(hours=8))
-    # all_done: a CVF step that fails or hits its timeout must not hold back the next source; each step
-    # reads the budget from Qdrant/MinIO first, so it still fails fast when the infrastructure is down
-    arxiv = PythonOperator(task_id="harvest_arxiv", python_callable=harvest_arxiv, execution_timeout=timedelta(hours=12),
-                           trigger_rule=TriggerRule.ALL_DONE)
-    workshops = PythonOperator(task_id="harvest_cvf_workshops", python_callable=harvest_cvf_workshops,
-                               execution_timeout=timedelta(hours=8), trigger_rule=TriggerRule.ALL_DONE)
-    ping >> venues >> arxiv >> workshops
+    # Stops before the next 19:10 run; no retry, since the next run resumes from Silver + the arXiv cursor anyway
+    rotation = PythonOperator(task_id="harvest_rotation", python_callable=harvest_rotation,
+                              execution_timeout=timedelta(hours=23), retries=0)
+    ping >> rotation
