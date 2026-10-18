@@ -93,7 +93,7 @@ export const TOOLS_DATA: ToolItem[] = [
     name: 'Hardware Accelerator',
     category: 'Compute',
     role: 'GPU Acceleration & Inference',
-    spec: 'NVIDIA CUDA / Tensor Cores & Apple MPS Multi-Backend',
+    spec: 'Apple Silicon MPS (Metal) acceleration',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">

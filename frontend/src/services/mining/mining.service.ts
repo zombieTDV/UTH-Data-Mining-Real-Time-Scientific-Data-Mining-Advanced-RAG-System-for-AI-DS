@@ -3,6 +3,7 @@ import type {
   HealthResponse,
   StorageStatsResponse,
   TriggerPipelineResponse,
+  MiningRunStatus,
   DuckDbQueryResult,
   LakehouseSearchResult,
 } from '../../types';
@@ -23,7 +24,14 @@ export async function triggerMiningPipeline(): Promise<TriggerPipelineResponse> 
   const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.triggerPipeline}`, {
     method: 'POST',
   });
-  if (!res.ok) throw new Error(`Failed to trigger pipeline: ${res.statusText}`);
+  // 409: a run is already in progress, which the caller simply follows
+  if (!res.ok && res.status !== 409) throw new Error(`Failed to trigger pipeline: ${res.statusText}`);
+  return res.json();
+}
+
+export async function fetchMiningStatus(): Promise<MiningRunStatus> {
+  const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.miningStatus}`);
+  if (!res.ok) throw new Error(`Failed to load mining status: ${res.statusText}`);
   return res.json();
 }
 
@@ -51,11 +59,11 @@ export async function searchLakehouse(
   return res.json();
 }
 
-export async function syncR2Storage(): Promise<{ status: string; message: string }> {
-  const res = await fetch(`${API_CONFIG.baseUrl}/api/storage/sync-r2`, {
+export async function syncStorage(): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${API_CONFIG.baseUrl}/api/storage/sync`, {
     method: 'POST',
   });
-  if (!res.ok) throw new Error(`R2 sync failed: ${res.statusText}`);
+  if (!res.ok) throw new Error(`MinIO scan failed: ${res.statusText}`);
   return res.json();
 }
 

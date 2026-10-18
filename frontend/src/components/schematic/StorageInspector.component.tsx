@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchStorageStats, syncR2Storage, resetStorageSession } from '../../services';
+import { fetchStorageStats, syncStorage, resetStorageSession } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
 import { AnimatedCounter } from '../common';
 import type { StorageStatsResponse } from '../../types';
@@ -12,7 +12,7 @@ export interface LakehouseLayer {
   format: string;
   itemsCount: string;
   sizeBytes: string;
-  r2Location: string;
+  storageLocation: string;
   color: string;
   description: string;
 }
@@ -30,15 +30,15 @@ export function StorageInspector() {
     refreshStorageStats,
   } = useLakehouseStreamStore();
 
-  const handleSyncR2 = async () => {
+  const handleSyncStorage = async () => {
     setIsSyncing(true);
-    setSyncMessage('Scanning Cloudflare R2 bucket objects...');
+    setSyncMessage('Scanning the MinIO bucket...');
     try {
-      const res = await syncR2Storage();
+      const res = await syncStorage();
       await refreshStorageStats();
       const updated = await fetchStorageStats();
       setStats(updated);
-      setSyncMessage(res.message || 'R2 storage stats synchronized successfully.');
+      setSyncMessage(res.message || 'MinIO storage stats synchronized successfully.');
     } catch (e: any) {
       setSyncMessage(`Sync failed: ${e.message}`);
     } finally {
@@ -64,6 +64,7 @@ export function StorageInspector() {
   }, [refreshStorageStats]);
 
   const activeStats = storageStats || stats;
+  const bucketName = activeStats?.bucket ?? '';
   const isTotalView = viewMode === 'total';
 
   const activeData = activeStats?.activeLakehouse;
@@ -75,90 +76,90 @@ export function StorageInspector() {
   const doiCount = (activeStats?.sourceBreakdown?.doi ?? 0).toLocaleString();
   const doiGb = (Number((activeStats?.activeLakehouse?.openalexSizeBytes ?? 0) / (1024**3))).toFixed(3);
   const silverMb = (activeData?.silverParquetSizeMb ?? 0).toFixed(2);
-  const goldChunks = (activeData?.activeLanceDbVectors ?? 0).toLocaleString();
-  const goldMb = (activeData?.activeLanceDbSizeMb ?? 0).toFixed(2);
+  const goldChunks = (activeData?.activeVectors ?? 0).toLocaleString();
+  const goldMb = (activeData?.activeVectorsSizeMb ?? 0).toFixed(2);
   const backupGb = (backupData?.totalSizeGb ?? 0).toFixed(3);
 
   const activeGb = (Number(activeData?.totalSizeGb ?? 0)).toFixed(3);
   const activePct = (Number(activeData?.usedPercentage ?? 33.73)).toFixed(1);
-  const totalGb = (totalBucket?.totalSizeGb ?? 4.774).toFixed(3);
+  const totalGb = (totalBucket?.totalSizeGb ?? 0).toFixed(3);
   const totalPct = (totalBucket?.usedPercentage ?? 47.74).toFixed(1);
 
   const layers: LakehouseLayer[] = [
     {
       zone: 'BRONZE',
       name: 'Raw arXiv Academic HTML5',
-      storageType: 'Cloudflare R2 Object Store & Disk',
+      storageType: 'MinIO object store',
       format: 'W3C HTML5 (.html)',
       itemsCount: `${arxivCount.toLocaleString()} files`,
       sizeBytes: `${arxivGb} GB`,
-      r2Location: 's3://uth-scientific-lakehouse/bronze/arxiv/raw_html/',
+      storageLocation: `s3://${bucketName}/bronze/arxiv/raw_html/`,
       color: '#3b82f6',
       description: 'Raw web-crawled HTML5 preprints from arXiv containing full academic sections, tables, math tags, and bibliography.'
     },
     {
       zone: 'BRONZE',
       name: 'DOI & Scientific Publisher Records',
-      storageType: 'Cloudflare R2 Object Store',
+      storageType: 'MinIO object store',
       format: 'JSON / Persistent Identifiers',
       itemsCount: `${doiCount} works`,
       sizeBytes: `${doiGb} GB`,
-      r2Location: 's3://uth-scientific-lakehouse/silver/tier2/near_past_papers.parquet',
+      storageLocation: `s3://${bucketName}/silver/tier2/near_past_papers.parquet`,
       color: '#2563eb',
       description: 'Cross-publisher academic records (Nature, IEEE, Springer, ACM) with direct DOI links, citation graphs, and author affiliations.'
     },
     {
       zone: 'BRONZE',
       name: 'OAI-PMH Harvest Batches',
-      storageType: 'Cloudflare R2 Object Store',
+      storageType: 'MinIO object store',
       format: 'Compressed JSON Bundles',
       itemsCount: '12 batch bundles',
       sizeBytes: '21.24 MB',
-      r2Location: 's3://uth-scientific-lakehouse/bronze/arxiv/batches/',
+      storageLocation: `s3://${bucketName}/bronze/arxiv/batches/`,
       color: '#60a5fa',
       description: 'Raw metadata harvesting batches retrieved through arXiv OAI-PMH protocol across 5 AI/DS categories.'
     },
     {
       zone: 'BRONZE',
       name: 'OpenReview & CVF Conference Proceedings',
-      storageType: 'Cloudflare R2 Object Store & Disk',
+      storageType: 'MinIO object store',
       format: 'Parquet & Raw Markdown',
       itemsCount: '2,266 proceedings (1.0k OpenRev + 1.3k CVF)',
       sizeBytes: '29.4 MB',
-      r2Location: 's3://uth-scientific-lakehouse/silver/ (openreview, cvf)',
+      storageLocation: `s3://${bucketName}/silver/ (openreview, cvf)`,
       color: '#f59e0b',
       description: 'Peer-reviewed conference manuscripts and rating threads from ICLR, NeurIPS, CVPR, and ICCV with extracted mathematical claims.'
     },
     {
       zone: 'BRONZE',
       name: 'Zenodo Open Science Publications',
-      storageType: 'Marker PDF Engine & Lakehouse',
-      format: 'Marker Extracted LaTeX Markdown',
+      storageType: 'HTML5 parser & Lakehouse',
+      format: 'HTML5 parsed sections (LaTeX preserved)',
       itemsCount: '2,287 manuscripts',
       sizeBytes: '184.2 MB',
-      r2Location: 's3://uth-scientific-lakehouse/bronze/zenodo/',
+      storageLocation: `s3://${bucketName}/bronze/zenodo/`,
       color: '#06b6d4',
-      description: 'Open Science research publications converted via Marker PDF neural OCR engine with full LaTeX formula retention.'
+      description: 'Open Science records harvested from Zenodo (abstract-level content; no PDFs are downloaded).'
     },
     {
       zone: 'SILVER',
       name: 'Curated Canonical Lakehouse',
-      storageType: 'Apache Arrow & Cloudflare R2',
+      storageType: 'Apache Arrow & MinIO',
       format: 'Apache Parquet (Snappy & Zstd)',
       itemsCount: `${(storageStats?.sourceBreakdown?.active_rag_papers ?? 0).toLocaleString()} papers (Silver across Tier 1, 2, 3)`,
       sizeBytes: `${silverMb} MB`,
-      r2Location: 's3://uth-scientific-lakehouse/silver/tier2/fulltext_papers.parquet',
+      storageLocation: `s3://${bucketName}/silver/tier2/fulltext_papers.parquet`,
       color: '#10b981',
       description: 'Deduplicated, schema-enforced columnar Parquet tables across DOI publishers, arXiv, CVF, and OpenReview.'
     },
     {
       zone: 'GOLD',
       name: 'Contextual Vector Lakehouse (Active Cache)',
-      storageType: 'Local SSD NVMe Serving Index',
-      format: 'Lance Columnar (.lance) & Parquet',
+      storageType: 'MinIO object store (Gold artifacts)',
+      format: 'Parquet (zstd) & JSON',
       itemsCount: `${goldChunks} vectors`,
       sizeBytes: `${goldMb} MB`,
-      r2Location: 'data/gold/ & s3://uth-scientific-lakehouse/gold/ (qdrant, cvf, openreview)',
+      storageLocation: `s3://${bucketName}/gold/ (mining artifacts, Gold Parquet)`,
       color: '#eab308',
       description: 'Contextualized 768-dimensional dense embeddings and Gold parquets spanning CVPR, OpenReview, and arXiv.'
     },
@@ -167,9 +168,9 @@ export function StorageInspector() {
       name: 'High-Performance Vector Engine Store',
       storageType: 'Qdrant In-Memory Vector Store',
       format: 'Rust HNSW Multi-Segment Graph',
-      itemsCount: `${(activeData?.activeLanceDbVectors ?? 0).toLocaleString()} points`,
+      itemsCount: `${(activeData?.activeVectors ?? 0).toLocaleString()} points`,
       sizeBytes: `${backupGb} GB`,
-      r2Location: 's3://uth-scientific-lakehouse/gold/qdrant/ & localhost:6333',
+      storageLocation: 'Qdrant collection scientific_papers_gold',
       color: '#f59e0b',
       description: 'Rust-powered in-memory vector store with sub-millisecond approximate nearest neighbor lookup.'
     }
@@ -202,7 +203,7 @@ export function StorageInspector() {
             </span>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
-            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{activeStats?.bucket || 'uth-scientific-lakehouse'}</code> · S3 Endpoint: MinIO S3 (localhost:9000)
+            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{activeStats?.bucket ?? ''}</code> · S3 endpoint: MinIO
           </p>
         </div>
 
@@ -255,7 +256,7 @@ export function StorageInspector() {
           {/* Sync Button */}
           <button
             type="button"
-            onClick={handleSyncR2}
+            onClick={handleSyncStorage}
             disabled={isSyncing}
             style={{
               padding: '6px 12px',
@@ -271,7 +272,7 @@ export function StorageInspector() {
               gap: '6px',
             }}
           >
-            {isSyncing ? 'Syncing...' : 'Sync Live R2'}
+            {isSyncing ? 'Syncing...' : 'Scan MinIO'}
           </button>
 
           {/* Reset Session Button */}
@@ -375,7 +376,7 @@ export function StorageInspector() {
             </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {(totalBucket?.totalObjects ?? 0).toLocaleString()} objects · {(totalBucket?.overageGb ?? 0).toFixed(2)} GB over the free tier (~${(totalBucket?.estimatedOverageCostUsd ?? 0).toFixed(3)}/month)
+            {(totalBucket?.totalObjects ?? 0).toLocaleString()} objects · {(totalBucket?.overageGb ?? 0).toFixed(2)} GB over the {totalBucket?.freeTierQuotaGb ?? 20} GB budget (~${(totalBucket?.estimatedOverageCostUsd ?? 0).toFixed(3)}/month)
           </div>
         </div>
       </div>
@@ -442,7 +443,7 @@ export function StorageInspector() {
                   {layer.sizeBytes}
                 </td>
                 <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
-                  {layer.r2Location}
+                  {layer.storageLocation}
                 </td>
               </tr>
             ))}
@@ -450,7 +451,7 @@ export function StorageInspector() {
         </table>
       </div>
 
-      {/* Adaptive Ingestion Scheduler & R2 Cost-Guard Controls */}
+      {/* Airflow ingestion scheduler controls */}
       <AdaptiveSchedulerControl />
     </div>
   );

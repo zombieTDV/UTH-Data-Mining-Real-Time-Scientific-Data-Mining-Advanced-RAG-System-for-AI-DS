@@ -223,7 +223,7 @@
     "totalObjects": "Total Objects",
     "totalSize": "Total Size",
     "totalSizeGB": "Total Size (GB)",
-    "freeTier": "Free Tier",
+    "freeTier": "disk budget",
     "usedPercentage": "Used Percentage",
     "bronzeCount": "Bronze Count",
     "bronzeSize": "Bronze Size",
@@ -232,7 +232,7 @@
     "goldTables": "Gold Tables",
     "goldChunks": "Gold Chunks",
     "goldSize": "Gold Size",
-    "lancedbReady": "Qdrant Ready",
+    "vectorStoreReady": "Qdrant Ready",
     "parquetReady": "Parquet Ready",
     "remoteIndices": "Remote Indices"
   },

@@ -12,6 +12,10 @@ from transformers import AutoModel, AutoTokenizer
 
 from src.config.settings import settings
 
+# Token window per text. A 450-word chunk of scientific prose is ~650 tokens (up to ~1,600 with math), so a 512 cap
+# silently dropped the tail of most chunks from their vector. Nomic v1.5 handles long context; 2048 covers every chunk.
+MAX_TOKENS = 2048
+
 
 class NomicEmbedder:
     """Offline Embedding model running locally with Nomic-embed-text-v1.5."""
@@ -87,7 +91,7 @@ class NomicEmbedder:
                 batch,
                 padding=True,
                 truncation=True,
-                max_length=512,
+                max_length=MAX_TOKENS,
                 return_tensors="pt",
             ).to(self.device)
 
@@ -131,7 +135,7 @@ class NomicEmbedder:
             [formatted_query],
             padding=True,
             truncation=True,
-            max_length=1024,
+            max_length=MAX_TOKENS,
             return_tensors="pt",
         ).to(self.device)
 

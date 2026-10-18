@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, type FC, type MouseEvent } from 'react';
 import type { Diagnostic3Lenses } from '../../types';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
+import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
 import { useSvgPanZoom } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 
@@ -549,6 +550,20 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             </div>
           </div>
 
+          <div style={{ padding: '0 2px 6px' }}>
+            <ChartLegend
+              title="Màu chấm = chuyên mục:"
+              items={[
+                ...Object.entries(categoryColors).map(([cat, color]) => ({ label: cat, color, mark: 'dot' as const })),
+                { label: 'Khác', color: isDark ? '#94a3b8' : '#64748b', mark: 'dot' },
+                { label: `Hồi quy tuyến tính (r = ${activePair.pearson_r})`, color: '#3b82f6', mark: 'dashed' },
+                { label: 'Xu hướng phi tuyến (spline)', color: '#ea580c', mark: 'line' },
+                { label: 'Nền 4 góc = nhóm Q1-Q4 (bấm để lọc)', color: '#94a3b8', mark: 'area' },
+              ]}
+              note="Mỗi chấm = 1 bài báo"
+            />
+          </div>
+
           {/* Bivariate SVG Scatter & Spline Chart */}
           <div
             {...(isLensActive ? {} : scatterPanZoom.containerProps)}
@@ -665,7 +680,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   <g key={ratio}>
                     <line x1="55" y1={py} x2="910" y2={py} stroke={themeStyles.gridLine} strokeWidth="1" />
                     <text x="50" y={py + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                      {yVal} {activePair.y_unit}
+                      {yVal}
                     </text>
                   </g>
                 );
@@ -679,11 +694,13 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   <g key={ratio}>
                     <line x1={px} y1="20" x2={px} y2="295" stroke={themeStyles.gridLine} strokeWidth="1" />
                     <text x={px} y="306" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                      {xVal >= 1000 ? `${(xVal / 1000).toFixed(0)}k` : xVal} {activePair.x_unit}
+                      {xVal >= 1000 ? `${(xVal / 1000).toFixed(0)}k` : xVal}
                     </text>
                   </g>
                 );
               })}
+              <AxisTitle axis="y" x={22} y={155} text={`${activePair.y_label} (${activePair.y_unit})`} />
+              <AxisTitle axis="x" x={485} y={326} text={`${activePair.x_label} (${activePair.x_unit})`} />
 
               {/* Linear Fit Regression Line (Dashed Blue) */}
               {(() => {
@@ -1079,6 +1096,14 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   25 bins &bull; Mean vs Median divergence
                 </span>
               </div>
+              <ChartLegend
+                items={[
+                  { label: 'Số bài trong mỗi khoảng (25 khoảng)', color: '#3b82f6', mark: 'bar' },
+                  { label: 'Mật độ KDE (chuẩn hóa theo đỉnh)', color: '#06b6d4', mark: 'line' },
+                  { label: 'Trung bình (mean)', color: '#2563eb', mark: 'dashed' },
+                  { label: 'Trung vị (median)', color: '#ea580c', mark: 'dashed' },
+                ]}
+              />
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
                 <svg
                   ref={histSvgRef}
@@ -1088,6 +1113,30 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 >
                   {/* Axis Baseline */}
                   <line x1="40" y1="200" x2="480" y2="200" stroke={themeStyles.axisLine} strokeWidth="1" />
+                  <line x1="40" y1="40" x2="40" y2="200" stroke={themeStyles.axisLine} strokeWidth="1" />
+                  {(() => {
+                    const bins = activeUnivariate.histogram_bins;
+                    const maxCount = Math.max(...bins.map((b) => b.count), 1);
+                    const minX = bins[0]?.x0 ?? 0;
+                    const maxX = bins[bins.length - 1]?.x1 ?? 1;
+                    const fmt = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : Number.isInteger(v) ? `${v}` : v.toFixed(1));
+                    return (
+                      <g>
+                        {[0, 0.5, 1].map((r) => (
+                          <text key={`y${r}`} x="36" y={200 - r * 160 + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                            {Math.round(r * maxCount)}
+                          </text>
+                        ))}
+                        {[0, 0.25, 0.5, 0.75, 1].map((r) => (
+                          <text key={`x${r}`} x={45 + r * 430} y="212" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                            {fmt(minX + r * (maxX - minX))}
+                          </text>
+                        ))}
+                      </g>
+                    );
+                  })()}
+                  <AxisTitle axis="y" x={12} y={120} text="Số bài báo" fontSize={10} />
+                  <AxisTitle axis="x" x={260} y={232} text={`${activeUnivariate.label} (${activeUnivariate.unit})`} fontSize={10} />
 
                   {/* Histogram Bars */}
                   {(() => {
@@ -1177,6 +1226,12 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   Độ lệch khỏi đường chéo 45°
                 </span>
               </div>
+              <ChartLegend
+                items={[
+                  { label: 'Phân vị của dữ liệu', color: '#3b82f6', mark: 'dot' },
+                  { label: 'Đường y = x (nếu là phân phối chuẩn)', color: '#dc2626', mark: 'dashed' },
+                ]}
+              />
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
                 <svg
                   ref={qqSvgRef}
@@ -1188,11 +1243,16 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   <line x1="40" y1="20" x2="40" y2="200" stroke={themeStyles.axisLine} strokeWidth="1" />
                   <line x1="40" y1="200" x2="380" y2="200" stroke={themeStyles.axisLine} strokeWidth="1" />
 
-                  {/* 45-degree Reference Line (Red Dashed) */}
-                  <line x1="60" y1="180" x2="360" y2="40" stroke="#dc2626" strokeWidth="2" strokeDasharray="5 3" />
-                  <text x="365" y="45" fontSize="9" fontFamily="var(--font-mono)" fill="#dc2626" fontWeight="700">
-                    Phân phối chuẩn N(0,1)
-                  </text>
+                  {/* Reference y = x (where the points would lie if the variable were normal). X: z in [-2.5, 2.5] -> 60..360,
+                      Y: z in [-2.5, 4.5] -> 180..20, so z = 2.5 sits at y = 180 - (5 / 7) * 160 */}
+                  <line x1="60" y1="180" x2="360" y2={180 - (5 / 7) * 160} stroke="#dc2626" strokeWidth="2" strokeDasharray="5 3" />
+                  {[-2, -1, 0, 1, 2].map((z) => (
+                    <text key={`qx${z}`} x={210 + (z / 2.5) * 150} y="212" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>{z}</text>
+                  ))}
+                  {[-2, 0, 2, 4].map((z) => (
+                    <text key={`qy${z}`} x="36" y={180 - ((z + 2.5) / 7) * 160 + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>{z}</text>
+                  ))}
+                  <AxisTitle axis="y" x={14} y={110} text="Phân vị thực nghiệm (z)" fontSize={10} />
 
                   {/* Q-Q Points */}
                   {activeUnivariate.qq_points &&
@@ -1214,9 +1274,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       );
                     })}
 
-                  <text x="210" y="225" textAnchor="middle" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                    Phân vị chuẩn lý thuyết (Theoretical Normal Quantiles)
-                  </text>
+                  <AxisTitle axis="x" x={210} y={232} text="Phân vị lý thuyết của phân phối chuẩn (z)" fontSize={10} />
                 </svg>
               </div>
             </div>

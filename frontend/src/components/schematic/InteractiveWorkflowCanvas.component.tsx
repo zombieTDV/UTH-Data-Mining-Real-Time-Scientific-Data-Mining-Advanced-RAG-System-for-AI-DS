@@ -42,196 +42,193 @@ export interface ToolDetail {
 export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
   'start-flow': {
     id: 'start-flow',
-    name: 'Source Ingest (Pure Full-Text Harvester)',
+    name: 'Source Ingest (arXiv HTML5 harvester)',
     category: 'Full-Text Ingestion Engine',
-    role: 'Harvests genuine full-text papers via Marker Neural OCR and arXiv HTML5 with complete section decomposition',
-    engineVersion: 'Marker 2.0 (CUDA FP16) + arXiv REST API + OpenReview + CVF',
+    role: 'Harvests new arXiv papers (RSS and API) and fetches their full text from arXiv HTML5 / ar5iv, section by section',
+    engineVersion: 'Apache Airflow DAGs + RabbitMQ + arXiv RSS / API',
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '29,911 Genuine Full-Text Works',
-      secondaryMetric: '100% Full-Text Verified (Introduction, Methods, Experiments, Conclusion)',
-      latency: 'Marker 2.0 Neural OCR (CUDA FP16)',
-      throughput: '100% Cryptographic SHA-256 Verified',
+      primaryMetric: 'Live corpus size',
+      secondaryMetric: 'Tier 1 live stream · Tier 2 near-past · Tier 3 historical archive',
+      latency: 'HTML5 first, abstract fallback (no PDFs)',
+      throughput: 'SHA-256 abstract-hash deduplication',
     },
     features: [
-      'Pure Full-Text Corpus: strictly excludes abstract-only records to guarantee complete multi-section coverage',
-      'Marker 2.0 Neural Engine (CUDA FP16) converts scientific PDFs to high-fidelity Markdown preserving LaTeX formulas ($...$)',
-      'Multi-tier architectural harvest containing 29,911 verified full-text papers',
-      'Full section hierarchy: Abstract, 1 Introduction, 2 Methodology, 3 Experiments, 4 Diagnostics, Conclusion',
+      'Tier 1 (04:50 ICT): every new arXiv paper per category, from the daily RSS or the API on non-announcement days',
+      'Tier 2 (05:00 ICT): 10,000 papers per run, newest first, walking back to 2024-01-01 with a persistent cursor',
+      'Tier 3: the historical archive, already harvested (never crawled again)',
+      'Full text from arXiv HTML5, then ar5iv, otherwise the abstract; raw HTML is vaulted in Bronze',
     ],
-    samplePreviewTitle: 'Pure Full-Text Harvest & Marker Engine Spec',
-    sampleCodeOrSchema: `POST https://export.arxiv.org/api/query (arXiv REST API)
-GET https://arxiv.org/pdf/{paper_id}.pdf -> Marker Neural OCR (CUDA FP16)
-GET https://api.openreview.net/notes (OpenReview ICLR/NeurIPS Full Text)
-GET https://openaccess.thecvf.com (CVF CVPR/ICCV Open Access Proceedings)
-Tier 1 + Tier 2 Full-Text Pipeline: 29,911 Verified Works (Zero Abstract-Only Records)
-Full-Text Sections: Introduction, Model Architecture, Experiments, Ablations, Diagnostics, Conclusion`,
+    samplePreviewTitle: 'Harvest Flow (Airflow -> RabbitMQ -> worker)',
+    sampleCodeOrSchema: `dag_tier1_realtime_stream   04:50 ICT   RSS / API  -> publish to RabbitMQ
+dag_tier2_near_past_harvest 05:00 ICT   API (10k)   -> publish to RabbitMQ
+
+queue consumer (batch of 16):
+  1. dedup by abstract SHA-256        (skip papers already in the lakehouse)
+  2. resolve content                  (arXiv HTML5 -> ar5iv -> abstract)
+  3. Bronze: JSON + raw HTML          -> MinIO
+  4. Silver: parsed sections          -> Parquet part in MinIO
+  5. Gold: chunk + Nomic 768-D embed  -> Qdrant`,
   },
   'bronze-instance': {
     id: 'bronze-instance',
-    name: 'Cloudflare R2 Object Storage',
+    name: 'MinIO Object Storage',
     category: 'Bronze Immutable Data Lake',
-    role: 'Zero-egress raw storage for HTML5 and multi-source metadata',
-    engineVersion: 'Cloudflare R2 (S3-Compatible API)',
+    role: 'One S3-compatible bucket holding raw payloads and the Silver and Gold artifacts',
+    engineVersion: 'MinIO (S3-compatible API)',
     badgeColor: '#e11d48',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '4.77 GB Cloud Bucket (11,807 Objects)',
-      secondaryMetric: 'Active: 3.37 GB • Free Tier Quota: 10.0 GB (47.74%)',
-      latency: '< 45ms S3 HeadObject',
-      throughput: 'Zero Egress Fees (Cloudflare Global Edge)',
+      primaryMetric: 'Live bucket size',
+      secondaryMetric: 'Live object count',
+      latency: 'Local network, single node',
+      throughput: 'No egress fees, no request quotas',
     },
     features: [
-      'Global low-latency S3-compatible cloud object store with 0 egress costs',
-      'Strict partitioning scheme: bronze/raw_html/ and bronze/doi_publishers/',
-      'Stores 1,381 raw HTML5 files and 9,621 DOI persistent metadata records',
-      'Dual automated MD5 and SHA-256 integrity verification on upload',
+      'S3-compatible local object store: the only place pipelines persist data (nothing is written to local disk)',
+      'Strict partitioning: bronze/arxiv/raw_html/, bronze/papers/, silver/, gold/mining/',
+      'SHA-256 stored with every uploaded object',
+      'Streaming Silver parts are folded into per-year Parquet files by the compaction DAG',
     ],
-    samplePreviewTitle: 'Cloudflare R2 Bucket Key Hierarchy',
-    sampleCodeOrSchema: `s3://uth-scientific-lakehouse/
+    samplePreviewTitle: 'MinIO Bucket Key Hierarchy',
+    sampleCodeOrSchema: `s3://<bucket>/
 ├── bronze/
-│   ├── raw_html/ (1,381 HTML5 preprints · 1.054 GB)
-│   ├── doi_publishers/ (9,621 records · 1.767 GB)
-│   └── oai_batches/ (12 batch checkpoints · 26.4 MB)
+│   ├── arxiv/raw_html/<year>/<arxiv_id>.html
+│   ├── papers/<year>/<paper_id>.json
+│   └── tier2/, tier3/  (batch pipeline records)
 ├── silver/
-│   ├── tier1/landmark_papers.parquet (3,000 Landmark Full-Text records)
-│   ├── tier2/fulltext_papers.parquet & html_papers.parquet (20,767 Near-Past Full-Text records)
-│   └── chunks.parquet (335,304 Deep Section Chunks)
-└── gold/
-    └── lancedb/scientific_papers_gold.lance (913,205 Vectors · IVF-PQ K=1024, M=192)`,
+│   ├── papers/year=YYYY/papers.parquet   (+ parts/ until compacted)
+│   ├── tier2/near_past_papers.parquet
+│   └── tier3/landmark_papers.parquet
+├── gold/mining/*.json                    (EDA + 4 mining pillars)
+├── manifests/                            (dedup registry, checkpoints)
+└── state/, archive/`,
   },
   'review-duckdb': {
     id: 'review-duckdb',
     name: 'DuckDB & LaTeX Parser',
     category: 'In-Process Vectorized OLAP Engine',
-    role: 'High-speed SIMD transformation and math formula extraction',
-    engineVersion: 'DuckDB v1.1.3 + Vectorized Execution Engine',
+    role: 'SQL over the Silver Parquet files in MinIO, plus formula statistics',
+    engineVersion: 'DuckDB + httpfs (reads s3:// Parquet directly)',
     badgeColor: '#f59e0b',
     status: 'ACTIVE',
     telemetrySummary: {
-      primaryMetric: '2,765,395 LaTeX Formulas',
-      secondaryMetric: '11,763 Full-Section Enriched Papers',
-      latency: '0.042s Execution Benchmark',
-      throughput: 'Zero-Copy Apache Arrow Columnar Memory',
+      primaryMetric: 'Formulas extracted',
+      secondaryMetric: 'Papers queryable',
+      latency: 'Range reads: only the needed columns are fetched',
+      throughput: 'Zero-copy Apache Arrow columnar memory',
     },
     features: [
-      'Vectorized SIMD query execution running directly in-process on host SSD',
-      'Regex & BeautifulSoup4 parser extracting math equations in pure LaTeX syntax',
-      'Canonical academic section taxonomy (Abstract, Intro, Methods, Results, Discussion)',
-      'Sub-second SQL aggregations computing formula densities and author co-occurrences',
+      'Vectorized query execution in-process, reading Parquet straight from MinIO over S3',
+      'The dashboard SQL box is read-only: a single SELECT / WITH statement, file and network access disabled',
+      'Canonical section taxonomy (abstract, introduction, methodology, experiments, ...)',
+      'Fast aggregations over category, year and formula density',
     ],
-    samplePreviewTitle: 'Live DuckDB OLAP Query Example',
-    sampleCodeOrSchema: `SELECT 
-    category,
-    count(*) AS paper_count,
-    sum(latex_formula_count) AS total_formulas,
-    round(avg(latex_formula_count), 1) AS avg_formulas_per_paper,
-    quantile_cont(latex_formula_count, 0.90) AS p90_formula_density
-FROM read_parquet('data/silver/tier2/fulltext_papers.parquet')
+    samplePreviewTitle: 'DuckDB Query Example (dashboard SQL box)',
+    sampleCodeOrSchema: `SELECT
+    primary_category AS category,
+    count(*)                  AS papers,
+    sum(total_math_count)     AS formulas,
+    round(avg(total_math_count), 1) AS avg_math
+FROM papers            -- view over silver/papers/year=2026/papers.parquet
 GROUP BY category
-ORDER BY paper_count DESC;
-
--- Result: cs.CV (1,267 papers · 412k formulas · p90=412)`,
+ORDER BY papers DESC
+LIMIT 6;`,
   },
   'silver-parquet': {
     id: 'silver-parquet',
     name: 'Apache Parquet Columnar Lakehouse',
     category: 'Silver Curated Columnar Store',
-    role: 'Canonical structured storage for real-time exploratory data mining',
-    engineVersion: 'Apache Parquet (Snappy Compressed) via PyArrow',
+    role: 'Canonical structured storage for exploratory data mining',
+    engineVersion: 'Apache Parquet (zstd) via PyArrow',
     badgeColor: '#10b981',
     status: 'SYNCED',
     telemetrySummary: {
-      primaryMetric: '103.80 MB Parquet Size',
-      secondaryMetric: '23 Partitions (29,911 Full-Text Papers)',
-      latency: '10x Storage Compression Ratio',
-      throughput: 'Column Projection & Predicate Pushdown',
+      primaryMetric: 'Parquet size',
+      secondaryMetric: 'Partition tables',
+      latency: 'Column projection & predicate pushdown',
+      throughput: 'zstd compression',
     },
     features: [
-      'Snappy-compressed columnar partition format across Tier 1 (3k Landmark) & Tier 2 (20.7k Near-Past & Harvest)',
-      'Dictionary-encoded categories and authors for minimal memory footprint',
-      'Nested schema containing structured canonical section dictionaries',
-      'Zero-copy memory sharing with DuckDB, LanceDB, and pandas',
+      'One 23-column schema shared by every tier (stream, near-past, historical archive)',
+      'Streaming writes land as small immutable parts; a daily DAG compacts them into year files',
+      'Deduplicated by abstract hash (papers without a hash fall back to the paper id)',
+      'Read by DuckDB, the mining engine and the backend explorer',
     ],
     samplePreviewTitle: 'Parquet Schema Architecture',
-    sampleCodeOrSchema: `Schema:
-├── id: string (arXiv / DOI / OpenReview canonical ID)
-├── title: string (Full paper title)
-├── authors: list<string> (Cleaned author tokens)
-├── abstract: string (Cleaned abstract text)
-├── categories: list<string> (Multi-label categories)
-├── sections: struct<abstract, intro, methods, results, discussion>
-├── latex_formulas: list<string> (Raw LaTeX equations)
-├── latex_formula_count: int64 (Equation volume)
-└── metadata: map<string, string> (Ingest timestamp, DOI, license)`,
+    sampleCodeOrSchema: `Schema (23 columns):
+├── paper_id, abstract_hash, doi, journal_ref
+├── title, abstract, authors: list<string>, categories: list<string>
+├── primary_category, published_date, crawled_at
+├── pdf_url, html_url
+├── total_sections, total_math_count, total_words
+├── sections_json, clean_full_text
+├── transformed_at, cite_count
+└── source, tier, content_origin   (provenance: arxiv_html5, ar5iv_html5, abstract_only, ...)`,
   },
-  'gold-lancedb': {
-    id: 'gold-lancedb',
-    name: 'LanceDB & 4 Mining Pillars',
-    category: 'Gold Vector Lakehouse & Mining Core',
-    role: 'Dense contextual embeddings and machine learning mining pillars',
-    engineVersion: 'LanceDB v0.17 + Nomic Embed Text v1.5 (IVF-PQ K=1024, M=192)',
+  'gold-qdrant': {
+    id: 'gold-qdrant',
+    name: 'Qdrant & 4 Mining Pillars',
+    category: 'Gold Vector Store & Mining Core',
+    role: 'Dense contextual embeddings for RAG, and the machine-learning mining pillars',
+    engineVersion: 'Qdrant (HNSW, cosine) + Nomic Embed Text v1.5 (768-D)',
     badgeColor: '#2563eb',
     status: 'ONLINE',
     telemetrySummary: {
-      primaryMetric: '913,205 Vectors Indexed',
-      secondaryMetric: '29,911 Papers • 768 Dimensions (Nomic)',
-      latency: '< 18ms Cosine ANN Lookup',
-      throughput: '4 Mining Pillars Fully Computed',
+      primaryMetric: 'Vectors indexed',
+      secondaryMetric: 'Papers and index size',
+      latency: 'HNSW approximate nearest neighbour',
+      throughput: '4 mining pillars',
     },
     features: [
-      'Multi-modal vector lakehouse based on Lance columnar format with IVF-PQ high-fidelity indexing',
-      'Pillar 1: FP-Growth Association Mining (80 frequent itemsets, 30 mined rules)',
-      'Pillar 2: K-Means & DBSCAN Semantic Clustering (6 clusters, 3,000 papers analyzed)',
-      'Pillar 3: Louvain Co-authorship Graph (Centrality, Communities & Influencers)',
-      'Pillar 4: Isolation Forest Outlier Detection (260 structural novelty papers, 13,000 analyzed)',
+      'Section-aware chunks (about 450 words) embedded with Nomic and upserted with deterministic ids (idempotent)',
+      'Pillar 1: FP-Growth association rules over categories and keywords',
+      'Pillar 2: K-Means and DBSCAN clustering of abstract embeddings sampled from Qdrant',
+      'Pillar 3: co-authorship graph with PageRank and Louvain communities; Pillar 4: Isolation Forest novelty / trend anomalies',
     ],
-    samplePreviewTitle: 'LanceDB Vector Search & Mining Code',
-    sampleCodeOrSchema: `import lancedb
+    samplePreviewTitle: 'Qdrant Vector Search',
+    sampleCodeOrSchema: `from qdrant_client import QdrantClient
 
-db = lancedb.connect("data/gold/lancedb")
-tbl = db.open_table("scientific_papers_gold")
+client = QdrantClient(url=QDRANT_URL)
+hits = client.query_points(
+    collection_name="scientific_papers_gold",
+    query=query_embedding,          # 768-D Nomic vector
+    limit=5,
+    with_payload=True,
+).points
 
-# Hardware-accelerated Cosine ANN retrieval over 913,205 chunks (29,911 papers)
-results = tbl.search(query_embedding) \\
-             .metric("cosine") \\
-             .where("category = 'cs.AI'") \\
-             .limit(5) \\
-             .to_pandas()
-
-# LanceDB executes IVF-PQ zero-copy lookups in 16.8ms`,
+# payload: paper_id, title, section_title, section_type, text, primary_category`,
   },
   'grounded-rag': {
     id: 'grounded-rag',
     name: 'Qwen 2.5 & Grounded RAG Engine',
     category: 'Scientific Synthesis & Inference',
-    role: 'Strict anti-hallucination academic question-answering with citations',
-    engineVersion: 'Qwen2.5-7B-Instruct (GGUF) + Hardware-Accelerated Engine (CUDA & MPS)',
+    role: 'Academic question answering grounded in retrieved chunks, with citations',
+    engineVersion: 'Qwen2.5-7B-Instruct (GGUF, llama.cpp on Apple Metal)',
     badgeColor: '#6366f1',
     status: 'ACTIVE',
     telemetrySummary: {
-      primaryMetric: 'Verified Citations Gate',
-      secondaryMetric: 'CUDA / Tensor Cores & Apple MPS Multi-Backend',
-      latency: 'Sub-50ms Context ANN Fetch',
-      throughput: 'Exact DOI & Section Attributions',
+      primaryMetric: 'Verified citations gate',
+      secondaryMetric: 'Local inference, Apple Silicon (Metal)',
+      latency: 'Retrieve, rerank, then generate',
+      throughput: 'Paper and section attributions',
     },
     features: [
-      'Strict grounding gate refusing to answer if cosine similarity is below threshold',
-      'Direct mathematical formula rendering in KaTeX / LaTeX inside responses',
-      'Every synthesized claim is annotated with [Paper ID, Section Title] brackets',
-      'Zero hallucination prompt system instruction protecting academic accuracy',
+      'Hybrid retrieval from Qdrant followed by cross-encoder reranking',
+      'Answers must stay inside the retrieved context; unsupported claims are refused',
+      'Every claim is annotated with [Paper ID, Section Title] brackets',
+      'Equations are rendered with KaTeX',
     ],
-    samplePreviewTitle: 'Academic Anti-Hallucination Prompt Gate',
+    samplePreviewTitle: 'Academic Grounding Prompt Gate',
     sampleCodeOrSchema: `[SYSTEM INSTRUCTION: STRICT ACADEMIC GROUNDING]
 You are a peer-reviewed research assistant.
-Ground every assertion strictly in provided LanceDB chunks.
-- If information is not in context, reply: "Context does not provide evidence."
-- Always cite source papers using format: [Paper ID, Section Name]
-- Render all equations in pristine LaTeX syntax: $...$ or $$...$$
+Ground every assertion strictly in the provided Qdrant chunks.
+- If information is not in the context, reply: "Context does not provide evidence."
+- Always cite source papers using the format: [Paper ID, Section Name]
+- Render equations in LaTeX syntax: $...$ or $$...$$
 
-[RETRIEVED CONTEXT: 5 CHUNKS FROM 913,205 VECTORS]
-(Chunk 1: Paper:2310.01407 · Abstract · Similarity: 0.998)...`,
+[RETRIEVED CONTEXT: top-k chunks from the Gold collection]`,
   },
 };
 
@@ -374,22 +371,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     { category: 'stat.ML', papers: 980, formulas: 200760, avg_math: 204.8 },
   ]);
 
-  // LanceDB Interactive State
-  const [lanceQuery, setLanceQuery] = useState<string>('contrastive learning representation for scientific formulas');
-  const [lanceSearching, setLanceSearching] = useState<boolean>(false);
-  const [lanceResults, setLanceResults] = useState<Array<{ id: string; title: string; score: number; category: string }>>([
-    { id: 'arXiv:2602.04128', title: 'Contrastive Multi-Modal Pre-training for Scientific Formula Representation', score: 0.914, category: 'cs.AI' },
-    { id: 'arXiv:2602.01944', title: 'Zero-Shot LaTeX Retrieval using Columnar LanceDB Vectors', score: 0.887, category: 'cs.LG' },
-    { id: 'arXiv:2602.07812', title: 'Semantic Latent Projections in Academic Knowledge Graphs', score: 0.862, category: 'stat.ML' },
-  ]);
+  // Qdrant vector search (interactive panel)
+  const [vectorQuery, setVectorQuery] = useState<string>('contrastive learning representation for scientific formulas');
+  const [vectorSearching, setVectorSearching] = useState<boolean>(false);
+  const [vectorResults, setVectorResults] = useState<Array<{ id: string; title: string; score: number; category: string }>>([]);
 
   // Grounded RAG Interactive State
   const [ragPrompt, setRagPrompt] = useState<string>('Tối ưu hoá hàm mất mát trong mô hình diffusion cho dữ liệu toán học?');
   const [ragStrictThreshold, setRagStrictThreshold] = useState<number>(0.75);
   const [ragGenerating, setRagGenerating] = useState<boolean>(false);
-  const [ragResponse, setRagResponse] = useState<string>(
-    'Theo context 5 chunks trích xuất từ LanceDB, kỹ thuật tối ưu hàm loss áp dụng Huber Loss có trọng số nhằm triệt tiêu gradient explosion khi biểu diễn các ký hiệu LaTeX phức tạp [arXiv:2602.04128, Section 3.2]. Độ tương đồng cosine đạt 0.914, vượt ngưỡng grounding 0.75.'
-  );
+  const [ragResponse, setRagResponse] = useState<string>('');
 
   // Pan and Zoom Canvas State
   const [zoom, setZoom] = useState<number>(1.0);
@@ -459,6 +450,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     activePipelineStage,
     totalVectors,
     logs: storeLogs,
+    triggerStorageSync,
   } = useLakehouseStreamStore();
 
   // Terminal logs: the backend's single ordered log buffer (Airflow, harvest DAGs, worker, RabbitMQ, Qdrant)
@@ -495,7 +487,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const liveSilverMb = storageStats?.activeLakehouse?.silverParquetSizeMb ?? 0;
   const liveSilverPartitions = storageStats?.activeLakehouse?.silverParquetCount ?? 0;
 
-  const liveVectors = totalVectors || (storageStats?.activeLakehouse?.activeLanceDbVectors ?? 0);
+  const liveVectors = totalVectors || (storageStats?.activeLakehouse?.activeVectors ?? 0);
   const liveFormulas = formulasExtracted;
 
   const liveBatchesCount = 0;
@@ -603,12 +595,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     }
   };
 
-  const handleRunLanceSearch = async () => {
-    setLanceSearching(true);
+  const handleRunVectorSearch = async () => {
+    setVectorSearching(true);
     try {
-      const res = await searchLakehouse(lanceQuery, 5);
+      const res = await searchLakehouse(vectorQuery, 5);
       if (res?.results && res.results.length > 0) {
-        setLanceResults(
+        setVectorResults(
           res.results.map((hit) => ({
             id: `arXiv:${hit.paper_id}`,
             title: hit.title || 'Academic Paper',
@@ -620,16 +612,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'LANCEDB-LIVE', msg: `ANN query found ${res.total_results} chunks in LanceDB Gold Lakehouse (164,750 vectors).` },
+        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'QDRANT-LIVE', msg: `ANN query found ${res.total_results} chunks in the Qdrant Gold collection (${liveVectors.toLocaleString()} vectors).` },
       ]);
     } catch (err: any) {
       const now = new Date().toLocaleTimeString('en-US', { hour12: false });
       setLogs((prev) => [
         ...prev,
-        { id: Date.now(), time: now, level: 'WARN' as const, tag: 'LANCEDB-ERROR', msg: `Search error: ${err.message}` },
+        { id: Date.now(), time: now, level: 'WARN' as const, tag: 'QDRANT-ERROR', msg: `Search error: ${err.message}` },
       ]);
     } finally {
-      setLanceSearching(false);
+      setVectorSearching(false);
     }
   };
 
@@ -657,17 +649,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const baseTool = TOOL_DETAILS_MAP[selectedNodeId] || TOOL_DETAILS_MAP['start-flow'];
   const selectedTool = useMemo(() => {
-    if (selectedNodeId === 'review-r2' || selectedNodeId === 'bronze-instance') {
-      const totalR2Gb = storageStats?.totalBucket?.totalSizeGb ?? (storageUsedGb || 12.18);
-      const totalR2Objects = storageStats?.totalBucket?.totalObjects ?? 36751;
-      const activeGb = storageStats?.activeLakehouse?.totalSizeGb ?? 8.07;
-      const backupGb = storageStats?.backupStorage?.totalSizeGb ?? 4.11;
+    if (selectedNodeId === 'bronze-instance') {
+      const totalGb = storageStats?.totalBucket?.totalSizeGb ?? storageUsedGb;
+      const totalObjects = storageStats?.totalBucket?.totalObjects ?? 0;
+      const activeGb = storageStats?.activeLakehouse?.totalSizeGb ?? 0;
+      const archiveGb = storageStats?.backupStorage?.totalSizeGb ?? 0;
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${totalR2Gb.toFixed(2)} GB Cloud Storage (${totalR2Objects.toLocaleString()} Objects)`,
-          secondaryMetric: `Active: ${activeGb.toFixed(2)} GB • Backups: ${backupGb.toFixed(2)} GB`,
+          primaryMetric: `${totalGb.toFixed(2)} GB in MinIO (${totalObjects.toLocaleString()} objects)`,
+          secondaryMetric: `Lakehouse: ${activeGb.toFixed(2)} GB • Archive: ${archiveGb.toFixed(2)} GB`,
         }
       };
     }
@@ -676,20 +668,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${(2220938 + streamSessionCount * 24).toLocaleString()} LaTeX Formulas`,
-          secondaryMetric: `${(9015 + streamSessionCount).toLocaleString()} Full-Section Enriched Papers`,
+          primaryMetric: `${liveFormulas.toLocaleString()} LaTeX Formulas`,
+          secondaryMetric: `${liveTotalWorks.toLocaleString()} papers queryable`,
         }
       };
     }
-    if (selectedNodeId === 'gold-lancedb') {
-      const totalVectors = storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164750;
-      const activeMb = storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 211.26;
+    if (selectedNodeId === 'gold-qdrant') {
+      const activeMb = storageStats?.activeLakehouse?.activeVectorsSizeMb ?? 0;
       return {
         ...baseTool,
         telemetrySummary: {
           ...baseTool.telemetrySummary,
-          primaryMetric: `${totalVectors.toLocaleString()} Vectors Indexed`,
-          secondaryMetric: `12,816 Papers • 768 Dim • ${activeMb.toFixed(2)} MB Index`,
+          primaryMetric: `${liveVectors.toLocaleString()} Vectors Indexed`,
+          secondaryMetric: `${liveTotalWorks.toLocaleString()} Papers • 768 Dim • ${activeMb.toFixed(2)} MB gold/`,
         }
       };
     }
@@ -994,7 +985,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* ============================================================== */}
-          {/* STAGE 2: Cloudflare R2 Bronze Lake (Magenta/Pink) */}
+          {/* STAGE 2: MinIO Bronze lake (Magenta/Pink) */}
           {/* ============================================================== */}
           <div
             onClick={() => handleOpenInspector('bronze-instance')}
@@ -1045,7 +1036,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48' }}>Cloudflare R2</div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48' }}>MinIO S3</div>
                   <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Bronze Lake</div>
                 </div>
               </div>
@@ -1062,7 +1053,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 padding: '1px 5px',
                 borderRadius: '4px',
               }}>
-                {isStreaming ? '● SYNCING R2' : 'S3 API'}
+                {isStreaming ? '● SYNCING' : 'S3 API'}
               </span>
             </div>
 
@@ -1082,7 +1073,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               </div>
 
               {/* Visual Storage Progress Bar */}
-              <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={`Hạn mức Cloudflare R2: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)`}>
+              <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-elevated)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }} title={`Ngân sách dung lượng: ${storageUsedGb.toFixed(3)} GB / 10.0 GB (${storageUsedPct.toFixed(1)}%)`}>
                 <div style={{
                   width: `${Math.min(100, storageUsedPct)}%`,
                   height: '100%',
@@ -1398,7 +1389,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* ============================================================== */}
-          {/* PARALLEL SPLIT NODE & PARALLEL BRANCHES (PARQUET & LANCEDB) */}
+          {/* PARALLEL SPLIT NODE & PARALLEL BRANCHES (PARQUET & QDRANT) */}
           {/* ============================================================== */}
           <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             {/* Red Fork Icon Badge */}
@@ -1434,7 +1425,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               <div style={{ position: 'absolute', bottom: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? 'rgba(37, 99, 235, 0.8)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(37, 99, 235, 0.6)' : 'none' }} />
             </div>
 
-            {/* Parallel Cards: Apache Parquet (Top) & LanceDB (Bottom) */}
+            {/* Parallel Cards: Apache Parquet (Top) & Qdrant (Bottom) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', flexShrink: 0 }}>
               {/* PATH 1 (TOP): Apache Parquet (Green) */}
               <div
@@ -1570,9 +1561,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
               </div>
 
-              {/* PATH 2 (BOTTOM): LanceDB & 4 Pillars (Blue) */}
+              {/* PATH 2 (BOTTOM): Qdrant & 4 Pillars (Blue) */}
               <div
-                onClick={() => handleOpenInspector('gold-lancedb')}
+                onClick={() => handleOpenInspector('gold-qdrant')}
                 style={{
                   width: '260px',
                   backgroundColor: isStageActive('parallel')
@@ -1582,7 +1573,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   padding: '12px 16px',
                   border: isStageActive('parallel')
                     ? '2px solid #3b82f6'
-                    : selectedNodeId === 'gold-lancedb' && drawerOpen
+                    : selectedNodeId === 'gold-qdrant' && drawerOpen
                     ? '2px solid #2563eb'
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('parallel')
@@ -1620,7 +1611,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#60a5fa' : '#1d4ed8' }}>LanceDB Vectors</div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#60a5fa' : '#1d4ed8' }}>Qdrant Vectors</div>
                       <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Gold Vector Store</div>
                     </div>
                   </div>
@@ -1680,7 +1671,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       alignItems: 'center',
                       gap: '4px',
                     }}>
-                      IVF-PQ &lt;15ms
+                      HNSW ANN
                     </span>
 
                     <span style={{
@@ -2348,7 +2339,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: themeStyles.textMuted }}>Target Bucket:</span>
-                            <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>s3://uth-scientific-lakehouse</span>
+                            <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>{`s3://${storageStats?.bucket ?? ''}`}</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: themeStyles.textMuted }}>Partition Scheme:</span>
@@ -2757,18 +2748,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </div>
                 )}
 
-                {/* 3. LanceDB Vector Search Controls */}
-                {selectedTool.id === 'lance-storage' && (
+                {/* 3. Qdrant vector search controls */}
+                {selectedTool.id === 'gold-qdrant' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        TÌM KIẾM SEMANTIC VECTOR ANN (164,750 EMBEDDINGS)
+                        {`TÌM KIẾM SEMANTIC VECTOR ANN (${liveVectors.toLocaleString()} EMBEDDINGS)`}
                       </span>
 
                       <input
                         type="text"
-                        value={lanceQuery}
-                        onChange={(e) => setLanceQuery(e.target.value)}
+                        value={vectorQuery}
+                        onChange={(e) => setVectorQuery(e.target.value)}
                         placeholder="Nhập truy vấn ngữ nghĩa học thuật..."
                         style={{
                           width: '100%',
@@ -2788,8 +2779,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         {/* Tactical Emerald Pill Button */}
                         <button
                           type="button"
-                          onClick={handleRunLanceSearch}
-                          disabled={lanceSearching}
+                          onClick={handleRunVectorSearch}
+                          disabled={vectorSearching}
                           style={{
                             flex: 1,
                             backgroundColor: themeStyles.emeraldGhostBg,
@@ -2800,7 +2791,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             fontSize: '11px',
                             fontFamily: 'var(--font-mono)',
                             fontWeight: 800,
-                            cursor: lanceSearching ? 'not-allowed' : 'pointer',
+                            cursor: vectorSearching ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -2809,7 +2800,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          {lanceSearching ? (
+                          {vectorSearching ? (
                             <span>ĐANG TÍNH TOÁN COSINE ANN...</span>
                           ) : (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -2817,20 +2808,20 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                                 <circle cx="11" cy="11" r="8" />
                                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                               </svg>
-                              <span>TÌM KIẾM VECTOR ANN (IVF-PQ)</span>
+                              <span>TÌM KIẾM VECTOR ANN (HNSW)</span>
                             </span>
                           )}
                         </button>
                       </div>
                     </div>
 
-                    {/* LanceDB Hits */}
+                    {/* Qdrant hits */}
                     <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 14px' }}>
                       <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '8px' }}>
                         TOP-3 NEAREST NEIGHBORS (COSINE SIMILARITY)
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {lanceResults.map((hit, i) => (
+                        {vectorResults.map((hit, i) => (
                           <div key={i} style={{ padding: '6px 8px', backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.cardBorder}`, borderRadius: '6px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: isDark ? '#34d399' : '#10b981' }}>
@@ -2859,7 +2850,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </div>
                 )}
 
-                {/* 4. Cloudflare R2 Controls */}
+                {/* 4. MinIO controls */}
                 {selectedTool.id === 'bronze-instance' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
                     <div>
@@ -2876,7 +2867,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         fontSize: '11px',
                         lineHeight: 1.6,
                       }}>
-                        <div style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>s3://uth-scientific-lakehouse/</div>
+                        <div style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>{`s3://${storageStats?.bucket ?? ''}/`}</div>
                         <div style={{ color: isDark ? '#fb7185' : '#e11d48' }}>
                           ├── bronze/raw_html/year=2026/ ({liveBronzeCount.toLocaleString()} HTML5 objects · {liveBronzeGb} GB)
                         </div>
@@ -2884,7 +2875,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · 26.42 MB)
                         </div>
                         <div style={{ color: isDark ? '#34d399' : '#059669' }}>
-                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 913205).toLocaleString()} vectors)
+                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.activeLakehouse?.activeVectors ?? 0).toLocaleString()} vectors)
                         </div>
                       </div>
                     </div>
@@ -2901,19 +2892,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           <div style={{ width: `${Math.min(100, Math.max(0, storageUsedPct))}%`, height: '100%', backgroundColor: storageUsedPct > 80 ? '#e11d48' : '#3b82f6', transition: 'width 0.3s ease' }} />
                         </div>
                         <div style={{ fontSize: '10px', color: isDark ? '#34d399' : '#059669', fontFamily: 'var(--font-mono)', marginTop: '6px', fontWeight: 700 }}>
-                          ✓ ZERO EGRESS FEES (Cloudflare Global Network)
+                          ✓ LOCAL MINIO (no egress fees)
                         </div>
                       </div>
 
                       <button
                         type="button"
-                        onClick={() => {
-                          const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                        onClick={async () => {
+                          setBottomTab('logs');
+                          const res = await triggerStorageSync();
                           setLogs((prev) => [
                             ...prev,
-                            { id: Date.now(), time: now, level: 'SUCCESS', tag: 'MD5-CHECK', msg: `Cloudflare R2 Bucket audit: ${liveBronzeCount.toLocaleString()} objects validated with 100% SHA-256 match.` },
+                            { id: Date.now(), time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: res.status === 'SUCCESS' ? 'SUCCESS' : 'WARN', tag: 'MINIO-SCAN', msg: res.message },
                           ]);
-                          setBottomTab('logs');
                         }}
                         style={{
                           backgroundColor: themeStyles.roseGhostBg,
@@ -2932,7 +2923,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                           </svg>
-                          <span>AUDIT SHA-256 INTEGRITY &amp; VIEW LOGS</span>
+                          <span>RESCAN MINIO BUCKET &amp; VIEW LOGS</span>
                         </span>
                       </button>
                     </div>
@@ -3225,7 +3216,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       borderRadius: '8px',
                       padding: '10px 12px',
                     }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>THROUGHPUT / EGRESS</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>THROUGHPUT / COST</div>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '3px' }}>
                         {selectedTool.telemetrySummary.throughput}
                       </div>
@@ -3651,7 +3642,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       </span>
                     </div>
 
-                    {/* Metric 3: LanceDB Vector */}
+                    {/* Metric 3: Qdrant vectors */}
                     <div style={{
                       padding: '8px 10px',
                       backgroundColor: themeStyles.cardBg,
@@ -3662,9 +3653,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       justifyContent: 'space-between',
                     }}>
                       <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>LANCEDB VECTOR INDEX</div>
+                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>QDRANT VECTOR INDEX</div>
                         <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '2px' }}>
-                          {(storageStats?.activeLakehouse?.activeLanceDbVectors ?? 164750).toLocaleString()} embeddings
+                          {(storageStats?.activeLakehouse?.activeVectors ?? 164750).toLocaleString()} embeddings
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
@@ -3672,7 +3663,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       </span>
                     </div>
 
-                    {/* Metric 4: Cloudflare R2 */}
+                    {/* Metric 4: MinIO */}
                     <div style={{
                       padding: '8px 10px',
                       backgroundColor: themeStyles.cardBg,
@@ -3683,13 +3674,13 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       justifyContent: 'space-between',
                     }}>
                       <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>R2 LAKEHOUSE STORAGE</div>
+                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>MINIO LAKEHOUSE STORAGE</div>
                         <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '2px' }}>
                           {storageUsedGb.toFixed(3)} GB ({storageUsedPct.toFixed(2)}%)
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#059669', fontWeight: 700 }}>
-                        $0.00 Egress
+                        no egress fees
                       </span>
                     </div>
                   </div>

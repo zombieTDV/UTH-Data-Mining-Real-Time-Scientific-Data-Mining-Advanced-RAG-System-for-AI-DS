@@ -287,12 +287,17 @@ export const AdaptiveSchedulerControl: FC = () => {
           }}
         >
           <span>RabbitMQ: <b style={{ color: queue.status === 'HEALTHY' ? 'var(--accent-emerald)' : '#ef4444' }}>{queue.status}</b></span>
-          <span>chờ xử lý <b style={{ color: 'var(--text-primary)' }}>{queue.ready.toLocaleString()}</b></span>
-          <span>đang xử lý <b style={{ color: 'var(--text-primary)' }}>{queue.unacked.toLocaleString()}</b></span>
-          <span>worker <b style={{ color: queue.consumers > 0 ? 'var(--accent-emerald)' : '#ef4444' }}>{queue.consumers}</b></span>
+          <span title="Bản tin metadata chờ fetch worker tải toàn văn">
+            Q1 tải bài: <b style={{ color: 'var(--text-primary)' }}>{queue.ready.toLocaleString()}</b> chờ · {queue.unacked} đang xử lý · worker{' '}
+            <b style={{ color: queue.consumers > 0 ? 'var(--accent-emerald)' : '#ef4444' }}>{queue.consumers}</b>
+          </span>
+          <span title="Bản ghi Silver chờ embed worker chunk + embed vào Qdrant">
+            Q2 embed: <b style={{ color: 'var(--text-primary)' }}>{(queue.embed_ready ?? 0).toLocaleString()}</b> chờ · {queue.embed_unacked ?? 0} đang xử lý · worker{' '}
+            <b style={{ color: (queue.embed_consumers ?? 0) > 0 ? 'var(--accent-emerald)' : '#ef4444' }}>{queue.embed_consumers ?? 0}</b>
+          </span>
           <span>dead-letter <b style={{ color: queue.dead > 0 ? '#ef4444' : 'var(--text-primary)' }}>{queue.dead}</b></span>
           <span>Airflow: <b style={{ color: live?.airflow.reachable ? 'var(--accent-emerald)' : '#ef4444' }}>{live?.airflow.reachable ? (live.airflow.scheduler_healthy ? 'scheduler OK' : 'scheduler DOWN') : 'OFFLINE'}</b></span>
-          {queue.ready + queue.unacked > 0 && queue.consumers === 0 && (
+          {((queue.ready + queue.unacked > 0 && queue.consumers === 0) || ((queue.embed_ready ?? 0) > 0 && (queue.embed_consumers ?? 0) === 0)) && (
             <span style={{ color: '#ef4444', fontWeight: 700 }}>⚠ Có tin trong hàng đợi nhưng chưa có worker: hãy chạy ingestion worker.</span>
           )}
         </div>

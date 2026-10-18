@@ -14,7 +14,7 @@ export interface DiagramNode {
   metricValue: string;
   secondaryMetric: string;
   status: 'ONLINE' | 'SYNCED' | 'ACTIVE';
-  iconType: 'arxiv' | 'r2' | 'duckdb' | 'parquet' | 'nomic' | 'lancedb' | 'qwen' | 'terminal';
+  iconType: 'arxiv' | 'minio' | 'duckdb' | 'parquet' | 'nomic' | 'qdrant' | 'qwen' | 'terminal';
   specList: string[];
 }
 
@@ -39,12 +39,12 @@ export function GeometricPipelineDiagram() {
   const currentCorpus = currentTotalCorpus;
   const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 0;
-  const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
+  const currentVectors = storageStats?.activeLakehouse?.activeVectors 
     ?? storageStats?.zones?.goldChunkCount 
     ?? 0;
   const currentFormulas = useEdaFormulas();
   const currentEnriched = currentBronzeCount;
-  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 0).toFixed(2);
+  const currentGoldMb = (storageStats?.activeLakehouse?.activeVectorsSizeMb ?? 0).toFixed(2);
 
   const [statusText, setStatusText] = useState<string>(
     `PIPELINE READY · ${currentTotalCorpus.toLocaleString()} PAPERS / ${currentVectors.toLocaleString()} VECTORS ONLINE`
@@ -75,7 +75,7 @@ export function GeometricPipelineDiagram() {
         `arXiv OAI-PMH & REST (${(currentArxivCount / 1000).toFixed(1)}k)`,
         `CVF CVPR/ICCV Open Access (${(currentCvfCount / 1000).toFixed(1)}k)`,
         `OpenReview ICLR/NeurIPS (${(currentOpenReviewCount / 1000).toFixed(1)}k)`,
-        `Zenodo Marker PDF Engine (${currentZenodoCount.toLocaleString()})`,
+        `Zenodo records (${currentZenodoCount.toLocaleString()})`,
       ]
     },
     {
@@ -90,8 +90,8 @@ export function GeometricPipelineDiagram() {
       metricValue: `${storageUsedGb.toFixed(3)} GB`,
       secondaryMetric: `${currentDoiCount.toLocaleString()} DOI · ${currentArxivCount.toLocaleString()} Preprints · ${(currentCvfCount + currentOpenReviewCount + currentZenodoCount).toLocaleString()} Conf`,
       status: 'ONLINE',
-      iconType: 'r2',
-      specList: ['S3 Compatible High-Throughput', 'Zero Cloud Egress (< 1ms Latency)', 'SHA-256 Content Addressed']
+      iconType: 'minio',
+      specList: ['S3 Compatible High-Throughput', 'Local object storage (low latency)', 'SHA-256 Content Addressed']
     },
     {
       id: 'node-duckdb',
@@ -150,7 +150,7 @@ export function GeometricPipelineDiagram() {
       metricValue: `${currentVectors.toLocaleString()} Points`,
       secondaryMetric: `${currentGoldMb} MB Table Size`,
       status: 'ONLINE',
-      iconType: 'lancedb',
+      iconType: 'qdrant',
       specList: ['Rust In-Memory HNSW Index', 'Cosine Metric & Fast Filters', 'Sub-millisecond Retrieval (<10ms)']
     },
     {
@@ -190,7 +190,7 @@ export function GeometricPipelineDiagram() {
     setStatusText('RUNNING: Dispatching Medallion Pipeline (MPS Metal accelerated)...');
     setTimeout(() => {
       setIsRunning(false);
-      setStatusText(`SUCCESS: ${currentCorpus.toLocaleString()} papers processed · ${currentVectors.toLocaleString()} LanceDB vectors synced`);
+      setStatusText(`SUCCESS: ${currentCorpus.toLocaleString()} papers processed · ${currentVectors.toLocaleString()} Qdrant vectors synced`);
     }, 1100);
   };
 
@@ -210,7 +210,7 @@ export function GeometricPipelineDiagram() {
             <path d="M7 8h10M7 12h7M7 16h5" stroke="#fca5a5" strokeWidth="2" strokeLinecap="round"/>
           </svg>
         );
-      case 'r2':
+      case 'minio':
         return (
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <ellipse cx="12" cy="7" rx="8" ry="4" stroke="#f59e0b" strokeWidth="2"/>
@@ -244,7 +244,7 @@ export function GeometricPipelineDiagram() {
             <circle cx="12" cy="12" r="3" fill="#10b981"/>
           </svg>
         );
-      case 'lancedb':
+      case 'qdrant':
         return (
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <polygon points="12 2 22 7 22 17 12 22 2 17 2 7" stroke="#fbbf24" strokeWidth="2"/>

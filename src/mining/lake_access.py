@@ -18,7 +18,7 @@ from src.storage.minio_client import StorageClient
 logger = logging.getLogger("mining.lake")
 
 MINING_PREFIX = "gold/mining"
-SILVER_PRIMARY_KEY = "silver/papers/year=2026/papers.parquet"
+SILVER_PRIMARY_KEY = "silver/papers/**/*.parquet"  # all tiers (year partitions, compacted files and streaming parts)
 
 _storage: Optional[StorageClient] = None
 
@@ -40,8 +40,12 @@ def key_of(path_or_uri: str) -> str:
 
 
 def path_exists(path_or_uri: str) -> bool:
-    """True when the MinIO object exists (accepts either a bucket key or an s3:// URI)."""
-    return storage().object_exists(key_of(path_or_uri))
+    """True when the MinIO object exists (bucket key or s3:// URI); for a glob, when anything matches its prefix."""
+    key = key_of(path_or_uri)
+    if "*" in key:
+        prefix = key.split("*", 1)[0]
+        return any(o["key"].endswith(".parquet") for o in storage().list_objects(prefix, max_keys=1000))
+    return storage().object_exists(key)
 
 
 def _q(value: str) -> str:
@@ -75,7 +79,12 @@ def put_artifact(filename: str, payload: Any) -> str:
 def qdrant_client():
     from qdrant_client import QdrantClient
 
-    return QdrantClient(url=settings.QDRANT_URL, timeout=60.0, check_compatibility=False)
+    return QdrantClient(
+        url=settings.QDRANT_URL,
+        api_key=getattr(settings, "QDRANT_API_KEY", None) or None,
+        timeout=60.0,
+        check_compatibility=False,
+    )
 
 
 def ensure_keyword_index(client, field: str) -> None:

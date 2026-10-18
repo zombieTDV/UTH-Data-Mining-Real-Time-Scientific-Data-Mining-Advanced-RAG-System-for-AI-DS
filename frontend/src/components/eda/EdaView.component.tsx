@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
-import type { EdaResponse, CategoryDistItem } from '../../types';
+import type { EdaResponse, CategoryDistItem, MiningRunStatus, PipelineStatus } from '../../types';
 import { fetchEdaSummary } from '../../services';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
+import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
+import { DistributionView } from './DistributionView.component';
 import { useSvgPanZoom } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { ThreeLensesDiagnosticView } from './ThreeLensesDiagnosticView.component';
 
-export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
+export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit' | 'distribution';
 
 export interface ScatterPaperPoint {
   id: string;
@@ -35,6 +37,9 @@ export interface AnomalyNotification {
 interface EdaViewProps {
   theme?: 'dark' | 'light';
   onNavigateToRag?: (paperTitle?: string) => void;
+  miningRun?: MiningRunStatus | null; // a new last_run refetches the EDA artifact
+  pipelineStatus?: PipelineStatus;
+  onRefreshMining?: () => void;
 }
 
 // 70 realistic curated scientific papers representing the lakehouse distribution
@@ -330,7 +335,7 @@ const SCATTER_DATASET: ScatterPaperPoint[] = [
   },
 ];
 
-export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) => {
+export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, miningRun, pipelineStatus = 'IDLE', onRefreshMining }) => {
   const isDark = theme === 'dark';
 
   const [data, setData] = useState<EdaResponse | null>(null);
@@ -395,17 +400,19 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
   });
 
 
+  const dataVersion = miningRun?.last_run ?? null;
   useEffect(() => {
     fetchEdaSummary()
       .then((res) => {
         setData(res);
+        setError(null);
         setLoading(false);
       })
       .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [dataVersion]);
 
   // Keyboard shortcut listener:
   // - '1' to '5': Switch Deck
@@ -422,6 +429,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       else if (e.key === '4') setActiveDeck('authors');
       else if (e.key === '5') setActiveDeck('correlations');
       else if (e.key === '6') setActiveDeck('rag_audit');
+      else if (e.key === '7') setActiveDeck('distribution');
       else if (e.key === 'f' || e.key === 'F') setIsFocusMode((prev) => !prev);
       else if (e.key === 'Escape') setSelectedPaperForDrawer(null);
     };
@@ -483,29 +491,54 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
   const temporalAggregatedPoints = useMemo(() => {
     const rawDist = data?.temporal_distribution || [];
-    const total = data?.dataset_overview.total_papers || 100000;
+    const total = data?.dataset_overview.total_papers || 1;
 
     const yearCounts: Record<string, number> = {};
     for (const item of rawDist) {
       const p = item.period;
       const c = item.count;
       const year = p.slice(0, 4);
-      if (year >= '2022' && year <= '2026') {
+      if (/^\d{4}$/.test(year)) {
         yearCounts[year] = (yearCounts[year] || 0) + c;
       }
     }
 
-    const rawPoints = [
-      { label: "'22", count: yearCounts['2022'] || 11246 },
-      { label: "'23", count: yearCounts['2023'] || 17739 },
-      { label: "'24", count: yearCounts['2024'] || 22965 },
-      { label: "'25", count: yearCounts['2025'] || 18302 },
-      { label: "'26", count: yearCounts['2026'] || 29727 },
-    ];
+    const sortedYears = Object.keys(yearCounts).sort();
+    const maxRecentYears = 13;
+    const rawPoints: { label: string; count: number }[] = [];
+
+    if (sortedYears.length === 0) {
+      for (const y of ['2022', '2023', '2024', '2025', '2026']) {
+        rawPoints.push({ label: `'${y.slice(2)}`, count: 0 });
+      }
+    } else {
+      const minYearNum = Number(sortedYears[0]);
+      const maxYearNum = Number(sortedYears[sortedYears.length - 1]);
+      const startYear = Math.max(minYearNum, maxYearNum - maxRecentYears + 1);
+
+      let priorCount = 0;
+      for (const [y, c] of Object.entries(yearCounts)) {
+        if (Number(y) < startYear) priorCount += c;
+      }
+      if (priorCount > 0) {
+        rawPoints.push({
+          label: `≤'${String(startYear - 1).slice(2)}`,
+          count: priorCount,
+        });
+      }
+      for (let y = startYear; y <= maxYearNum; y++) {
+        const yStr = String(y);
+        rawPoints.push({
+          label: `'${yStr.slice(2)}`,
+          count: yearCounts[yStr] ?? 0,
+        });
+      }
+    }
 
     const effectivePoints = temporalSmoothing
       ? rawPoints.map((p, idx, arr) => {
           let count = p.count;
+          if (arr.length < 2) return { label: p.label, count };
           if (idx === 0) {
             count = Math.round(0.75 * p.count + 0.25 * arr[1].count);
           } else if (idx === arr.length - 1) {
@@ -518,14 +551,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       : rawPoints;
 
     const maxC = Math.max(...effectivePoints.map((p) => p.count), 1);
-    const yCeil = Math.max(10000, Math.ceil(maxC / 5000) * 5000);
-    const stepX = 360 / (effectivePoints.length - 1);
+    // The axis has 3 equal steps: pick a round step (1-2-5 series) so every tick label is a readable number
+    const stepMag = 10 ** Math.floor(Math.log10(Math.max(1, maxC / 3)));
+    const yCeil = 3 * ([1, 2, 5, 10].map((m) => m * stepMag).find((v) => v * 3 >= maxC) ?? maxC);
+    const stepX = 365 / Math.max(1, effectivePoints.length - 1);
 
     const points = effectivePoints.map((p, idx) => ({
       label: p.label,
       count: p.count,
       pct: `${((p.count / total) * 100).toFixed(1)}%`,
-      x: Math.round(55 + idx * stepX),
+      x: Math.round(52 + idx * stepX),
       y: Math.round(180 - (p.count / yCeil) * 140),
     }));
 
@@ -807,29 +842,83 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               </span>
             </div>
 
-            {/* Live Influx Velocity Pulse */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : '#f0fdf4',
-                border: `1px solid ${isDark ? 'rgba(34, 197, 94, 0.25)' : '#bbf7d0'}`,
-                padding: '2px 8px',
-                borderRadius: '9999px',
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                color: isDark ? '#4ade80' : '#166534',
-                fontWeight: 700,
-              }}
-            >
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
-              <span>LIVE INGESTION: 14.2 p/s &bull; 84.2k w/s</span>
-            </div>
+            {/* Freshness of the served artifacts (EDA + Model), from the last mining run */}
+            {(() => {
+              const running = pipelineStatus === 'RUNNING';
+              const failed = !running && !!miningRun?.error;
+              const fmt = (iso?: string | null) => (iso ? iso.replace('T', ' ').slice(0, 16) : '—');
+              const tone = failed ? '#ef4444' : running ? '#f59e0b' : '#22c55e';
+              return (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    border: `1px solid ${themeStyles.border}`,
+                    backgroundColor: themeStyles.cardSubtle,
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    color: themeStyles.textSecondary,
+                    fontWeight: 700,
+                  }}
+                  title={failed ? `Lần chạy gần nhất lỗi: ${miningRun?.error}` : 'Thời điểm engine tính EDA + Model và số bài trong Silver lúc đó'}
+                >
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: tone, display: 'inline-block' }} />
+                  {running ? (
+                    <span>Đang tính lại EDA + Model (bắt đầu {fmt(miningRun?.started_at).slice(11)})…</span>
+                  ) : failed ? (
+                    <span style={{ color: '#ef4444' }}>Lần cập nhật lỗi · dữ liệu cũ từ {fmt(miningRun?.last_run)}</span>
+                  ) : (
+                    <span>
+                      Dữ liệu: <strong style={{ color: themeStyles.textPrimary }}>{(miningRun?.total_papers ?? 0).toLocaleString()}</strong> bài · cập nhật {fmt(miningRun?.last_run)}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Quick Action Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            {/* Re-run the mining engine on the current Silver; EDA and Model reload when it finishes */}
+            <button
+              type="button"
+              onClick={onRefreshMining}
+              disabled={pipelineStatus === 'RUNNING' || !onRefreshMining}
+              style={{
+                backgroundColor: pipelineStatus === 'RUNNING' ? themeStyles.cardSubtle : '#2563eb',
+                border: `1px solid ${pipelineStatus === 'RUNNING' ? themeStyles.border : '#1d4ed8'}`,
+                borderRadius: '4px',
+                padding: '2px 8px',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                color: pipelineStatus === 'RUNNING' ? themeStyles.textSecondary : '#ffffff',
+                cursor: pipelineStatus === 'RUNNING' ? 'progress' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+              title="Chạy lại engine trên toàn bộ Silver hiện có, rồi tải lại tab EDA và Model"
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                style={pipelineStatus === 'RUNNING' ? { animation: 'spin 1s linear infinite' } : undefined}
+              >
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                <polyline points="21 3 21 9 15 9" />
+              </svg>
+              <span>{pipelineStatus === 'RUNNING' ? 'ĐANG CẬP NHẬT…' : 'CẬP NHẬT'}</span>
+            </button>
+
             {/* Focus / Zen Mode Toggle */}
             <button
               type="button"
@@ -1108,6 +1197,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             { id: 'authors' as DeckType, label: 'TOP AUTHORS & QUANTILES', keyNum: '4' },
             { id: 'correlations' as DeckType, label: 'CORRELATIONS & ANOVA', keyNum: '5' },
             { id: 'rag_audit' as DeckType, label: 'RAG QUALITY AUDIT', keyNum: '6' },
+            { id: 'distribution' as DeckType, label: 'PHÂN BỐ: SCATTER & HISTOGRAM', keyNum: '7' },
           ].map((deck) => {
             const isActive = activeDeck === deck.id;
             return (
@@ -1152,7 +1242,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         {/* Hotkey hint */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-          <span>Phím 1-6 chuyển góc nhìn &bull; Phím F thu gọn HUD &bull; Escape đóng chi tiết</span>
+          <span>Phím 1-7 chuyển góc nhìn &bull; Phím F thu gọn HUD &bull; Escape đóng chi tiết</span>
         </div>
       </div>
 
@@ -1379,6 +1469,17 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 </div>
               </div>
 
+              <div style={{ padding: '4px 4px 0' }}>
+                <ChartLegend
+                  items={[
+                    { label: 'Số bài báo (cột, màu theo chuyên mục, trục trái)', color: '#2563eb', mark: 'bar' },
+                    { label: 'Tổng công thức toán (trục phải)', color: '#ea580c', mark: 'dashed' },
+                    { label: 'Tỷ lệ bài tích lũy % (Pareto)', color: '#10b981', mark: 'line' },
+                    { label: 'Mốc 80%', color: '#10b981', mark: 'dashed' },
+                  ]}
+                />
+              </div>
+
               {/* SVG DUAL-AXIS COMBO CHART */}
               <div
                 {...comboPanZoom.containerProps}
@@ -1417,6 +1518,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   })}
 
                   <line x1="60" y1="235" x2="860" y2="235" stroke={themeStyles.axisLine} strokeWidth="1" />
+                  <AxisTitle axis="y" x={14} y={135} text={scaleMode === 'linear' ? 'Số bài báo' : 'Số bài báo (log10)'} />
+                  <AxisTitle axis="y2" x={910} y={135} text="Số công thức toán" color="#ea580c" />
+                  <AxisTitle axis="x" x={460} y={284} text="Chuyên mục arXiv (8 mục nhiều bài nhất)" />
 
                   {categoryList.slice(0, 8).map((cat, i) => {
                     const barX = 90 + i * 95;
@@ -1704,10 +1808,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       TĂNG TRƯỞNG THEO THỜI GIAN
                     </h3>
                   </div>
-
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb', backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#eff6ff', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
-                    EXPONENTIAL
-                  </span>
                 </div>
 
                 {/* Row 2: Metadata & Controls Deck */}
@@ -1726,7 +1826,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                      Đỉnh điểm {temporalAggregatedPoints.peakPoint.count.toLocaleString()} bài ({temporalAggregatedPoints.peakPoint.label}) &bull; Chuỗi lũy tiến
+                      Đỉnh điểm {temporalAggregatedPoints.peakPoint.count.toLocaleString()} bài ({temporalAggregatedPoints.peakPoint.label}) &bull; Số bài theo từng năm
                     </div>
 
                     {/* Temporal Smoothing Switch */}
@@ -1809,6 +1909,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     />
                 </div>
 
+                <div style={{ padding: '0 4px 4px' }}>
+                  <ChartLegend
+                    items={[
+                      { label: temporalSmoothing ? 'Số bài mỗi năm (làm mịn 3 điểm)' : 'Số bài mỗi năm', color: '#2563eb', mark: 'line' },
+                      { label: 'Năm nhiều bài nhất', color: '#2563eb', mark: 'bar' },
+                    ]}
+                  />
+                </div>
+
                 {/* SVG AREA CHART */}
                 <div
                   {...timelinePanZoom.containerProps}
@@ -1839,28 +1948,32 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           return (
                             <g key={g}>
                               <line x1="40" y1={y} x2="430" y2={y} stroke={themeStyles.gridLine} strokeDasharray="3 3" />
-                              <text x="34" y={y + 3} textAnchor="end" fontSize="10" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                                {val.toLocaleString()}
+                              <text x="36" y={y + 3} textAnchor="end" fontSize="10" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                                {val >= 1000 ? `${(val / 1000).toFixed(val % 1000 ? 1 : 0)}k` : val}
                               </text>
                             </g>
                           );
                         })}
 
                         <line x1="40" y1="180" x2="430" y2="180" stroke={themeStyles.axisLine} strokeWidth="1" />
+                        <AxisTitle axis="y" x={9} y={108} text="Số bài công bố" fontSize={10} />
+                        <AxisTitle axis="x" x={235} y={216} text="Năm công bố (theo ngày nộp)" fontSize={10} />
 
                         {(() => {
                           const points = temporalAggregatedPoints.points;
                           const peakPoint = temporalAggregatedPoints.peakPoint;
                           const lineD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
                           const areaD = `${lineD} L ${points[points.length - 1].x} 180 L ${points[0].x} 180 Z`;
+                          const badgeX = Math.min(382, Math.max(45, peakPoint.x - 35));
+                          const badgeY = Math.max(12, peakPoint.y - 22);
 
                           return (
                             <g>
                               <path d={areaD} fill="url(#areaGradient)" />
-                              <path d={lineD} fill="none" stroke="#2563eb" strokeWidth="3" />
+                              <path d={lineD} fill="none" stroke="#2563eb" strokeWidth="2.5" />
 
-                              <rect x={peakPoint.x - 35} y={Math.max(16, peakPoint.y - 20)} width="70" height="18" rx="3" fill="#2563eb" />
-                              <text x={peakPoint.x} y={Math.max(16, peakPoint.y - 20) + 13} textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
+                              <rect x={badgeX} y={badgeY} width="70" height="18" rx="3" fill="#2563eb" />
+                              <text x={badgeX + 35} y={badgeY + 13} textAnchor="middle" fontSize="9.5" fontFamily="var(--font-mono)" fontWeight="800" fill="#ffffff">
                                 {peakPoint.count.toLocaleString()} BÀI
                               </text>
 
@@ -1869,10 +1982,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                                   <circle
                                     cx={p.x}
                                     cy={p.y}
-                                    r={p.count > 1000 ? '5.5' : '4'}
+                                    r={p.label === peakPoint.label ? '4.5' : '3.2'}
                                     fill={themeStyles.cardInner}
                                     stroke="#2563eb"
-                                    strokeWidth="2.5"
+                                    strokeWidth="2"
                                     style={{ cursor: 'pointer' }}
                                     onMouseEnter={(e: MouseEvent<SVGCircleElement>) => {
                                       const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
@@ -1886,7 +1999,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                                     }}
                                     onMouseLeave={() => setHoveredTimelineYear(null)}
                                   />
-                                  <text x={p.x} y="196" textAnchor="middle" fontSize="10" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textSecondary}>
+                                  <text x={p.x} y="195" textAnchor="middle" fontSize="8.5" fontFamily="var(--font-mono)" fontWeight="700" fill={themeStyles.textSecondary}>
                                     {p.label}
                                   </text>
                                 </g>
@@ -3126,7 +3239,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     <strong>Khoảng cách Pearson vs Spearman (0.228 vs 0.483)</strong>: Phân phối số công thức tuân theo quy luật lũy thừa có đuôi dài cực đoan (Heavy-tailed Power Law), khiến Pearson bị nén. Kiểm định phi tham số Spearman phản ánh trung thực hơn quy luật đồng biến.
                   </li>
                   <li>
-                    <strong>Cơ sở cho LanceDB Vector Retrieval</strong>: Sự khác biệt cực kỳ lớn về mật độ toán và cấu trúc giữa các ngành khẳng định vai trò sống còn của việc phân cụm trước khi truy xuất RAG đa phương thức.
+                    <strong>Cơ sở cho Qdrant Vector Retrieval</strong>: Sự khác biệt cực kỳ lớn về mật độ toán và cấu trúc giữa các ngành khẳng định vai trò sống còn của việc phân cụm trước khi truy xuất RAG đa phương thức.
                   </li>
                 </ul>
               </div>
@@ -3137,6 +3250,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         {/* ------------------------------------------------------------ */}
         {/* SUB-DECK 6: RAG VECTOR LAKEHOUSE & DATA QUALITY AUDIT        */}
         {/* ------------------------------------------------------------ */}
+        {activeDeck === 'distribution' && data && (
+          <DistributionView data={data} theme={theme} />
+        )}
+
         {activeDeck === 'rag_audit' && (
           <div
             style={{
@@ -3181,7 +3298,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     RAG VECTOR LAKEHOUSE &amp; CONTEXT CHUNKING
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#7c3aed' }}>
-                    LANCEDB GOLD · {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} VECTORS (IVF-PQ)
+                    QDRANT GOLD · {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} VECTORS (HNSW)
                   </span>
                 </div>
 
@@ -3245,7 +3362,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'IVF-PQ (K=1024, M=192)'}
+                  {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'Qdrant HNSW (cosine)'}
                 </div>
 
                 <ChartToolbar
@@ -3325,7 +3442,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   </div>
                 </div>
 
-                {/* LanceDB Lakehouse Grounding Note */}
+                {/* Qdrant grounding note */}
                 <div style={{ backgroundColor: isDark ? 'rgba(124, 58, 237, 0.12)' : '#f5f3ff', border: `1px solid ${isDark ? 'rgba(124, 58, 237, 0.25)' : '#ddd6fe'}`, borderRadius: '6px', padding: '6px 8px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#c084fc' : '#5b21b6' }}>
                   <div style={{ fontWeight: 800, marginBottom: '2px' }}>
                     KIẾN TRÚC VECTOR GROUNDING:

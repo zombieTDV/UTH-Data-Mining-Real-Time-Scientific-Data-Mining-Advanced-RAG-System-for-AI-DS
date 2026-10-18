@@ -37,8 +37,8 @@ export const GoldPrismGlyph: FC<GlyphProps> = ({ size = 16, color = '#eab308' })
   </svg>
 );
 
-/** LanceDB Vector Glyph: Multidimensional 768-D Tensor Hypercube representing embedding space */
-export const LanceVectorGlyph: FC<GlyphProps> = ({ size = 16, color = '#10b981' }) => (
+/** Vector store glyph: Multidimensional 768-D Tensor Hypercube representing embedding space */
+export const VectorStoreGlyph: FC<GlyphProps> = ({ size = 16, color = '#10b981' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <rect x="4" y="4" width="10" height="10" rx="1.5" />
     <rect x="10" y="10" width="10" height="10" rx="1.5" strokeDasharray="2 2" />
@@ -50,10 +50,10 @@ export const LanceVectorGlyph: FC<GlyphProps> = ({ size = 16, color = '#10b981' 
   </svg>
 );
 
-/** Cloudflare Cost Shield Badge: Security emblem guaranteeing 0 background requests */
+/** Manual-scan badge: the inventory is only re-listed on demand */
 export const CostShieldBadge: FC<{ active?: boolean }> = ({ active = true }) => (
   <div
-    title="Cloudflare R2 Cost Protection Shield: Automated background polling is locked OFF. Only manual triggers make S3 API calls."
+    title="The bucket inventory is cached for a few minutes; a manual scan lists MinIO again."
     style={{
       display: 'inline-flex',
       alignItems: 'center',
@@ -73,7 +73,7 @@ export const CostShieldBadge: FC<{ active?: boolean }> = ({ active = true }) => 
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       <path d="M9 12l2 2 4-4" />
     </svg>
-    <span>0 REAL-TIME REQ // FREE TIER SHIELD</span>
+    <span>CACHED LISTING // MANUAL SCAN</span>
   </div>
 );
 
@@ -140,10 +140,6 @@ export const FileFormatBadge: FC<{ extension: string }> = ({ extension }) => {
     bg = 'rgba(245, 158, 11, 0.15)';
     color = '#f59e0b';
     label = 'JSON';
-  } else if (ext === 'lance') {
-    bg = 'rgba(16, 185, 129, 0.15)';
-    color = '#10b981';
-    label = 'LANCE 768-D';
   }
 
   return (

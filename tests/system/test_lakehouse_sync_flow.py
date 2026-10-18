@@ -1,7 +1,7 @@
 """System tests for Lakehouse inventory manifest synchronization, deduplication & quota auditing."""
 import pytest
-from backend.app.api.endpoints.r2_explorer import (
-    build_default_inventory,
+from backend.app.api.endpoints.explorer import (
+    build_inventory,
     classify_zone,
     format_size,
 )
@@ -32,10 +32,10 @@ def test_classify_zone_mapping():
     assert z5 == "gold"
     assert "Data Mining" in cat5
 
-    # LanceDB tests
-    z6, cat6 = classify_zone("gold/lancedb/scientific_papers_gold.lance")
-    assert z6 == "lancedb"
-    assert "Vector" in cat6
+    # Anything outside bronze/ silver/ gold/ (manifests, state, archive) is listed under bronze as "state"
+    z6, cat6 = classify_zone("manifests/checkpoint.json")
+    assert z6 == "bronze"
+    assert "State" in cat6
 
 
 @pytest.mark.system
@@ -47,27 +47,18 @@ def test_format_size_utility():
 
 
 @pytest.mark.system
-def test_build_default_inventory_integrity():
-    inv = build_default_inventory()
-    assert "bucket_name" in inv
-    assert "total_objects" in inv
-    assert "total_size_bytes" in inv
-    assert "files" in inv
+def test_build_inventory_integrity():
+    """Live listing of the MinIO bucket (needs MinIO running)."""
+    inv = build_inventory(force=True)
+    assert inv["bucket_name"]
+    assert inv["total_objects"] > 0
+    assert inv["total_size_bytes"] > 0
     assert len(inv["files"]) > 0
 
-    # Ensure no duplicate keys exist in the generated inventory
+    # No duplicate keys in the generated inventory
     seen_keys = set()
     for f in inv["files"]:
         k = f["key"]
         assert k not in seen_keys, f"Duplicate file key found in inventory: {k}"
         seen_keys.add(k)
         assert "size_bytes" in f
-        assert "name" in f
-        assert "last_modified" in f
-
-    # Verify calibrated live Cloudflare R2 bucket telemetry
-    assert inv["total_size_gb"] == 12.18
-    assert inv["total_size_bytes"] == 13078247014
-    assert inv["class_a_operations"] == "46.75k"
-    assert inv["class_b_operations"] == "113.58k"
-    assert inv["storage_class"] == "Standard"

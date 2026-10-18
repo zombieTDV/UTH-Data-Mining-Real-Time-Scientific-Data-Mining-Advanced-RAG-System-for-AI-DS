@@ -1,15 +1,15 @@
 import { useState, type FC } from 'react';
-import type { R2FileItem } from './R2FileTree.component';
+import { useLakehouseStreamStore } from '../../store';
+import type { ExplorerFileItem } from './ExplorerFileTree.component';
 import { ParquetTableViewer, type ParquetColumn } from './ParquetTableViewer.component';
 import { JsonTreeViewer } from './JsonTreeViewer.component';
-import { LanceDbInspector, type LanceMetaInfo } from './LanceDbInspector.component';
 import {
   BronzeVaultGlyph,
   SilverColumnarGlyph,
   GoldPrismGlyph,
-  LanceVectorGlyph,
+  VectorStoreGlyph,
   FileFormatBadge,
-} from './R2Glyphs.component';
+} from './ExplorerGlyphs.component';
 
 export interface FilePreviewData {
   key: string;
@@ -22,21 +22,20 @@ export interface FilePreviewData {
   schema_columns?: ParquetColumn[];
   sample_rows?: Record<string, any>[];
   json_data?: any;
-  lance_meta?: LanceMetaInfo;
   raw_text?: string;
-  preview_type: 'parquet' | 'json' | 'lance' | 'binary' | string;
+  preview_type: 'parquet' | 'json' | 'binary' | string;
   last_modified?: string;
 }
 
-export interface R2FileInspectorProps {
-  selectedFile: R2FileItem | null;
+export interface ExplorerFileInspectorProps {
+  selectedFile: ExplorerFileItem | null;
   previewData: FilePreviewData | null;
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
 }
 
-export const R2FileInspector: FC<R2FileInspectorProps> = ({
+export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
   selectedFile,
   previewData,
   isLoading,
@@ -44,10 +43,12 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
   onRetry,
 }) => {
   const [copiedKey, setCopiedKey] = useState(false);
+  const { totalVectors, storageStats } = useLakehouseStreamStore();
+  const bucketName = storageStats?.bucket || 'lakehouse';
 
   const handleCopyKey = () => {
     if (!selectedFile) return;
-    navigator.clipboard.writeText(`s3://uth-scientific-lakehouse/${selectedFile.key}`);
+    navigator.clipboard.writeText(`s3://${bucketName}/${selectedFile.key}`);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
   };
@@ -90,10 +91,10 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
           </svg>
         </div>
         <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary, #f8fafc)' }}>
-          Cloudflare R2 Object Storage Inspector
+          MinIO Object Storage Inspector
         </div>
         <p style={{ maxWidth: '440px', fontSize: '13px', lineHeight: '1.6', marginTop: '8px' }}>
-          Select any Lakehouse object from the file navigator on the left to inspect columnar Parquet tables, JSON payloads, or 768-D LanceDB vector stores.
+          Select any Lakehouse object from the file navigator on the left to inspect columnar Parquet tables, JSON payloads, or any other object stored in the lakehouse bucket.
         </p>
 
         {/* Lakehouse Zone Quick Overview */}
@@ -121,7 +122,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
               BRONZE VAULT
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-              Raw HTML5 & OAI-PMH preprint archives (11,660 arXiv + OpenAlex)
+              Raw HTML5 and JSON preprint archives (arXiv, conferences)
             </div>
           </div>
 
@@ -168,11 +169,11 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '12px', color: '#a78bfa' }}>
-              <LanceVectorGlyph size={14} color="#a78bfa" />
-              LANCEDB 768-D
+              <VectorStoreGlyph size={14} color="#a78bfa" />
+              QDRANT 768-D
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-              164,702 vectors with Tantivy FTS & IVF-PQ Cosine indexing
+              {totalVectors.toLocaleString()} vectors · HNSW cosine index (Gold layer)
             </div>
           </div>
         </div>
@@ -212,7 +213,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
           Reading {selectedFile.name}...
         </div>
         <div style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', marginTop: '6px' }}>
-          Resolving disk cache / S3 preview payload (Zero redundant R2 egress)
+          Reading the object preview from MinIO
         </div>
       </div>
     );
@@ -281,7 +282,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
   }
 
   // State 4: Content Ready
-  const previewType = previewData?.preview_type || (selectedFile.extension === 'parquet' ? 'parquet' : selectedFile.extension === 'lance' ? 'lance' : selectedFile.extension === 'json' ? 'json' : 'binary');
+  const previewType = previewData?.preview_type || (selectedFile.extension === 'parquet' ? 'parquet' : selectedFile.extension === 'json' ? 'json' : 'binary');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', gap: '12px' }}>
@@ -309,7 +310,7 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            s3://uth-scientific-lakehouse/{selectedFile.key}
+            {`s3://${bucketName}/${selectedFile.key}`}
           </span>
         </div>
 
@@ -350,18 +351,6 @@ export const R2FileInspector: FC<R2FileInspectorProps> = ({
           <JsonTreeViewer
             fileName={previewData?.name || selectedFile.name}
             jsonData={previewData?.json_data ?? {}}
-            sizeFormatted={previewData?.size_formatted || selectedFile.size_formatted}
-            lastModified={previewData?.last_modified || selectedFile.last_modified}
-          />
-        )}
-
-        {previewType === 'lance' && (
-          <LanceDbInspector
-            fileName={previewData?.name || selectedFile.name}
-            meta={previewData?.lance_meta}
-            columns={previewData?.schema_columns || []}
-            sampleRows={previewData?.sample_rows || []}
-            totalRows={previewData?.total_rows ?? selectedFile.row_count}
             sizeFormatted={previewData?.size_formatted || selectedFile.size_formatted}
             lastModified={previewData?.last_modified || selectedFile.last_modified}
           />

@@ -217,13 +217,16 @@ class EdaEngine:
         ]
 
     def _get_temporal_distribution(self) -> List[Dict[str, Any]]:
-        """Aggregates publication volume by year and month from 2022 to 2026."""
+        """Aggregates publication volume by year and month across the catalog."""
         query = """
         SELECT
-            substr(published_date, 1, 7) AS year_month,
+            CASE
+                WHEN length(published_date) >= 7 THEN substr(published_date, 1, 7)
+                ELSE substr(published_date, 1, 4)
+            END AS year_month,
             count(*) AS paper_count
         FROM catalog_view
-        WHERE published_date IS NOT NULL AND length(published_date) >= 7
+        WHERE published_date IS NOT NULL AND length(published_date) >= 4
         GROUP BY year_month
         ORDER BY year_month ASC
         """

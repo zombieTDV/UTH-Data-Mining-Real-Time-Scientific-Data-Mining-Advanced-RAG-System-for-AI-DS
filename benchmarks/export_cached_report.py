@@ -70,7 +70,7 @@ def export_cached_report(
     md.append(f"- **Total Completed Test Cases:** `{total_cases}`")
     md.append(f"- **Execution Timestamp:** `{timestamp_str}`")
     md.append(f"- **Judge Model:** `LOCAL:qwen2.5-7b-instruct`")
-    md.append(f"- **Vector Lakehouse:** LanceDB Gold (`scientific_papers_gold`, 143k+ chunks)")
+    md.append(f"- **Vector Lakehouse:** Qdrant Gold (`scientific_papers_gold`)")
     md.append(f"- **Embedding Model:** `nomic-ai/nomic-embed-text-v1.5` (768-dim dense cosine)")
     md.append(f"- **Recorded Duration:** `{duration:.1f}s` (~`{duration / 60:.1f}` minutes)")
     md.append("")

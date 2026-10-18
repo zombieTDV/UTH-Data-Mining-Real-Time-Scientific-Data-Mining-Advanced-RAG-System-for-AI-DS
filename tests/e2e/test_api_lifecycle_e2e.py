@@ -26,18 +26,18 @@ def test_full_backend_api_lifecycle(test_client: TestClient, monkeypatch):
     assert stats["zones"]["bronzeCount"] > 0
     assert "activeLakehouse" in stats
 
-    # 3. Cloudflare R2 Tree Exploration (Cost Shield Active)
-    tree_resp = test_client.get("/api/r2/tree")
+    # 3. MinIO tree exploration
+    tree_resp = test_client.get("/api/explorer/tree")
     assert tree_resp.status_code == 200
     tree_data = tree_resp.json()
     assert tree_data["total_objects"] > 0
     assert "bronze" in tree_data["zones"]
     assert "silver" in tree_data["zones"]
     assert "gold" in tree_data["zones"]
-    assert "lancedb" in tree_data["zones"]
+    assert "gold" in tree_data["zones"]
 
     # 4. Deep Artifact Preview
-    preview_resp = test_client.get("/api/r2/preview?key=gold/mining/association_rules.json")
+    preview_resp = test_client.get("/api/explorer/preview?key=gold/mining/association_rules.json")
     assert preview_resp.status_code == 200
     preview_data = preview_resp.json()
     assert preview_data["key"] == "gold/mining/association_rules.json"

@@ -1,7 +1,7 @@
 """Master Orchestrator: Unified 3-Tier Data Mining & Harvester Architecture.
 
 Integrates and controls the complete 3-Tier academic ingestion pipeline across 4 canonical sources:
-(arXiv, OpenReview, CVF, Zenodo) with Marker PDF LaTeX extraction & Abstract Hash Deduplication:
+(arXiv, OpenReview, CVF, Zenodo) with Marker PDF LaTeX extraction & paper_id deduplication against Silver:
 
 - Tier 1: Live Real-Time Forward Stream (zero-day preprints, daily 02:00 ICT).
 - Tier 2: Near-Past Trending (arXiv, 2024 to present, newest first, daily 02:10 ICT, Airflow DAG only).
@@ -30,7 +30,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.pipelines.run_tier1_realtime_stream import Tier1RealtimeStreamer
-from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
 from src.utils.logger import setup_pipeline_logging
 
 logger, log_file = setup_pipeline_logging("three_tier_master_pipeline")
@@ -65,8 +64,6 @@ def get_architecture_status() -> Dict[str, Any]:
         region="us-east-1",
     )
 
-    total_hashes = len(LakehouseDeduplicator())
-
     t3_hist = _parquet_rows(fs, bucket, "silver/tier3/landmark_papers.parquet")
     t2_silver = _parquet_rows(fs, bucket, "silver/tier2/near_past_papers.parquet")
     t1_stream = sum(
@@ -91,7 +88,6 @@ def get_architecture_status() -> Dict[str, Any]:
         return {"name": name, "raw_bronze": raw, "silver_parquet": silver, "status": "HEALTHY" if silver > 0 else "READY"}
 
     return {
-        "total_unique_abstract_hashes": total_hashes,
         "total_silver_papers": t1_stream + t2_silver + t3_hist,
         "qdrant_gold_vectors": qdrant_count,
         "tier1": tier("Tier 1: Live Real-Time Forward Stream (silver/papers/)", count_json("bronze/papers/"), t1_stream),
@@ -105,7 +101,7 @@ def print_status_table():
     st = get_architecture_status()
     print("\n" + "=" * 80)
     print("  3-TIER SCIENTIFIC DATA ARCHITECTURE: LAKEHOUSE & VECTOR STATUS")
-    print(f"  Indexed Abstract Hashes: {st['total_unique_abstract_hashes']:,} | Qdrant Gold Vectors: {st['qdrant_gold_vectors']:,}")
+    print(f"  Qdrant Gold Vectors: {st['qdrant_gold_vectors']:,}")
     print("=" * 80)
 
     rows = []

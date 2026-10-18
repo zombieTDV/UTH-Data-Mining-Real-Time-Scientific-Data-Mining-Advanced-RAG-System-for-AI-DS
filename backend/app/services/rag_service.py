@@ -2,7 +2,7 @@
 backend/app/services/rag_service.py
 -----------------------------------
 Scientific Retrieval-Augmented Generation (RAG) Service.
-Integrates LanceDB Gold Lakehouse retrieval with local/remote LLM inference.
+Integrates Qdrant Gold retrieval with local/remote LLM inference.
 """
 
 import asyncio
@@ -21,8 +21,8 @@ logger = logging.getLogger("rag_service")
 
 class RagService:
     def _build_prompt_and_context(self, req: ChatRequest) -> Tuple[List[dict], List[ChunkDto], List[str]]:
-        """Retrieves candidates from LanceDB, reranks with cross-encoder, and constructs strictly grounded academic prompts."""
-        # 1. Retrieve wider candidate pool from LanceDB (Hybrid mode)
+        """Retrieves candidates from Qdrant, reranks with cross-encoder, and constructs strictly grounded academic prompts."""
+        # 1. Retrieve wider candidate pool from Qdrant (Hybrid mode)
         candidate_k = settings.RERANKER_CANDIDATE_K if settings.RERANKER_ENABLED else max(req.top_k or 5, 15)
         search_req = SearchRequest(
             query=req.query,
@@ -106,7 +106,7 @@ class RagService:
         title_0 = top_chunk.title or "Academic Paper"
 
         synthesis_lines = [
-            f"Based on retrieved literature from the LanceDB Gold Lakehouse (**164,702 vector embeddings**):\n",
+            "Based on the retrieved literature from the Qdrant Gold collection:\n",
             f"### 1. Primary Theoretical Foundation",
             f"According to [{cite_0}] (*\"{title_0}\"*):\n",
             f"> \"{top_chunk.text.strip()}\"\n",

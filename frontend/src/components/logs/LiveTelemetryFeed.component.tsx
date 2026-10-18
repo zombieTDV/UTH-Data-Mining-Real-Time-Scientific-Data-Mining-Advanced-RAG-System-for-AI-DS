@@ -106,7 +106,7 @@ export function LiveTelemetryFeed() {
             padding: '2px 8px',
             borderRadius: '3px'
           }}>
-            {connectionStatus === 'CONNECTED' ? 'LIVE' : connectionStatus} · Airflow {live?.airflow.reachable ? 'online' : 'offline'} · queue {live ? live.queue.ready + live.queue.unacked : 0}
+            {connectionStatus === 'CONNECTED' ? 'LIVE' : connectionStatus} · Airflow {live?.airflow.reachable ? 'online' : 'offline'} · queue {live ? live.queue.ready + live.queue.unacked : 0} → embed {live ? (live.queue.embed_ready ?? 0) + (live.queue.embed_unacked ?? 0) : 0}
           </span>
         </div>
 

@@ -7,6 +7,7 @@ Reads environment variables from root .env.
 
 import os
 from pathlib import Path
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,12 +36,14 @@ class Settings(BaseSettings):
     # Qdrant Vector Database
     QDRANT_URL: str
     QDRANT_COLLECTION: str = "scientific_papers_gold"
+    QDRANT_API_KEY: Optional[str] = None
 
     # RabbitMQ Message Broker (management API used for queue stats)
     RABBITMQ_USER: str
     RABBITMQ_PASSWORD: str
     RABBITMQ_MGMT_URL: str
     RABBITMQ_QUEUE_INGEST: str = "scientific_paper_ingest"
+    RABBITMQ_QUEUE_EMBED: str = "scientific_chunk_embed"
 
     # Apache Airflow REST API (DAG monitoring and control)
     AIRFLOW_API_URL: str
@@ -48,13 +51,11 @@ class Settings(BaseSettings):
     AIRFLOW_PASSWORD: str
 
     # Lakehouse object keys (inside the MinIO bucket)
-    SILVER_PRIMARY_KEY: str = "silver/papers/year=2026/papers.parquet"
-    SILVER_CATALOG_KEYS: str = (
-        "silver/tier3/landmark_papers.parquet,"
-        "silver/tier2/near_past_papers.parquet,"
-        "silver/papers/year=2026/papers.parquet"
-    )
+    # Silver is one dataset: every tier lands in silver/papers/year=YYYY/ (papers.parquet + parts/), with a `tier` column
+    SILVER_PRIMARY_KEY: str = "silver/papers/"
+    SILVER_CATALOG_KEYS: str = "silver/papers/"
     MINING_PREFIX: str = "gold/mining"
+    LAKEHOUSE_BUDGET_GB: float = 20.0  # disk budget for MinIO + Qdrant (the harvest DAGs stop publishing at this size)
     STATE_PREFIX: str = "state"
     PROJECT_ROOT_DIR: Path = PROJECT_ROOT
     EMBEDDING_MODEL_PATH: str = str(PROJECT_ROOT / "models" / "nomic-embed-text-v1.5")

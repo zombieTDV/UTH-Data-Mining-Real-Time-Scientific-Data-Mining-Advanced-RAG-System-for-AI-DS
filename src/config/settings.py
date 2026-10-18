@@ -63,6 +63,7 @@ class Settings:
     VECTOR_STORE_PROVIDER: str = _env("VECTOR_STORE_PROVIDER", "qdrant").lower()
     QDRANT_URL: str = _env("QDRANT_URL")
     QDRANT_COLLECTION: str = _env("QDRANT_COLLECTION", "scientific_papers_gold")
+    QDRANT_API_KEY: str = _env("QDRANT_API_KEY", "")
 
     # RabbitMQ
     RABBITMQ_URL: str = _build_amqp_url() if (_env("RABBITMQ_URL") or _env("RABBITMQ_USER")) else ""
@@ -72,6 +73,10 @@ class Settings:
     RABBITMQ_QUEUE_INGEST: str = _env("RABBITMQ_QUEUE_INGEST", "scientific_paper_ingest")
     RABBITMQ_QUEUE_DEAD: str = _env("RABBITMQ_QUEUE_DEAD", "scientific_paper_ingest.dead")
     RABBITMQ_MAX_RETRIES: int = int(_env("RABBITMQ_MAX_RETRIES", "3"))
+    # Second stage: Silver records waiting for chunk + embed; the fetch stage pauses while it holds EMBED_QUEUE_MAX
+    RABBITMQ_QUEUE_EMBED: str = _env("RABBITMQ_QUEUE_EMBED", "scientific_chunk_embed")
+    RABBITMQ_QUEUE_EMBED_DEAD: str = _env("RABBITMQ_QUEUE_EMBED_DEAD", "scientific_chunk_embed.dead")
+    EMBED_QUEUE_MAX: int = int(_env("EMBED_QUEUE_MAX", "500"))
 
     # Telemetry broadcast to the backend (optional; empty disables it)
     BACKEND_BROADCAST_URL: str = _env("BACKEND_BROADCAST_URL")

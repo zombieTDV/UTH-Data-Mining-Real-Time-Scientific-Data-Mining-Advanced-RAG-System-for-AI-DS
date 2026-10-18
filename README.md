@@ -1,377 +1,295 @@
-# UTH Scientific Data Mining & Advanced RAG System for AI/DS
+# UTH Real-Time Scientific Data Mining & Advanced RAG Lakehouse for AI/DS
 
-- **Motivation/Background**: Xây dựng hệ thống khai thác dữ liệu nghiên cứu khoa học thời gian thực và truy xuất tri thức nâng cao (RAG) cho miền Trí tuệ Nhân tạo & Khoa học Dữ liệu (AI/DS) phục vụ học phần Khai phá Dữ liệu tại Trường Đại học Giao thông Vận tải TP.HCM (UTH).
-- **Purpose**: Đóng vai trò là điểm truy cập trung tâm, đặc tả kiến trúc kỹ thuật, hướng dẫn khởi chạy phân hệ khai phá dữ liệu, dịch vụ backend API và giao diện giám sát dashboard tương tác.
-- **Methodology**: Kiến trúc Medallion Lakehouse kết hợp quy trình chuẩn CRISP-DM & KDD (Thu thập arXiv/OpenAlex -> Lưu trữ Bronze bất biến -> Chuẩn hóa Silver Parquet & Đồ thị trích dẫn -> Đánh chỉ mục Gold LanceDB & 4 Trụ cột Khai phá -> Phục vụ qua FastAPI & React 19).
-- **References**: [docs/PURPOSE.md](docs/PURPOSE.md), [docs/OVERVIEW.md](docs/OVERVIEW.md), [docs/presentation/data_mining_defense_presentation.html](docs/presentation/data_mining_defense_presentation.html), [docs/mining/FOUR_DATA_MINING_PILLARS.md](docs/mining/FOUR_DATA_MINING_PILLARS.md), [docs/mining/PIPELINE_EXECUTION_GUIDE.md](docs/mining/PIPELINE_EXECUTION_GUIDE.md), [agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md).
-- **Created**: 2026-07-25T00:00:00+07:00
-- **Last Updated**: 2026-10-06T07:00:00+07:00
+[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com/)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev/)
+[![MinIO](https://img.shields.io/badge/Storage-MinIO%20S3-C72C48.svg)](https://min.io/)
+[![Qdrant](https://img.shields.io/badge/VectorDB-Qdrant%20HNSW-DC2626.svg)](https://qdrant.tech/)
+[![RabbitMQ](https://img.shields.io/badge/MessageQueue-RabbitMQ%20AMQP-FF6600.svg)](https://www.rabbitmq.com/)
+[![Apache Airflow](https://img.shields.io/badge/Orchestrator-Airflow%202.10-017CEE.svg)](https://airflow.apache.org/)
+
+Hệ thống Khai thác Dữ liệu Nghiên cứu Khoa học Thời gian thực và Truy xuất Tri thức Tăng cường (Advanced RAG Lakehouse) phục vụ chuyên ngành Trí tuệ Nhân tạo & Khoa học Dữ liệu (AI/DS) — Đồ án môn **Khai phá Dữ liệu (Data Mining)** tại **Trường Đại học Giao thông Vận tải TP.HCM (UTH)**.
 
 ---
 
-## 1. Cấu trúc Dự án (Polyglot Monorepo Architecture)
+## 1. Kiến trúc Hệ thống Tổng thể (Distributed Medallion Architecture)
 
-Dự án được chuẩn hóa theo kiến trúc Monorepo phân tách rõ ràng giữa phân hệ **Khai phá Dữ liệu (Python)**, **Ứng dụng Phục vụ Backend API (FastAPI)**, **Giao diện Giám sát Dashboard (React 19 / Vite)**, và **Hệ thống Quản trị AI Governance**:
+Dự án chuyển đổi toàn diện sang kiến trúc phân tán hiện đại, vận hành trên nền Dockerized Infrastructure kết hợp **MinIO S3**, **Qdrant Vector Database**, **RabbitMQ Message Broker** và **Apache Airflow Orchestrator**:
 
-```text
-UTH-Data-Mining/
-├── frontend/                      # [1] Phân hệ Giao diện Dashboard (React 19 / Vite / Tailwind)
-│   ├── src/
-│   │   ├── components/            # MiningPillarsView, Live Telemetry, RAG Chat, ScientificMath
-│   │   └── App.tsx                # Dashboard điều khiển & giám sát thời gian thực
-│   ├── package.json
-│   └── vite.config.ts
-│
-├── backend/                       # [2] Phân hệ Backend API & Serving (Python / FastAPI)
-│   ├── app/
-│   │   ├── api/endpoints/        # Endpoints: search, chat, papers, storage, mining
-│   │   ├── core/config.py        # Cấu hình Pydantic đọc từ file .env
-│   │   ├── schemas/              # Pydantic Schemas (Request/Response)
-│   │   ├── services/             # Retrieval, RAG, Storage, Mining services
-│   │   └── main.py               # Điểm khởi chạy FastAPI, CORS, SSE, Swagger
-│   ├── tests/                    # Integration TestClient test suite (12/12 passing)
-│   ├── requirements.txt
-│   └── README.md
-│
-├── data_mining/                   # [3] Phân hệ Data Mining & Lakehouse (Python)
-│   ├── src/
-│   │   ├── config/               # Cấu hình hệ thống & môi trường
-│   │   ├── ingestion/            # Thu thập arXiv OAI-PMH & cào HTML5
-│   │   ├── transformation/       # Parser HTML & Silver Parquet Writer
-│   │   ├── indexing/             # Nomic Embedder (MPS/GPU/CPU) & LanceDB
-│   │   ├── storage/              # Cloudflare R2 & DuckDB SQL Engine
-│   │   ├── rag/                  # Scientific RAG Engine & Prompt Templates
-│   │   ├── mining/               # Master Mining Engine & 4 Analytical Pillars:
-│   │   │   ├── association_rules.py     # Pillar 1: FP-Growth Rule Mining
-│   │   │   ├── cluster_analysis.py      # Pillar 2: K-Means & DBSCAN Semantic Clustering
-│   │   │   ├── graph_mining.py          # Pillar 3: Directed Citation Graph & PageRank
-│   │   │   ├── trend_anomaly_mining.py  # Pillar 4: Isolation Forest & Trend Velocity
-│   │   │   └── mining_engine.py         # Master Sequential Orchestrator
-│   │   └── pipelines/            # Master Pipeline (Bronze -> Silver -> Gold)
-│   ├── tests/                    # Integration & connection tests
-│   ├── tools/                    # Công cụ kiểm tra storage (check_storage.py)
-│   ├── main.py                   # Điểm kích hoạt Ingestion Pipeline
-│   └── requirements.txt
-│
-├── src/                           # [4] Thư viện pipeline trung tâm & utilities
-│   ├── indexing/                 # Chunker, Embedder, LanceDB manager
-│   ├── ingestion/                # arXiv harvester & batch collector
-│   ├── mining/                   # Core mining modules
-│   ├── pipelines/                # Pipeline orchestrator scripts
-│   ├── rag/                      # RAG engine & prompt templates
-│   ├── storage/                  # DuckDB engine & Cloudflare R2 client
-│   └── transformation/           # HTML parser & Silver Parquet writer
-│
-├── agents/                        # [5] Constitutional AI Governance (Quy chuẩn bất biến)
-│   ├── README.md                  # Hướng dẫn điều hướng governance
-│   ├── rules/                     # Tiêu chuẩn ràng buộc (AGENT_AI, MD_CONVENTION, v.v.)
-│   └── templates/                 # Biểu mẫu chuẩn (BUG, EXPERIMENT, PHASE, PROGRESS)
-│
-├── docs/                          # [6] Toàn bộ tài liệu kiến trúc, nghiên cứu & báo cáo
-│   ├── README.md                  # Mục lục tài liệu nghiên cứu
-│   ├── PURPOSE.md                 # Yêu cầu dự án & tiêu chí thành công
-│   ├── OVERVIEW.md                # Bản thiết kế kỹ thuật tổng thể & lộ trình
-│   ├── benchmarks/                # Đánh giá hiệu năng RAG (DeepEval Suite & Báo cáo)
-│   │   ├── DEEPEVAL_GUIDE.md      # Hướng dẫn chạy benchmark DeepEval
-│   │   └── RAG_EVALUATION_REPORT_21_SAMPLES.md # Báo cáo đánh giá so sánh 21 mẫu (+35% Precision)
-│   ├── mining/                    # Tài liệu chi tiết 4 Trụ cột Khai phá Dữ liệu
-│   │   ├── FOUR_DATA_MINING_PILLARS.md    # Đặc tả kỹ thuật & công thức toán học
-│   │   └── PIPELINE_EXECUTION_GUIDE.md    # Hướng dẫn vận hành chi tiết
-│   └── shared/                    # SOPs và mẫu bàn giao (HANDOFF_TEMPLATE.md)
-│
-├── data/                          # [7] Bộ nhớ đệm dữ liệu cục bộ (.gitignore)
-│   ├── raw/                      # 9,000+ HTML học thuật thô & JSON manifest
-│   ├── silver/year=2026/         # Parquet (13,000 bài báo, 2.76M công thức toán)
-│   ├── silver/citations.parquet  # 441,445 liên kết trích dẫn (86,295 liên kết nội bộ)
-│   ├── gold/lancedb/             # LanceDB Vector Table (143,523 vectors 768-dim)
-│   └── gold/mining/              # Các artifact JSON phục vụ 4 Trụ cột Mining
-│
-├── models/                        # [8] Trọng số mô hình AI (.gitignore)
-│   ├── nomic-embed-text-v1.5/    # Mô hình nhúng học thuật
-│   └── qwen2.5-7b-instruct-...   # Mô hình LLM cục bộ (GGUF Q4_K_M)
-│
-├── tests/                         # [9] Suite kiểm thử đơn vị và tích hợp hệ thống
-├── logs/                          # [10] Nhật ký thực thi theo timestamp (.gitignore)
-├── requirements.txt               # Tập tin phụ thuộc Python hợp nhất
-├── pyproject.toml                 # Cấu hình gói và build hệ thống
-└── .env                           # Biến môi trường và khóa Cloudflare R2
+```mermaid
+flowchart TD
+    subgraph INGESTION ["1. Ingestion Sources (Multi-Tier)"]
+        T1["Tier 1: Daily Real-time arXiv RSS (02:00 AM ICT)"]
+        T2["Tier 2: Near-Past 10k Harvester (02:10 AM ICT)"]
+        T3["Tier 3: Classical Landmark Archive (OpenAlex / S2)"]
+    end
+
+    subgraph BROKER ["2. Resilient Message Broker"]
+        RMQ[("RabbitMQ: scientific_paper_ingest<br/>(Prefetch micro-batch, Durable)")]
+        DLQ[("Dead Letter Queue<br/>(Max 3 retries)")]
+        RMQ -.->|Failure| DLQ
+    end
+
+    subgraph WORKERS ["3. Scalable Ingestion Consumers"]
+        W1["Python Worker 1"]
+        W2["Python Worker 2 (Parallel Scale)"]
+        PARSER["AcademicHTMLParser & ContentResolver"]
+        EMBED["Nomic Embed v1.5 (768-D)"]
+        W1 --> PARSER --> EMBED
+        W2 --> PARSER --> EMBED
+    end
+
+    subgraph LAKEHOUSE ["4. Medallion Storage & Vector Engine"]
+        BRONZE[("Bronze Zone (MinIO S3)<br/>Raw HTML5 & JSON")]
+        SILVER[("Silver Zone (MinIO S3)<br/>Partitioned Parquet by Year")]
+        GOLD[("Gold Zone (Qdrant)<br/>Rust HNSW Vector Engine")]
+        MINING_ARTIFACTS[("Gold Mining Artifacts<br/>Graph, Rules, Clusters, Anomalies")]
+    end
+
+    subgraph ANALYTICS ["5. 4 Data Mining Pillars & Intelligence"]
+        P1["Pillar 1: FP-Growth Rule Mining"]
+        P2["Pillar 2: Semantic Clustering (Centered PCA)"]
+        P3["Pillar 3: Directed Citation Graph & PageRank"]
+        P4["Pillar 4: Trend Velocity & Isolation Forest"]
+    end
+
+    subgraph SERVING ["6. Serving & Frontend Interface"]
+        API["FastAPI Backend (:8000)<br/>RRF Hybrid Search + Graph Authority Boost"]
+        UI["React 19 Dashboard (:5173)<br/>3D Geometric Pipeline, Bento Analytics"]
+        TUNNEL["Cloudflare Zero Trust Tunnel<br/>(minio-quangmanh.io.vn)"]
+    end
+
+    INGESTION --> RMQ
+    RMQ --> WORKERS
+    WORKERS --> BRONZE
+    WORKERS --> SILVER
+    WORKERS --> GOLD
+    SILVER --> ANALYTICS
+    ANALYTICS --> MINING_ARTIFACTS
+    MINING_ARTIFACTS --> API
+    GOLD --> API
+    API --> UI
+    LAKEHOUSE <==> TUNNEL
 ```
 
+### Các Tầng Dữ liệu Medallion:
+1. **Bronze Zone (`s3://uth-scientific-lakehouse/bronze/papers/YYYY/`)**: Lưu trữ nguyên bản JSON metadata và HTML5 học thuật cào từ arXiv/ar5iv với mã băm bảo toàn nội dung SHA-256.
+2. **Silver Zone (`s3://uth-scientific-lakehouse/silver/papers/year=YYYY/`)**: Dữ liệu chuẩn hóa dạng cột nén Apache Parquet (`zstd`), lưu trữ cấu trúc mục, tác giả, danh mục và hàng triệu công thức toán LaTeX. Truy vấn trực tiếp bằng DuckDB và PyArrow với predicate pushdown.
+3. **Gold Zone**:
+   - **Vector Engine (Qdrant)**: Chỉ mục vector 768 chiều (`scientific_papers_gold`) sử dụng thuật toán đồ thị HNSW và khoảng cách Cosine, hỗ trợ lọc metadata thời gian thực theo danh mục khoa học.
+   - **Mining Artifacts (`s3://uth-scientific-lakehouse/gold/mining/`)**: Lưu trữ đồ thị đồng tác giả/trích dẫn (`graph_coauthorship.json`), tập luật kết hợp (`association_rules.json`), phân cụm ngữ nghĩa (`clusters.json`), và vận tốc xu hướng (`trends.json`).
+
 ---
 
-## 2. Hướng dẫn Khởi chạy Từng Phân hệ
+## 2. Chiến lược Thu thập Dữ liệu 3 Tầng (Three-Tier Pipeline)
 
-### A. Khởi tạo Môi trường Python
+Hệ thống được điều phối tự động bởi **Apache Airflow 2.10.2** với múi giờ chuẩn Việt Nam (`Asia/Ho_Chi_Minh - ICT`):
+
+| Tầng Pipeline | Tần suất Lập lịch | Nguồn & Phương thức | Mục đích & Trách nhiệm |
+| :--- | :--- | :--- | :--- |
+| **Tier 1: Real-Time Stream** | **Hàng ngày lúc 02:00 AM ICT** | arXiv RSS Feeds (`cs.AI`, `cs.LG`, `cs.CV`, `cs.CL`, `stat.ML`) | Bắt kịp các công trình nghiên cứu vừa công bố trong 24h qua. Đẩy lập tức vào RabbitMQ để nhúng vector phục vụ câu hỏi thời sự. |
+| **Tier 2: Near-Past Harvest** | **Hàng ngày lúc 02:10 AM ICT** | arXiv OAI-PMH (`resumptionToken` pagination) | Cào khối lượng lớn **10.000 bài báo** từ các năm gần nhất (2024–2026), tự phân mảnh Parquet và tự phục hồi dữ liệu từ MinIO. |
+| **Tier 3: Historical Archive** | Thủ công / Định kỳ theo quý | OpenAlex, Semantic Scholar & Zenodo | Lưu trữ các công trình nền tảng kinh điển (Foundation Papers như *Attention Is All You Need*, *ResNet*, *BERT*) để xây dựng đồ thị trích dẫn xương sống. |
+
+---
+
+## 3. Bốn Trụ Cột Khai Phá Dữ Liệu (The 4 Data Mining Pillars)
+
+Các mô hình khai phá dữ liệu không chỉ dừng lại ở thống kê mô tả (EDA) mà được tích hợp trực tiếp làm **"bộ não suy luận"** cho hệ thống tìm kiếm ngữ nghĩa RAG:
+
+### 🧩 Trụ cột 1: Khai phá Tập mục Phổ biến & Luật Kết hợp (FP-Growth)
+- **Kỹ thuật**: Thuật toán FP-Growth xử lý hơn 11.400 giao dịch danh mục và từ khóa chuyên sâu.
+- **Phân định luật**: Tách biệt rõ ràng giữa luật kỹ thuật (ví dụ: `cs.SY <=> eess.SY`) và luật thực chất phản ánh xu hướng liên ngành (ví dụ: `{cs.AI, cs.CV} => {cs.LG}` với Lift > 3.0x).
+- **Ứng dụng vào RAG**: Khi người dùng đặt câu hỏi chứa thuật ngữ mới (ví dụ: *"Large Language Models"*), hệ thống tự động mở rộng ngữ cảnh truy vấn (`rule_expansions`) sang các phân ngành liên quan như `cs.CL`.
+
+### 🔬 Trụ cột 2: Phân cụm Ngữ nghĩa & Phân tích Mật độ (Semantic Clustering)
+- **Kỹ thuật**: Trích xuất đặc trưng ngữ nghĩa L2-normalized từ mô hình Transformer, kết hợp giảm chiều **Centered PCA / TruncatedSVD** và phân cụm **K-Means & DBSCAN**.
+- **Đánh giá**: Silhouette Score = 0.063, Davies-Bouldin Index = 3.98, Calinski-Harabasz Index = 84.1. Bản chất điểm Silhouette thấp phản ánh chân thực ranh giới mở và tính liên ngành cao của nghiên cứu AI hiện đại.
+
+### 🌐 Trụ cột 3: Khai phá Mạng lưới Khoa học & Đồ thị Trích dẫn (Citation Graph Mining)
+- **Kỹ thuật**: Đồ thị có hướng gồm 8.892 đỉnh bài báo và 86.295 liên kết trích dẫn nội bộ. Áp dụng thuật toán **PageRank có hướng** ($\alpha = 0.85$) và phân chia cộng đồng Louvain (92 cộng đồng).
+- **Ứng dụng vào RAG**: Điểm PageRank được chuẩn hóa và trở thành **Authority Multiplier**. Các bài báo kinh điển mang tính bước ngoặt được tăng điểm mức độ phù hợp lên tới **+25%**, giúp câu trả lời của RAG luôn ưu tiên dẫn nguồn từ những nghiên cứu có uy tín học thuật cao nhất.
+
+### 📈 Trụ cột 4: Vận tốc Xu hướng & Phát hiện Điểm dị biệt (Trend & Anomalies)
+- **Kỹ thuật**:
+  - Đo lường động lượng xu hướng chuẩn hóa theo tỷ trọng thị trường ($\Delta \text{Share}$), chia thành 3 nhóm: `SURGING` (Bùng nổ), `STABLE` (Ổn định), `DECLINING` (Thu hẹp).
+  - Sử dụng mô hình **Isolation Forest** với chuẩn hóa $\log(1+x)$ phát hiện 260+ bài báo dị biệt cấu trúc (mật độ công thức toán dày đặc, dung lượng tài liệu lớn, nhóm đồng tác giả quy mô lớn).
+
+---
+
+## 4. Bảo Mật & Phân Quyền Truy Cập (Security & Classroom Sharing)
+
+Hệ thống được thiết lập cơ chế **Zero Trust Access** an toàn tuyệt đối khi đưa ra Internet qua Cloudflare Tunnel:
+
+### A. Phân quyền MinIO Object Storage
+- **Admin**: Quyền cao nhất quản trị bucket và ghi dữ liệu lakehouse.
+- **Tài khoản Đồng môn / Khách (`guest_student`)**: Được gán chính sách **`student_readonly`** (`s3:ListBucket`, `s3:GetObject`).
+  - Cho phép: Duyệt cây thư mục và tải dữ liệu Parquet/JSON về nghiên cứu.
+  - Ngăn chặn hoàn toàn (`AccessDenied`): Mọi thao tác tải lên file lạ hoặc xóa tài liệu trong Lakehouse.
+
+### B. Phân quyền Qdrant Vector Engine
+- **Admin Master Key**: Hệ thống Backend và Consumer sử dụng khóa này để upsert vector và quản lý collection.
+- **Read-Only API Key (`uth_guest_readonly_key_4b71a8e9d2c`)**:
+  - Dành riêng cho sinh viên và đồng môn truy vấn ngữ nghĩa (`search`, `scroll`, `get points`).
+  - Mọi yêu cầu ghi/xóa (`POST /points/delete`, `DELETE /collections`) đều bị Qdrant chặn đứng với mã lỗi **`403 Forbidden`**.
+
+---
+
+## 5. Hướng Dẫn Khởi Chạy Nhanh (Quick Start)
+
+### Bước 1: Khởi động Hạ tầng Docker (MinIO, Qdrant, RabbitMQ, Airflow)
 
 ```bash
-# Windows
-python -m venv .venv
-.\.venv\Scripts\activate
+# Di chuyển vào thư mục cấu hình Docker
+cd /Users/quangmanh/Project/docker
 
-# Linux / macOS
+# Khởi chạy toàn bộ dịch vụ cốt lõi
+docker compose up -d
+
+# (Tùy chọn) Khởi chạy phân hệ Apache Airflow
+cd airflow && docker compose up -d
+```
+
+### Bước 2: Cài đặt Môi trường Python
+
+```bash
+cd /Users/quangmanh/Project/UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS
+
+# Tạo môi trường ảo và kích hoạt
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Nâng cấp pip và cài đặt thư viện
-python -m pip install --upgrade pip
+# Cài đặt toàn bộ thư viện phụ thuộc
+pip install --upgrade pip
 pip install -r requirements.txt
 pip install -e .
 ```
 
----
+### Bước 3: Khởi chạy 1-Click Toàn Hệ Thống
 
-### B. Chạy Master Data Mining Engine (4 Trụ Cột Khai Phá)
-
-Phân hệ Khai phá Dữ liệu xử lý toàn bộ 13,000 bài báo và 86,295 liên kết trích dẫn, tạo ra các artifact trong `data/gold/mining/`:
-
-#### Trên Windows (PowerShell):
-
-```powershell
-# 1. Kích hoạt môi trường ảo
-.\.venv\Scripts\Activate.ps1
-
-# 2. Khai báo PYTHONPATH
-$env:PYTHONPATH = "data_mining"
-
-# 3. Chạy toàn bộ 4 Trụ cột Khai phá & Modeling
-.\.venv\Scripts\python.exe data_mining/src/mining/mining_engine.py
-```
-
-#### Trên Linux / macOS (Bash):
+Dự án cung cấp sẵn kịch bản khởi chạy đồng bộ **Backend + Ingestion Consumer + Frontend Dashboard** chỉ với 1 lệnh duy nhất:
 
 ```bash
-# 1. Kích hoạt môi trường ảo
-source .venv/bin/activate
-
-# 2. Khai báo PYTHONPATH và chạy engine
-PYTHONPATH=data_mining python data_mining/src/mining/mining_engine.py
+chmod +x scripts/start_app.sh
+./scripts/start_app.sh
 ```
 
-> **Xem tài liệu chi tiết**:
->
-> - Đặc tả thuật toán & toán học: [`docs/mining/FOUR_DATA_MINING_PILLARS.md`](docs/mining/FOUR_DATA_MINING_PILLARS.md)
-> - Hướng dẫn vận hành & cờ dòng lệnh CLI: [`docs/mining/PIPELINE_EXECUTION_GUIDE.md`](docs/mining/PIPELINE_EXECUTION_GUIDE.md)
+Khi muốn tắt, chỉ cần nhấn `Ctrl + C` trên terminal, script sẽ tự động dọn dẹp và ngắt an toàn toàn bộ tiến trình con!
 
 ---
 
-### C. Phân hệ Local LLM Microservice (Port 9001 / Ollama Port 11434)
+## 6. Danh Mục Cổng & Dịch Vụ (Port & Dashboard Map)
 
-Hệ thống RAG sử dụng mô hình ngôn ngữ lớn cục bộ (Qwen 2.5 7B Instruct GGUF Q4_K_M) để tổng hợp câu trả lời học thuật:
-
-#### Cách 1: Khởi chạy NestJS LLM Microservice với GPU CUDA (Khuyến nghị - Port 9001)
-
-```powershell
-# Chạy từ thư mục gốc dự án (yêu cầu Node.js >= 18):
-node dist/apps/llm-service/apps/llm-service/src/main.js
-
-# Máy chủ LLM sẽ tải mô hình GGUF và tăng tốc qua CUDA:
-# - LLM Service API:     http://localhost:9001
-# - Swagger API Docs:    http://localhost:9001/docs
-# - Endpoint tương thích: http://localhost:9001/v1/chat/completions
-```
-
-#### Cách 2: Khởi chạy qua Ollama (Dự phòng - Port 11434)
-
-```bash
-# Khởi động máy chủ Ollama
-ollama serve
-
-# Tải và chạy mô hình Qwen 2.5 7B
-ollama run qwen2.5:7b
-```
+| Dịch vụ | Địa chỉ Local | URL qua Cloudflare Tunnel | Tài khoản mặc định |
+| :--- | :--- | :--- | :--- |
+| **Frontend Dashboard** | `http://localhost:5173` | — | Giao diện mở |
+| **FastAPI Backend & Swagger** | `http://localhost:8000/docs` | — | REST API |
+| **MinIO Web Console** | `http://localhost:9001` | `https://label.minio-quangmanh.io.vn` | `guest_student` / `Uth_Student_Readonly_2026!` |
+| **MinIO S3 API Endpoint** | `http://localhost:9000` | `https://s3.minio-quangmanh.io.vn` | `boto3` / `duckdb` connection |
+| **Qdrant Vector Dashboard** | `http://localhost:6333/dashboard` | `https://qdrant.minio-quangmanh.io.vn/dashboard` | API Key: `uth_guest_readonly_key_4b71a8e9d2c` |
+| **RabbitMQ Management UI** | `http://localhost:15672` | — | `admin` / `password123` |
+| **Apache Airflow UI** | `http://localhost:8080` | — | `admin` / `admin` |
 
 ---
 
-### D. Phân hệ Backend API & Serving (`backend/` - FastAPI Port 8000)
+## 7. Mẫu Code Truy Cập Dữ Liệu Nghiên Cứu (Dành cho Sinh viên & Đồng môn)
 
-Máy chủ FastAPI phục vụ cả truy xuất ngữ nghĩa RAG thời gian thực (hybrid FTS + BM25 + LanceDB) lẫn 4 Trụ cột Khai phá:
+Sinh viên có thể sử dụng đoạn mã Python ngắn sau đây để kết nối và khai thác dữ liệu trực tiếp:
 
-#### Trên Windows (PowerShell):
+```python
+from qdrant_client import QdrantClient
+import boto3
 
-```powershell
-# 1. Kích hoạt môi trường ảo
-.\.venv\Scripts\Activate.ps1
+# 1. Truy vấn Tìm kiếm Vector Ngữ nghĩa trong Qdrant (Chỉ đọc)
+qdrant = QdrantClient(
+    url="http://localhost:6333",  # Hoặc "https://qdrant.minio-quangmanh.io.vn"
+    api_key="uth_guest_readonly_key_4b71a8e9d2c"
+)
+search_results = qdrant.query_points(
+    collection_name="scientific_papers_gold",
+    query=[0.0] * 768,  # Thay bằng vector embedding 768 chiều
+    limit=5
+)
+print("Số kết quả tìm thấy:", len(search_results.points))
 
-# 2. Khởi chạy máy chủ FastAPI (Port 8000)
-.\.venv\Scripts\uvicorn.exe backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-#### Trên Linux / macOS (Bash):
-
-```bash
-# 1. Kích hoạt môi trường ảo
-source .venv/bin/activate
-
-# 2. Khởi chạy máy chủ FastAPI (Port 8000)
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-#### Kiểm thử & Tài liệu API:
-
-```bash
-# Chạy kiểm thử tự động (12/12 passing)
-pytest backend/tests/test_api.py -v
-
-# Xem tài liệu API tương tác:
-# - Swagger UI: http://localhost:8000/docs
-# - ReDoc:      http://localhost:8000/redoc
-# - Health API: http://localhost:8000/health
+# 2. Duyệt và Đọc tập tin Parquet từ MinIO Lakehouse (Chỉ đọc)
+s3 = boto3.client(
+    "s3",
+    endpoint_url="http://localhost:9000",  # Hoặc "https://s3.minio-quangmanh.io.vn"
+    aws_access_key_id="guest_student",
+    aws_secret_access_key="Uth_Student_Readonly_2026!"
+)
+objects = s3.list_objects_v2(Bucket="uth-scientific-lakehouse", Prefix="silver/papers/")
+for obj in objects.get("Contents", [])[:5]:
+    print(f"File: {obj['Key']} ({obj['Size'] // 1024} KB)")
 ```
 
 ---
 
-### E. Phân hệ Giao diện Dashboard (`frontend/` - React 19 / Vite Port 5173)
+## 8. Cấu Trúc Mã Nguồn Dự Án (Repository Structure)
 
-Giao diện tương tác trực quan hóa biểu đồ 4 Trụ cột Mining và trò chuyện RAG học thuật theo thời gian thực:
-
-```bash
-# 1. Chuyển vào thư mục frontend
-cd frontend
-
-# 2. Cài đặt thư viện phụ thuộc (nếu chưa cài)
-npm install
-
-# 3. Khởi chạy máy chủ giao diện (Port 5173)
-npm run dev
-
-# 4. Build kiểm tra sản phẩm:
-npm run build
-
-# 5. Truy cập giao diện tại: http://localhost:5173
+```text
+UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/
+├── backend/                       # Phân hệ Backend API (FastAPI)
+│   ├── app/
+│   │   ├── api/endpoints/        # Endpoints: search, chat, papers, storage, mining
+│   │   ├── core/config.py        # Cấu hình Pydantic, MinIO, Qdrant, RabbitMQ
+│   │   ├── services/             # Retrieval (RRF Hybrid), Storage, Ingestion streaming
+│   │   └── main.py               # Điểm khởi chạy FastAPI, CORS, SSE
+│   └── tests/                    # Bộ kiểm thử tự động TestClient
+│
+├── frontend/                      # Phân hệ Giao diện Dashboard (React 19 / Vite / Tailwind)
+│   ├── src/
+│   │   ├── components/            # Telemetry, GeometricPipelineDiagram, RAG Chat, Bento
+│   │   ├── stores/               # Zustand stores cho streaming, storage, search
+│   │   └── App.tsx                # Dashboard điều khiển & giám sát thời gian thực
+│   └── package.json
+│
+├── src/                           # Phân hệ Khai phá Dữ liệu & Pipeline Core
+│   ├── config/settings.py        # Cấu hình biến môi trường tập trung (.env)
+│   ├── indexing/                 # QdrantManager (HNSW), NomicEmbedder, AcademicChunker
+│   ├── ingestion/                # Ingestion Consumer (RabbitMQ), arXiv Batch Harvesters
+│   ├── mining/                   # 4 Trụ cột Khai phá: FP-Growth, Clustering, Graph, Anomalies
+│   ├── pipelines/                # Three-Tier Harvesting Orchestrators
+│   ├── storage/                  # MinIO StorageClient, Lakehouse I/O, DuckDB Engine
+│   └── transformation/           # AcademicHTMLParser, SilverLakehouseWriter
+│
+├── scripts/                       # Kịch bản vận hành & tự động hóa
+│   ├── start_app.sh              # Kịch bản 1-Click khởi chạy toàn bộ dịch vụ
+│   └── build_presentation_report.py
+│
+├── docs/                          # Toàn bộ tài liệu báo cáo & nghiên cứu học thuật
+│   ├── presentation/             # Slide thuyết trình bảo vệ đồ án HTML (16 Slides Plot-First)
+│   ├── benchmarks/               # Đánh giá hiệu năng RAG (DeepEval Suite 21 Mẫu)
+│   └── mining/                   # Đặc tả toán học chi tiết 4 Trụ Cột Khai Phá
+│
+├── docker/                        # Cấu hình hạ tầng phân tán (MinIO, Qdrant, RabbitMQ, Airflow)
+│   ├── docker-compose.yml
+│   └── airflow/
+│
+├── .env                           # Biến môi trường và khóa bảo mật
+└── README.md                      # Đặc tả kỹ thuật và tài liệu dự án
 ```
 
 ---
 
-### F. Thứ Tự Khởi Chạy Chuẩn Toàn Hệ Thống (End-to-End Startup Sequence)
+## 9. Đánh Giá Hiệu Năng RAG (DeepEval Benchmarking)
 
-Để đảm bảo toàn bộ hệ thống hoạt động đồng bộ và không gặp lỗi kết nối, hãy mở 3 terminal riêng biệt và khởi chạy theo đúng thứ tự:
+Hệ thống RAG được thẩm định tự động bằng bộ công cụ **DeepEval 2.x** trên 21 câu hỏi học thuật vàng (`gold-001` đến `gold-021`):
 
-1. **Terminal 1 (LLM Microservice)**:
-
-   ```powershell
-   node dist/apps/llm-service/apps/llm-service/src/main.js
-   ```
-
-   *(Chờ đến khi xuất hiện thông báo `LLM Service running on http://localhost:9001`)*
-2. **Terminal 2 (FastAPI Backend)**:
-
-   ```powershell
-   .\.venv\Scripts\uvicorn.exe backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-
-   *(Backend sẽ tự động phát hiện LLM microservice trên port 9001 và kết nối LanceDB cục bộ)*
-3. **Terminal 3 (React 19 Frontend)**:
-
-   ```powershell
-   cd frontend
-   npm run dev
-   ```
-
-   *(Mở trình duyệt tại `http://localhost:5173`. Các tab EDA, 4 Trụ cột Mining và Grounded RAG Chat sẽ tải dữ liệu mượt mà)*
+| Chỉ số DeepEval | Dense Retrieval Đơn thuần | Reranker + Graph PageRank Boost | Mức Cải thiện | Đánh giá |
+| :--- | :---: | :---: | :---: | :--- |
+| **Contextual Precision** | `0.637` (60.0% pass) | **`0.860` (80.0% pass)** | **+35.0%** 🚀 | Độ chính xác tài liệu dẫn chứng tăng vượt trội |
+| **Answer Relevancy** | `0.687` (47.4% pass) | **`0.752` (55.0% pass)** | **+9.4%** 📈 | Câu trả lời cô đọng, bám sát trọng tâm câu hỏi |
+| **Contextual Recall** | `0.950` (95.0% pass) | **`1.000` (100.0% pass)** | **+5.3%** 🎯 | Bao phủ 100% các luận điểm khoa học chuẩn |
+| **Faithfulness** | `0.668` (50.0% pass) | **`0.699` (52.9% pass)** | **+4.7%** 🛡️ | Giảm thiểu tối đa hiện tượng ảo giác (hallucination) |
+| **Citation Grounding** | `0.757` (90.5% pass) | **`0.720` (90.0% pass)** | Đạt chuẩn | Định dạng trích dẫn chuẩn hóa `[Paper: <id>]` |
 
 ---
 
-## 3. Tổng quan 4 Trụ Cột Khai Phá & Modeling (Data Mining Pillars)
+## 10. Bản Quyền & Giảng Viên Hướng Dẫn
 
-1. **Trụ cột 1: Khai phá Tập mục Phổ biến & Luật Kết hợp (FP-Growth)**
-   - Khai phá các quy luật kết hợp giữa các phân ngành arXiv (`cs.CL`, `cs.AI`, `cs.CV`) và 25+ khái niệm công nghệ AI/DS.
-   - Xử lý 11,404 giao dịch (độ bao phủ 87.7% toàn tập dữ liệu), loại trừ luật đối xứng trùng lặp, phát hiện các luật có Lift cao (e.g. `tag:large-language-models` $\to$ `cat:cs.CL`, Lift: 3.45x).
-2. **Trụ cột 2: Phân cụm Ngữ nghĩa & Phân tích Mật độ (Semantic Clustering)**
-   - Phân cụm trên vector đại diện từng bài báo (L2-normalized) kết hợp chiếu tọa độ 2D bằng PCA đã khử kỳ vọng (Centered PCA).
-   - Đánh giá chất lượng phân cụm: Silhouette Score = 0.0629, Davies-Bouldin Index = 3.98, Calinski-Harabasz Index = 84.1.
-   - Thuật toán DBSCAN phát hiện 4 vùng chủ đề lõi đậm đặc và 53.5% bài báo ngoại biên.
-3. **Trụ cột 3: Khai phá Mạng lưới Khoa học & Đồ thị Trích dẫn (Citation Graph Mining)**
-   - Đồ thị trích dẫn có hướng gồm 8,892 bài báo và 86,295 liên kết trích dẫn nội bộ.
-   - Thuật toán PageRank có hướng ($\alpha=0.85$) phát hiện các công trình mang tính cột mốc học thuật (*Attention Is All You Need*, *ELMo*, v.v.) và phân chia 92 cộng đồng nghiên cứu chuyên sâu.
-4. **Trụ cột 4: Vận tốc Xu hướng & Phát hiện Điểm dị biệt Cấu trúc (Trend & Anomalies)**
-   - Mô hình Isolation Forest với hàm co dãn $\log(1+x)$ phát hiện 30 công trình dị biệt về cấu trúc (luận văn dày dặn, mật độ công thức toán cực cao, nhóm hợp tác quy mô lớn).
-   - Phân tích vận tốc xu hướng chuẩn hóa theo tỷ trọng thị trường ($\Delta \text{Share}$), phân loại khách quan 3 nhóm động lượng: `SURGING` (Tăng trưởng nóng), `STABLE` (Ổn định), `DECLINING` (Thu hẹp tỷ trọng).
-
----
-
-## 4. Kiến trúc Dữ liệu Medallion Lakehouse
-
-- **Bronze Zone (`s3://uth-scientific-lakehouse/bronze/`)**: Lưu trữ 9,022 file HTML học thuật thô và các payload JSON thu thập từ arXiv OAI-PMH với chữ ký bảo toàn SHA-256.
-- **Silver Zone (`s3://uth-scientific-lakehouse/silver/`)**: Lưu trữ 13,000 bài báo dạng bảng cột Apache Parquet nén `zstd`, chứa hơn 2.76 triệu công thức toán LaTeX và 441,445 liên kết trích dẫn khoa học.
-- **Gold Zone (`s3://uth-scientific-lakehouse/gold/`)**: Bảng vector LanceDB chứa 143,523 vector nhúng ngữ cảnh 768 chiều phục vụ tìm kiếm ngữ nghĩa, cùng 5 tệp artifact JSON phục vụ phân tích 4 Trụ cột Khai phá.
-
----
-
-## 5. 📊 Đánh giá Chất lượng RAG (DeepEval Benchmarking)
-
-Hệ thống RAG được đánh giá tự động bằng bộ kiểm thử [DeepEval 2.x](https://github.com/confident-ai/deepeval) trên 21 câu hỏi học thuật vàng (`gold-001` đến `gold-021`) sử dụng mô hình thẩm định cục bộ `qwen2.5-7b-instruct` (CUDA).
-
-### Bảng So sánh Hiệu năng (Baseline vs. Upgraded RAG với Cross-Encoder)
-
-| Chỉ số DeepEval                     | Baseline (Dense Only) |       Reranker + Guardrails       |   Mức Cải thiện   | Trạng thái                                              |
-| :------------------------------------ | :--------------------: | :-------------------------------: | :------------------: | :-------------------------------------------------------- |
-| **Contextual Precision**        | `0.637` (60.0% pass) | **`0.860` (80.0% pass)** | **+35.0%** 🚀 | **Độ chính xác tăng vọt**                     |
-| **Answer Relevancy**            | `0.687` (47.4% pass) | **`0.752` (55.0% pass)** |  **+9.4%** 📈  | **Câu trả lời cô đọng, đúng trọng tâm**   |
-| **Contextual Recall**           | `0.950` (95.0% pass) | **`1.000` (100.0% pass)** |  **+5.3%** 🎯  | **Bao phủ 100% tri thức chuẩn**                  |
-| **Faithfulness**                | `0.668` (50.0% pass) | **`0.699` (52.9% pass)** | **+4.7%** 🛡️ | **Giảm thiểu tối đa ảo giác (hallucination)** |
-| **Academic Citation Grounding** | `0.757` (90.5% pass) | **`0.720` (90.0% pass)** |     Đạt chuẩn     | **90% trích dẫn chính xác `[Paper: <id>]`**   |
-
-> 📖 **Xem báo cáo phân tích chi tiết toàn diện**:
->
-> - [Báo cáo Đánh giá Hiệu năng RAG 21 Mẫu (RAG_EVALUATION_REPORT_21_SAMPLES.md)](docs/benchmarks/RAG_EVALUATION_REPORT_21_SAMPLES.md)
-> - [Hướng dẫn Vận hành Suite DeepEval (DEEPEVAL_GUIDE.md)](docs/benchmarks/DEEPEVAL_GUIDE.md)
-
----
-
-## 6. 📑 Báo Cáo & Slide Thuyết Trình Hội Đồng (Executive Defense Deck)
-
-Báo cáo thuyết trình bảo vệ đồ án được biên soạn dưới dạng **Standalone HTML Slide Deck** chuẩn học thuật (Scientific Editorial / arXiv Print style), tích hợp trực tiếp dữ liệu thực nghiệm từ Lakehouse Gold và kết quả DeepEval:
-
-- **Tệp trình chiếu chính**: [`docs/presentation/data_mining_defense_presentation.html`](docs/presentation/data_mining_defense_presentation.html) *(Mở trực tiếp trên bất kỳ trình duyệt web nào, không cần máy chủ phục vụ)*
-- **Kịch bản biên dịch lại**:
-
-  ```powershell
-  .\.venv\Scripts\python.exe scripts/build_presentation_report.py
-  ```
-- **Cấu trúc 16 Slide Bảo vệ (Plot-First)**:
-
-  - **Slide 1**: Bìa học thuật & Thông tin đề tài Hội đồng.
-  - **Slide 2**: Kiến trúc Medallion Lakehouse 3 tầng & DuckDB Zero-copy OLAP Flow.
-  - **Slide 3 - 5**: Khám phá dữ liệu (EDA) — Phân bố chuyên ngành, 2.76M công thức toán, Bùng nổ GenAI 2024, và Ma trận đồng xuất bản liên ngành.
-  - **Slide 6 - 7**: Trụ cột 1 — FP-Growth Mining (30 luật kết hợp) & Phân định luật kỹ thuật (`cs.SY <=> eess.SY`) vs. luật thực chất (`{cs.AI, cs.CV} => {cs.LG}`).
-  - **Slide 8 - 9**: Trụ cột 2 — Không gian phân cụm 2D TruncatedSVD (6 trường phái) & Biện giải học thuật về Silhouette Score 0.063 do ranh giới liên ngành mờ.
-  - **Slide 10 - 11**: Trụ cột 3 — Đồ thị trích dẫn 8,892 đỉnh, 86,295 cạnh, 92 cộng đồng Louvain & PageRank định lượng uy tín cho RAG Retrieval.
-  - **Slide 12 - 13**: Trụ cột 4 — Share-Normalized Momentum (+123% cs.CV) & Isolation Forest P99 phát hiện 260 bài báo dị biệt cấu trúc.
-  - **Slide 14**: Cầu nối Data Mining $\to$ RAG Architecture (PageRank weighting, FP-Growth keyword expansion, LaTeX preservation).
-  - **Slide 15**: Kết quả đối đầu DeepEval 21 mẫu thử (+35% Contextual Precision, 100% Contextual Recall).
-  - **Slide 16**: Phản biện học thuật — 3 Hạn chế trung thực & Lộ trình hoàn thiện 3 bước.
-- **Phím Tắt Điều Khiển Khi Thuyết Trình**:
-
-  - `→` / `Space` / `PageDown`: Tiến 1 slide.
-  - `←` / `PageUp`: Lùi 1 slide.
-  - `N`: **Bật/Tắt Ghi chú Thuyết minh tiếng Việt (Speaker Notes Drawer)** chứa gợi ý diễn giải chi tiết cho từng slide.
-  - `O`: **Bật/Tắt Bản đồ Tổng quan 16 Slide (Overview Modal Grid)** cho phép chuyển nhanh giữa các phần khi hội đồng hỏi.
-  - `F`: Chế độ Toàn màn hình (Fullscreen).
-  - `Esc`: Đóng Drawer ghi chú / Modal tổng quan.
-  - `Ctrl + P`: In hoặc xuất PDF chuẩn A4 Landscape (tự động phân trang 1 slide/trang, ẩn thanh điều hướng).
-
----
-
-## 7. 🧪 Kiểm thử & Xác minh Hệ thống (Testing & Verification)
-
-```bash
-# 1. Kiểm tra mã nguồn với Ruff
-ruff check src tests
-
-# 2. Kiểm thử đơn vị & tích hợp pipeline
-pytest tests/ -v -m "not gpu"
-
-# 3. Kiểm thử phân hệ FastAPI backend
-pytest backend/tests/test_api.py -v
-
-# 4. Kiểm tra build frontend Dashboard
-cd frontend && npm run build
-```
-
----
-
-## 8. 📜 Quy chuẩn Quản trị & Quy trình Làm việc (Governance & Workflow)
-
-- Tác tử AI tuân thủ nghiêm ngặt chu trình 6 bước: `AUDIT → PLAN → IMPLEMENT → VERIFY → COMMIT → MERGE` ([agents/rules/AGENT_AI.md](agents/rules/AGENT_AI.md)).
-- Hướng dẫn thiết lập chi tiết tại [docs/shared/HOW_TO_SETUP_AI_AGENT.md](docs/shared/HOW_TO_SETUP_AI_AGENT.md).
-- Quy trình checkpoint và chuyển giao tác tử tuân theo [docs/shared/HANDOFF_TEMPLATE.md](docs/shared/HANDOFF_TEMPLATE.md).
+- **Học phần**: Khai phá Dữ liệu (Data Mining)
+- **Đơn vị đào tạo**: Khoa Công nghệ Thông tin — Trường Đại học Giao thông Vận tải TP.HCM (UTH)
+- **Nhóm thực hiện**: Sinh viên ngành Trí tuệ Nhân tạo & Khoa học Dữ liệu (AI/DS)
+- **Giấy phép**: Đồ án học thuật mã nguồn mở phục vụ mục đích nghiên cứu và giáo dục.

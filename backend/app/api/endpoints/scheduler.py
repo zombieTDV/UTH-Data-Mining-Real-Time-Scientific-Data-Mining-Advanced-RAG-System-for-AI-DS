@@ -70,6 +70,8 @@ def _source_item(row: Dict[str, Any], session_by_tier: Dict[str, int]) -> Dict[s
 
 @router.get("/status")
 async def get_scheduler_status() -> Dict[str, Any]:
+    if not streaming_service.airflow_dags:  # monitor has not polled yet (e.g. right after startup): poll once now
+        await asyncio.to_thread(streaming_service._poll_fast)
     snap = streaming_service.snapshot()
     rows = snap["airflow"]["dags"]
     sources = {r["key"]: _source_item(r, snap["session"]["by_tier"]) for r in rows}
@@ -122,7 +124,7 @@ async def toggle_source(source: str, body: Optional[ToggleSourceRequest] = None)
     enabled = body.enabled if (body and body.enabled is not None) else bool(row and row.get("paused", True))
     await asyncio.to_thread(airflow.set_paused, d["dag_id"], not enabled)
     streaming_service.add_log("INFO", "AIRFLOW", f"{d['name']}: {'unpaused' if enabled else 'paused'}.", tier=d["key"])
-    return {"status": "SUCCESS", "message": f"{d['dag_id']} {'unpaused' if enabled else 'paused'}.", "enabled": enabled}
+    return {"status": "SUCCESS", "source": d["key"], "message": f"{d['dag_id']} {'unpaused' if enabled else 'paused'}.", "enabled": enabled}
 
 
 @router.post("/trigger/{source}")

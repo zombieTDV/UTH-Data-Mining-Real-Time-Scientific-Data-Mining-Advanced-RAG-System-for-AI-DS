@@ -12,7 +12,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
   storageUsedGb,
   storageUsedPct,
 }) => {
-  const { isSyncingR2, lastSyncedR2, triggerR2ManualSync } = useLakehouseStreamStore();
+  const { isSyncingStorage, lastSyncedStorage, triggerStorageSync } = useLakehouseStreamStore();
   const quotaGb = 10.0;
   const pct = Math.min(100, Math.max(0, storageUsedPct));
 
@@ -30,8 +30,8 @@ export const StorageMeter: FC<StorageMeterProps> = ({
 
   return (
     <div
-      onClick={() => !isSyncingR2 && triggerR2ManualSync()}
-      title={`MinIO Storage Bucket (bấm để quét lại)\n• Đã dùng: ${storageUsedGb.toFixed(2)} GB (${pct.toFixed(1)}%)\n• Hạn mức Free Tier: ${quotaGb.toFixed(2)} GB\n• Đồng bộ lần cuối: ${lastSyncedR2 || 'Mới đây'}\n• Zero Egress Fees`}
+      onClick={() => !isSyncingStorage && triggerStorageSync()}
+      title={`MinIO Storage Bucket (bấm để quét lại)\n• Đã dùng: ${storageUsedGb.toFixed(2)} GB (${pct.toFixed(1)}%)\n• Ngân sách dung lượng: ${quotaGb.toFixed(2)} GB\n• Đồng bộ lần cuối: ${lastSyncedStorage || 'Mới đây'}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -42,7 +42,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
         backgroundColor: 'var(--badge-bg)',
         border: '1px solid var(--badge-border)',
         fontFamily: 'var(--font-mono)',
-        cursor: isSyncingR2 ? 'wait' : 'pointer',
+        cursor: isSyncingStorage ? 'wait' : 'pointer',
         boxSizing: 'border-box',
         transition: 'all 0.15s ease',
         userSelect: 'none',
@@ -60,15 +60,15 @@ export const StorageMeter: FC<StorageMeterProps> = ({
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{
-            color: isSyncingR2 ? '#eab308' : accentColor,
+            color: isSyncingStorage ? '#eab308' : accentColor,
             flexShrink: 0,
-            animation: isSyncingR2 ? 'spin 1s linear infinite' : 'none',
+            animation: isSyncingStorage ? 'spin 1s linear infinite' : 'none',
           }}
         >
           <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
         </svg>
         <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
-          {isSyncingR2 ? '...' : 'S3'}
+          {isSyncingStorage ? '...' : 'S3'}
         </span>
       </div>
 

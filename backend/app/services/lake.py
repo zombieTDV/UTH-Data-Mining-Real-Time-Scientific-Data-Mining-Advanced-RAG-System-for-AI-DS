@@ -70,6 +70,12 @@ class Lake:
             raise
 
     def exists(self, key: str) -> bool:
+        """An object, or for a key ending in '/' a prefix holding at least one Parquet file."""
+        if key.endswith("/"):
+            from pyarrow import fs as pafs
+
+            infos = self.fs.get_file_info(pafs.FileSelector(f"{self.bucket}/{key}", recursive=True, allow_not_found=True))
+            return any(i.type == pafs.FileType.File and i.path.endswith(".parquet") for i in infos)
         return self.head(key) is not None
 
     def get_json(self, key: str, ttl: float = 30.0, default: Any = None) -> Any:
@@ -88,6 +94,12 @@ class Lake:
         with self._lock:
             self._json_cache[key] = (now, data)
         return data
+
+    def invalidate(self, prefix: str) -> None:
+        """Drop cached JSON under a prefix (artifacts rewritten by another process, e.g. the mining engine)."""
+        with self._lock:
+            for k in [k for k in self._json_cache if k.startswith(prefix)]:
+                del self._json_cache[k]
 
     def put_json(self, key: str, payload: Any) -> None:
         self.storage.upload_json(payload, key)

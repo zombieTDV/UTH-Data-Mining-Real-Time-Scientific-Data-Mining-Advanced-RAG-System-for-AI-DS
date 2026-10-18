@@ -32,9 +32,10 @@ export const MetricsBento: FC = () => {
   const arxivGb = activeData?.arxivHtmlSizeGb ?? 0;
   const doiGb = activeData?.openalexSizeGb ?? 0;
   const silverMb = activeData?.silverParquetSizeMb ?? 0;
-  const activeVectors = totalVectors || (activeData?.activeLanceDbVectors ?? 0);
-  const activeVectorMb = activeData?.activeLanceDbSizeMb ?? 0;
+  const activeVectors = totalVectors || (activeData?.activeVectors ?? 0);
+  const activeVectorMb = activeData?.activeVectorsSizeMb ?? 0;
   const backupGb = backupData?.totalSizeGb ?? 0;
+  const budgetGb = totalBucket?.freeTierQuotaGb || 20;
 
   // Active vs Total calculations linked directly to real-time storageUsedGb
   const activeGb = activeData?.totalSizeGb ?? 0;
@@ -44,18 +45,18 @@ export const MetricsBento: FC = () => {
 
   const displayGb = isTotalView ? totalGb : activeGb;
   const displayPct = isTotalView ? totalPct : activePct;
-  const remainingFreeGb = Math.max(0, 10.0 - activeGb).toFixed(3);
+  const remainingFreeGb = Math.max(0, budgetGb - activeGb).toFixed(3);
 
   const [currentFormulas, setCurrentFormulas] = useState(0);
   useEffect(() => {
     fetchEdaSummary().then((eda) => setCurrentFormulas(eda?.dataset_overview?.total_math_formulas ?? 0)).catch(() => undefined);
   }, []);
 
-  // Segment widths relative to 10GB Free Tier
-  const doiBarPct = Math.min(100, (doiGb / 10.0) * 100);
-  const arxivBarPct = Math.min(100, (arxivGb / 10.0) * 100);
-  const silverBarPct = Math.min(100, ((silverMb / 1024) / 10.0) * 100);
-  const backupBarPct = Math.min(100, (backupGb / 10.0) * 100);
+  // Segment widths relative to the lakehouse disk budget (LAKEHOUSE_BUDGET_GB)
+  const doiBarPct = Math.min(100, (doiGb / budgetGb) * 100);
+  const arxivBarPct = Math.min(100, (arxivGb / budgetGb) * 100);
+  const silverBarPct = Math.min(100, ((silverMb / 1024) / budgetGb) * 100);
+  const backupBarPct = Math.min(100, (backupGb / budgetGb) * 100);
 
   return (
     <div style={{
@@ -192,7 +193,7 @@ export const MetricsBento: FC = () => {
                 </>
               ) : (
                 <>
-                  <AnimatedCounter value={displayPct} decimals={1} suffix="% Free Tier" />
+                  <AnimatedCounter value={displayPct} decimals={1} suffix="% of budget" />
                 </>
               )}
             </span>
@@ -201,7 +202,7 @@ export const MetricsBento: FC = () => {
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {isTotalView
               ? `Total Bucket: ${(totalBucket?.totalObjects ?? 0).toLocaleString()} objects (${backupGb} GB archived snapshots)`
-              : `Active Pipeline: ${(activeData?.totalObjects ?? 0).toLocaleString()} objects (Within 10 GB Free Tier)`}
+              : `Active Pipeline: ${(activeData?.totalObjects ?? 0).toLocaleString()} objects (within the ${budgetGb} GB budget)`}
           </div>
 
           {/* Multi-Tier Segmented Progress Bar */}
@@ -300,7 +301,7 @@ export const MetricsBento: FC = () => {
         }}>
           <span>
             {isTotalView ? (
-              'Egress: $0.00 (Zero Fee)'
+              'Local MinIO (no egress fees)'
             ) : (
               <>Free Left: <AnimatedCounter value={Number(remainingFreeGb)} decimals={3} suffix=" GB" /></>
             )}
@@ -338,7 +339,7 @@ export const MetricsBento: FC = () => {
       {/* 5. Inference Infrastructure */}
       <StatCard
         label="Inference Infrastructure"
-        badge="Zero Egress"
+        badge="Local"
         badgeColor="var(--accent-emerald)"
         value="Unified MLOps & RAG"
         description="Vector dense ANN retrieval · Qdrant HNSW (cosine)"
@@ -356,8 +357,8 @@ export const MetricsBento: FC = () => {
           color: 'var(--accent-emerald)',
           textAlign: 'right',
         }}>
-          <div>10.00 GB Free Tier</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Class A/B Unlimited Egress</div>
+          <div>10.00 GB budget</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>No request quotas</div>
         </div>
       </StatCard>
     </div>
