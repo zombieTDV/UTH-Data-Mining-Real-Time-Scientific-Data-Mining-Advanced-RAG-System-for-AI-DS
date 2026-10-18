@@ -107,6 +107,13 @@ class QdrantManager:
             logger.error("[Qdrant] Failed to get points count: %s", e)
         return 0
 
+    def delete_paper(self, paper_id: str, collection_name: Optional[str] = None) -> None:
+        """Remove every chunk of one paper (used before re-indexing it with new content)."""
+        col = collection_name or self.collection_name
+        body = {"filter": {"must": [{"key": "paper_id", "match": {"value": str(paper_id)}}]}}
+        resp = requests.post(f"{self.url}/collections/{col}/points/delete?wait=true", json=body, timeout=30)
+        resp.raise_for_status()
+
     def insert_chunks(
         self,
         chunks: List[Dict[str, Any]],
@@ -133,8 +140,9 @@ class QdrantManager:
             if hasattr(vec, "tolist"):
                 vec = vec.tolist()
 
-            # Copy chunk fields to payload excluding raw vector
-            payload = {k: v for k, v in c.items() if k != "vector"}
+            # Payload = chunk fields minus the vector and context_text (that is `text` with a title/section prefix,
+            # only needed to compute the embedding; storing it would add ~30% to the collection's disk size)
+            payload = {k: v for k, v in c.items() if k not in ("vector", "context_text")}
             # Ensure chunk_id is explicitly recorded in payload
             payload["chunk_id"] = raw_id
 

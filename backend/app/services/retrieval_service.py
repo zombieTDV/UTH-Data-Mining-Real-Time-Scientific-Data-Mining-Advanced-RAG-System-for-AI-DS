@@ -337,10 +337,10 @@ class RetrievalService:
                     except Exception as th_err:
                         logger.debug("[RETRIEVAL] Title candidate fetch error: %s", th_err)
 
-            # Retrieve candidate pool for authority reranking and fusion (bounded to prevent R2 S3 throttling)
+            # Retrieve candidate pool for authority reranking and fusion (bounded to keep retrieval latency low)
             candidate_limit = min(max(k * 2, 25), 40)
 
-            # Execute search on LanceDB
+            # Execute search on Qdrant
             query_builder = None
             query_vector = embedder_service.embed_query(req.query)
             if query_vector is not None and self.vector_dim == len(query_vector):

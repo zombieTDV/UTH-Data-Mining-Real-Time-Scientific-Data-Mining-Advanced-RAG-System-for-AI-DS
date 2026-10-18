@@ -43,8 +43,8 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
     <div
       title={
         language === 'vi'
-          ? `Đồng bộ Lakehouse Thời gian thực:\n• Bài báo Toàn văn Đã xác minh: ${totalPapers.toLocaleString()} bài\n• Công thức toán học (DuckDB): ${totalFormulas.toLocaleString()}\n• LanceDB Vector Index (IVF-PQ): ${totalVectors.toLocaleString()} embeddings\n• Trạng thái: ${isRunning ? 'Đang chạy Ingestion/Embedding' : streamActive ? `Đang nhận CDC Stream (${streamSpeed} bài/phút)` : 'Sẵn sàng phục vụ RAG / Mining'}`
-          : `Real-Time Lakehouse Sync:\n• Verified Full-Text Papers: ${totalPapers.toLocaleString()}\n• Math Formulas (DuckDB): ${totalFormulas.toLocaleString()}\n• LanceDB Vector Index (IVF-PQ): ${totalVectors.toLocaleString()} embeddings\n• Status: ${isRunning ? 'Running Ingestion/Embedding' : streamActive ? `Active CDC Stream (${streamSpeed} papers/min)` : 'Standby / Ready for RAG'}`
+          ? `Đồng bộ Lakehouse Thời gian thực:\n• Bài báo Toàn văn Đã xác minh: ${totalPapers.toLocaleString()} bài\n• Công thức toán học (DuckDB): ${totalFormulas.toLocaleString()}\n• Qdrant Vector Index (HNSW): ${totalVectors.toLocaleString()} embeddings\n• Trạng thái: ${isRunning ? 'Đang chạy Ingestion/Embedding' : streamActive ? `Đang nhận CDC Stream (${streamSpeed} bài/phút)` : 'Sẵn sàng phục vụ RAG / Mining'}`
+          : `Real-Time Lakehouse Sync:\n• Verified Full-Text Papers: ${totalPapers.toLocaleString()}\n• Math Formulas (DuckDB): ${totalFormulas.toLocaleString()}\n• Qdrant Vector Index (HNSW): ${totalVectors.toLocaleString()} embeddings\n• Status: ${isRunning ? 'Running Ingestion/Embedding' : streamActive ? `Active CDC Stream (${streamSpeed} papers/min)` : 'Standby / Ready for RAG'}`
       }
       style={{
         display: 'inline-flex',
@@ -142,7 +142,7 @@ export const PipelineStatusPill: FC<PipelineStatusPillProps> = ({
 
         <span style={{ color: 'var(--border-subtle)', fontSize: '9px' }}>•</span>
 
-        {/* 3. LanceDB Vectors */}
+        {/* 3. Qdrant Vectors */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="12 2 2 7 12 12 22 7 12 2" />

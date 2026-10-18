@@ -27,8 +27,8 @@ async def get_storage_stats():
     return storage_service.get_stats()
 
 
-@router.post("/storage/sync-r2", tags=["Storage & Lakehouse"])
-async def trigger_r2_sync():
+@router.post("/storage/sync", tags=["Storage & Lakehouse"])
+async def trigger_storage_sync():
     """Forces a fresh scan of the MinIO bucket."""
     return storage_service.sync_live_from_r2()
 
@@ -42,19 +42,14 @@ async def reset_streaming_session():
 
 
 MAX_QUERY_ROWS = 10000
-DUCKDB_VIEWS = {
-    "papers": None,  # resolved to settings.SILVER_PRIMARY_KEY
-    "scientific_papers_gold": None,  # legacy alias of papers
-    "tier3_papers": "silver/tier3/landmark_papers.parquet",
-    "tier2_papers": "silver/tier2/near_past_papers.parquet",
-}
+TIER_VIEWS = ("tier1", "tier2", "tier3")  # tier1_papers / tier2_papers / tier3_papers = papers filtered by the `tier` column
 
 
 @router.post("/storage/query", response_model=DuckDbQueryResponse, tags=["Storage & Lakehouse"])
 async def execute_duckdb_query(req: DuckDbQueryRequest):
     """Read-only DuckDB SQL over the Silver Parquet tables stored in MinIO.
 
-    Available tables: papers, tier2_papers, tier3_papers. Only a single SELECT/WITH statement is accepted and
+    Available tables: papers (all of Silver), tier1_papers, tier2_papers, tier3_papers. Only a single SELECT/WITH statement is accepted and
     DuckDB's file/network access is disabled once the MinIO-backed tables are registered.
     """
     cleaned_sql = req.sql.strip().rstrip(";").strip()
@@ -66,8 +61,9 @@ async def execute_duckdb_query(req: DuckDbQueryRequest):
     t0 = time.time()
     try:
         con = duckdb.connect(database=":memory:")
-        for view, key in DUCKDB_VIEWS.items():
-            con.register(view, lake.dataset(key or settings.SILVER_PRIMARY_KEY))
+        con.register("papers", lake.dataset(settings.SILVER_PRIMARY_KEY))
+        for tier in TIER_VIEWS:
+            con.execute(f"CREATE VIEW {tier}_papers AS SELECT * FROM papers WHERE tier = '{tier}'")
         con.execute("SET enable_external_access=false")
         df = con.execute(f"SELECT * FROM ({cleaned_sql}) AS q LIMIT {MAX_QUERY_ROWS}").df()
         elapsed_ms = round((time.time() - t0) * 1000.0, 2)

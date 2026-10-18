@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, type FC } from 'react';
-import { ParquetTypePill } from './R2Glyphs.component';
+import { ParquetTypePill } from './ExplorerGlyphs.component';
 
 export interface ParquetColumn {
   name: string;

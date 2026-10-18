@@ -2,7 +2,7 @@ import type { AppTab, NavItem } from '../types';
 
 export const NAV_ITEMS: NavItem[] = [
   { id: 'schematic', label: 'Schematic & Storage', shortcut: 'Alt+1', icon: 'flow' },
-  { id: 'r2', label: 'R2 Lakehouse Explorer', shortcut: 'Alt+2', icon: 'r2' },
+  { id: 'explorer', label: 'MinIO Lakehouse Explorer', shortcut: 'Alt+2', icon: 'explorer' },
   { id: 'eda', label: 'Real-Time EDA', shortcut: 'Alt+3', icon: 'eda' },
   { id: 'pillars', label: '4 Mining Pillars', shortcut: 'Alt+4', icon: 'model' },
   { id: 'rag', label: 'Grounded RAG', shortcut: 'Alt+5', icon: 'rag' },
@@ -11,7 +11,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const ROUTES = {
   schematic: '/schematic',
-  r2: '/r2',
+  explorer: '/explorer',
   eda: '/eda',
   pillars: '/pillars',
   rag: '/rag',

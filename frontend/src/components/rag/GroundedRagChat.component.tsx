@@ -70,7 +70,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-0',
     sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse holding **29,911 verified full-text papers**, **2.77M formulas** (2,765,395 LaTeX equations), and **673,909 Qdrant vector embeddings** (HNSW Cosine, 768-D). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?',
+    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse (Qdrant, HNSW cosine, 768-D embeddings). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?',
     timestamp: '12:00:00',
   },
 ];

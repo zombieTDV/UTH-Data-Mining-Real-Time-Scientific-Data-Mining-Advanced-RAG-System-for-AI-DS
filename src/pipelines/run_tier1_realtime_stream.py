@@ -6,7 +6,7 @@ Producer side of the streaming path. It only harvests and enqueues:
 - Publishes each new paper to RabbitMQ (scientific_paper_ingest).
 
 The queue consumer (src.ingestion.queue_consumer) is the single writer for
-Bronze (MinIO), Silver (MinIO Parquet), Gold (Qdrant) and the dedup manifest,
+Bronze (MinIO), Silver (MinIO Parquet), Gold (Qdrant) and the Silver paper_id check,
 so a paper is never processed twice and nothing is written to local disk.
 
 Usage:
@@ -30,7 +30,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config.settings import settings
 from src.ingestion.queue_publisher import QueuePublisher
-from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
+from src.storage.known_papers import is_known, load_known_paper_ids
 from src.utils.logger import setup_pipeline_logging
 
 logger, log_file = setup_pipeline_logging("tier1_realtime_stream")
@@ -42,7 +42,7 @@ class Tier1RealtimeStreamer:
     """Harvests live preprints and enqueues the new ones for the ingestion consumer."""
 
     def __init__(self, poll_interval: int = 300, publisher: Optional[QueuePublisher] = None, **_ignored):
-        self.dedup = LakehouseDeduplicator()
+        self.known = load_known_paper_ids()
         self.publisher = publisher or QueuePublisher()
         self.poll_interval = poll_interval
 
@@ -92,7 +92,6 @@ class Tier1RealtimeStreamer:
             try:
                 for item in self._entries_for(cat, max_per_cat):
                     p_id = item["paper_id"]
-                    abs_hash = self.dedup.compute_hash(item["abstract"], item["title"])
                     candidates.append({
                         "paper_id": p_id,
                         "title": item["title"],
@@ -107,8 +106,7 @@ class Tier1RealtimeStreamer:
                         "crawled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                         "source": "arxiv_rss",
                         "tier": "tier1",
-                        "abstract_hash": abs_hash,
-                        "is_duplicate": abs_hash in self.dedup,
+                        "is_duplicate": is_known(self.known, p_id, item["abstract"]),
                     })
             except Exception as e:
                 logger.warning("[TIER 1] Failed fetching %s: %s", cat, e)
@@ -123,14 +121,14 @@ class Tier1RealtimeStreamer:
             candidates = candidates[:limit]
 
         enqueued = duplicates = failed = 0
-        seen_hashes = set()
+        seen_ids = set()
         for idx, paper in enumerate(candidates, 1):
             p_id, title = paper["paper_id"], paper["title"]
-            if paper.pop("is_duplicate") or paper["abstract_hash"] in seen_hashes:
+            if paper.pop("is_duplicate") or p_id in seen_ids:
                 duplicates += 1
                 logger.info("[TIER 1][DEDUP] (%d/%d) Skipping duplicate: %s - %s", idx, len(candidates), p_id, title[:50])
                 continue
-            seen_hashes.add(paper["abstract_hash"])
+            seen_ids.add(p_id)
             if self.publisher.publish_paper(paper):
                 enqueued += 1
             else:

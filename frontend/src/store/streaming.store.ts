@@ -44,6 +44,7 @@ export interface LiveSnapshot {
   corpus: {
     vectors: number;
     papers: number;
+    formulas?: number; // sum of total_math_count over Silver
     tier1_rows: number;
     tier2_rows: number;
     tier3_rows: number;
@@ -89,8 +90,8 @@ export interface LakehouseStreamState {
   connectionStatus: 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED';
   viewMode: 'active' | 'total';
   logs: StreamingLogEntry[];
-  isSyncingR2: boolean;
-  lastSyncedR2: string | null;
+  isSyncingStorage: boolean;
+  lastSyncedStorage: string | null;
   live: LiveSnapshot | null;
 }
 
@@ -121,8 +122,8 @@ let state: LakehouseStreamState = {
   connectionStatus: 'DISCONNECTED',
   viewMode: getStoredViewMode(),
   logs: [],
-  isSyncingR2: false,
-  lastSyncedR2: null,
+  isSyncingStorage: false,
+  lastSyncedStorage: null,
   live: null,
 };
 
@@ -187,21 +188,21 @@ function applySnapshot(s: LiveSnapshot) {
     const patchedStats: StorageStatsResponse | null = prev.storageStats?.activeLakehouse
       ? {
           ...prev.storageStats,
-          activeLakehouse: { ...prev.storageStats.activeLakehouse, activeLanceDbVectors: s.corpus.vectors || prev.storageStats.activeLakehouse.activeLanceDbVectors },
+          activeLakehouse: { ...prev.storageStats.activeLakehouse, activeVectors: s.corpus.vectors || prev.storageStats.activeLakehouse.activeVectors },
         }
       : prev.storageStats;
     return {
       live: s,
       isStreaming: s.status === 'STREAMING',
       activePipelineStage: s.stage,
-      totalCorpus: s.corpus.papers || prev.totalCorpus,
+      totalCorpus: s.corpus.papers ?? prev.totalCorpus,
       totalVectors: s.corpus.vectors,
       sessionIngested: s.session.ingested,
       streamSpeed: s.session.speed_ppm,
       storageUsedGb: prev.viewMode === 'total' ? (s.storage.storage_total_gb ?? prev.storageUsedGb) : prev.storageUsedGb,
       storageUsedPct: prev.viewMode === 'total' ? (s.storage.storage_used_pct ?? prev.storageUsedPct) : prev.storageUsedPct,
       storageTotalBytes: prev.viewMode === 'total' ? storageBytes : prev.storageTotalBytes,
-      lastSyncedR2: s.storage.last_synced ?? prev.lastSyncedR2,
+      lastSyncedStorage: s.storage.last_synced ?? prev.lastSyncedStorage,
       storageStats: patchedStats,
       lastIngestedPaper: lp
         ? {
@@ -238,7 +239,7 @@ export async function refreshStorageStats(): Promise<void> {
         storageUsedGb: mode === 'total' ? data.total_size_gb : (data.activeLakehouse?.totalSizeGb ?? 0),
         storageUsedPct: mode === 'total' ? data.used_percentage : (data.activeLakehouse?.usedPercentage ?? 0),
         storageTotalBytes: mode === 'total' ? data.total_size_bytes : (data.activeLakehouse?.totalSizeBytes ?? 0),
-        lastSyncedR2: data.last_synced || prev.lastSyncedR2,
+        lastSyncedStorage: data.last_synced || prev.lastSyncedStorage,
       };
     });
   } catch (e) {
@@ -246,16 +247,16 @@ export async function refreshStorageStats(): Promise<void> {
   }
 }
 
-export async function triggerR2ManualSync(): Promise<{ status: string; message: string }> {
-  updateState({ isSyncingR2: true });
+export async function triggerStorageSync(): Promise<{ status: string; message: string }> {
+  updateState({ isSyncingStorage: true });
   try {
-    const { syncR2Storage } = await import('../services');
-    const res = await syncR2Storage();
+    const { syncStorage } = await import('../services');
+    const res = await syncStorage();
     await refreshStorageStats();
-    updateState({ isSyncingR2: false });
+    updateState({ isSyncingStorage: false });
     return { status: 'SUCCESS', message: res.message || 'MinIO synchronized' };
   } catch (err: any) {
-    updateState({ isSyncingR2: false });
+    updateState({ isSyncingStorage: false });
     return { status: 'ERROR', message: err.message || 'Failed to sync MinIO' };
   }
 }
@@ -385,6 +386,6 @@ export function useLakehouseStreamStore() {
     appendLog: appendStreamLog,
     refreshStorageStats,
     setViewMode,
-    triggerR2ManualSync,
+    triggerStorageSync,
   };
 }

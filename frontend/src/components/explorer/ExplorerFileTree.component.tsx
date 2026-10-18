@@ -3,11 +3,10 @@ import {
   BronzeVaultGlyph,
   SilverColumnarGlyph,
   GoldPrismGlyph,
-  LanceVectorGlyph,
   FileFormatBadge,
-} from './R2Glyphs.component';
+} from './ExplorerGlyphs.component';
 
-export interface R2FileItem {
+export interface ExplorerFileItem {
   key: string;
   name: string;
   zone: string;
@@ -19,14 +18,14 @@ export interface R2FileItem {
   row_count?: number;
 }
 
-export interface R2FileTreeProps {
-  zones: Record<string, R2FileItem[]>;
+export interface ExplorerFileTreeProps {
+  zones: Record<string, ExplorerFileItem[]>;
   zoneStats: Record<string, { count: number; size_bytes: number; size_formatted: string }>;
   selectedKey: string | null;
-  onSelectFile: (file: R2FileItem) => void;
+  onSelectFile: (file: ExplorerFileItem) => void;
 }
 
-export const R2FileTree: FC<R2FileTreeProps> = ({
+export const ExplorerFileTree: FC<ExplorerFileTreeProps> = ({
   zones,
   zoneStats,
   selectedKey,
@@ -37,7 +36,6 @@ export const R2FileTree: FC<R2FileTreeProps> = ({
     bronze: true,
     silver: true,
     gold: true,
-    lancedb: true,
   });
 
   const toggleZone = (z: string) => {
@@ -46,7 +44,7 @@ export const R2FileTree: FC<R2FileTreeProps> = ({
 
   const filteredZones = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    const result: Record<string, R2FileItem[]> = {};
+    const result: Record<string, ExplorerFileItem[]> = {};
     for (const [z, items] of Object.entries(zones)) {
       const seen = new Set<string>();
       const uniqueItems = (items || []).filter((it) => {
@@ -84,13 +82,6 @@ export const R2FileTree: FC<R2FileTreeProps> = ({
       subtitle: 'Derived Parquet & Mining Artifacts',
       glyph: <GoldPrismGlyph size={17} />,
       color: '#eab308',
-    },
-    {
-      id: 'lancedb',
-      name: 'LANCEDB VECTOR INDEX',
-      subtitle: '768-D Dense Embeddings & ANN',
-      glyph: <LanceVectorGlyph size={17} />,
-      color: '#10b981',
     },
     {
       id: 'bronze',

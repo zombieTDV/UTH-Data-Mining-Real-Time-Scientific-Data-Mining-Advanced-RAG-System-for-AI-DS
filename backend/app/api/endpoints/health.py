@@ -16,6 +16,6 @@ async def health_check():
         timestamp=datetime.now(timezone.utc).isoformat(),
         version=settings.VERSION,
         qdrant_ready=is_ready,
-        lancedb_ready=is_ready,  # legacy field name kept for the frontend contract; Qdrant is the vector store
+        vector_store_ready=is_ready,
         parquet_ready=lake.exists(settings.SILVER_PRIMARY_KEY),
     )

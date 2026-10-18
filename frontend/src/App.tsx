@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavRail } from './navigation/rail';
 import { HeaderBar } from './navigation/header';
-import { SchematicScreen, R2Screen, EdaScreen, PillarsScreen, RagScreen, LogsScreen } from './screens';
+import { SchematicScreen, ExplorerScreen, EdaScreen, PillarsScreen, RagScreen, LogsScreen } from './screens';
 import {
   fetchHealth,
   subscribeTelemetry,
@@ -15,6 +15,7 @@ import type { AppTab, PipelineStatus, BackendStatus, SchematicViewMode } from '.
 export default function App() {
   const { theme, toggleTheme } = useThemeStore();
   const {
+    live,
     isStreaming,
     totalCorpus,
     totalVectors,
@@ -83,7 +84,7 @@ export default function App() {
         return;
       }
       if (e.altKey && e.key === '1') setActiveTab('schematic');
-      else if (e.altKey && e.key === '2') setActiveTab('r2');
+      else if (e.altKey && e.key === '2') setActiveTab('explorer');
       else if (e.altKey && e.key === '3') setActiveTab('eda');
       else if (e.altKey && e.key === '4') setActiveTab('pillars');
       else if (e.altKey && e.key === '5') setActiveTab('rag');
@@ -128,7 +129,7 @@ export default function App() {
   const backendStatus: BackendStatus = connectionStatus === 'CONNECTED' && healthStatus === 'ONLINE' ? 'ONLINE' : 'OFFLINE';
   const effectiveTotalPapers = totalCorpus;
   const effectiveTotalVectors = totalVectors;
-  const effectiveTotalFormulas = totalFormulas;
+  const effectiveTotalFormulas = live?.corpus?.formulas ?? totalFormulas; // live Silver total, EDA artifact as fallback
   const effectiveStorageGb = storageStats?.totalBucket?.totalSizeGb ?? storageUsedGb;
   const effectiveStoragePct = storageStats?.totalBucket?.usedPercentage ?? storageUsedPct;
 
@@ -169,9 +170,9 @@ export default function App() {
         <main
           style={{
             flex: 1,
-            overflowY: (activeTab === 'logs' || activeTab === 'r2') ? 'auto' : 'hidden',
+            overflowY: (activeTab === 'logs' || activeTab === 'explorer') ? 'auto' : 'hidden',
             overflowX: 'hidden',
-            padding: (activeTab === 'schematic' || activeTab === 'rag' || activeTab === 'r2') ? '0' : activeTab === 'logs' ? '16px 20px' : '12px 20px',
+            padding: (activeTab === 'schematic' || activeTab === 'rag' || activeTab === 'explorer') ? '0' : activeTab === 'logs' ? '16px 20px' : '12px 20px',
             backgroundColor: 'transparent',
             display: 'flex',
             flexDirection: 'column',
@@ -189,8 +190,8 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'r2' && (
-            <R2Screen theme={theme} />
+          {activeTab === 'explorer' && (
+            <ExplorerScreen theme={theme} />
           )}
 
           {activeTab === 'eda' && (

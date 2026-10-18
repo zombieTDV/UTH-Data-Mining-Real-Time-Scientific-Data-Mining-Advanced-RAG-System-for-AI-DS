@@ -7,6 +7,7 @@ import type {
   ScatterPointItem,
   AssociationRuleItem,
 } from '../../types';
+import { useLakehouseStreamStore } from '../../store';
 import {
   fetchAssociationRules,
   fetchClusters,
@@ -66,6 +67,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   onNavigateToRag,
 }) => {
   const isDark = theme === 'dark';
+  const { totalCorpus, totalVectors } = useLakehouseStreamStore();
 
   // Active Viewport & Cockpit States
   const [activePillar, setActivePillar] = useState<1 | 2 | 3 | 4>(1);
@@ -1882,7 +1884,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  29,911 công trình &bull; 768-D Embeddings (913,205 Chunks)
+                  {totalCorpus.toLocaleString()} công trình &bull; 768-D Embeddings ({totalVectors.toLocaleString()} Chunks)
                 </div>
               </div>
             </div>

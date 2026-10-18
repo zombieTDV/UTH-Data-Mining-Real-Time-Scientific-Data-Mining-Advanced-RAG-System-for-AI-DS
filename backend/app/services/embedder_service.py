@@ -2,7 +2,7 @@
 backend/app/services/embedder_service.py
 ----------------------------------------
 Local Embedding Service for Dense Retrieval wrapping Nomic Embed Text v1.5.
-Provides 768-dimensional normalized dense vectors matching LanceDB Gold Lakehouse schema.
+Provides 768-dimensional normalized dense vectors matching the Qdrant Gold collection (768-D).
 """
 
 import logging

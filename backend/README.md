@@ -32,8 +32,8 @@ Truy cập tài liệu Swagger UI & ReDoc:
 
 | Category | Method | Path | Description |
 | :--- | :--- | :--- | :--- |
-| **Health** | `GET` | `/health` | Kiểm tra trạng thái hệ thống, LanceDB & Parquet |
-| **Storage** | `GET` | `/api/storage/stats` | Thống kê dung lượng Cloudflare R2 & Lakehouse |
+| **Health** | `GET` | `/health` | Kiểm tra trạng thái hệ thống, Qdrant & Parquet |
+| **Storage** | `GET` | `/api/storage/stats` | Thống kê dung lượng MinIO & Lakehouse |
 | **Search** | `POST` | `/api/search` | Tìm kiếm FTS & Vector trên 143k chunks |
 | **Chat** | `POST` | `/api/chat` | RAG Answer Generation kèm trích dẫn khoa học |
 | **Papers** | `GET` | `/api/papers/{paper_id}` | Lấy chi tiết bài báo và các chunks |

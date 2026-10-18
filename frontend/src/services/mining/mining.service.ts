@@ -51,11 +51,11 @@ export async function searchLakehouse(
   return res.json();
 }
 
-export async function syncR2Storage(): Promise<{ status: string; message: string }> {
-  const res = await fetch(`${API_CONFIG.baseUrl}/api/storage/sync-r2`, {
+export async function syncStorage(): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${API_CONFIG.baseUrl}/api/storage/sync`, {
     method: 'POST',
   });
-  if (!res.ok) throw new Error(`R2 sync failed: ${res.statusText}`);
+  if (!res.ok) throw new Error(`MinIO scan failed: ${res.statusText}`);
   return res.json();
 }
 

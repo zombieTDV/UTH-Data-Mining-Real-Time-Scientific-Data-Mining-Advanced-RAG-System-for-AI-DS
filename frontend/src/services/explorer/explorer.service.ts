@@ -1,8 +1,8 @@
 import { API_CONFIG } from '../../config';
-import type { R2FileItem } from '../../components/r2/R2FileTree.component';
-import type { FilePreviewData } from '../../components/r2/R2FileInspector.component';
+import type { ExplorerFileItem } from '../../components/explorer/ExplorerFileTree.component';
+import type { FilePreviewData } from '../../components/explorer/ExplorerFileInspector.component';
 
-export interface R2TreeResponseData {
+export interface ExplorerTreeResponseData {
   bucket_name: string;
   total_objects: number;
   total_size_bytes: number;
@@ -17,33 +17,33 @@ export interface R2TreeResponseData {
   public_access?: string;
   overage_gb?: number;
   estimated_overage_cost_usd?: number;
-  zones: Record<string, R2FileItem[]>;
+  zones: Record<string, ExplorerFileItem[]>;
   zone_stats: Record<string, { count: number; size_bytes: number; size_formatted: string }>;
 }
 
-export async function fetchR2Tree(): Promise<R2TreeResponseData> {
-  const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.r2Tree}`);
+export async function fetchExplorerTree(): Promise<ExplorerTreeResponseData> {
+  const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.explorerTree}`);
   if (!res.ok) {
-    throw new Error(`Failed to load R2 tree: ${res.statusText}`);
+    throw new Error(`Failed to load the MinIO inventory: ${res.statusText}`);
   }
   return res.json();
 }
 
-export async function syncR2Bucket(): Promise<R2TreeResponseData> {
-  const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.r2Sync}`, {
+export async function syncExplorerBucket(): Promise<ExplorerTreeResponseData> {
+  const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.explorerSync}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
   });
   if (!res.ok) {
-    throw new Error(`Failed to trigger R2 snapshot: ${res.statusText}`);
+    throw new Error(`Failed to rescan the MinIO bucket: ${res.statusText}`);
   }
   return res.json();
 }
 
 export async function fetchFilePreview(key: string): Promise<FilePreviewData> {
-  const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.r2Preview}?key=${encodeURIComponent(key)}`;
+  const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.explorerPreview}?key=${encodeURIComponent(key)}`;
   const res = await fetch(url);
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));

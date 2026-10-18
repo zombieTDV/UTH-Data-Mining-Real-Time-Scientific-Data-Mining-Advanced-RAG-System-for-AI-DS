@@ -1,10 +1,10 @@
 """
-backend/app/api/endpoints/r2_explorer.py
+backend/app/api/endpoints/explorer.py
 -----------------------------------------
-MinIO Lakehouse Explorer and File Viewer (route prefix /r2 kept for the frontend contract).
+MinIO Lakehouse Explorer and File Viewer (route prefix /explorer).
 
 1. The inventory is a real listing of the MinIO bucket, cached in memory for a few minutes.
-2. POST /r2/sync forces a fresh listing.
+2. POST /explorer/sync forces a fresh listing.
 3. Previews read Parquet schema/rows with S3 range reads and JSON/text objects directly from MinIO.
 Nothing is written to local disk.
 """
@@ -22,13 +22,13 @@ from pydantic import BaseModel, Field
 from backend.app.core.config import settings
 from backend.app.services.lake import lake
 
-logger = logging.getLogger("r2_explorer")
+logger = logging.getLogger("explorer")
 
-router = APIRouter(prefix="/r2", tags=["MinIO Lakehouse Explorer"])
+router = APIRouter(prefix="/explorer", tags=["MinIO Lakehouse Explorer"])
 
 INVENTORY_TTL_SECONDS = 300
 JSON_PREVIEW_MAX_BYTES = 1_000_000
-FREE_TIER_QUOTA_GB = 10.0
+FREE_TIER_QUOTA_GB = settings.LAKEHOUSE_BUDGET_GB
 _inventory: Dict[str, Any] = {"at": 0.0, "data": None}
 _inventory_lock = threading.Lock()
 
@@ -37,10 +37,10 @@ _inventory_lock = threading.Lock()
 # Pydantic Schemas
 # ==============================================================================
 
-class R2FileItemDto(BaseModel):
+class FileItemDto(BaseModel):
     key: str
     name: str
-    zone: str  # "bronze" | "silver" | "gold" | "lancedb"
+    zone: str  # "bronze" | "silver" | "gold"
     category: str
     size_bytes: int
     size_formatted: str
@@ -49,12 +49,12 @@ class R2FileItemDto(BaseModel):
     row_count: Optional[int] = None
 
 
-class R2TreeResponse(BaseModel):
+class ExplorerTreeResponse(BaseModel):
     bucket_name: str
     total_objects: int
     total_size_bytes: int
     total_size_gb: float
-    free_tier_quota_gb: float = 10.0
+    free_tier_quota_gb: float = 20.0
     used_percentage: float
     cost_shield_active: bool = True
     last_synced: str
@@ -64,7 +64,7 @@ class R2TreeResponse(BaseModel):
     public_access: str = "Private"
     overage_gb: float = 0.0
     estimated_overage_cost_usd: float = 0.0
-    zones: Dict[str, List[R2FileItemDto]]
+    zones: Dict[str, List[FileItemDto]]
     zone_stats: Dict[str, Dict[str, Any]]
 
 
@@ -85,9 +85,8 @@ class FilePreviewResponse(BaseModel):
     schema_columns: Optional[List[ParquetSchemaColumn]] = None
     sample_rows: Optional[List[Dict[str, Any]]] = None
     json_data: Optional[Any] = None
-    lance_meta: Optional[Dict[str, Any]] = None
     raw_text: Optional[str] = None
-    preview_type: str  # "parquet" | "json" | "lance" | "binary"
+    preview_type: str  # "parquet" | "json" | "binary"
     last_modified: Optional[str] = None
 
 
@@ -171,23 +170,23 @@ def build_inventory(force: bool = False) -> Dict[str, Any]:
 # API Routes
 # ==============================================================================
 
-def _tree_response(inv: Dict[str, Any]) -> R2TreeResponse:
+def _tree_response(inv: Dict[str, Any]) -> ExplorerTreeResponse:
     total_gb = inv["total_size_gb"]
-    zones: Dict[str, List[R2FileItemDto]] = {"bronze": [], "silver": [], "gold": [], "lancedb": []}
+    zones: Dict[str, List[FileItemDto]] = {"bronze": [], "silver": [], "gold": []}
     for item in inv["files"]:
         k = item["key"]
         zone, cat = classify_zone(k)
         ext = "dir" if k.endswith("/") else (Path(k).suffix.lstrip(".").lower() or "bin")
         sz = item.get("size_bytes", 0)
-        zones.setdefault(zone, []).append(R2FileItemDto(
+        zones.setdefault(zone, []).append(FileItemDto(
             key=k, name=k if k.endswith("/") else (Path(k).name or k), zone=zone, category=cat, size_bytes=sz,
             size_formatted=format_size(sz), extension=ext, last_modified=item.get("last_modified"), row_count=item.get("row_count"),
         ))
-    zone_stats: Dict[str, Dict[str, Any]] = {"lancedb": {"count": 0, "size_bytes": 0, "size_formatted": format_size(0)}}
+    zone_stats: Dict[str, Dict[str, Any]] = {}
     for z, (count, size) in inv["zone_raw"].items():
         zone_stats[z] = {"count": count, "size_bytes": size, "size_formatted": format_size(size)}
     overage = max(0.0, round(total_gb - FREE_TIER_QUOTA_GB, 2))
-    return R2TreeResponse(
+    return ExplorerTreeResponse(
         bucket_name=inv["bucket_name"],
         total_objects=inv["total_objects"],
         total_size_bytes=inv["total_size_bytes"],
@@ -203,14 +202,14 @@ def _tree_response(inv: Dict[str, Any]) -> R2TreeResponse:
     )
 
 
-@router.get("/tree", response_model=R2TreeResponse)
-async def get_r2_tree() -> R2TreeResponse:
+@router.get("/tree", response_model=ExplorerTreeResponse)
+async def get_explorer_tree() -> ExplorerTreeResponse:
     """Medallion asset hierarchy from a live (briefly cached) MinIO listing."""
     return _tree_response(build_inventory())
 
 
-@router.post("/sync", response_model=R2TreeResponse)
-async def trigger_manual_sync_from_r2() -> R2TreeResponse:
+@router.post("/sync", response_model=ExplorerTreeResponse)
+async def trigger_manual_sync() -> ExplorerTreeResponse:
     """Force a fresh MinIO listing."""
     try:
         return _tree_response(build_inventory(force=True))

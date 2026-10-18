@@ -32,7 +32,7 @@ export interface PaperEntity {
   html_url?: string;
   pdf_url?: string;
 
-  // LanceDB ChunkDto properties returned by GET /api/papers/{paper_id}
+  // Qdrant ChunkDto properties returned by GET /api/papers/{paper_id}
   chunk_id?: string;
   text?: string;
   section_title?: string;

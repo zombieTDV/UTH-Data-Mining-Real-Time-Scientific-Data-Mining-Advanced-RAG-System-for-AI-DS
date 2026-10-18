@@ -48,13 +48,11 @@ class Settings(BaseSettings):
     AIRFLOW_PASSWORD: str
 
     # Lakehouse object keys (inside the MinIO bucket)
-    SILVER_PRIMARY_KEY: str = "silver/papers/year=2026/papers.parquet"
-    SILVER_CATALOG_KEYS: str = (
-        "silver/tier3/landmark_papers.parquet,"
-        "silver/tier2/near_past_papers.parquet,"
-        "silver/papers/year=2026/papers.parquet"
-    )
+    # Silver is one dataset: every tier lands in silver/papers/year=YYYY/ (papers.parquet + parts/), with a `tier` column
+    SILVER_PRIMARY_KEY: str = "silver/papers/"
+    SILVER_CATALOG_KEYS: str = "silver/papers/"
     MINING_PREFIX: str = "gold/mining"
+    LAKEHOUSE_BUDGET_GB: float = 20.0  # disk budget for MinIO + Qdrant (the harvest DAGs stop publishing at this size)
     STATE_PREFIX: str = "state"
     PROJECT_ROOT_DIR: Path = PROJECT_ROOT
     EMBEDDING_MODEL_PATH: str = str(PROJECT_ROOT / "models" / "nomic-embed-text-v1.5")

@@ -136,14 +136,14 @@ class SilverLakehouseWriter:
         return {"status": "SUCCESS", "count": len(df), "s3_uri": res["uri"], "key": key, "size_bytes": res["size_bytes"]}
 
     def compact_year(self, year: str = "2026") -> Dict[str, Any]:
-        """Merge every parts/ object of `year` into papers.parquet (dedup by abstract_hash), then delete the parts."""
+        """Merge every parts/ object of `year` into papers.parquet (dedup by paper_id), then delete the parts."""
         prefix = f"silver/papers/year={year}/parts/"
         part_keys = self.io.list_keys(prefix)
         if not part_keys:
             return {"status": "NOTHING_TO_COMPACT", "parts": 0}
         frames = [self.io.read_parquet(k) for k in part_keys]
         new_df = pd.concat([f for f in frames if f is not None], ignore_index=True)
-        res = self.io.upsert_parquet(self.year_key(year), new_df, subset=["abstract_hash"], schema=self.SCHEMA)
+        res = self.io.upsert_parquet(self.year_key(year), new_df, subset=["paper_id"], schema=self.SCHEMA)
         self.storage.delete_objects_batch(part_keys)  # only after the merged object is safely written
         return {"status": "SUCCESS", "parts": len(part_keys), "rows": res["rows"], "s3_uri": res["uri"]}
 
@@ -161,7 +161,7 @@ class SilverLakehouseWriter:
         return {"years": years, "results": results, "parts": sum(r.get("parts", 0) for r in results.values())}
 
     def save_and_upload_parquet(self, records: List[Dict[str, Any]], year: str = "2026") -> Dict[str, Any]:
-        """Batch write: upsert records (by abstract_hash) into silver/papers/year=<year>/papers.parquet."""
+        """Batch write: upsert records (by paper_id) into silver/papers/year=<year>/papers.parquet."""
         if not records:
             return {"status": "NO_RECORDS", "count": 0}
         df = self._normalize_frame(records)
@@ -172,7 +172,7 @@ class SilverLakehouseWriter:
             existing["abstract_hash"] = existing.apply(
                 lambda r: compute_abstract_hash(str(r.get("abstract", "") or r.get("title", ""))), axis=1
             )
-        res = self.io.upsert_parquet(self.year_key(year), df, subset=["abstract_hash"], schema=self.SCHEMA)
+        res = self.io.upsert_parquet(self.year_key(year), df, subset=["paper_id"], schema=self.SCHEMA)
         return {
             "status": "SUCCESS",
             "count": res["rows"],

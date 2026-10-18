@@ -377,9 +377,9 @@ export interface ActiveLakehouseInfo {
   silverParquetSizeBytes: number;
   silverParquetSizeMb: number;
   conferenceCount?: number;
-  activeLanceDbVectors: number;
-  activeLanceDbSizeBytes: number;
-  activeLanceDbSizeMb: number;
+  activeVectors: number;
+  activeVectorsSizeBytes: number;
+  activeVectorsSizeMb: number;
   sourceBreakdown?: SourceBreakdownInfo;
 }
 
@@ -419,7 +419,7 @@ export interface StorageStatsResponse {
 
 export interface HealthResponse {
   status: string;
-  lancedb_ready: boolean;
+  vector_store_ready: boolean;
   parquet_ready: boolean;
 }
 

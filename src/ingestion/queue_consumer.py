@@ -1,7 +1,7 @@
 """RabbitMQ Ingestion Worker / Consumer.
 
 Single gate into the Medallion lakehouse. For each micro-batch of messages:
-  dedup (abstract SHA-256) -> Bronze (MinIO) -> Silver (MinIO Parquet part) -> Gold (Qdrant)
+  dedup (paper_id or abstract hash already in Silver) -> Bronze (MinIO) -> Silver (MinIO Parquet part) -> Gold (Qdrant)
 Messages are acked only after the whole batch is durable. A failing message is
 re-published with an incremented retry counter and moved to the dead-letter
 queue after RABBITMQ_MAX_RETRIES, so nothing is silently lost. No local files are written.
@@ -23,7 +23,7 @@ from src.indexing.embedder import NomicEmbedder
 from src.indexing.qdrant_manager import QdrantManager
 from src.storage.minio_client import StorageClient
 from src.transformation.html_parser import AcademicHTMLParser
-from src.transformation.lakehouse_deduplicator import LakehouseDeduplicator
+from src.storage.known_papers import is_known, load_known_paper_ids, remember
 from src.transformation.unified_content_resolver import UnifiedContentResolver
 from src.transformation.silver_writer import SilverLakehouseWriter
 
@@ -51,7 +51,7 @@ class QueueConsumer:
     ):
         self.storage = storage_client or StorageClient()
         self.qdrant = qdrant_client or QdrantManager()
-        self.dedup = LakehouseDeduplicator()
+        self.known = load_known_paper_ids()  # paper_ids + abstract hashes in Silver; this process is the only writer, so it stays exact
         self._embedder = None
         self.queue_name = settings.RABBITMQ_QUEUE_INGEST
         self.dead_queue = settings.RABBITMQ_QUEUE_DEAD
@@ -85,7 +85,9 @@ class QueueConsumer:
     def _resolver_input(paper: Dict[str, Any], year: str) -> Dict[str, Any]:
         """Shape a harvested message the way UnifiedContentResolver expects it."""
         pid = str(paper.get("paper_id", ""))
-        m = re.fullmatch(r"(\d{4}\.\d{4,5})(v\d+)?", pid)
+        m = re.fullmatch(r"(\d{4}\.\d{4,5}|[a-z\-]+(?:\.[A-Z]{2})?/\d{7})(v\d+)?", pid)  # new and pre-2007 arXiv ids
+        # Semantic Scholar sometimes lacks the arXiv id but its open-access link is arXiv: take the HTML route then
+        m = m or re.search(r"arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})(v\d+)?", str(paper.get("pdf_url") or ""))
         return {
             "paper_id": pid,
             "title": paper.get("title", ""),
@@ -93,6 +95,8 @@ class QueueConsumer:
             "source": "arxiv" if m else str(paper.get("source", "arxiv")),
             "year": year,
             "arxiv_id": m.group(1) if m else None,
+            "tier": paper.get("tier"),
+            "pdf_url": paper.get("pdf_url") or "",  # used only for Tier 3 papers that are not on arXiv
         }
 
     def _silver_record(self, paper: Dict[str, Any], resolved: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -127,27 +131,30 @@ class QueueConsumer:
         """Process a micro-batch. Returns (succeeded_or_skipped, [(failed_paper, reason)])."""
         ok: List[Dict[str, Any]] = []
         failed: List[Tuple[Dict[str, Any], str]] = []
-        fresh: List[Tuple[Dict[str, Any], Dict[str, Any], str, str]] = []  # paper, silver_rec, year, hash
+        fresh: List[Tuple[Dict[str, Any], Dict[str, Any], str]] = []  # paper, silver_rec, year
         t_batch = time.time()
         n_dups = 0
         tier_of = lambda p: str(p.get("tier") or "tier1")  # noqa: E731
 
-        todo: List[Tuple[Dict[str, Any], str, str, str]] = []  # paper, paper_id, year, hash
+        todo: List[Tuple[Dict[str, Any], str, str]] = []  # paper, paper_id, year
+        in_batch: set = set()
         for paper in papers:
             paper_id = str(paper.get("paper_id", "")).strip()
             if not paper_id:
                 failed.append((paper, "missing paper_id"))
                 continue
-            is_dup, abs_hash = self.dedup.is_duplicate(paper.get("abstract", ""), paper.get("title", ""))
-            if is_dup:
+            # refresh=True re-indexes a paper we already hold with better content (e.g. a Tier 3 classic's open-access PDF)
+            refresh = bool(paper.get("refresh"))
+            if is_known(in_batch, paper_id, paper.get("abstract")) or (not refresh and is_known(self.known, paper_id, paper.get("abstract"))):
                 logger.info("[Worker][Dedup] Skipping duplicate %s", paper_id)
                 n_dups += 1
                 ok.append(paper)
                 continue
-            todo.append((paper, paper_id, _year_of(paper), abs_hash))
+            todo.append((paper, paper_id, _year_of(paper)))
+            remember(in_batch, paper_id, paper.get("abstract"))
 
         # Full text: arXiv HTML5 -> ar5iv -> abstract (HTML only, no PDFs); raw HTML is vaulted to Bronze by the resolver
-        need = [self._resolver_input(p, y) for p, pid, y, _ in todo if not (p.get("raw_html") or p.get("html_content"))]
+        need = [self._resolver_input(p, y) for p, pid, y in todo if not (p.get("raw_html") or p.get("html_content"))]
         resolved: Dict[str, Dict[str, Any]] = {}
         if need:
             for r in self.resolver.resolve_batch_concurrent(need, max_workers=4):
@@ -156,15 +163,15 @@ class QueueConsumer:
             logger.info("[Worker][Content] %s", origins)
             self._emit_log("INFO", "HTML-FETCH", f"{len(resolved)} paper(s) resolved: " + ", ".join(f"{k} {v}" for k, v in origins.items()), tier=tier_of(todo[0][0]))
 
-        for paper, paper_id, year, abs_hash in todo:
+        for paper, paper_id, year in todo:
             try:
                 self._bronze(paper, paper_id, year)
-                fresh.append((paper, self._silver_record(paper, resolved.get(paper_id)), year, abs_hash))
+                fresh.append((paper, self._silver_record(paper, resolved.get(paper_id)), year))
             except Exception as e:
                 failed.append((paper, f"bronze/silver prep: {e}"))
 
         if n_dups:
-            self._emit_log("INFO", "DEDUP", f"{n_dups} duplicate paper(s) skipped (abstract hash already in the lakehouse).", tier=tier_of(papers[0]))
+            self._emit_log("INFO", "DEDUP", f"{n_dups} duplicate paper(s) skipped (paper_id or abstract hash already in Silver).", tier=tier_of(papers[0]))
         if not fresh:
             for paper, reason in failed:
                 self._emit_log("ERROR", "WORKER", f"{paper.get('paper_id')}: {reason}", tier=tier_of(paper))
@@ -172,7 +179,7 @@ class QueueConsumer:
 
         # Silver: one immutable part per year in this batch
         by_year: Dict[str, List[Dict[str, Any]]] = {}
-        for _, rec, year, _ in fresh:
+        for _, rec, year in fresh:
             by_year.setdefault(year, []).append(rec)
         silver_failed_years = set()
         for year, recs in by_year.items():
@@ -184,32 +191,33 @@ class QueueConsumer:
                 logger.error("[Worker][Silver] Failed writing year=%s part: %s", year, e)
 
         good = []
-        for paper, rec, year, abs_hash in fresh:
+        for paper, rec, year in fresh:
             if year in silver_failed_years:
                 failed.append((paper, "silver write failed"))
             else:
-                good.append((paper, rec, abs_hash))
+                good.append((paper, rec))
 
         # Gold: chunk + embed + upsert, per paper so one bad paper does not poison the batch
         landed: List[Dict[str, Any]] = []
         chunk_counts: Dict[str, int] = {}
-        for paper, rec, abs_hash in good:
+        for paper, rec in good:
             pid = str(rec["paper_id"])
             try:
                 chunks = self.chunker.chunk_paper(rec)
+                if paper.get("refresh"):
+                    self.qdrant.delete_paper(pid)  # drop the old (abstract-only) chunks first
                 if chunks:
                     vectors = self.embedder.embed_documents([c.get("context_text") or c.get("text", "") for c in chunks])
                     for c, vec in zip(chunks, vectors):
                         c["vector"] = vec
                     self.qdrant.insert_chunks(chunks)
                 chunk_counts[pid] = len(chunks)
-                self.dedup.record(abs_hash, pid)  # only after Bronze+Silver+Gold are durable
+                remember(self.known, pid, rec.get("abstract"))  # only after Bronze+Silver+Gold are durable, so a failed paper can be retried
                 ok.append(paper)
                 landed.append(rec)
             except Exception as e:
                 failed.append((paper, f"gold: {e}"))
 
-        self.dedup.save()
         self.last_ingested = landed
         if landed:
             try:
@@ -339,7 +347,6 @@ class QueueConsumer:
                     flush()
         finally:
             flush()
-            self.dedup.save()
             try:
                 channel.cancel()
                 conn.close()

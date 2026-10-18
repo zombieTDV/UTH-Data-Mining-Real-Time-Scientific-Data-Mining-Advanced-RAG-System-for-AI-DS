@@ -38,12 +38,12 @@ export function PipelineFlow() {
   const currentCorpus = currentTotalCorpus;
   const currentBronzeCount = currentArxivCount;
   const currentBatchesCount = 0;
-  const currentVectors = storageStats?.activeLakehouse?.activeLanceDbVectors 
+  const currentVectors = storageStats?.activeLakehouse?.activeVectors 
     ?? storageStats?.zones?.goldChunkCount 
     ?? 0;
   const currentFormulas = useEdaFormulas();
   const currentEnriched = currentBronzeCount;
-  const currentGoldMb = (storageStats?.activeLakehouse?.activeLanceDbSizeMb ?? 0).toFixed(2);
+  const currentGoldMb = (storageStats?.activeLakehouse?.activeVectorsSizeMb ?? 0).toFixed(2);
   const currentSilverMb = storageStats?.activeLakehouse
     ? storageStats.activeLakehouse.silverParquetSizeMb.toFixed(2)
     : '0.00';
@@ -61,16 +61,16 @@ export function PipelineFlow() {
         'arXiv OAI-PMH & REST API',
         'CVF CVPR & ICCV Open Access',
         'OpenReview ICLR & NeurIPS Discussions',
-        'Zenodo Open Science (Marker PDF Engine)',
+        'Zenodo Open Science (abstracts)',
       ],
       outputs: [
         `${currentDoiCount.toLocaleString()} DOI / Journal Publications`,
         `${currentArxivCount.toLocaleString()} arXiv Preprints`,
         `${currentCvfCount.toLocaleString()} CVF Conference Proceedings`,
         `${currentOpenReviewCount.toLocaleString()} OpenReview Peer Reviews`,
-        `${currentZenodoCount.toLocaleString()} Zenodo Marker Manuscripts`,
+        `${currentZenodoCount.toLocaleString()} Zenodo records`,
       ],
-      tools: ['HTTPX Async', 'Cloudflare R2 S3 API', 'SHA-256 Hasher', 'Marker PDF Engine'],
+      tools: ['HTTPX Async', 'MinIO S3 API', 'SHA-256 Hasher', 'arXiv HTML5 parser'],
       metrics: {
         processed: `${currentTotalCorpus.toLocaleString()} Deduplicated Works`,
         rate: `${(currentDoiCount / 1000).toFixed(1)}k DOI · ${(currentArxivCount / 1000).toFixed(1)}k arXiv · ${(currentCvfCount / 1000).toFixed(1)}k CVF · ${(currentOpenReviewCount / 1000).toFixed(1)}k OpenRev · ${currentZenodoCount.toLocaleString()} Zenodo`,
@@ -98,19 +98,19 @@ export function PipelineFlow() {
     {
       id: 'phase-3',
       phaseNumber: '03',
-      name: 'Gold Contextual Indexing & LanceDB',
+      name: 'Gold Contextual Indexing & Qdrant',
       zone: 'GOLD',
       zoneColor: 'var(--accent-gold)',
       status: 'SYNCED',
       inputs: ['Silver Canonical Parquet Records'],
-      outputs: ['LanceDB Table (scientific_papers_gold)', 'R2 Gold Sync Archive'],
-      tools: ['Nomic-embed-text-v1.5', 'Apple Silicon MPS GPU', 'LanceDB Vector Store'],
+      outputs: ['Qdrant collection (scientific_papers_gold)', 'MinIO gold/ artifacts'],
+      tools: ['Nomic-embed-text-v1.5', 'Apple Silicon MPS GPU', 'Qdrant Vector Store'],
       metrics: {
         processed: `${currentVectors.toLocaleString()} Contextual Chunks`,
         rate: '768-dim Dense Vectors',
         latency: `${currentGoldMb} MB Indexed Table`
       },
-      details: `Segments long-form papers with context preservation (Paper Title | Section Title | Content). Generates 768-dimensional normalized embeddings on Apple Silicon GPU and syncs ${currentVectors.toLocaleString()} vectors to R2.`
+      details: `Segments long-form papers with context preservation (Paper Title | Section Title | Content). Generates 768-dimensional normalized embeddings on Apple Silicon GPU and indexes ${currentVectors.toLocaleString()} vectors in Qdrant.`
     },
     {
       id: 'phase-4',
@@ -119,11 +119,11 @@ export function PipelineFlow() {
       zone: 'INFERENCE',
       zoneColor: 'var(--accent-emerald)',
       status: 'OPERATIONAL',
-      inputs: ['User Natural Language Query', 'Top-K LanceDB ANN Context'],
+      inputs: ['User Natural Language Query', 'Top-K Qdrant ANN Context'],
       outputs: ['Strictly Grounded Academic Synthesis', 'Formal Paper & Section Citations'],
       tools: ['Qwen2.5-7B-Instruct (GGUF)', 'llama.cpp Metal Offload', 'Academic Prompt Gate'],
       metrics: {
-        processed: 'Sub-50ms LanceDB ANN Lookup',
+        processed: 'Low-latency Qdrant ANN lookup',
         rate: '6.0 tokens/s Metal GPU Generation',
         latency: 'Zero Hallucination Refusal Gate'
       },

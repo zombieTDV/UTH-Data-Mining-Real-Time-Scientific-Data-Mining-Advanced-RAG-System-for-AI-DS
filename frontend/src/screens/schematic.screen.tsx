@@ -23,16 +23,16 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   onNavigateTab,
   onTriggerPipeline,
 }) => {
-  const { isSyncingR2, lastSyncedR2, triggerR2ManualSync } = useLakehouseStreamStore();
+  const { isSyncingStorage, lastSyncedStorage, triggerStorageSync } = useLakehouseStreamStore();
 
   return (
     <div style={{ flex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
       <div style={{ position: 'absolute', top: '14px', right: '20px', zIndex: 30, display: 'flex', alignItems: 'center', gap: '8px' }}>
         <button
           type="button"
-          onClick={() => triggerR2ManualSync()}
-          disabled={isSyncingR2}
-          title={lastSyncedR2 ? `Scan the live MinIO bucket (Last synced: ${lastSyncedR2})` : 'Fetch live Cloudflare R2 storage objects'}
+          onClick={() => triggerStorageSync()}
+          disabled={isSyncingStorage}
+          title={lastSyncedStorage ? `Scan the live MinIO bucket (Last synced: ${lastSyncedStorage})` : 'Scan the live MinIO bucket'}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -43,21 +43,21 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
             fontFamily: 'var(--font-mono)',
             fontWeight: 700,
             backgroundColor: 'var(--badge-bg)',
-            color: isSyncingR2 ? '#eab308' : 'var(--text-primary)',
+            color: isSyncingStorage ? '#eab308' : 'var(--text-primary)',
             border: '1px solid var(--badge-border)',
-            cursor: isSyncingR2 ? 'not-allowed' : 'pointer',
+            cursor: isSyncingStorage ? 'not-allowed' : 'pointer',
             backdropFilter: 'blur(10px)',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
             transition: 'all 0.2s ease',
           }}
         >
-          <span style={{ display: 'inline-block', animation: isSyncingR2 ? 'spin 1s linear infinite' : 'none' }}>
+          <span style={{ display: 'inline-block', animation: isSyncingStorage ? 'spin 1s linear infinite' : 'none' }}>
             🔄
           </span>
-          <span>{isSyncingR2 ? 'FETCHING R2...' : 'SCAN MINIO LIVE'}</span>
-          {lastSyncedR2 && !isSyncingR2 && (
+          <span>{isSyncingStorage ? 'SCANNING MINIO...' : 'SCAN MINIO LIVE'}</span>
+          {lastSyncedStorage && !isSyncingStorage && (
             <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 500 }}>
-              ({lastSyncedR2.includes(' ') ? lastSyncedR2.split(' ')[1] : lastSyncedR2})
+              ({lastSyncedStorage.includes(' ') ? lastSyncedStorage.split(' ')[1] : lastSyncedStorage})
             </span>
           )}
         </button>

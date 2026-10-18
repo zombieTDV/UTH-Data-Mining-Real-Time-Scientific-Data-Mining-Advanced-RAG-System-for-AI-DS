@@ -10,7 +10,7 @@ def test_health_endpoint(test_client: TestClient):
     data = response.json()
     assert data["status"] == "ok"
     assert "version" in data
-    assert "lancedb_ready" in data
+    assert "vector_store_ready" in data
 
 
 @pytest.mark.integration
@@ -150,8 +150,8 @@ def test_duckdb_query_endpoint(test_client: TestClient):
 
 
 @pytest.mark.integration
-def test_r2_tree_endpoint(test_client: TestClient):
-    res = test_client.get("/api/r2/tree")
+def test_explorer_tree_endpoint(test_client: TestClient):
+    res = test_client.get("/api/explorer/tree")
     assert res.status_code == 200
     data = res.json()
     assert "bucket_name" in data
@@ -163,9 +163,9 @@ def test_r2_tree_endpoint(test_client: TestClient):
 
 
 @pytest.mark.integration
-def test_r2_preview_endpoint(test_client: TestClient):
+def test_explorer_preview_endpoint(test_client: TestClient):
     res = test_client.get(
-        "/api/r2/preview?key=gold/mining/association_rules.json"
+        "/api/explorer/preview?key=gold/mining/association_rules.json"
     )
     assert res.status_code == 200
     data = res.json()
@@ -182,11 +182,12 @@ def test_scheduler_status_and_toggle(test_client: TestClient):
     st = res.json()
     assert st["status"] == "ONLINE"
     assert "sources" in st
-    assert "arxiv" in st["sources"]
+    assert "tier1" in st["sources"] and "tier2" in st["sources"]
 
-    # 2. Toggle source
-    res_toggle = test_client.post("/api/scheduler/toggle/arxiv", json={"enabled": True})
+    # 2. Toggle source to its current state, so the test never pauses or unpauses a real Airflow DAG
+    enabled = bool(st["sources"]["tier1"].get("enabled"))
+    res_toggle = test_client.post("/api/scheduler/toggle/tier1", json={"enabled": enabled})
     assert res_toggle.status_code == 200
     toggle_data = res_toggle.json()
-    assert toggle_data["source"] == "arxiv"
-    assert toggle_data["enabled"] is True
+    assert toggle_data["source"] == "tier1"
+    assert toggle_data["enabled"] is enabled

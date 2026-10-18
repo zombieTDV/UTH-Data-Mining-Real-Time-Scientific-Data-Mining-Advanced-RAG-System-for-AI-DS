@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback, type FC } from 'react';
 import type { AppTheme } from '../types';
 import {
-  R2StorageHud,
-  R2FileTree,
-  R2FileInspector,
-  type R2FileItem,
+  ExplorerStorageHud,
+  ExplorerFileTree,
+  ExplorerFileInspector,
+  type ExplorerFileItem,
   type FilePreviewData,
-} from '../components/r2';
-import { fetchR2Tree, syncR2Bucket, fetchFilePreview, type R2TreeResponseData } from '../services/r2/r2.service';
+} from '../components/explorer';
+import { fetchExplorerTree, syncExplorerBucket, fetchFilePreview, type ExplorerTreeResponseData } from '../services/explorer/explorer.service';
 
-export interface R2ScreenProps {
+export interface ExplorerScreenProps {
   theme: AppTheme;
 }
 
-export const R2Screen: FC<R2ScreenProps> = () => {
-  const [treeData, setTreeData] = useState<R2TreeResponseData | null>(null);
-  const [selectedFile, setSelectedFile] = useState<R2FileItem | null>(null);
+export const ExplorerScreen: FC<ExplorerScreenProps> = () => {
+  const [treeData, setTreeData] = useState<ExplorerTreeResponseData | null>(null);
+  const [selectedFile, setSelectedFile] = useState<ExplorerFileItem | null>(null);
   const [previewData, setPreviewData] = useState<FilePreviewData | null>(null);
   const [isLoadingTree, setIsLoadingTree] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -30,7 +30,7 @@ export const R2Screen: FC<R2ScreenProps> = () => {
     const loadTree = async () => {
       try {
         setIsLoadingTree(true);
-        const data = await fetchR2Tree();
+        const data = await fetchExplorerTree();
         if (!isMounted) return;
         setTreeData(data);
 
@@ -45,7 +45,7 @@ export const R2Screen: FC<R2ScreenProps> = () => {
         }
       } catch (err: any) {
         if (!isMounted) return;
-        setTreeError(err?.message || 'Failed to load R2 manifest cache');
+        setTreeError(err?.message || 'Failed to load the MinIO inventory');
       } finally {
         if (isMounted) setIsLoadingTree(false);
       }
@@ -57,7 +57,7 @@ export const R2Screen: FC<R2ScreenProps> = () => {
     };
   }, []);
 
-  const handleSelectFile = useCallback(async (file: R2FileItem) => {
+  const handleSelectFile = useCallback(async (file: ExplorerFileItem) => {
     setSelectedFile(file);
     setIsLoadingPreview(true);
     setPreviewError(null);
@@ -76,7 +76,7 @@ export const R2Screen: FC<R2ScreenProps> = () => {
     setIsSyncing(true);
     setSyncNotice(null);
     try {
-      const freshData = await syncR2Bucket();
+      const freshData = await syncExplorerBucket();
       setTreeData(freshData);
       setSyncNotice(`Remote snapshot synchronized successfully (${freshData.total_objects.toLocaleString()} objects, ${freshData.total_size_gb.toFixed(2)} GB).`);
       setTimeout(() => setSyncNotice(null), 5000);
@@ -117,8 +117,8 @@ export const R2Screen: FC<R2ScreenProps> = () => {
             animation: 'spin 1s linear infinite',
           }}
         />
-        <div style={{ fontSize: '15px', fontWeight: 600 }}>Loading Cloudflare R2 Lakehouse Cache...</div>
-        <div style={{ fontSize: '12px', color: '#64748b' }}>Hydrating manifest from local disk snapshot (Zero S3 API cost)</div>
+        <div style={{ fontSize: '15px', fontWeight: 600 }}>Loading the MinIO lakehouse inventory...</div>
+        <div style={{ fontSize: '12px', color: '#64748b' }}>Listing the MinIO bucket (cached for a few minutes)</div>
       </div>
     );
   }
@@ -171,11 +171,11 @@ export const R2Screen: FC<R2ScreenProps> = () => {
       }}
     >
       {/* Top HUD Component */}
-      <R2StorageHud
-        bucketName={treeData?.bucket_name || 'uth-scientific-lakehouse'}
+      <ExplorerStorageHud
+        bucketName={treeData?.bucket_name ?? ''}
         totalSizeGb={treeData?.total_size_gb ?? 0}
         totalObjects={treeData?.total_objects || 11807}
-        freeTierQuotaGb={treeData?.free_tier_quota_gb || 10.0}
+        freeTierQuotaGb={treeData?.free_tier_quota_gb || 20.0}
         usedPercentage={treeData?.used_percentage || 47.7}
         lastSynced={treeData?.last_synced || 'Local Disk Snapshot'}
         isSyncing={isSyncing}
@@ -243,7 +243,7 @@ export const R2Screen: FC<R2ScreenProps> = () => {
             flexDirection: 'column',
           }}
         >
-          <R2FileTree
+          <ExplorerFileTree
             zones={treeData?.zones || {}}
             zoneStats={treeData?.zone_stats || {}}
             selectedKey={selectedFile?.key || null}
@@ -261,7 +261,7 @@ export const R2Screen: FC<R2ScreenProps> = () => {
             flexDirection: 'column',
           }}
         >
-          <R2FileInspector
+          <ExplorerFileInspector
             selectedFile={selectedFile}
             previewData={previewData}
             isLoading={isLoadingPreview}

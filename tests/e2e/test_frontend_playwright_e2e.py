@@ -68,7 +68,7 @@ def test_live_frontend_dashboard_ui(browser_context):
     page_text = page.inner_text("body")
     assert any(
         term in page_text
-        for term in ["Scientific", "Lakehouse", "Search", "R2", "Explorer", "Mining"]
+        for term in ["Scientific", "Lakehouse", "Search", "MinIO", "Explorer", "Mining"]
     )
 
     page.close()

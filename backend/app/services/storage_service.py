@@ -25,17 +25,30 @@ from backend.app.services.lake import lake
 logger = logging.getLogger("storage_service")
 
 GB = 1024**3
-FREE_TIER_QUOTA_GB = 10.0
+FREE_TIER_QUOTA_GB = settings.LAKEHOUSE_BUDGET_GB  # name kept for the API contract (free_tier_quota_gb)
 CACHE_TTL_SECONDS = 300
 
-ROW_COUNT_KEYS = {
-    "tier3": "silver/tier3/landmark_papers.parquet",
-    "tier2": "silver/tier2/near_past_papers.parquet",
-    "cvf": "silver/cvf/cvpr2024.parquet",
-    "openreview": "silver/openreview/openreview_all.parquet",
-    "openalex": "silver/openalex/openalex_all.parquet",
-    "zenodo": "silver/zenodo/zenodo_all.parquet",
-}
+SILVER_PREFIX = "silver/papers/"  # every tier lands here (year=YYYY/papers.parquet + parts/), told apart by the `tier` column
+
+
+def _silver_counts() -> Dict[str, Any]:
+    """Row counts per tier, non-arXiv rows and the parsed-formula total, read from the Silver `tier`,
+    `paper_id` and `total_math_count` columns only."""
+    out = {"total": 0, "tier1": 0, "tier2": 0, "tier3": 0, "non_arxiv": 0, "formulas": 0}
+    try:
+        t = lake.dataset(SILVER_PREFIX).to_table(columns=["tier", "paper_id", "total_math_count"])
+    except Exception as e:
+        logger.debug("[STORAGE] Silver not readable yet: %s", e)
+        return out
+    # A re-indexed paper has two rows until compaction folds them: count each paper once (its richest row)
+    df = t.to_pandas().sort_values("total_math_count").drop_duplicates("paper_id", keep="last")
+    out["total"] = len(df)
+    for tier, n in df["tier"].value_counts().items():
+        if tier in ("tier1", "tier2", "tier3"):
+            out[tier] = int(n)
+    out["non_arxiv"] = int(df["paper_id"].astype(str).str.startswith("s2_").sum())
+    out["formulas"] = int(df["total_math_count"].fillna(0).sum())
+    return out
 
 
 def _qdrant_count() -> int:
@@ -72,13 +85,13 @@ class StorageService:
             "archive": self._sum(objects, "archive/"),
             "silver_tables": sorted(o["key"][len("silver/"):] for o in objects if o["key"].startswith("silver/") and o["key"].endswith(".parquet") and "/parts/" not in o["key"]),
             "gold_tables": sorted(o["key"][len("gold/"):] for o in objects if o["key"].startswith("gold/") and o["key"].endswith(".parquet")),
-            "rows": {name: lake.parquet_rows(key) for name, key in ROW_COUNT_KEYS.items()},
-            "silver_papers_rows": sum(
-                lake.parquet_rows(o["key"]) for o in objects if o["key"].startswith("silver/papers/") and o["key"].endswith(".parquet")
-            ),
         }
-        registry = lake.get_json("manifests/lakehouse_abstract_hashes.json", ttl=CACHE_TTL_SECONDS) or {}
-        snap["dedup_hashes"] = int(registry.get("total_unique_hashes", len(registry.get("hashes", {}))))
+        counts = _silver_counts()
+        snap["rows"] = {"tier1": counts["tier1"], "tier2": counts["tier2"], "tier3": counts["tier3"], "non_arxiv": counts["non_arxiv"],
+                        "cvf": 0, "openreview": 0, "openalex": 0, "zenodo": 0}
+        snap["silver_papers_rows"] = counts["total"]
+        snap["formulas"] = counts["formulas"]
+        snap["dedup_hashes"] = counts["total"]  # unique papers = Silver rows (deduplicated by paper_id + abstract hash)
         snap["vectors"] = _qdrant_count()
         snap["last_synced"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return snap
@@ -115,8 +128,8 @@ class StorageService:
     def _source_breakdown(self, snap: Dict[str, Any]) -> SourceBreakdownDto:
         rows = snap["rows"]
         return SourceBreakdownDto(
-            arxiv=snap["silver_papers_rows"],
-            doi=0,
+            arxiv=snap["silver_papers_rows"] - rows["non_arxiv"],
+            doi=rows["non_arxiv"],  # classics not on arXiv (journal / conference records from Semantic Scholar)
             openalex=rows["openalex"],
             openreview=rows["openreview"],
             cvf=rows["cvf"],
@@ -124,7 +137,7 @@ class StorageService:
             total_deduplicated=snap["dedup_hashes"],
             tier1_landmark=rows["tier3"],  # field name kept for the frontend contract: it is the Tier 3 historical archive
             tier2_near_past=rows["tier2"],
-            active_rag_papers=rows["tier3"] + rows["tier2"] + snap["silver_papers_rows"],
+            active_rag_papers=snap["silver_papers_rows"],
             active_rag_vectors=snap["vectors"],
         )
 
@@ -185,9 +198,9 @@ class StorageService:
                 silverParquetSizeBytes=silver_b,
                 silverParquetSizeMb=round(silver_b / (1024**2), 2),
                 conferenceCount=conf_rows,
-                activeLanceDbVectors=snap["vectors"],  # field name kept for the frontend contract; backed by Qdrant
-                activeLanceDbSizeBytes=gold_b,
-                activeLanceDbSizeMb=round(gold_b / (1024**2), 2),
+                activeVectors=snap["vectors"],
+                activeVectorsSizeBytes=gold_b,
+                activeVectorsSizeMb=round(gold_b / (1024**2), 2),
                 sourceBreakdown=breakdown,
             ),
             backupStorage=BackupStorageDto(

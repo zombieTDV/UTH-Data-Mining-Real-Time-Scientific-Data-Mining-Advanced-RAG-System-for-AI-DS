@@ -72,7 +72,7 @@ class LakehouseIO:
         self,
         key: str,
         new_df: pd.DataFrame,
-        subset: Sequence[str] = ("abstract_hash",),
+        subset: Sequence[str] = ("paper_id",),
         schema: Optional[pa.Schema] = None,
     ) -> Dict[str, Any]:
         """Merge new rows into the Parquet at `key` (last write wins on `subset`)."""

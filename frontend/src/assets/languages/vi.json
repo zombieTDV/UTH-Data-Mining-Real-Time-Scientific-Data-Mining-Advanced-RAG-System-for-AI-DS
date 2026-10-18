@@ -223,7 +223,7 @@
     "totalObjects": "Tổng Objects",
     "totalSize": "Tổng Kích thước",
     "totalSizeGB": "Tổng Kích thước (GB)",
-    "freeTier": "Hạn mức Free",
+    "freeTier": "ngân sách ổ đĩa",
     "usedPercentage": "Phần trăm đã dùng",
     "bronzeCount": "Số Bronze",
     "bronzeSize": "Kích thước Bronze",
@@ -232,7 +232,7 @@
     "goldTables": "Bảng Gold",
     "goldChunks": "Chunks Gold",
     "goldSize": "Kích thước Gold",
-    "lancedbReady": "Qdrant Sẵn sàng",
+    "vectorStoreReady": "Qdrant Sẵn sàng",
     "parquetReady": "Parquet Sẵn sàng",
     "remoteIndices": "Chỉ mục Từ xa"
   },

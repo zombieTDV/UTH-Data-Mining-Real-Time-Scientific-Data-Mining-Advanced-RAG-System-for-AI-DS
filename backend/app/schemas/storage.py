@@ -9,7 +9,7 @@ class StorageZonesDto(BaseModel):
     openalexSizeBytes: int = Field(4264028211, examples=[4264028211])
     silverTables: List[str] = Field(..., examples=[["papers.parquet"]])
     silverSizeBytes: int = Field(..., examples=[331411456])
-    goldTables: List[str] = Field(..., examples=[["scientific_papers_gold.lance"]])
+    goldTables: List[str] = Field(..., examples=[["mining/clusters.json"]])
     goldChunkCount: int = Field(..., examples=[143523])
     goldSizeBytes: int = Field(..., examples=[127097720])
     goldBackupChunkCount: int = Field(28, examples=[28])
@@ -27,7 +27,7 @@ class SourceBreakdownDto(BaseModel):
     tier1_landmark: int = Field(3000, description="Tier 1 Landmark historical papers")
     tier2_near_past: int = Field(30100, description="Tier 2 Near-Past (2024-Present) papers")
     active_rag_papers: int = Field(33150, description="Active lakehouse papers (Tier 1 + Tier 2)")
-    active_rag_vectors: int = Field(40399, description="Active LanceDB vectors indexed with IVF-PQ")
+    active_rag_vectors: int = Field(40399, description="Vectors indexed in Qdrant (live count)")
 
 
 class ActiveLakehouseDto(BaseModel):
@@ -45,9 +45,9 @@ class ActiveLakehouseDto(BaseModel):
     silverParquetSizeBytes: int = Field(331411456, examples=[331411456])
     silverParquetSizeMb: float = Field(316.06, examples=[316.06])
     conferenceCount: int = Field(2000, examples=[2000])
-    activeLanceDbVectors: int = Field(143523, examples=[143523])
-    activeLanceDbSizeBytes: int = Field(127097720, examples=[127097720])
-    activeLanceDbSizeMb: float = Field(121.21, examples=[121.21])
+    activeVectors: int = Field(0, examples=[678000])
+    activeVectorsSizeBytes: int = Field(0)
+    activeVectorsSizeMb: float = Field(0.0)
     sourceBreakdown: Optional[SourceBreakdownDto] = None
 
 
@@ -55,7 +55,7 @@ class BackupStorageDto(BaseModel):
     totalObjects: int = Field(28, examples=[28])
     totalSizeBytes: int = Field(3295282176, examples=[3295282176])
     totalSizeGb: float = Field(3.069, examples=[3.069])
-    description: str = Field("Cloud Disaster Recovery LanceDB Snapshots & Vector Backups on R2")
+    description: str = Field("Archived snapshots under archive/ in MinIO")
 
 
 class TotalBucketDto(BaseModel):

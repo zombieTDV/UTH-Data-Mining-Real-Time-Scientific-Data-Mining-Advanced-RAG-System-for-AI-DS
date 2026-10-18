@@ -69,7 +69,6 @@ class StreamingService:
         self.airflow_ok = False
         self.scheduler_ok = False
         self.vectors = 0
-        self.registry_total = 0
         self.slow: Dict[str, Any] = {}
         self._slow_at = 0.0
         self._slow_dirty = True
@@ -204,10 +203,6 @@ class StreamingService:
         else:
             self.scheduler_ok = False
 
-        reg = lake.get_json("manifests/lakehouse_abstract_hashes.count.json", ttl=2)
-        if reg:
-            self.registry_total = int(reg.get("total", 0))
-
     def _poll_slow(self) -> None:
         """MinIO scan + Parquet footers (cached by storage_service); forced when new data landed."""
         from backend.app.services.storage_service import storage_service
@@ -216,10 +211,11 @@ class StreamingService:
         self.slow = {
             "storage_total_bytes": snap["total_bytes"],
             "storage_total_gb": round(snap["total_bytes"] / 1024**3, 3),
-            "storage_used_pct": min(100.0, round(snap["total_bytes"] / 1024**3 / 10.0 * 100, 2)),
+            "storage_used_pct": min(100.0, round(snap["total_bytes"] / 1024**3 / settings.LAKEHOUSE_BUDGET_GB * 100, 2)),
             "objects": snap["total_objects"],
             "rows": snap["rows"],
             "silver_papers_rows": snap["silver_papers_rows"],
+            "formulas": snap.get("formulas", 0),
             "last_synced": snap["last_synced"],
         }
         self._slow_at = time.time()
@@ -301,7 +297,7 @@ class StreamingService:
         rows = self.slow.get("rows", {})
         tier3 = rows.get("tier3", 0)
         tier2 = rows.get("tier2", 0)
-        tier1 = self.slow.get("silver_papers_rows", 0)
+        tier1 = rows.get("tier1", 0)
         return {
             "type": "SNAPSHOT",
             "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -312,7 +308,8 @@ class StreamingService:
             "airflow": {"reachable": self.airflow_ok, "scheduler_healthy": self.scheduler_ok, "dags": self.airflow_dags},
             "corpus": {
                 "vectors": self.vectors,
-                "papers": self.registry_total,
+                "papers": self.slow.get("silver_papers_rows", 0),
+                "formulas": self.slow.get("formulas", 0),
                 "tier1_rows": tier1, "tier2_rows": tier2, "tier3_rows": tier3,
                 "sources": {k: rows.get(k, 0) for k in ("cvf", "openreview", "zenodo", "openalex")},
             },

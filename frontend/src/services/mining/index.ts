@@ -4,7 +4,7 @@ export {
   triggerMiningPipeline,
   executeDuckDbQuery,
   searchLakehouse,
-  syncR2Storage,
+  syncStorage,
   resetStorageSession,
   fetchSchedulerStatus,
   triggerSchedulerHarvest,

@@ -3126,7 +3126,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     <strong>Khoảng cách Pearson vs Spearman (0.228 vs 0.483)</strong>: Phân phối số công thức tuân theo quy luật lũy thừa có đuôi dài cực đoan (Heavy-tailed Power Law), khiến Pearson bị nén. Kiểm định phi tham số Spearman phản ánh trung thực hơn quy luật đồng biến.
                   </li>
                   <li>
-                    <strong>Cơ sở cho LanceDB Vector Retrieval</strong>: Sự khác biệt cực kỳ lớn về mật độ toán và cấu trúc giữa các ngành khẳng định vai trò sống còn của việc phân cụm trước khi truy xuất RAG đa phương thức.
+                    <strong>Cơ sở cho Qdrant Vector Retrieval</strong>: Sự khác biệt cực kỳ lớn về mật độ toán và cấu trúc giữa các ngành khẳng định vai trò sống còn của việc phân cụm trước khi truy xuất RAG đa phương thức.
                   </li>
                 </ul>
               </div>
@@ -3181,7 +3181,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     RAG VECTOR LAKEHOUSE &amp; CONTEXT CHUNKING
                   </h3>
                   <span className="telemetry-chip" style={{ color: '#7c3aed' }}>
-                    LANCEDB GOLD · {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} VECTORS (IVF-PQ)
+                    QDRANT GOLD · {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} VECTORS (HNSW)
                   </span>
                 </div>
 
@@ -3245,7 +3245,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'IVF-PQ (K=1024, M=192)'}
+                  {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'Qdrant HNSW (cosine)'}
                 </div>
 
                 <ChartToolbar
@@ -3325,7 +3325,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   </div>
                 </div>
 
-                {/* LanceDB Lakehouse Grounding Note */}
+                {/* Qdrant grounding note */}
                 <div style={{ backgroundColor: isDark ? 'rgba(124, 58, 237, 0.12)' : '#f5f3ff', border: `1px solid ${isDark ? 'rgba(124, 58, 237, 0.25)' : '#ddd6fe'}`, borderRadius: '6px', padding: '6px 8px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#c084fc' : '#5b21b6' }}>
                   <div style={{ fontWeight: 800, marginBottom: '2px' }}>
                     KIẾN TRÚC VECTOR GROUNDING:
