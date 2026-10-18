@@ -181,7 +181,7 @@ class StreamingService:
             embed = q(settings.RABBITMQ_QUEUE_EMBED) or {}  # second stage: Silver records waiting for the model
             embed_dead = q(f"{settings.RABBITMQ_QUEUE_EMBED}.dead") or {}
             stage2 = {"embed_ready": embed.get("messages_ready", 0), "embed_unacked": embed.get("messages_unacknowledged", 0),
-                      "embed_consumers": embed.get("consumers", 0)}
+                      "embed_consumers": embed.get("consumers", 0), "embed_max": settings.EMBED_QUEUE_MAX}
             if main is None:
                 self.queue = {"status": "QUEUE_MISSING", "ready": 0, "unacked": 0, "consumers": 0, "dead": 0, **stage2}
             else:

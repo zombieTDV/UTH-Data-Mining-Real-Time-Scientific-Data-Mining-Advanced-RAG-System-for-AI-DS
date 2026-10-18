@@ -11,6 +11,7 @@ import {
 import { useLakehouseStreamStore } from '../../store';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { AnimatedCounter } from '../common/AnimatedCounter.component';
+import { AirflowNode, AirflowPanel, FlowConnector, RabbitPanel, RabbitQueueNode } from './PipelineInfraNodes.component';
 
 export type PipelineStageKey =
   | 'idle'
@@ -40,36 +41,89 @@ export interface ToolDetail {
 }
 
 export const TOOL_DETAILS_MAP: Record<string, ToolDetail> = {
+  'airflow-orchestrator': {
+    id: 'airflow-orchestrator',
+    name: 'Apache Airflow (Orchestrator)',
+    category: 'Workflow Scheduling',
+    role: 'Schedules the harvest DAGs; they only harvest metadata and publish it to RabbitMQ (single-writer design)',
+    engineVersion: 'Apache Airflow 2.10 (Docker, LocalExecutor, Asia/Ho_Chi_Minh timetables)',
+    badgeColor: '#0891b2',
+    status: 'ONLINE',
+    telemetrySummary: {
+      primaryMetric: 'DAGs',
+      secondaryMetric: 'Scheduler health',
+      latency: 'Cron timetables, no catch-up',
+      throughput: 'Batches of 1,000 with queue backpressure',
+    },
+    features: [
+      'Tier 1 at 19:00 ICT: every new arXiv paper from the RSS feeds, published in one go',
+      'Tier 2 at 19:10 ICT: CVF and arXiv take 1-hour turns, newest to 2024-01-01, inside the 20 GB budget',
+      'Tier 3 (one-off): the 3,000 most-cited AI / CV / NLP / Robotics papers from Semantic Scholar',
+      'Maintenance: Silver compaction daily 03:00, mining recompute weekly',
+    ],
+    samplePreviewTitle: 'DAG → queue contract',
+    sampleCodeOrSchema: `dag_tier1_realtime_stream    19:00 ICT  RSS          -> publish all
+dag_tier2_near_past_harvest  19:10 ICT  CVF <-> arXiv  -> 1,000 / batch, wait Q1 < 200
+dag_tier3_landmark_harvest   manual     Semantic Scholar -> 1,000 / batch
+dag_compact_silver           03:00 ICT  fold Silver parts into year files
+dag_recompute_mining         Sun 00:00  EDA + 4 mining pillars`,
+  },
+  'rabbitmq-broker': {
+    id: 'rabbitmq-broker',
+    name: 'RabbitMQ (2-stage work queues)',
+    category: 'Message Broker & Backpressure',
+    role: 'Decouples harvesting, full-text fetching and the embedding model so no stage waits on another',
+    engineVersion: 'RabbitMQ 3 (durable queues, publisher confirms, dead-letter queues)',
+    badgeColor: '#ea580c',
+    status: 'ONLINE',
+    telemetrySummary: {
+      primaryMetric: 'Queue depth',
+      secondaryMetric: 'Workers',
+      latency: 'Acked only after the stage output is durable',
+      throughput: 'Embed queue capped for the model',
+    },
+    features: [
+      'Q1 scientific_paper_ingest: harvested metadata, consumed by the fetch worker (HTML5 -> ar5iv -> abstract, Bronze, Silver)',
+      'Q2 scientific_chunk_embed: Silver records, consumed by the embed worker (chunk, Nomic 768-D, Qdrant)',
+      'Backpressure: the fetch worker pauses while Q2 is full; bulk DAGs wait for Q1 to drain between batches',
+      'Each queue retries its own failures and dead-letters them after 3 attempts: a paper in Silver is never fetched again',
+    ],
+    samplePreviewTitle: 'Message flow',
+    sampleCodeOrSchema: `Airflow DAG --metadata--> Q1 scientific_paper_ingest
+                              |  fetch worker (1)
+                              |  dedup (Silver) -> HTML -> Bronze -> Silver part
+                              v
+                         Q2 scientific_chunk_embed   (pauses fetch at 500)
+                              |  embed worker (1)
+                              |  chunk -> Nomic embed (1 call / batch) -> Qdrant
+                              v
+                         *.dead  after 3 retries`,
+  },
   'start-flow': {
     id: 'start-flow',
-    name: 'Source Ingest (arXiv HTML5 harvester)',
+    name: 'Source Ingest (federated harvesters)',
     category: 'Full-Text Ingestion Engine',
-    role: 'Harvests new arXiv papers (RSS and API) and fetches their full text from arXiv HTML5 / ar5iv, section by section',
-    engineVersion: 'Apache Airflow DAGs + RabbitMQ + arXiv RSS / API',
+    role: 'Harvesters for arXiv, CVF and Semantic Scholar; full text comes from arXiv HTML5 / ar5iv, section by section',
+    engineVersion: 'arXiv RSS + API · CVF open access · Semantic Scholar Graph API',
     badgeColor: '#7c3aed',
     status: 'SYNCED',
     telemetrySummary: {
       primaryMetric: 'Live corpus size',
-      secondaryMetric: 'Tier 1 live stream · Tier 2 near-past · Tier 3 historical archive',
-      latency: 'HTML5 first, abstract fallback (no PDFs)',
-      throughput: 'SHA-256 abstract-hash deduplication',
+      secondaryMetric: 'Tier 1 live stream · Tier 2 near-past · Tier 3 landmarks',
+      latency: 'HTML5 first, abstract fallback',
+      throughput: 'Dedup by paper_id or abstract SHA-256 against Silver',
     },
     features: [
-      'Tier 1 (04:50 ICT): every new arXiv paper per category, from the daily RSS or the API on non-announcement days',
-      'Tier 2 (05:00 ICT): 10,000 papers per run, newest first, walking back to 2024-01-01 with a persistent cursor',
-      'Tier 3: the historical archive, already harvested (never crawled again)',
-      'Full text from arXiv HTML5, then ar5iv, otherwise the abstract; raw HTML is vaulted in Bronze',
+      'Tier 1: arXiv RSS of cs.AI, cs.LG, cs.CV, cs.CL, stat.ML',
+      'Tier 2: CVF main conferences and workshops, plus arXiv day by day back to 2024-01-01',
+      'Tier 3: most-cited landmarks; open-access PDF (PyMuPDF) only for papers that are not on arXiv',
+      'A paper is skipped when its paper_id or abstract hash is already in Silver',
     ],
-    samplePreviewTitle: 'Harvest Flow (Airflow -> RabbitMQ -> worker)',
-    sampleCodeOrSchema: `dag_tier1_realtime_stream   04:50 ICT   RSS / API  -> publish to RabbitMQ
-dag_tier2_near_past_harvest 05:00 ICT   API (10k)   -> publish to RabbitMQ
-
-queue consumer (batch of 16):
-  1. dedup by abstract SHA-256        (skip papers already in the lakehouse)
-  2. resolve content                  (arXiv HTML5 -> ar5iv -> abstract)
-  3. Bronze: JSON + raw HTML          -> MinIO
-  4. Silver: parsed sections          -> Parquet part in MinIO
-  5. Gold: chunk + Nomic 768-D embed  -> Qdrant`,
+    samplePreviewTitle: 'Content resolution order',
+    sampleCodeOrSchema: `1. arXiv HTML5        https://arxiv.org/html/<id>
+2. ar5iv HTML5        https://ar5iv.labs.arxiv.org/html/<id>
+3. open-access PDF    Tier 3 papers without an arXiv id only
+4. abstract           fallback, still embedded`,
   },
   'bronze-instance': {
     id: 'bronze-instance',
@@ -388,6 +442,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Zoom that fits the whole pipeline (Airflow -> RAG) into the canvas width, never above 1:1
+  const fitZoom = () => {
+    const box = canvasRef.current;
+    const content = contentRef.current;
+    if (!box || !content || !content.scrollWidth) return 1;
+    // scrollWidth: the cards overflow the flex row, so offsetWidth would only report the viewport width
+    return Math.min(1, Math.max(0.4, parseFloat(((box.clientWidth - 48) / content.scrollWidth).toFixed(2))));
+  };
+  useEffect(() => {
+    setZoom(fitZoom());
+  }, []);
 
   // Native Wheel Event Listener for smooth zoom centered on mouse
   useEffect(() => {
@@ -451,7 +518,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     totalVectors,
     logs: storeLogs,
     triggerStorageSync,
+    live,
   } = useLakehouseStreamStore();
+
+  // Orchestration / messaging activity, straight from the monitor snapshot
+  const airflowActive = (live?.airflow?.dags ?? []).some((d) => d.running && d.kind === 'harvest');
+  const q = live?.queue;
+  const fetchFlowing = !!q && q.ready + q.unacked > 0 && q.consumers > 0; // Q1 -> fetch worker -> MinIO
+  const embedQueued = !!q && (q.embed_ready ?? 0) + (q.embed_unacked ?? 0) > 0; // Silver -> Q2
+  const embedFlowing = embedQueued && (q?.embed_consumers ?? 0) > 0; // Q2 -> embed worker -> Qdrant
 
   // Terminal logs: the backend's single ordered log buffer (Airflow, harvest DAGs, worker, RabbitMQ, Qdrant)
   const allTerminalLogs = useMemo(
@@ -532,7 +607,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const handleOpenInspector = (nodeId: string) => {
     setSelectedNodeId(nodeId);
     setDrawerOpen(true);
-    if (nodeId === 'start-flow') {
+    if (nodeId === 'start-flow' || nodeId === 'airflow-orchestrator' || nodeId.startsWith('rabbitmq')) {
       setBottomTab('control');
     }
   };
@@ -647,7 +722,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   };
 
 
-  const baseTool = TOOL_DETAILS_MAP[selectedNodeId] || TOOL_DETAILS_MAP['start-flow'];
+  const baseTool = TOOL_DETAILS_MAP[selectedNodeId.startsWith('rabbitmq') ? 'rabbitmq-broker' : selectedNodeId] || TOOL_DETAILS_MAP['start-flow'];
   const selectedTool = useMemo(() => {
     if (selectedNodeId === 'bronze-instance') {
       const totalGb = storageStats?.totalBucket?.totalSizeGb ?? storageUsedGb;
@@ -694,6 +769,30 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         }
       };
     }
+    if (selectedNodeId === 'airflow-orchestrator') {
+      const dags = live?.airflow?.dags ?? [];
+      return {
+        ...baseTool,
+        status: (live?.airflow?.reachable && live.airflow.scheduler_healthy ? 'ONLINE' : 'STANDBY') as ToolDetail['status'],
+        telemetrySummary: {
+          ...baseTool.telemetrySummary,
+          primaryMetric: `${dags.filter((d) => d.running).length} running · ${dags.filter((d) => d.paused).length} paused · ${dags.length} DAGs`,
+          secondaryMetric: live?.airflow?.reachable ? (live.airflow.scheduler_healthy ? 'Scheduler healthy' : 'Scheduler down') : 'Airflow unreachable',
+        },
+      };
+    }
+    if (selectedNodeId.startsWith('rabbitmq')) {
+      const qq = live?.queue;
+      return {
+        ...baseTool,
+        status: (qq?.status === 'HEALTHY' ? 'ACTIVE' : 'STANDBY') as ToolDetail['status'],
+        telemetrySummary: {
+          ...baseTool.telemetrySummary,
+          primaryMetric: `Q1 ${(qq?.ready ?? 0).toLocaleString()} · Q2 ${(qq?.embed_ready ?? 0).toLocaleString()} waiting`,
+          secondaryMetric: `fetch ×${qq?.consumers ?? 0} · embed ×${qq?.embed_consumers ?? 0} · dead ${qq?.dead ?? 0}`,
+        },
+      };
+    }
     if (selectedNodeId === 'start-flow') {
       const works = liveTotalWorks;
       return {
@@ -706,7 +805,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       };
     }
     return baseTool;
-  }, [baseTool, selectedNodeId, storageUsedGb, liveDoiCount, liveArxivCount, liveOpenReviewCount, liveCvfCount, liveZenodoCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveSilverMb, liveSilverPartitions]);
+  }, [baseTool, selectedNodeId, live, storageUsedGb, liveDoiCount, liveArxivCount, liveOpenReviewCount, liveCvfCount, liveZenodoCount, liveBatchesCount, streamSessionCount, storageStats, totalCorpus, liveTotalWorks, liveSilverMb, liveSilverPartitions]);
 
   return (
     <div
@@ -742,6 +841,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         }}
       >
         <div
+          ref={contentRef}
           style={{
             transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -130 : 0)}px) scale(${zoom})`,
             transformOrigin: 'center center',
@@ -749,9 +849,19 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             display: 'flex',
             alignItems: 'center',
             minWidth: '1280px',
+            flexShrink: 0, // keep the row as wide as its cards so scale() is centred on the whole pipeline
             padding: '10px',
           }}
         >
+          {/* STAGE 0: Apache Airflow orchestrator (Cyan) */}
+          <AirflowNode
+            live={live}
+            theme={themeStyles}
+            selected={selectedNodeId === 'airflow-orchestrator' && drawerOpen}
+            onClick={() => handleOpenInspector('airflow-orchestrator')}
+          />
+          <FlowConnector active={airflowActive} theme={themeStyles} rgb="8, 145, 178" head="#22d3ee" />
+
           {/* ============================================================== */}
           {/* STAGE 1: arXiv Harvester (Purple) */}
           {/* ============================================================== */}
@@ -984,6 +1094,16 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             )}
           </div>
 
+          {/* STAGE 1b: RabbitMQ Q1 (metadata -> fetch worker, which writes Bronze + Silver) */}
+          <RabbitQueueNode
+            stage="ingest"
+            live={live}
+            theme={themeStyles}
+            selected={selectedNodeId === 'rabbitmq-q1' && drawerOpen}
+            onClick={() => handleOpenInspector('rabbitmq-q1')}
+          />
+          <FlowConnector active={fetchFlowing} theme={themeStyles} rgb="234, 88, 12" head="#fb923c" />
+
           {/* ============================================================== */}
           {/* STAGE 2: MinIO Bronze lake (Magenta/Pink) */}
           {/* ============================================================== */}
@@ -1207,280 +1327,225 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           </div>
 
           {/* ============================================================== */}
-          {/* STAGE 3: DuckDB & LaTeX Normalizer (Amber) */}
+          {/* SILVER: Parquet on the write path; DuckDB hangs below it as the analytics reader */}
           {/* ============================================================== */}
-          <div
-            onClick={() => handleOpenInspector('review-duckdb')}
-            style={{
-              width: '240px',
-              backgroundColor: isStageActive('duckdb')
-                ? (isDark ? 'rgba(146, 64, 14, 0.35)' : '#fef3c7')
-                : themeStyles.cardBg,
-              borderRadius: '14px',
-              padding: '14px 16px',
-              border: isStageActive('duckdb')
-                ? '2px solid #f59e0b'
-                : selectedNodeId === 'review-duckdb' && drawerOpen
-                ? '2px solid #f59e0b'
-                : `1px solid ${themeStyles.cardBorder}`,
-              boxShadow: isStageActive('duckdb')
-                ? (isDark
-                    ? '0 0 32px rgba(245, 158, 11, 0.75), 0 0 12px rgba(251, 191, 36, 0.5)'
-                    : '0 0 24px rgba(217, 119, 6, 0.45), 0 4px 16px rgba(217, 119, 6, 0.2)')
-                : isDark
-                ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                : '0 4px 16px rgba(0, 0, 0, 0.05)',
-              animation: isStageActive('duckdb') ? 'stageGlowAmber 2.2s infinite ease-in-out' : 'none',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '9px',
-                    backgroundColor: '#f59e0b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ffffff',
-                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="18" height="18" rx="4" stroke="#ffffff" strokeWidth="2"/>
-                    <circle cx="9" cy="9" r="2.5" fill="#ffffff"/>
-                    <path d="M14 9c0 2-2 3.5-5 3.5M9 16c4 0 7-1.5 7-4.5" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706' }}>DuckDB</div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>In-Process OLAP</div>
-                </div>
-              </div>
-
-              <span style={{
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                color: isDark ? '#fbbf24' : '#d97706',
-                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.20)' : '#fef3c7',
-                border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : 'transparent'}`,
-                padding: '1px 5px',
-                borderRadius: '4px',
-              }}>
-                SIMD
-              </span>
-            </div>
-
-            <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                  <AnimatedCounter value={liveFormulas} />
-                </span>
-                <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  Formulas Parsed
-                </span>
-              </div>
-
-              {/* Visual Performance Chips */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                <span style={{
-                  fontSize: '9.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fef3c7',
-                  color: isDark ? '#fbbf24' : '#b45309',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}>
-                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-                  Zero-Copy Arrow
-                </span>
-
-                <span style={{
-                  fontSize: '9.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
-                  color: isDark ? '#34d399' : '#047857',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}>
-                  SIMD AVX-512
-                </span>
-
-                <span style={{
-                  fontSize: '9.5px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  padding: '2px 6px',
-                  borderRadius: '5px',
-                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-                  color: isDark ? '#60a5fa' : '#2563eb',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}>
-                  &lt;18ms Query
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            {/* PATH 1 (TOP): Apache Parquet (Green) */}
+            <div
+              onClick={() => handleOpenInspector('silver-parquet')}
               style={{
-                width: '100%',
-                marginTop: '10px',
-                padding: '4px 0',
-                border: `1px solid ${themeStyles.btnInspectBorder}`,
-                borderRadius: '6px',
-                backgroundColor: themeStyles.btnInspectBg,
-                color: themeStyles.btnInspectText,
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
+                width: '260px',
+                backgroundColor: isStageActive('parallel')
+                  ? (isDark ? 'rgba(6, 78, 59, 0.35)' : '#d1fae5')
+                  : themeStyles.cardBg,
+                borderRadius: '14px',
+                padding: '12px 16px',
+                border: isStageActive('parallel')
+                  ? '2px solid #10b981'
+                  : selectedNodeId === 'silver-parquet' && drawerOpen
+                  ? '2px solid #10b981'
+                  : `1px solid ${themeStyles.cardBorder}`,
+                boxShadow: isStageActive('parallel')
+                  ? (isDark
+                      ? '0 0 32px rgba(16, 185, 129, 0.75), 0 0 12px rgba(52, 211, 153, 0.5)'
+                      : '0 0 24px rgba(5, 150, 105, 0.45), 0 4px 16px rgba(5, 150, 105, 0.2)')
+                  : isDark
+                  ? '0 4px 16px rgba(0, 0, 0, 0.45)'
+                  : '0 4px 16px rgba(0, 0, 0, 0.05)',
+                animation: isStageActive('parallel') ? 'stageGlowEmerald 2.2s infinite ease-in-out' : 'none',
                 cursor: 'pointer',
+                transition: 'all 0.3s ease',
               }}
             >
-              INSPECT TOOL
-            </button>
-          </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '8px',
+                      backgroundColor: '#10b981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <rect x="3" y="4" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
+                      <rect x="13" y="4" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
+                      <rect x="3" y="13" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
+                      <rect x="13" y="13" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
+                    </svg>
+                  </div>
 
-          {/* Horizontal Connector 3 into Red Split Node */}
-          <div style={{
-            width: '36px',
-            height: '2px',
-            backgroundColor: isStageActive('duckdb') ? 'rgba(245, 158, 11, 0.4)' : themeStyles.wire,
-            position: 'relative',
-            flexShrink: 0,
-            overflow: 'hidden',
-            boxShadow: isStageActive('duckdb') ? '0 0 10px rgba(245, 158, 11, 0.6)' : 'none',
-            transition: 'all 0.3s ease',
-          }}>
-            {isStageActive('duckdb') && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  height: '100%',
-                  width: '30px',
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.4) 30%, #fbbf24 80%, #ffffff 100%)',
-                  boxShadow: '0 0 10px #fbbf24, 0 0 4px #ffffff',
-                  animation: 'laserDataStream 1.0s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-                }}
-              />
-            )}
-          </div>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#34d399' : '#047857' }}>Apache Parquet</div>
+                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Silver Columnar</div>
+                  </div>
+                </div>
 
-          {/* ============================================================== */}
-          {/* PARALLEL SPLIT NODE & PARALLEL BRANCHES (PARQUET & QDRANT) */}
-          {/* ============================================================== */}
-          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            {/* Red Fork Icon Badge */}
+                <span style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  color: isDark ? '#34d399' : '#059669',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5',
+                  border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent'}`,
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                }}>
+                  Snappy
+                </span>
+              </div>
+
+              <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
+                    <AnimatedCounter value={liveSilverMb} decimals={2} suffix=" MB" />
+                  </span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                    Silver Parquet
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  <span style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                    color: isDark ? '#34d399' : '#047857',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                    {liveSilverPartitions} Partitions
+                  </span>
+
+                  <span style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                    color: isDark ? '#60a5fa' : '#2563eb',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                    Snappy 4.2x
+                  </span>
+
+                  <span style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '5px',
+                    backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f3e8ff',
+                    color: isDark ? '#c084fc' : '#7c3aed',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                    PyArrow OLAP
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* read-only branch: DuckDB / EDA / mining query Silver, they are not on the write path */}
             <div
               style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '8px',
-                backgroundColor: '#ef4444',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.35)',
-                zIndex: 10,
-                flexShrink: 0,
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                width: '0',
+                height: '40px',
+                borderLeft: `2px dashed ${isStageActive('duckdb') ? 'rgba(245, 158, 11, 0.8)' : themeStyles.wire}`,
               }}
-              title="Parallel Fork: Columnar Storage & Vector Embeddings"
+            />
+            <span
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 13px)',
+                left: 'calc(50% + 8px)',
+                fontSize: '9.5px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                color: themeStyles.textMuted,
+                whiteSpace: 'nowrap',
+              }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <rect x="3" y="3" width="6" height="6" rx="1" />
-                <rect x="15" y="15" width="6" height="6" rx="1" />
-                <rect x="3" y="15" width="6" height="6" rx="1" />
-                <path d="M6 9v3a3 3 0 0 0 3 3h6" />
-              </svg>
-            </div>
-
-            {/* Split Horizontal-to-Vertical Wiring */}
-            <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '72px', left: '0', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? 'rgba(239, 68, 68, 0.7)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(239, 68, 68, 0.6)' : 'none' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: isStageActive('parallel') ? 'rgba(239, 68, 68, 0.7)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(239, 68, 68, 0.6)' : 'none' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? 'rgba(16, 185, 129, 0.8)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none' }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '14px', width: '14px', height: '2px', backgroundColor: isStageActive('parallel') ? 'rgba(37, 99, 235, 0.8)' : themeStyles.wire, boxShadow: isStageActive('parallel') ? '0 0 8px rgba(37, 99, 235, 0.6)' : 'none' }} />
-            </div>
-
-            {/* Parallel Cards: Apache Parquet (Top) & Qdrant (Bottom) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', flexShrink: 0 }}>
-              {/* PATH 1 (TOP): Apache Parquet (Green) */}
+              
+            </span>
+            <div style={{ position: 'absolute', top: 'calc(100% + 40px)', left: '50%', transform: 'translateX(-50%)' }}>
+              {/* ============================================================== */}
+              {/* STAGE 3: DuckDB & LaTeX Normalizer (Amber) */}
+              {/* ============================================================== */}
               <div
-                onClick={() => handleOpenInspector('silver-parquet')}
+                onClick={() => handleOpenInspector('review-duckdb')}
                 style={{
-                  width: '260px',
-                  backgroundColor: isStageActive('parallel')
-                    ? (isDark ? 'rgba(6, 78, 59, 0.35)' : '#d1fae5')
+                  width: '240px',
+                  backgroundColor: isStageActive('duckdb')
+                    ? (isDark ? 'rgba(146, 64, 14, 0.35)' : '#fef3c7')
                     : themeStyles.cardBg,
                   borderRadius: '14px',
-                  padding: '12px 16px',
-                  border: isStageActive('parallel')
-                    ? '2px solid #10b981'
-                    : selectedNodeId === 'silver-parquet' && drawerOpen
-                    ? '2px solid #10b981'
+                  padding: '14px 16px',
+                  border: isStageActive('duckdb')
+                    ? '2px solid #f59e0b'
+                    : selectedNodeId === 'review-duckdb' && drawerOpen
+                    ? '2px solid #f59e0b'
                     : `1px solid ${themeStyles.cardBorder}`,
-                  boxShadow: isStageActive('parallel')
+                  boxShadow: isStageActive('duckdb')
                     ? (isDark
-                        ? '0 0 32px rgba(16, 185, 129, 0.75), 0 0 12px rgba(52, 211, 153, 0.5)'
-                        : '0 0 24px rgba(5, 150, 105, 0.45), 0 4px 16px rgba(5, 150, 105, 0.2)')
+                        ? '0 0 32px rgba(245, 158, 11, 0.75), 0 0 12px rgba(251, 191, 36, 0.5)'
+                        : '0 0 24px rgba(217, 119, 6, 0.45), 0 4px 16px rgba(217, 119, 6, 0.2)')
                     : isDark
                     ? '0 4px 16px rgba(0, 0, 0, 0.45)'
                     : '0 4px 16px rgba(0, 0, 0, 0.05)',
-                  animation: isStageActive('parallel') ? 'stageGlowEmerald 2.2s infinite ease-in-out' : 'none',
+                  animation: isStageActive('duckdb') ? 'stageGlowAmber 2.2s infinite ease-in-out' : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
+                  flexShrink: 0,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div
                       style={{
-                        width: '34px',
-                        height: '34px',
-                        borderRadius: '8px',
-                        backgroundColor: '#10b981',
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '9px',
+                        backgroundColor: '#f59e0b',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
+                        boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
                         flexShrink: 0,
                       }}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <rect x="3" y="4" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
-                        <rect x="13" y="4" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
-                        <rect x="3" y="13" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
-                        <rect x="13" y="13" width="8" height="7" rx="1.5" stroke="#ffffff" strokeWidth="1.8"/>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="3" width="18" height="18" rx="4" stroke="#ffffff" strokeWidth="2"/>
+                        <circle cx="9" cy="9" r="2.5" fill="#ffffff"/>
+                        <path d="M14 9c0 2-2 3.5-5 3.5M9 16c4 0 7-1.5 7-4.5" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
                       </svg>
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#34d399' : '#047857' }}>Apache Parquet</div>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Silver Columnar</div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706' }}>DuckDB</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>In-Process OLAP</div>
                     </div>
                   </div>
 
@@ -1488,27 +1553,45 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
-                    color: isDark ? '#34d399' : '#059669',
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5',
-                    border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent'}`,
+                    color: isDark ? '#fbbf24' : '#d97706',
+                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.20)' : '#fef3c7',
+                    border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : 'transparent'}`,
                     padding: '1px 5px',
                     borderRadius: '4px',
                   }}>
-                    Snappy
+                    SIMD
                   </span>
                 </div>
 
-                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
-                      <AnimatedCounter value={liveSilverMb} decimals={2} suffix=" MB" />
+                <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
+                      <AnimatedCounter value={liveFormulas} />
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                      Silver Parquet
+                      Formulas Parsed
                     </span>
                   </div>
 
+                  {/* Visual Performance Chips */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    <span style={{
+                      fontSize: '9.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '5px',
+                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fef3c7',
+                      color: isDark ? '#fbbf24' : '#b45309',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+                      Zero-Copy Arrow
+                    </span>
+
                     <span style={{
                       fontSize: '9.5px',
                       fontFamily: 'var(--font-mono)',
@@ -1522,8 +1605,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       alignItems: 'center',
                       gap: '4px',
                     }}>
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                      {liveSilverPartitions} Partitions
+                      SIMD AVX-512
                     </span>
 
                     <span style={{
@@ -1539,184 +1621,176 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       alignItems: 'center',
                       gap: '4px',
                     }}>
-                      Snappy 4.2x
-                    </span>
-
-                    <span style={{
-                      fontSize: '9.5px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '5px',
-                      backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f3e8ff',
-                      color: isDark ? '#c084fc' : '#7c3aed',
-                      border: '1px solid rgba(168, 85, 247, 0.3)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}>
-                      PyArrow OLAP
+                      &lt;18ms Query
                     </span>
                   </div>
                 </div>
-              </div>
 
-              {/* PATH 2 (BOTTOM): Qdrant & 4 Pillars (Blue) */}
-              <div
-                onClick={() => handleOpenInspector('gold-qdrant')}
-                style={{
-                  width: '260px',
-                  backgroundColor: isStageActive('parallel')
-                    ? (isDark ? 'rgba(30, 58, 138, 0.35)' : '#dbeafe')
-                    : themeStyles.cardBg,
-                  borderRadius: '14px',
-                  padding: '12px 16px',
-                  border: isStageActive('parallel')
-                    ? '2px solid #3b82f6'
-                    : selectedNodeId === 'gold-qdrant' && drawerOpen
-                    ? '2px solid #2563eb'
-                    : `1px solid ${themeStyles.cardBorder}`,
-                  boxShadow: isStageActive('parallel')
-                    ? (isDark
-                        ? '0 0 32px rgba(59, 130, 246, 0.75), 0 0 12px rgba(96, 165, 250, 0.5)'
-                        : '0 0 24px rgba(37, 99, 235, 0.45), 0 4px 16px rgba(37, 99, 235, 0.2)')
-                    : isDark
-                    ? '0 4px 16px rgba(0, 0, 0, 0.45)'
-                    : '0 4px 16px rgba(0, 0, 0, 0.05)',
-                  animation: isStageActive('parallel') ? 'stageGlowBlue 2.2s infinite ease-in-out' : 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
-                      style={{
-                        width: '34px',
-                        height: '34px',
-                        borderRadius: '8px',
-                        backgroundColor: '#2563eb',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#ffffff',
-                        boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <polygon points="12 2 21 7 21 17 12 22 3 17 3 7" stroke="#ffffff" strokeWidth="1.8" strokeLinejoin="round"/>
-                        <polyline points="3 7 12 12 21 7" stroke="#ffffff" strokeWidth="1.5"/>
-                      </svg>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#60a5fa' : '#1d4ed8' }}>Qdrant Vectors</div>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Gold Vector Store</div>
-                    </div>
-                  </div>
-
-                  <span style={{
+                <button
+                  type="button"
+                  style={{
+                    width: '100%',
+                    marginTop: '10px',
+                    padding: '4px 0',
+                    border: `1px solid ${themeStyles.btnInspectBorder}`,
+                    borderRadius: '6px',
+                    backgroundColor: themeStyles.btnInspectBg,
+                    color: themeStyles.btnInspectText,
                     fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
-                    color: isDark ? '#60a5fa' : '#2563eb',
-                    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.20)' : '#eff6ff',
-                    border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.35)' : 'transparent'}`,
-                    padding: '1px 5px',
-                    borderRadius: '4px',
-                  }}>
-                    Nomic AI
-                  </span>
-                </div>
-
-                <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
-                      <AnimatedCounter value={liveVectors} />
-                    </span>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                      Gold Vectors
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    <span style={{
-                      fontSize: '9.5px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '5px',
-                      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.18)' : '#eff6ff',
-                      color: isDark ? '#60a5fa' : '#2563eb',
-                      border: '1px solid rgba(37, 99, 235, 0.3)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}>
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
-                      768-dim Nomic
-                    </span>
-
-                    <span style={{
-                      fontSize: '9.5px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '5px',
-                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
-                      color: isDark ? '#34d399' : '#047857',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}>
-                      HNSW ANN
-                    </span>
-
-                    <span style={{
-                      fontSize: '9.5px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '5px',
-                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
-                      color: isDark ? '#fbbf24' : '#b45309',
-                      border: '1px solid rgba(245, 158, 11, 0.3)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}>
-                      NVMe Cached
-                    </span>
-                  </div>
-                </div>
+                    cursor: 'pointer',
+                  }}
+                >
+                  INSPECT TOOL
+                </button>
               </div>
             </div>
+          </div>
 
-            {/* Merge Horizontal-to-Vertical Wiring */}
-            <div style={{ width: '28px', height: '144px', position: 'relative', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.85)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.7)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', bottom: '18px', left: '0', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.85)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.7)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', top: '18px', left: '14px', width: '2px', height: '108px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.85)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.7)' : 'none', transition: 'all 0.3s ease' }} />
-              <div style={{ position: 'absolute', top: '72px', left: '14px', width: '14px', height: '2px', backgroundColor: (isStageActive('parallel') || isGroundedRagReady) ? 'rgba(99, 102, 241, 0.85)' : themeStyles.wire, boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 8px rgba(99, 102, 241, 0.7)' : 'none', transition: 'all 0.3s ease' }} />
+          {/* STAGE 4: RabbitMQ Q2 (Silver records -> embed worker) */}
+          <FlowConnector active={embedQueued} theme={themeStyles} rgb="16, 185, 129" head="#34d399" />
+          <RabbitQueueNode
+            stage="embed"
+            live={live}
+            theme={themeStyles}
+            selected={selectedNodeId === 'rabbitmq-q2' && drawerOpen}
+            onClick={() => handleOpenInspector('rabbitmq-q2')}
+          />
+          <FlowConnector active={embedFlowing} theme={themeStyles} rgb="234, 88, 12" head="#fb923c" />
+
+          {/* GOLD: Qdrant */}
+          {/* PATH 2 (BOTTOM): Qdrant & 4 Pillars (Blue) */}
+          <div
+            onClick={() => handleOpenInspector('gold-qdrant')}
+            style={{
+              width: '260px',
+              backgroundColor: isStageActive('parallel')
+                ? (isDark ? 'rgba(30, 58, 138, 0.35)' : '#dbeafe')
+                : themeStyles.cardBg,
+              borderRadius: '14px',
+              padding: '12px 16px',
+              border: isStageActive('parallel')
+                ? '2px solid #3b82f6'
+                : selectedNodeId === 'gold-qdrant' && drawerOpen
+                ? '2px solid #2563eb'
+                : `1px solid ${themeStyles.cardBorder}`,
+              boxShadow: isStageActive('parallel')
+                ? (isDark
+                    ? '0 0 32px rgba(59, 130, 246, 0.75), 0 0 12px rgba(96, 165, 250, 0.5)'
+                    : '0 0 24px rgba(37, 99, 235, 0.45), 0 4px 16px rgba(37, 99, 235, 0.2)')
+                : isDark
+                ? '0 4px 16px rgba(0, 0, 0, 0.45)'
+                : '0 4px 16px rgba(0, 0, 0, 0.05)',
+              animation: isStageActive('parallel') ? 'stageGlowBlue 2.2s infinite ease-in-out' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '8px',
+                    backgroundColor: '#2563eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <polygon points="12 2 21 7 21 17 12 22 3 17 3 7" stroke="#ffffff" strokeWidth="1.8" strokeLinejoin="round"/>
+                    <polyline points="3 7 12 12 21 7" stroke="#ffffff" strokeWidth="1.5"/>
+                  </svg>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#60a5fa' : '#1d4ed8' }}>Qdrant Vectors</div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Gold Vector Store</div>
+                </div>
+              </div>
+
+              <span style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                color: isDark ? '#60a5fa' : '#2563eb',
+                backgroundColor: isDark ? 'rgba(37, 99, 235, 0.20)' : '#eff6ff',
+                border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.35)' : 'transparent'}`,
+                padding: '1px 5px',
+                borderRadius: '4px',
+              }}>
+                Nomic AI
+              </span>
             </div>
 
-            {/* Convergence Anchor Ring */}
-            <div
-              style={{
-                width: '22px',
-                height: '22px',
-                borderRadius: '50%',
-                backgroundColor: isDark ? '#0b0f19' : '#ffffff',
-                border: (isStageActive('parallel') || isGroundedRagReady) ? '4px solid #6366f1' : '4px solid #ea580c',
-                boxShadow: (isStageActive('parallel') || isGroundedRagReady) ? '0 0 18px rgba(99, 102, 241, 0.95), 0 0 8px #818cf8' : '0 2px 6px rgba(234, 88, 12, 0.3)',
-                flexShrink: 0,
-                zIndex: 10,
-                transition: 'all 0.4s ease',
-              }}
-              title="Parallel Convergence Anchor"
-            />
+            <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'var(--font-mono)' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary }}>
+                  <AnimatedCounter value={liveVectors} />
+                </span>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                  Gold Vectors
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.18)' : '#eff6ff',
+                  color: isDark ? '#60a5fa' : '#2563eb',
+                  border: '1px solid rgba(37, 99, 235, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
+                  768-dim Nomic
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5',
+                  color: isDark ? '#34d399' : '#047857',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  HNSW ANN
+                </span>
+
+                <span style={{
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '5px',
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                  color: isDark ? '#fbbf24' : '#b45309',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  NVMe Cached
+                </span>
+              </div>
+            </div>
+          </div>
 
             {/* Final Horizontal Connector into Grounded RAG */}
             <div style={{
@@ -1925,7 +1999,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 INSPECT TOOL
               </button>
             </div>
-          </div>
         </div>
       </div>
 
@@ -2850,6 +2923,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </div>
                 )}
 
+                {/* Orchestration & messaging: live tables */}
+                {selectedTool.id === 'airflow-orchestrator' && <AirflowPanel live={live} theme={themeStyles} />}
+                {selectedTool.id === 'rabbitmq-broker' && <RabbitPanel live={live} theme={themeStyles} />}
+
                 {/* 4. MinIO controls */}
                 {selectedTool.id === 'bronze-instance' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
@@ -3753,7 +3830,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         <button
           type="button"
           onClick={() => {
-            setZoom(1.0);
+            setZoom(fitZoom());
             setPan({ x: 0, y: 0 });
           }}
           title="Reset Zoom & Pan (100%)"
@@ -3799,7 +3876,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         <button
           type="button"
           onClick={() => {
-            setZoom(1.0);
+            setZoom(fitZoom());
             setPan({ x: 0, y: 0 });
           }}
           title="Reset to Center"

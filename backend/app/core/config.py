@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     RABBITMQ_MGMT_URL: str
     RABBITMQ_QUEUE_INGEST: str = "scientific_paper_ingest"
     RABBITMQ_QUEUE_EMBED: str = "scientific_chunk_embed"
+    EMBED_QUEUE_MAX: int = 500  # same env var as the worker: the fetch stage pauses at this embed-queue depth
 
     # Apache Airflow REST API (DAG monitoring and control)
     AIRFLOW_API_URL: str
