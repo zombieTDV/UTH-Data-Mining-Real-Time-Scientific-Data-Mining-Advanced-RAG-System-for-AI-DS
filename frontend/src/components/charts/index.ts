@@ -14,3 +14,5 @@ export { ChartToolbar } from './ChartToolbar.component';
 export type { ChartToolbarProps } from './ChartToolbar.component';
 export { GeometricTelemetryGauges } from './GeometricTelemetryGauges.component';
 export type { GeometricTelemetryGaugesProps } from './GeometricTelemetryGauges.component';
+export { AxisTitle, ChartLegend } from './ChartAxes.component';
+export type { AxisTitleProps, ChartLegendProps, LegendItem } from './ChartAxes.component';

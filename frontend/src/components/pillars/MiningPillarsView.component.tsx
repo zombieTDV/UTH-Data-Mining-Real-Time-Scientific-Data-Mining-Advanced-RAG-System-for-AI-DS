@@ -15,6 +15,7 @@ import {
   fetchTrends,
 } from '../../services';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
+import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
 import { useSvgPanZoom } from '../../hooks';
 
 export interface MiningPillarsViewProps {
@@ -112,8 +113,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   const [trendsData, setTrendsData] = useState<TrendsResponse | null>(null);
   const [hoveredAnomaly, setHoveredAnomaly] = useState<{ item: any; x: number; y: number } | null>(null);
   const [inspectedAnomaly, setInspectedAnomaly] = useState<any | null>(null);
-  const p4VelocityPanZoom = useSvgPanZoom({ nominalWidth: 520, nominalHeight: 220, minZoom: 0.5, maxZoom: 3.5 });
-  const p4AnomalyPanZoom = useSvgPanZoom({ nominalWidth: 460, nominalHeight: 210, minZoom: 0.5, maxZoom: 3.5 });
+  const p4VelocityPanZoom = useSvgPanZoom({ nominalWidth: 520, nominalHeight: 226, minZoom: 0.5, maxZoom: 3.5 });
+  const p4AnomalyPanZoom = useSvgPanZoom({ nominalWidth: 460, nominalHeight: 222, minZoom: 0.5, maxZoom: 3.5 });
 
   const maxVelocityPapers = useMemo(() => {
     if (!trendsData?.trend_velocity || trendsData.trend_velocity.length === 0) return 800;
@@ -1203,6 +1204,22 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   />
                 </div>
 
+                <div style={{ marginBottom: '6px', flexShrink: 0 }}>
+                  <ChartLegend
+                    title="Màu & cỡ bóng = hệ số Lift:"
+                    items={[
+                      { label: `Rất mạnh (≥ ${(maxLiftInCorpus * 0.7).toFixed(1)}x)`, color: '#dc2626', mark: 'dot' },
+                      { label: `Mạnh (≥ ${(maxLiftInCorpus * 0.3).toFixed(1)}x)`, color: '#ea580c', mark: 'dot' },
+                      { label: 'Khá (≥ 2.5x)', color: '#f59e0b', mark: 'dot' },
+                      { label: 'Vừa (< 2.5x)', color: '#3b82f6', mark: 'dot' },
+                      { label: 'Bán kính tỉ lệ log(Lift)', color: '#64748b', mark: 'size' },
+                      { label: 'Vùng quy tắc vàng (Conf ≥ 35%, Lift ≥ 2.5x)', color: '#10b981', mark: 'area' },
+                      { label: 'Ngưỡng độc lập (Lift = 1.0x)', color: '#ef4444', mark: 'dashed' },
+                    ]}
+                    note="Mỗi bóng = 1 luật kết hợp A → B"
+                  />
+                </div>
+
                 {/* SVG Bubble Chart Canvas */}
                 <div
                   {...p1PanZoom.containerProps}
@@ -1290,7 +1307,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         })}
 
                         {/* X-axis ticks (Support 0% to maxSupportInCorpus) */}
-                        {[0.2, 0.4, 0.6, 0.8, 1.0].map((frac) => {
+                        {[0, 0.2, 0.4, 0.6, 0.8, 1.0].map((frac) => {
                           const supPct = +(maxSupportInCorpus * 100 * frac).toFixed(1);
                           const x = 55 + frac * 645;
                           return (
@@ -1372,6 +1389,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       stroke={themeStyles.axisLine}
                       strokeWidth="1.2"
                     />
+                    <AxisTitle axis="y" x={16} y={132} text="Độ tin cậy Confidence P(B|A) (%)" fontSize={10} />
+                    <AxisTitle axis="x" x={378} y={266} text="Độ phổ biến Support P(A ∩ B) (%)" fontSize={10} />
 
                     {/* Bubbles */}
                     {filteredRules.map((rule, idx) => {
@@ -2100,12 +2119,28 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   style={{
                     fontSize: '10px',
                     color: themeStyles.textSecondary,
-                    marginBottom: '8px',
+                    marginBottom: '6px',
                     fontFamily: 'var(--font-mono)',
                     flexShrink: 0,
                   }}
                 >
                   Chiếu giảm chiều Truncated SVD từ 768 chiều &bull; Nhấp vào hạt để mở Deep Dive
+                </div>
+
+                <div style={{ marginBottom: '6px', flexShrink: 0 }}>
+                  <ChartLegend
+                    title="Màu chấm = cụm chủ đề K-Means:"
+                    items={[
+                      ...[0, 1, 2, 3, 4, 5].map((cid) => ({
+                        label: `C#${cid} ${CLUSTER_TOPIC_MAP[cid]?.shortTitle || ''}`,
+                        color: clusterColors[cid],
+                        mark: 'dot' as const,
+                      })),
+                      { label: 'Tâm cụm & biên mật độ (khi lọc cụm)', color: '#38bdf8', mark: 'ring' },
+                      { label: 'Vòng đẳng cự chuẩn hóa (r = 0.5, 1.0)', color: '#64748b', mark: 'dashed' },
+                    ]}
+                    note="Mỗi chấm = 1 bài báo"
+                  />
                 </div>
 
                 {/* SVG 2D Canvas */}
@@ -2162,6 +2197,46 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       stroke={themeStyles.gridLine}
                       strokeWidth={0.006 / p2PanZoom.zoom}
                       strokeDasharray="0.02 0.02"
+                    />
+                    {[-1.0, -0.5, 0.5, 1.0].map((v) => (
+                      <g key={`svd-tick-${v}`}>
+                        <text
+                          x={v}
+                          y={0.055 / p2PanZoom.zoom}
+                          textAnchor="middle"
+                          fontSize={0.038 / p2PanZoom.zoom}
+                          fontFamily="var(--font-mono)"
+                          fill={themeStyles.textMuted}
+                          style={{ pointerEvents: 'none', userSelect: 'none' }}
+                        >
+                          {v.toFixed(1)}
+                        </text>
+                        <text
+                          x={-0.035 / p2PanZoom.zoom}
+                          y={-v + 0.012 / p2PanZoom.zoom}
+                          textAnchor="end"
+                          fontSize={0.038 / p2PanZoom.zoom}
+                          fontFamily="var(--font-mono)"
+                          fill={themeStyles.textMuted}
+                          style={{ pointerEvents: 'none', userSelect: 'none' }}
+                        >
+                          {v.toFixed(1)}
+                        </text>
+                      </g>
+                    ))}
+                    <AxisTitle
+                      axis="y"
+                      x={-1.12}
+                      y={0}
+                      text="Trục tiềm ẩn SVD-2 (chuẩn hóa từ 768 chiều)"
+                      fontSize={0.07 / p2PanZoom.zoom}
+                    />
+                    <AxisTitle
+                      axis="x"
+                      x={0}
+                      y={1.13}
+                      text="Trục tiềm ẩn SVD-1 (chuẩn hóa từ 768 chiều)"
+                      fontSize={0.07 / p2PanZoom.zoom}
                     />
 
                         {/* Cluster Density Contour when a cluster is selected */}
@@ -2824,12 +2899,30 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   style={{
                     fontSize: '10px',
                     color: themeStyles.textSecondary,
-                    marginBottom: '8px',
+                    marginBottom: '6px',
                     fontFamily: 'var(--font-mono)',
                     flexShrink: 0,
                   }}
                 >
                   Bán kính: PageRank &bull; Màu: Louvain Community &bull; Rê chuột để kích hoạt Ego-Network
+                </div>
+
+                <div style={{ marginBottom: '6px', flexShrink: 0 }}>
+                  <ChartLegend
+                    title="Chú giải đồ thị:"
+                    items={[
+                      ...[0, 1, 2, 3, 4, 5].map((cid) => ({
+                        label: `Cộng đồng #${cid}`,
+                        color: clusterColors[cid],
+                        mark: 'dot' as const,
+                      })),
+                      { label: 'Bán kính nút = điểm PageRank', color: '#7c3aed', mark: 'size' },
+                      { label: 'Đồng tác giả cùng cộng đồng', color: '#64748b', mark: 'line' },
+                      { label: 'Cầu nối liên cộng đồng (Bridge)', color: '#ec4899', mark: 'dashed' },
+                      { label: 'Mạng cá nhân Ego-Network (khi chọn)', color: '#a855f7', mark: 'ring' },
+                    ]}
+                    note="Mỗi nút = 1 tác giả"
+                  />
                 </div>
 
                 {/* SVG Graph Canvas */}
@@ -2852,6 +2945,17 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     viewBox={p3PanZoom.viewBox}
                     style={{ width: '100%', height: '100%' }}
                   >
+                    <AxisTitle
+                      axis="x"
+                      x={290}
+                      y={312}
+                      text={
+                        graphLayout === 'circular'
+                          ? 'Không gian đồ thị đồng tác giả (bố cục vòng cung phân cụm theo 6 cộng đồng Louvain)'
+                          : 'Không gian đồ thị đồng tác giả (bố cục lực hướng tâm theo 6 cộng đồng Louvain)'
+                      }
+                      fontSize={10}
+                    />
                     {/* Edges with Ego-network and Inter-community bridge highlighting */}
                     {graphData.graph_export.links.slice(0, 160).map((link, idx) => {
                       const srcNode = graphData.graph_export.nodes.find((n) => n.id === link.source);
@@ -3512,12 +3616,23 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   style={{
                     fontSize: '10px',
                     color: themeStyles.textSecondary,
-                    marginBottom: '8px',
+                    marginBottom: '6px',
                     fontFamily: 'var(--font-mono)',
                     flexShrink: 0,
                   }}
                 >
                   Cột Xám: Quý trước &bull; Cột Xanh: Quý gần nhất &bull; Nhãn: Tỷ lệ % tăng tốc
+                </div>
+
+                <div style={{ marginBottom: '6px', flexShrink: 0 }}>
+                  <ChartLegend
+                    items={[
+                      { label: 'Số bài quý trước', color: '#64748b', mark: 'bar' },
+                      { label: 'Số bài quý gần nhất (tăng / ổn định)', color: '#2563eb', mark: 'bar' },
+                      { label: 'Số bài quý gần nhất (suy giảm)', color: '#ef4444', mark: 'bar' },
+                      { label: 'Nhãn % trên đỉnh = tốc độ tăng trưởng QoQ', color: '#10b981', mark: 'ring' },
+                    ]}
+                  />
                 </div>
 
                 {/* SVG Clustered Column Chart */}
@@ -3578,6 +3693,16 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       stroke={themeStyles.axisLine}
                       strokeWidth="1"
                     />
+                    <line
+                      x1="45"
+                      y1="55"
+                      x2="45"
+                      y2="180"
+                      stroke={themeStyles.axisLine}
+                      strokeWidth="1"
+                    />
+                    <AxisTitle axis="y" x={12} y={118} text="Số bài báo trong quý" fontSize={10} />
+                    <AxisTitle axis="x" x={272} y={216} text="Chuyên mục arXiv (6 mục biến động mạnh nhất)" fontSize={10} />
 
                     {/* Clustered Bars */}
                     {trendsData.trend_velocity.slice(0, 6).map((trend, idx) => {
@@ -3708,7 +3833,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        marginBottom: '8px',
+                        marginBottom: '6px',
                         flexShrink: 0,
                       }}
                     >
@@ -3754,6 +3879,17 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         showBaselines={showBaselines}
                         onToggleBaselines={() => setShowBaselines((prev) => !prev)}
                         onShowToast={showToast}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '6px', flexShrink: 0 }}>
+                      <ChartLegend
+                        items={[
+                          { label: 'Bài báo dị biệt (Isolation Forest)', color: '#ef4444', mark: 'dot' },
+                          { label: 'Vòng hào quang = đang chọn chẩn đoán', color: '#ef4444', mark: 'ring' },
+                          { label: 'Vùng ngoại lai P99 (Score > 0.85)', color: '#ef4444', mark: 'area' },
+                        ]}
+                        note="Mỗi chấm = 1 bài báo ngoại lai"
                       />
                     </div>
 
@@ -3857,6 +3993,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           stroke={themeStyles.axisLine}
                           strokeWidth="1.2"
                         />
+                        <AxisTitle axis="y" x={10} y={105} text="Số công thức toán (eq)" fontSize={10} />
+                        <AxisTitle axis="x" x={235} y={215} text="Độ dài bài báo (tổng số từ)" fontSize={10} />
 
                         {/* Outlier Dots */}
                         {trendsData.anomalies.map((anom, idx) => {

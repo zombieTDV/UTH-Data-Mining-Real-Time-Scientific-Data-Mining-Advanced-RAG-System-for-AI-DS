@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from '
 import type { EdaResponse, CategoryDistItem } from '../../types';
 import { fetchEdaSummary } from '../../services';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
+import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
+import { DistributionView } from './DistributionView.component';
 import { useSvgPanZoom } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { ThreeLensesDiagnosticView } from './ThreeLensesDiagnosticView.component';
 
-export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
+export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit' | 'distribution';
 
 export interface ScatterPaperPoint {
   id: string;
@@ -422,6 +424,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       else if (e.key === '4') setActiveDeck('authors');
       else if (e.key === '5') setActiveDeck('correlations');
       else if (e.key === '6') setActiveDeck('rag_audit');
+      else if (e.key === '7') setActiveDeck('distribution');
       else if (e.key === 'f' || e.key === 'F') setIsFocusMode((prev) => !prev);
       else if (e.key === 'Escape') setSelectedPaperForDrawer(null);
     };
@@ -483,7 +486,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
 
   const temporalAggregatedPoints = useMemo(() => {
     const rawDist = data?.temporal_distribution || [];
-    const total = data?.dataset_overview.total_papers || 100000;
+    const total = data?.dataset_overview.total_papers || 1;
 
     const yearCounts: Record<string, number> = {};
     for (const item of rawDist) {
@@ -496,11 +499,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
     }
 
     const rawPoints = [
-      { label: "'22", count: yearCounts['2022'] || 11246 },
-      { label: "'23", count: yearCounts['2023'] || 17739 },
-      { label: "'24", count: yearCounts['2024'] || 22965 },
-      { label: "'25", count: yearCounts['2025'] || 18302 },
-      { label: "'26", count: yearCounts['2026'] || 29727 },
+      { label: "'22", count: yearCounts['2022'] ?? 0 },
+      { label: "'23", count: yearCounts['2023'] ?? 0 },
+      { label: "'24", count: yearCounts['2024'] ?? 0 },
+      { label: "'25", count: yearCounts['2025'] ?? 0 },
+      { label: "'26", count: yearCounts['2026'] ?? 0 },
     ];
 
     const effectivePoints = temporalSmoothing
@@ -518,7 +521,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
       : rawPoints;
 
     const maxC = Math.max(...effectivePoints.map((p) => p.count), 1);
-    const yCeil = Math.max(10000, Math.ceil(maxC / 5000) * 5000);
+    // The axis has 3 equal steps: pick a round step (1-2-5 series) so every tick label is a readable number
+    const stepMag = 10 ** Math.floor(Math.log10(Math.max(1, maxC / 3)));
+    const yCeil = 3 * ([1, 2, 5, 10].map((m) => m * stepMag).find((v) => v * 3 >= maxC) ?? maxC);
     const stepX = 360 / (effectivePoints.length - 1);
 
     const points = effectivePoints.map((p, idx) => ({
@@ -1108,6 +1113,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
             { id: 'authors' as DeckType, label: 'TOP AUTHORS & QUANTILES', keyNum: '4' },
             { id: 'correlations' as DeckType, label: 'CORRELATIONS & ANOVA', keyNum: '5' },
             { id: 'rag_audit' as DeckType, label: 'RAG QUALITY AUDIT', keyNum: '6' },
+            { id: 'distribution' as DeckType, label: 'PHÂN BỐ: SCATTER & HISTOGRAM', keyNum: '7' },
           ].map((deck) => {
             const isActive = activeDeck === deck.id;
             return (
@@ -1152,7 +1158,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         {/* Hotkey hint */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-          <span>Phím 1-6 chuyển góc nhìn &bull; Phím F thu gọn HUD &bull; Escape đóng chi tiết</span>
+          <span>Phím 1-7 chuyển góc nhìn &bull; Phím F thu gọn HUD &bull; Escape đóng chi tiết</span>
         </div>
       </div>
 
@@ -1379,6 +1385,17 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 </div>
               </div>
 
+              <div style={{ padding: '4px 4px 0' }}>
+                <ChartLegend
+                  items={[
+                    { label: 'Số bài báo (cột, màu theo chuyên mục, trục trái)', color: '#2563eb', mark: 'bar' },
+                    { label: 'Tổng công thức toán (trục phải)', color: '#ea580c', mark: 'dashed' },
+                    { label: 'Tỷ lệ bài tích lũy % (Pareto)', color: '#10b981', mark: 'line' },
+                    { label: 'Mốc 80%', color: '#10b981', mark: 'dashed' },
+                  ]}
+                />
+              </div>
+
               {/* SVG DUAL-AXIS COMBO CHART */}
               <div
                 {...comboPanZoom.containerProps}
@@ -1417,6 +1434,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                   })}
 
                   <line x1="60" y1="235" x2="860" y2="235" stroke={themeStyles.axisLine} strokeWidth="1" />
+                  <AxisTitle axis="y" x={14} y={135} text={scaleMode === 'linear' ? 'Số bài báo' : 'Số bài báo (log10)'} />
+                  <AxisTitle axis="y2" x={910} y={135} text="Số công thức toán" color="#ea580c" />
+                  <AxisTitle axis="x" x={460} y={284} text="Chuyên mục arXiv (8 mục nhiều bài nhất)" />
 
                   {categoryList.slice(0, 8).map((cat, i) => {
                     const barX = 90 + i * 95;
@@ -1704,10 +1724,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                       TĂNG TRƯỞNG THEO THỜI GIAN
                     </h3>
                   </div>
-
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb', backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#eff6ff', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
-                    EXPONENTIAL
-                  </span>
                 </div>
 
                 {/* Row 2: Metadata & Controls Deck */}
@@ -1726,7 +1742,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                      Đỉnh điểm {temporalAggregatedPoints.peakPoint.count.toLocaleString()} bài ({temporalAggregatedPoints.peakPoint.label}) &bull; Chuỗi lũy tiến
+                      Đỉnh điểm {temporalAggregatedPoints.peakPoint.count.toLocaleString()} bài ({temporalAggregatedPoints.peakPoint.label}) &bull; Số bài theo từng năm
                     </div>
 
                     {/* Temporal Smoothing Switch */}
@@ -1809,6 +1825,15 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                     />
                 </div>
 
+                <div style={{ padding: '0 4px 4px' }}>
+                  <ChartLegend
+                    items={[
+                      { label: temporalSmoothing ? 'Số bài mỗi năm (làm mịn 3 điểm)' : 'Số bài mỗi năm', color: '#2563eb', mark: 'line' },
+                      { label: 'Năm nhiều bài nhất', color: '#2563eb', mark: 'bar' },
+                    ]}
+                  />
+                </div>
+
                 {/* SVG AREA CHART */}
                 <div
                   {...timelinePanZoom.containerProps}
@@ -1839,14 +1864,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
                           return (
                             <g key={g}>
                               <line x1="40" y1={y} x2="430" y2={y} stroke={themeStyles.gridLine} strokeDasharray="3 3" />
-                              <text x="34" y={y + 3} textAnchor="end" fontSize="10" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
-                                {val.toLocaleString()}
+                              <text x="36" y={y + 3} textAnchor="end" fontSize="10" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>
+                                {val >= 1000 ? `${(val / 1000).toFixed(val % 1000 ? 1 : 0)}k` : val}
                               </text>
                             </g>
                           );
                         })}
 
                         <line x1="40" y1="180" x2="430" y2="180" stroke={themeStyles.axisLine} strokeWidth="1" />
+                        <AxisTitle axis="y" x={9} y={108} text="Số bài công bố" fontSize={10} />
+                        <AxisTitle axis="x" x={235} y={216} text="Năm công bố (theo ngày nộp)" fontSize={10} />
 
                         {(() => {
                           const points = temporalAggregatedPoints.points;
@@ -3137,6 +3164,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag }) =
         {/* ------------------------------------------------------------ */}
         {/* SUB-DECK 6: RAG VECTOR LAKEHOUSE & DATA QUALITY AUDIT        */}
         {/* ------------------------------------------------------------ */}
+        {activeDeck === 'distribution' && data && (
+          <DistributionView data={data} theme={theme} />
+        )}
+
         {activeDeck === 'rag_audit' && (
           <div
             style={{
