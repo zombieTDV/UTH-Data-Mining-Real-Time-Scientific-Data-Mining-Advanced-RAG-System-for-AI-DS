@@ -33,8 +33,11 @@ async def lifespan(app: FastAPI):
     logger.info("[STARTUP] MinIO S3: %s (Bucket: %s)", settings.MINIO_ENDPOINT_URL, settings.MINIO_BUCKET_NAME)
     logger.info("[STARTUP] Context Window: %d tokens", settings.LLM_CONTEXT_WINDOW)
 
-    # Preload LLM model into Apple Silicon Metal GPU memory immediately on startup
-    llm_client.preload()
+    # Preload LLM model into Apple Silicon Metal GPU memory immediately on startup (LLM_PRELOAD=false skips it)
+    if settings.LLM_PRELOAD:
+        llm_client.preload()
+    else:
+        logger.info("[STARTUP] LLM_PRELOAD=false: the local LLM is not loaded at startup.")
 
     logger.info("================================================================================")
     from backend.app.services.streaming_service import streaming_service

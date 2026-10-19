@@ -155,10 +155,12 @@ def wait_for_queue_room(tier: str, low: int = HARVEST_LOW_WATER, poll_seconds: i
     while (depth := queue_depth()) > low:
         if not announced:
             emit("INFO", "BACKPRESSURE", f"Ingest queue holds {depth:,} papers: harvesting paused until it drops to {low:,}.", tier=tier)
+            logger.info("[%s] Ingest queue holds %d papers: waiting until it drops to %d", tier.upper(), depth, low)
             announced = True
         time.sleep(poll_seconds)
     if announced:
         emit("INFO", "BACKPRESSURE", f"Ingest queue drained after {(time.time() - t0) / 60:.0f} min: harvesting resumes.", tier=tier)
+        logger.info("[%s] Ingest queue drained after %.0f min: harvesting resumes", tier.upper(), (time.time() - t0) / 60)
     return time.time() - t0
 
 

@@ -42,6 +42,9 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 logger = logging.getLogger("QueueConsumer")
 
 RETRY_HEADER = "x-retries"
+# A BlockingConnection cannot answer heartbeats while a micro-batch is being fetched or embedded, and an embed batch
+# on a busy MPS device can outlast RabbitMQ's default 60 s; a longer heartbeat keeps the broker from dropping us.
+HEARTBEAT_SECONDS = 600
 
 
 def _year_of(paper: Dict[str, Any]) -> str:
@@ -392,7 +395,9 @@ class QueueConsumer:
             "embed": (self._handle_embed, self.embed_queue, self.embed_dead_queue),
         }[self.stage]
 
-        conn = pika.BlockingConnection(pika.URLParameters(self.amqp_url))
+        params = pika.URLParameters(self.amqp_url)
+        params.heartbeat = HEARTBEAT_SECONDS
+        conn = pika.BlockingConnection(params)
         channel = conn.channel()
         for q in (self.queue_name, self.dead_queue, self.embed_queue, self.embed_dead_queue):
             channel.queue_declare(queue=q, durable=True)
@@ -448,7 +453,8 @@ class QueueConsumer:
                 if len(pending) >= self.batch_size:
                     flush()
         finally:
-            flush()
+            if conn.is_open:  # after a lost connection the unacked batch is redelivered: do not process it here
+                flush()
             try:
                 channel.cancel()
                 conn.close()
@@ -461,7 +467,18 @@ class QueueConsumer:
         except ImportError:
             logger.error("pika is required for the queue consumer: pip install pika")
             return
-        self.run_pika()
+        from pika.exceptions import AMQPChannelError, AMQPConnectionError
+
+        # Reconnect after a dropped connection instead of dying: unacked messages go back to the queue, and every
+        # stage is idempotent (Silver dedup, Qdrant upsert by id), so redelivery is safe
+        while self._running:
+            try:
+                self.run_pika()
+                return
+            except (AMQPConnectionError, AMQPChannelError) as e:
+                logger.warning("[Worker] RabbitMQ connection lost (%s): reconnecting in 5 s", e)
+                self._emit_log("WARN", "WORKER", f"Stage {self.stage}: RabbitMQ connection lost, reconnecting.")
+                time.sleep(5)
 
 
 if __name__ == "__main__":

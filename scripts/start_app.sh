@@ -59,12 +59,13 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM EXIT
 
-# 1. Start RabbitMQ Queue Consumer in Background
-echo -e "\n${CYAN}[1/3] Starting RabbitMQ Ingestion Worker...${RESET}"
-"${PYTHON_BIN}" -m src.ingestion.queue_consumer &
-PIDS+=($!)
-CONSUMER_PID=$!
-echo -e "${GREEN}[✓] Queue Consumer active (PID: ${CONSUMER_PID})${RESET}"
+# 1. Start the two RabbitMQ ingestion stages in Background (fetch: ingest queue -> Silver, embed: embed queue -> Qdrant)
+echo -e "\n${CYAN}[1/3] Starting RabbitMQ Ingestion Workers...${RESET}"
+for stage in fetch embed; do
+    "${PYTHON_BIN}" -m src.ingestion.queue_consumer --stage "${stage}" &
+    PIDS+=($!)
+    echo -e "${GREEN}[✓] ${stage} worker active (PID: $!)${RESET}"
+done
 
 # 2. Start FastAPI Backend Server
 echo -e "\n${CYAN}[2/3] Starting FastAPI Backend on http://0.0.0.0:8000...${RESET}"
