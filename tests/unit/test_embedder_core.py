@@ -120,3 +120,30 @@ def test_embedder_service_lazy_init_and_query():
     vec = svc.embed_query("diffusion models")
     assert vec is not None
     assert pytest.approx(np.linalg.norm(np.array(vec)), rel=1e-5) == 1.0
+
+
+@pytest.mark.unit
+def test_embedder_service_lru_cache():
+    svc = EmbedderService()
+    svc.device = torch.device("cpu")
+    svc._ready = True
+    svc.tokenizer = MagicMock()
+    svc.model = MagicMock()
+
+    raw_vec = torch.tensor([[[2.0, 0.0, 0.0]]])
+    svc.model.return_value = (raw_vec,)
+    svc.tokenizer.return_value = BatchEncoding({
+        "attention_mask": torch.tensor([[1]]),
+        "input_ids": torch.tensor([[1]]),
+    })
+
+    # First call runs model
+    vec1 = svc.embed_query("reinforcement learning")
+    assert vec1 is not None
+    assert svc.model.call_count == 1
+
+    # Second identical call must hit LRU cache without invoking model or tokenizer
+    vec2 = svc.embed_query("reinforcement learning")
+    assert vec2 == vec1
+    assert svc.model.call_count == 1
+

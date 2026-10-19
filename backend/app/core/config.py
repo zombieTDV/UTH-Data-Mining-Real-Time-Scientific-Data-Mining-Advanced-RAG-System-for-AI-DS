@@ -118,7 +118,8 @@ class Settings(BaseSettings):
     RERANKER_MODEL_NAME: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     RERANKER_FALLBACK_MODEL: str = "BAAI/bge-reranker-base"
     RERANKER_TOP_K: int = 5
-    RERANKER_CANDIDATE_K: int = 15
+    RERANKER_CANDIDATE_K: int = 8
+    RERANKER_MAX_LENGTH: int = 256
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE) if ENV_FILE.exists() else None,

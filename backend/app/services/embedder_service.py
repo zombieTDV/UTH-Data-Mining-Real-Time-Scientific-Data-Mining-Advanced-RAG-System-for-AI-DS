@@ -5,6 +5,7 @@ Local Embedding Service for Dense Retrieval wrapping Nomic Embed Text v1.5.
 Provides 768-dimensional normalized dense vectors matching the Qdrant Gold collection (768-D).
 """
 
+from collections import OrderedDict
 import logging
 from pathlib import Path
 from typing import List, Optional
@@ -26,6 +27,8 @@ class EmbedderService:
         self.model = None
         self.device = None
         self._ready = False
+        self._query_cache: OrderedDict = OrderedDict()
+        self._cache_max_size: int = 1024
 
     def _lazy_init(self):
         if self._ready:
@@ -69,12 +72,25 @@ class EmbedderService:
 
     def embed_query(self, query: str) -> Optional[List[float]]:
         """Generates a 768-dimensional L2-normalized embedding for a search query (with search_query: prefix)."""
+        clean_q = query.strip()
+        if not clean_q:
+            return None
+
+        if not hasattr(self, "_query_cache"):
+            self._query_cache = OrderedDict()
+            self._cache_max_size = 1024
+
+        # Check in-memory LRU cache
+        if clean_q in self._query_cache:
+            self._query_cache.move_to_end(clean_q)
+            return list(self._query_cache[clean_q])
+
         self._lazy_init()
         if not self._ready or self.model is None or self.tokenizer is None:
             return None
 
         try:
-            formatted_query = f"search_query: {query.strip()}"
+            formatted_query = f"search_query: {clean_q}"
             inputs = self.tokenizer(
                 [formatted_query],
                 padding=True,
@@ -91,7 +107,13 @@ class EmbedderService:
                 sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
                 emb = sum_embeddings / sum_mask
                 emb = F.normalize(emb, p=2, dim=1).cpu().tolist()[0]
-                return emb
+
+                # Store in LRU cache
+                self._query_cache[clean_q] = emb
+                if len(self._query_cache) > self._cache_max_size:
+                    self._query_cache.popitem(last=False)
+
+                return list(emb)
         except Exception as e:
             logger.error("[EMBEDDER] Error embedding query: %s", str(e))
             return None

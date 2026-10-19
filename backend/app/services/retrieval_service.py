@@ -233,10 +233,31 @@ class RetrievalService:
         return cleaned
 
     def _search_title_matches(self, cleaned_title: str) -> List[dict]:
-        """Finds papers whose title closely matches the user's intent in the Silver catalogs."""
+        """Finds papers whose title closely matches the user's intent in the Silver catalogs.
+        Guarded against conversational queries to prevent expensive WAN Parquet scans."""
         if not cleaned_title or len(cleaned_title) < 4:
             return []
-        return lake.search_titles(cleaned_title)
+
+        # Check if the title is explicitly quoted
+        m_quote = re.search(r"[\"']([^\"']{4,})[\"']", cleaned_title)
+        if m_quote:
+            search_term = m_quote.group(1).strip()
+        else:
+            search_term = cleaned_title.strip()
+            # If not quoted, skip long multi-word questions (> 6 words) or conversational interrogatives
+            words = search_term.split()
+            if len(words) > 6:
+                return []
+            lower_term = search_term.lower()
+            question_starters = ("what ", "how ", "why ", "which ", "who ", "when ", "is there ", "are there ")
+            if any(lower_term.startswith(q) for q in question_starters):
+                return []
+
+        try:
+            return lake.search_titles(search_term)
+        except Exception as e:
+            logger.debug("[RETRIEVAL] Title search error: %s", e)
+            return []
 
     def search(self, req: SearchRequest) -> List[ChunkDto]:
         if not self.is_ready():

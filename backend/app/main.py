@@ -39,6 +39,23 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("[STARTUP] LLM_PRELOAD=false: the local LLM is not loaded at startup.")
 
+    # Pre-warm Embedding Model, CrossEncoder Reranker, and Mining Graph/Rules
+    try:
+        from backend.app.services.embedder_service import embedder_service
+        from backend.app.services.reranker_service import reranker_service
+        from backend.app.services.retrieval_service import retrieval_service
+
+        logger.info("[STARTUP] Pre-warming embedding model...")
+        embedder_service._lazy_init()
+        if settings.RERANKER_ENABLED:
+            logger.info("[STARTUP] Pre-warming CrossEncoder reranker...")
+            reranker_service._lazy_init()
+        logger.info("[STARTUP] Pre-warming retrieval graph and association rules...")
+        retrieval_service._ensure_graph_and_rules()
+        logger.info("[STARTUP] [SUCCESS] All neural models and graph artifacts pre-warmed successfully.")
+    except Exception as e:
+        logger.warning("[STARTUP] [WARN] Pre-warm encountered non-fatal error: %s", str(e))
+
     logger.info("================================================================================")
     from backend.app.services.streaming_service import streaming_service
 

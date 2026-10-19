@@ -101,11 +101,12 @@ class RerankerService:
                 passage = f"{title_prefix}{section_prefix}{c.text}"
                 pairs.append([query, passage])
 
+            max_len = getattr(settings, "RERANKER_MAX_LENGTH", 256)
             inputs = self.tokenizer(
                 pairs,
                 padding=True,
                 truncation=True,
-                max_length=512,
+                max_length=max_len,
                 return_tensors="pt",
             ).to(self.device)
 
