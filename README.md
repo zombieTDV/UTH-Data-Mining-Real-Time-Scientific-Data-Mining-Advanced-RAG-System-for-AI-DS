@@ -165,9 +165,79 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-### Bước 3: Khởi chạy 1-Click Toàn Hệ Thống
+### Bước 3: Khởi Chạy Từng Phân Hệ Riêng Biệt (FE, BE & LLM Service)
 
-Dự án cung cấp sẵn kịch bản khởi chạy đồng bộ **Backend + Ingestion Consumer + Frontend Dashboard** chỉ với 1 lệnh duy nhất:
+Bạn có thể chạy toàn bộ hệ thống bằng kịch bản tự động hoặc mở từng terminal để kiểm soát độc lập từng phân hệ:
+
+#### 1. Khởi chạy LLM Service (Bộ Não Suy Luận RAG)
+Hệ thống hỗ trợ 4 chế độ LLM với cơ chế tự động chuyển đổi dự phòng (Automatic Fallback):
+
+- **Cách 1: Sử dụng Ollama (Khuyến nghị cho phát triển cục bộ)**:
+  ```bash
+  # Tải và chạy mô hình Qwen2.5-7B Instruct
+  ollama run qwen2.5:7b-instruct
+  # Ollama sẽ lắng nghe mặc định tại: http://localhost:11434 (Backend tự động phát hiện)
+  ```
+
+- **Cách 2: Sử dụng llama-server (llama.cpp) với tập tin GGUF**:
+  ```bash
+  # Khởi chạy server OpenAI-compatible từ binary llama.cpp
+  ./llama-server \
+    -m models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf \
+    --port 9001 \
+    --ctx-size 16384 \
+    --n-gpu-layers -1
+  ```
+
+- **Cách 3: Chạy Node-Llama-CPP Microservice**:
+  ```bash
+  node dist/apps/llm-service/apps/llm-service/src/main.js
+  # Lắng nghe tại: http://localhost:9001 (OpenAI-compatible /v1/chat/completions)
+  ```
+
+- **Cách 4: Sử dụng Cloud API (Groq Cloud - Tốc độ cực cao)**:
+  ```bash
+  # Cấu hình API key trong file .env
+  GROQ_API_KEY=gsk_your_groq_api_key_here
+  # Backend sẽ tự động failover sang Llama-3.3-70B-Versatile trên Groq khi không có LLM cục bộ
+  ```
+
+#### 2. Khởi chạy Backend API (FastAPI)
+```bash
+# Kích hoạt môi trường ảo
+source .venv/bin/activate   # Trên Windows: .venv\Scripts\activate
+
+# Khởi chạy FastAPI server trên cổng 8000
+python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+# API Docs (Swagger): http://localhost:8000/docs
+```
+
+#### 3. Khởi chạy RabbitMQ Ingestion Workers (Background Consumers)
+```bash
+# Terminal 1 - Stage 1 (Fetch HTML & ghi Silver Parquet):
+python -m src.ingestion.queue_consumer --stage fetch
+
+# Terminal 2 - Stage 2 (Nhúng vector & nạp Gold Qdrant):
+python -m src.ingestion.queue_consumer --stage embed
+```
+
+#### 4. Khởi chạy Frontend Dashboard (React 19 + Vite)
+```bash
+cd frontend
+
+# Cài đặt thư viện dependencies (nếu chạy lần đầu)
+npm install
+
+# Khởi chạy Vite Dev Server trên cổng 5173
+npm run dev
+# Dashboard giao diện: http://localhost:5173
+```
+
+---
+
+### Bước 4: Khởi Chạy 1-Click Toàn Hệ Thống (All-in-One Script)
+
+Dự án cung cấp sẵn kịch bản khởi chạy đồng bộ **Backend + Ingestion Consumers + Frontend Dashboard** chỉ với 1 lệnh duy nhất:
 
 ```bash
 chmod +x scripts/start_app.sh
