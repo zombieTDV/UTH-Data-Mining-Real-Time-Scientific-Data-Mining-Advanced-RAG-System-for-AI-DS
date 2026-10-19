@@ -3,10 +3,10 @@
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev/)
-[![MinIO](https://img.shields.io/badge/Storage-MinIO%20S3-C72C48.svg)](https://min.io/)
-[![Qdrant](https://img.shields.io/badge/VectorDB-Qdrant%20HNSW-DC2626.svg)](https://qdrant.tech/)
-[![RabbitMQ](https://img.shields.io/badge/MessageQueue-RabbitMQ%20AMQP-FF6600.svg)](https://www.rabbitmq.com/)
-[![Apache Airflow](https://img.shields.io/badge/Orchestrator-Airflow%202.10-017CEE.svg)](https://airflow.apache.org/)
+[![MinIO](<https://img.shields.io/badge/Storage-MinIO%20S3-C72C48.svg>)](https://min.io/)
+[![Qdrant](<https://img.shields.io/badge/VectorDB-Qdrant%20HNSW-DC2626.svg>)](https://qdrant.tech/)
+[![RabbitMQ](<https://img.shields.io/badge/MessageQueue-RabbitMQ%20AMQP-FF6600.svg>)](https://www.rabbitmq.com/)
+[![Apache Airflow](<https://img.shields.io/badge/Orchestrator-Airflow%202.10-017CEE.svg>)](https://airflow.apache.org/)
 
 Hệ thống Khai thác Dữ liệu Nghiên cứu Khoa học Thời gian thực và Truy xuất Tri thức Tăng cường (Advanced RAG Lakehouse) phục vụ chuyên ngành Trí tuệ Nhân tạo & Khoa học Dữ liệu (AI/DS) — Đồ án môn **Khai phá Dữ liệu (Data Mining)** tại **Trường Đại học Giao thông Vận tải TP.HCM (UTH)**.
 
@@ -73,6 +73,7 @@ flowchart TD
 ```
 
 ### Các Tầng Dữ liệu Medallion:
+
 1. **Bronze Zone (`s3://uth-scientific-lakehouse/bronze/papers/YYYY/`)**: Lưu trữ nguyên bản JSON metadata và HTML5 học thuật cào từ arXiv/ar5iv với mã băm bảo toàn nội dung SHA-256.
 2. **Silver Zone (`s3://uth-scientific-lakehouse/silver/papers/year=YYYY/`)**: Dữ liệu chuẩn hóa dạng cột nén Apache Parquet (`zstd`), lưu trữ cấu trúc mục, tác giả, danh mục và hàng triệu công thức toán LaTeX. Truy vấn trực tiếp bằng DuckDB và PyArrow với predicate pushdown.
 3. **Gold Zone**:
@@ -85,11 +86,11 @@ flowchart TD
 
 Hệ thống được điều phối tự động bởi **Apache Airflow 2.10.2** với múi giờ chuẩn Việt Nam (`Asia/Ho_Chi_Minh - ICT`):
 
-| Tầng Pipeline | Tần suất Lập lịch | Nguồn & Phương thức | Mục đích & Trách nhiệm |
-| :--- | :--- | :--- | :--- |
-| **Tier 1: Real-Time Stream** | **Hàng ngày lúc 02:00 AM ICT** | arXiv RSS Feeds (`cs.AI`, `cs.LG`, `cs.CV`, `cs.CL`, `stat.ML`) | Bắt kịp các công trình nghiên cứu vừa công bố trong 24h qua. Đẩy lập tức vào RabbitMQ để nhúng vector phục vụ câu hỏi thời sự. |
-| **Tier 2: Near-Past Harvest** | **Hàng ngày lúc 02:10 AM ICT** | arXiv OAI-PMH (`resumptionToken` pagination) | Cào khối lượng lớn **10.000 bài báo** từ các năm gần nhất (2024–2026), tự phân mảnh Parquet và tự phục hồi dữ liệu từ MinIO. |
-| **Tier 3: Historical Archive** | Thủ công / Định kỳ theo quý | OpenAlex, Semantic Scholar & Zenodo | Lưu trữ các công trình nền tảng kinh điển (Foundation Papers như *Attention Is All You Need*, *ResNet*, *BERT*) để xây dựng đồ thị trích dẫn xương sống. |
+| Tầng Pipeline                       | Tần suất Lập lịch                   | Nguồn & Phương thức                                                   | Mục đích & Trách nhiệm                                                                                                                                                          |
+| :----------------------------------- | :-------------------------------------- | :------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tier 1: Real-Time Stream**   | **Hàng ngày lúc 02:00 AM ICT** | arXiv RSS Feeds (`cs.AI`, `cs.LG`, `cs.CV`, `cs.CL`, `stat.ML`) | Bắt kịp các công trình nghiên cứu vừa công bố trong 24h qua. Đẩy lập tức vào RabbitMQ để nhúng vector phục vụ câu hỏi thời sự.                               |
+| **Tier 2: Near-Past Harvest**  | **Hàng ngày lúc 02:10 AM ICT** | arXiv OAI-PMH (`resumptionToken` pagination)                            | Cào khối lượng lớn **10.000 bài báo** từ các năm gần nhất (2024–2026), tự phân mảnh Parquet và tự phục hồi dữ liệu từ MinIO.                            |
+| **Tier 3: Historical Archive** | Thủ công / Định kỳ theo quý       | OpenAlex, Semantic Scholar & Zenodo                                       | Lưu trữ các công trình nền tảng kinh điển (Foundation Papers như *Attention Is All You Need*, *ResNet*, *BERT*) để xây dựng đồ thị trích dẫn xương sống. |
 
 ---
 
@@ -98,19 +99,23 @@ Hệ thống được điều phối tự động bởi **Apache Airflow 2.10.2*
 Các mô hình khai phá dữ liệu không chỉ dừng lại ở thống kê mô tả (EDA) mà được tích hợp trực tiếp làm **"bộ não suy luận"** cho hệ thống tìm kiếm ngữ nghĩa RAG:
 
 ### 🧩 Trụ cột 1: Khai phá Tập mục Phổ biến & Luật Kết hợp (FP-Growth)
+
 - **Kỹ thuật**: Thuật toán FP-Growth xử lý hơn 11.400 giao dịch danh mục và từ khóa chuyên sâu.
 - **Phân định luật**: Tách biệt rõ ràng giữa luật kỹ thuật (ví dụ: `cs.SY <=> eess.SY`) và luật thực chất phản ánh xu hướng liên ngành (ví dụ: `{cs.AI, cs.CV} => {cs.LG}` với Lift > 3.0x).
 - **Ứng dụng vào RAG**: Khi người dùng đặt câu hỏi chứa thuật ngữ mới (ví dụ: *"Large Language Models"*), hệ thống tự động mở rộng ngữ cảnh truy vấn (`rule_expansions`) sang các phân ngành liên quan như `cs.CL`.
 
 ### 🔬 Trụ cột 2: Phân cụm Ngữ nghĩa & Phân tích Mật độ (Semantic Clustering)
+
 - **Kỹ thuật**: Trích xuất đặc trưng ngữ nghĩa L2-normalized từ mô hình Transformer, kết hợp giảm chiều **Centered PCA / TruncatedSVD** và phân cụm **K-Means & DBSCAN**.
 - **Đánh giá**: Silhouette Score = 0.063, Davies-Bouldin Index = 3.98, Calinski-Harabasz Index = 84.1. Bản chất điểm Silhouette thấp phản ánh chân thực ranh giới mở và tính liên ngành cao của nghiên cứu AI hiện đại.
 
 ### 🌐 Trụ cột 3: Khai phá Mạng lưới Khoa học & Đồ thị Trích dẫn (Citation Graph Mining)
+
 - **Kỹ thuật**: Đồ thị có hướng gồm 8.892 đỉnh bài báo và 86.295 liên kết trích dẫn nội bộ. Áp dụng thuật toán **PageRank có hướng** ($\alpha = 0.85$) và phân chia cộng đồng Louvain (92 cộng đồng).
 - **Ứng dụng vào RAG**: Điểm PageRank được chuẩn hóa và trở thành **Authority Multiplier**. Các bài báo kinh điển mang tính bước ngoặt được tăng điểm mức độ phù hợp lên tới **+25%**, giúp câu trả lời của RAG luôn ưu tiên dẫn nguồn từ những nghiên cứu có uy tín học thuật cao nhất.
 
 ### 📈 Trụ cột 4: Vận tốc Xu hướng & Phát hiện Điểm dị biệt (Trend & Anomalies)
+
 - **Kỹ thuật**:
   - Đo lường động lượng xu hướng chuẩn hóa theo tỷ trọng thị trường ($\Delta \text{Share}$), chia thành 3 nhóm: `SURGING` (Bùng nổ), `STABLE` (Ổn định), `DECLINING` (Thu hẹp).
   - Sử dụng mô hình **Isolation Forest** với chuẩn hóa $\log(1+x)$ phát hiện 260+ bài báo dị biệt cấu trúc (mật độ công thức toán dày đặc, dung lượng tài liệu lớn, nhóm đồng tác giả quy mô lớn).
@@ -122,12 +127,14 @@ Các mô hình khai phá dữ liệu không chỉ dừng lại ở thống kê m
 Hệ thống được thiết lập cơ chế **Zero Trust Access** an toàn tuyệt đối khi đưa ra Internet qua Cloudflare Tunnel:
 
 ### A. Phân quyền MinIO Object Storage
+
 - **Admin**: Quyền cao nhất quản trị bucket và ghi dữ liệu lakehouse.
 - **Tài khoản Đồng môn / Khách (`guest_student`)**: Được gán chính sách **`student_readonly`** (`s3:ListBucket`, `s3:GetObject`).
   - Cho phép: Duyệt cây thư mục và tải dữ liệu Parquet/JSON về nghiên cứu.
   - Ngăn chặn hoàn toàn (`AccessDenied`): Mọi thao tác tải lên file lạ hoặc xóa tài liệu trong Lakehouse.
 
 ### B. Phân quyền Qdrant Vector Engine
+
 - **Admin Master Key**: Hệ thống Backend và Consumer sử dụng khóa này để upsert vector và quản lý collection.
 - **Read-Only API Key (`uth_guest_readonly_key_4b71a8e9d2c`)**:
   - Dành riêng cho sinh viên và đồng môn truy vấn ngữ nghĩa (`search`, `scroll`, `get points`).
@@ -150,22 +157,53 @@ docker compose up -d
 cd airflow && docker compose up -d
 ```
 
-### Bước 2: Cài đặt Môi trường Python
+### Bước 2: Cấu Hình Môi Trường (.env)
+
+Sao chép tập tin `.env_example` thành `.env` và điền thông số kết nối hạ tầng:
 
 ```bash
-cd /Users/quangmanh/Project/UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS
+# Trên Linux / macOS:
+cp .env_example .env
 
-# Tạo môi trường ảo và kích hoạt
+# Trên Windows (PowerShell):
+Copy-Item .env_example .env
+```
+
+> [!NOTE]
+> Hệ thống Backend và Pipeline sử dụng kiến trúc **Medallion Lakehouse** trên MinIO S3, Qdrant và RabbitMQ. Tập tin `.env` cần tối thiểu các biến sau để Backend không gặp lỗi `ValidationError`:
+> - `STORAGE_PROVIDER=minio`
+> - `MINIO_ENDPOINT_URL=http://localhost:9000` (hoặc endpoint Cloudflare Tunnel)
+> - `MINIO_ACCESS_KEY_ID` & `MINIO_SECRET_ACCESS_KEY`
+> - `MINIO_BUCKET_NAME=uth-scientific-lakehouse`
+> - `QDRANT_URL=http://localhost:6333`
+> - `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, `RABBITMQ_MGMT_URL=http://localhost:15672`
+> - `FRONTEND_ORIGIN=http://localhost:5173`
+
+---
+
+### Bước 3: Cài đặt Môi trường Python
+
+**Trên Linux / macOS (Bash / Zsh):**
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
-
-# Cài đặt toàn bộ thư viện phụ thuộc
 pip install --upgrade pip
 pip install -r requirements.txt
 pip install -e .
 ```
 
-### Bước 3: Khởi Chạy Từng Phân Hệ Riêng Biệt (FE, BE & LLM Service)
+**Trên Windows (PowerShell):**
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install -e .
+```
+
+---
+
+### Bước 4: Khởi Chạy Từng Phân Hệ Riêng Biệt (FE, BE & LLM Service)
 
 Bạn có thể chạy toàn bộ hệ thống bằng kịch bản tự động hoặc mở từng terminal để kiểm soát độc lập từng phân hệ:
 
@@ -180,14 +218,22 @@ Hệ thống hỗ trợ 4 chế độ LLM với cơ chế tự động chuyển 
   ```
 
 - **Cách 2: Sử dụng llama-server (llama.cpp) với tập tin GGUF**:
-  ```bash
-  # Khởi chạy server OpenAI-compatible từ binary llama.cpp
-  ./llama-server \
-    -m models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf \
-    --port 9001 \
-    --ctx-size 16384 \
-    --n-gpu-layers -1
-  ```
+  - *Linux / macOS:*
+    ```bash
+    ./llama-server \
+      -m models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf \
+      --port 9001 \
+      --ctx-size 16384 \
+      --n-gpu-layers -1
+    ```
+  - *Windows (PowerShell):*
+    ```powershell
+    .\llama-server.exe `
+      -m models\qwen2.5-7b-instruct-q4_k_m\qwen2.5-7b-instruct-q4_k_m.gguf `
+      --port 9001 `
+      --ctx-size 16384 `
+      --n-gpu-layers -1
+    ```
 
 - **Cách 3: Chạy Node-Llama-CPP Microservice**:
   ```bash
@@ -203,46 +249,54 @@ Hệ thống hỗ trợ 4 chế độ LLM với cơ chế tự động chuyển 
   ```
 
 #### 2. Khởi chạy Backend API (FastAPI)
-```bash
-# Kích hoạt môi trường ảo
-source .venv/bin/activate   # Trên Windows: .venv\Scripts\activate
 
-# Khởi chạy FastAPI server trên cổng 8000
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-# API Docs (Swagger): http://localhost:8000/docs
-```
+- **Trên Linux / macOS:**
+  ```bash
+  source .venv/bin/activate
+  python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+  ```
+- **Trên Windows (PowerShell):**
+  ```powershell
+  .\.venv\Scripts\Activate.ps1
+  python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+  ```
+  *(Swagger API Documentation: `http://localhost:8000/docs`)*
 
 #### 3. Khởi chạy RabbitMQ Ingestion Workers (Background Consumers)
-```bash
-# Terminal 1 - Stage 1 (Fetch HTML & ghi Silver Parquet):
-python -m src.ingestion.queue_consumer --stage fetch
 
-# Terminal 2 - Stage 2 (Nhúng vector & nạp Gold Qdrant):
-python -m src.ingestion.queue_consumer --stage embed
-```
+Mở 2 terminal riêng biệt:
+- **Terminal 1 - Stage 1 (Fetch HTML & ghi Silver Parquet):**
+  ```bash
+  python -m src.ingestion.queue_consumer --stage fetch
+  ```
+- **Terminal 2 - Stage 2 (Nhúng vector & nạp Gold Qdrant):**
+  ```bash
+  python -m src.ingestion.queue_consumer --stage embed
+  ```
 
 #### 4. Khởi chạy Frontend Dashboard (React 19 + Vite)
-```bash
-cd frontend
 
-# Cài đặt thư viện dependencies (nếu chạy lần đầu)
-npm install
-
-# Khởi chạy Vite Dev Server trên cổng 5173
-npm run dev
-# Dashboard giao diện: http://localhost:5173
-```
+- **Trên Linux / macOS / Windows:**
+  ```bash
+  cd frontend
+  npm install    # Chạy lần đầu
+  npm run dev
+  ```
+  *(Dashboard UI: `http://localhost:5173`)*
 
 ---
 
-### Bước 4: Khởi Chạy 1-Click Toàn Hệ Thống (All-in-One Script)
+### Bước 5: Khởi Chạy 1-Click Toàn Hệ Thống (All-in-One Script)
 
-Dự án cung cấp sẵn kịch bản khởi chạy đồng bộ **Backend + Ingestion Consumers + Frontend Dashboard** chỉ với 1 lệnh duy nhất:
-
-```bash
-chmod +x scripts/start_app.sh
-./scripts/start_app.sh
-```
+- **Linux / macOS:**
+  ```bash
+  chmod +x scripts/start_app.sh
+  ./scripts/start_app.sh
+  ```
+- **Windows (PowerShell):**
+  ```powershell
+  # Khởi chạy đồng bộ bằng script hoặc chạy riêng 3 terminal FE, BE, Worker như trên
+  ```
 
 Khi muốn tắt, chỉ cần nhấn `Ctrl + C` trên terminal, script sẽ tự động dọn dẹp và ngắt an toàn toàn bộ tiến trình con!
 
@@ -250,15 +304,15 @@ Khi muốn tắt, chỉ cần nhấn `Ctrl + C` trên terminal, script sẽ tự
 
 ## 6. Danh Mục Cổng & Dịch Vụ (Port & Dashboard Map)
 
-| Dịch vụ | Địa chỉ Local | URL qua Cloudflare Tunnel | Tài khoản mặc định |
-| :--- | :--- | :--- | :--- |
-| **Frontend Dashboard** | `http://localhost:5173` | — | Giao diện mở |
-| **FastAPI Backend & Swagger** | `http://localhost:8000/docs` | — | REST API |
-| **MinIO Web Console** | `http://localhost:9001` | `https://label.minio-quangmanh.io.vn` | `guest_student` / `Uth_Student_Readonly_2026!` |
-| **MinIO S3 API Endpoint** | `http://localhost:9000` | `https://s3.minio-quangmanh.io.vn` | `boto3` / `duckdb` connection |
-| **Qdrant Vector Dashboard** | `http://localhost:6333/dashboard` | `https://qdrant.minio-quangmanh.io.vn/dashboard` | API Key: `uth_guest_readonly_key_4b71a8e9d2c` |
-| **RabbitMQ Management UI** | `http://localhost:15672` | — | `admin` / `password123` |
-| **Apache Airflow UI** | `http://localhost:8080` | — | `admin` / `admin` |
+| Dịch vụ                           | Địa chỉ Local                    | URL qua Cloudflare Tunnel                          | Tài khoản mặc định                            |
+| :---------------------------------- | :---------------------------------- | :------------------------------------------------- | :------------------------------------------------- |
+| **Frontend Dashboard**        | `http://localhost:5173`           | —                                                 | Giao diện mở                                     |
+| **FastAPI Backend & Swagger** | `http://localhost:8000/docs`      | —                                                 | REST API                                           |
+| **MinIO Web Console**         | `http://localhost:9001`           | `https://label.minio-quangmanh.io.vn`            | `guest_student` / `Uth_Student_Readonly_2026!` |
+| **MinIO S3 API Endpoint**     | `http://localhost:9000`           | `https://s3.minio-quangmanh.io.vn`               | `boto3` / `duckdb` connection                  |
+| **Qdrant Vector Dashboard**   | `http://localhost:6333/dashboard` | `https://qdrant.minio-quangmanh.io.vn/dashboard` | API Key: `uth_guest_readonly_key_4b71a8e9d2c`    |
+| **RabbitMQ Management UI**    | `http://localhost:15672`          | —                                                 | `admin` / `password123`                        |
+| **Apache Airflow UI**         | `http://localhost:8080`           | —                                                 | `admin` / `admin`                              |
 
 ---
 
@@ -347,13 +401,13 @@ UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/
 
 Hệ thống RAG được thẩm định tự động bằng bộ công cụ **DeepEval 2.x** trên 21 câu hỏi học thuật vàng (`gold-001` đến `gold-021`):
 
-| Chỉ số DeepEval | Dense Retrieval Đơn thuần | Reranker + Graph PageRank Boost | Mức Cải thiện | Đánh giá |
-| :--- | :---: | :---: | :---: | :--- |
-| **Contextual Precision** | `0.637` (60.0% pass) | **`0.860` (80.0% pass)** | **+35.0%** 🚀 | Độ chính xác tài liệu dẫn chứng tăng vượt trội |
-| **Answer Relevancy** | `0.687` (47.4% pass) | **`0.752` (55.0% pass)** | **+9.4%** 📈 | Câu trả lời cô đọng, bám sát trọng tâm câu hỏi |
-| **Contextual Recall** | `0.950` (95.0% pass) | **`1.000` (100.0% pass)** | **+5.3%** 🎯 | Bao phủ 100% các luận điểm khoa học chuẩn |
-| **Faithfulness** | `0.668` (50.0% pass) | **`0.699` (52.9% pass)** | **+4.7%** 🛡️ | Giảm thiểu tối đa hiện tượng ảo giác (hallucination) |
-| **Citation Grounding** | `0.757` (90.5% pass) | **`0.720` (90.0% pass)** | Đạt chuẩn | Định dạng trích dẫn chuẩn hóa `[Paper: <id>]` |
+| Chỉ số DeepEval              | Dense Retrieval Đơn thuần |  Reranker + Graph PageRank Boost  |   Mức Cải thiện   | Đánh giá                                                   |
+| :----------------------------- | :--------------------------: | :-------------------------------: | :------------------: | :------------------------------------------------------------ |
+| **Contextual Precision** |    `0.637` (60.0% pass)    | **`0.860` (80.0% pass)** | **+35.0%** 🚀 | Độ chính xác tài liệu dẫn chứng tăng vượt trội    |
+| **Answer Relevancy**     |    `0.687` (47.4% pass)    | **`0.752` (55.0% pass)** |  **+9.4%** 📈  | Câu trả lời cô đọng, bám sát trọng tâm câu hỏi    |
+| **Contextual Recall**    |    `0.950` (95.0% pass)    | **`1.000` (100.0% pass)** |  **+5.3%** 🎯  | Bao phủ 100% các luận điểm khoa học chuẩn              |
+| **Faithfulness**         |    `0.668` (50.0% pass)    | **`0.699` (52.9% pass)** | **+4.7%** 🛡️ | Giảm thiểu tối đa hiện tượng ảo giác (hallucination) |
+| **Citation Grounding**   |    `0.757` (90.5% pass)    | **`0.720` (90.0% pass)** |     Đạt chuẩn     | Định dạng trích dẫn chuẩn hóa `[Paper: <id>]`        |
 
 ---
 

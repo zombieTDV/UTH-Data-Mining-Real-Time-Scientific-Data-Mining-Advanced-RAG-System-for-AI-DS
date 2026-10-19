@@ -47,9 +47,9 @@ class Settings(BaseSettings):
     EMBED_QUEUE_MAX: int = 500  # same env var as the worker: the fetch stage pauses at this embed-queue depth
 
     # Apache Airflow REST API (DAG monitoring and control)
-    AIRFLOW_API_URL: str
-    AIRFLOW_USER: str
-    AIRFLOW_PASSWORD: str
+    AIRFLOW_API_URL: str = "http://localhost:8080/api/v1"
+    AIRFLOW_USER: str = "admin"
+    AIRFLOW_PASSWORD: str = "admin"
 
     # Lakehouse object keys (inside the MinIO bucket)
     # Silver is one dataset: every tier lands in silver/papers/year=YYYY/ (papers.parquet + parts/), with a `tier` column
@@ -63,8 +63,8 @@ class Settings(BaseSettings):
 
     # LLM Settings
     LLM_MODE: str = "local"  # "local", "ollama", "groq", "mock"
-    LLM_SERVICE_URL: str
-    OLLAMA_SERVICE_URL: str
+    LLM_SERVICE_URL: str = "http://localhost:9001/v1"
+    OLLAMA_SERVICE_URL: str = "http://localhost:11434/v1"
     LLM_MODEL_PATH: str = "./models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf"
     LLM_CONTEXT_WINDOW: int = 16384
     LLM_PRELOAD: bool = True  # False keeps the local GGUF out of memory until a chat request needs it
@@ -74,7 +74,7 @@ class Settings(BaseSettings):
 
     # DeepEval Benchmarking Settings
     DEEPEVAL_JUDGE_MODEL: str = "local"  # "local", "deepseek", "groq", "openai"
-    DEEPEVAL_LOCAL_URL: str
+    DEEPEVAL_LOCAL_URL: str = "http://localhost:9001/v1"
     DEEPEVAL_LOCAL_MODEL: str = "qwen2.5-7b-instruct"
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
