@@ -4,7 +4,7 @@
 - **Purpose**: Serve as an unambiguous provenance record for future contributors and academic reviewers detailing why technical choices were selected over alternatives and who decided them.
 - **Overview Pipeline**: Chronological capture of genuine decisions resolved during active pair-programming sessions with Vuong.
 - **Detailed Plan**: Master Index Table (D-001 to D-007) followed by standardized, 12-line maximum decision entries detailing status, attribution, triggers, trade-offs, and empirical verification.
-- **References**: [agents/rules/DECISION_LOG_CONVENTION.md](../../agents/rules/DECISION_LOG_CONVENTION.md), [agents/rules/MD_CONVENTION.md](../../agents/rules/MD_CONVENTION.md), [docs/OVERVIEW.md](../OVERVIEW.md).
+- **References**: [agents/templates/DECISION_LOG_TEMPLATE.md](../../agents/templates/DECISION_LOG_TEMPLATE.md), [agents/rules/MD_CONVENTION.md](../../agents/rules/MD_CONVENTION.md), [docs/OVERVIEW.md](../OVERVIEW.md).
 - **Created**: 2026-10-20T06:28:00+07:00
 - **Last Updated**: 2026-10-20T06:38:00+07:00
 
@@ -102,5 +102,5 @@
 - **Decision:** Establish `agents/rules/DECISION_LOG_CONVENTION.md` and maintain `docs/agent_logs/Vuong_DECISION_LOG.md` strictly recording real decisions made during active collaboration.
 - **Why:** Enforces accountability, eliminates faked/hallucinated history, and provides undeniable academic provenance.
 - **Rejected:** Reconstructing unverified historical decisions from arbitrary git commits — risks recording actions not taken by Vuong.
-- **Touches:** `agents/rules/DECISION_LOG_CONVENTION.md`, `docs/agent_logs/Vuong_DECISION_LOG.md`
+- **Touches:** `agents/templates/DECISION_LOG_TEMPLATE.md`, `docs/agent_logs/Vuong_DECISION_LOG.md`
 - **Evidence:** Cleaned log down to 7 verified decisions from active pairing sessions; 100% genuine attribution.
