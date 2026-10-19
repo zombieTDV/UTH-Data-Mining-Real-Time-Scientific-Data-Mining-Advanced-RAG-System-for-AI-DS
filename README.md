@@ -383,6 +383,7 @@ UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/
 │   └── build_presentation_report.py
 │
 ├── docs/                          # Toàn bộ tài liệu báo cáo & nghiên cứu học thuật
+│   ├── agent_logs/               # Nhật ký quyết định kiến trúc ([Vuong_DECISION_LOG.md](docs/agent_logs/Vuong_DECISION_LOG.md))
 │   ├── presentation/             # Slide thuyết trình bảo vệ đồ án HTML (16 Slides Plot-First)
 │   ├── benchmarks/               # Đánh giá hiệu năng RAG (DeepEval Suite 21 Mẫu)
 │   └── mining/                   # Đặc tả toán học chi tiết 4 Trụ Cột Khai Phá
