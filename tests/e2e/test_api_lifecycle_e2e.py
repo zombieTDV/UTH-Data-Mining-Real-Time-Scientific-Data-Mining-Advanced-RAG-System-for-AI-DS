@@ -4,6 +4,7 @@ from starlette.testclient import TestClient
 
 
 @pytest.mark.e2e
+@pytest.mark.live_storage
 def test_full_backend_api_lifecycle(test_client: TestClient, monkeypatch):
     from backend.app.services.llm_client import llm_client
 

@@ -6,7 +6,7 @@ prevent hallucination, and require rigorous paper/section citations.
 
 from typing import Any, Dict, List
 
-SCIENTIFIC_RAG_SYSTEM_PROMPT = """You are an expert AI & Data Science Scientific Research Assistant.
+SCIENTIFIC_RAG_SYSTEM_PROMPT = r"""You are an expert AI & Data Science Scientific Research Assistant.
 Your mission is to provide accurate, rigorous, and technical answers based EXCLUSIVELY on the provided scientific literature context extracted from arXiv research papers.
 
 Strict Guidelines:

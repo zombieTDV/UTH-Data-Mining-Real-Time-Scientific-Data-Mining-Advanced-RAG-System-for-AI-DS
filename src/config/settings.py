@@ -61,9 +61,9 @@ class Settings:
 
     # Vector Database (Qdrant)
     VECTOR_STORE_PROVIDER: str = _env("VECTOR_STORE_PROVIDER", "qdrant").lower()
-    QDRANT_URL: str = _env("QDRANT_URL")
+    QDRANT_URL: str = _env("QDRANT_URL", "https://qdrant.minio-quangmanh.io.vn")
     QDRANT_COLLECTION: str = _env("QDRANT_COLLECTION", "scientific_papers_gold")
-    QDRANT_API_KEY: str = _env("QDRANT_API_KEY", "")
+    QDRANT_API_KEY: str = _env("QDRANT_API_KEY", "uth_guest_readonly_key_4b71a8e9d2c")
 
     # RabbitMQ
     RABBITMQ_URL: str = _build_amqp_url() if (_env("RABBITMQ_URL") or _env("RABBITMQ_USER")) else ""

@@ -17,6 +17,25 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Ensure required service settings have defaults during test collection
+_TEST_ENV_DEFAULTS = {
+    "MINIO_ENDPOINT_URL": "http://localhost:9000",
+    "MINIO_ACCESS_KEY_ID": "test_key",
+    "MINIO_SECRET_ACCESS_KEY": "test_secret",
+    "MINIO_BUCKET_NAME": "uth-scientific-lakehouse",
+    "QDRANT_URL": "http://localhost:6333",
+    "RABBITMQ_USER": "test_user",
+    "RABBITMQ_PASSWORD": "test_password",
+    "RABBITMQ_MGMT_URL": "http://localhost:15672",
+    "AIRFLOW_API_URL": "http://localhost:8080/api/v1",
+    "AIRFLOW_USER": "admin",
+    "AIRFLOW_PASSWORD": "test_password",
+    "OLLAMA_SERVICE_URL": "http://localhost:11434/v1",
+    "DEEPEVAL_LOCAL_URL": "http://localhost:9001/v1",
+}
+for _k, _v in _TEST_ENV_DEFAULTS.items():
+    os.environ.setdefault(_k, _v)
+
 DATA_RAW = PROJECT_ROOT / "data" / "raw"
 needs_data = pytest.mark.skipif(
     not DATA_RAW.exists() or not any(DATA_RAW.iterdir()),

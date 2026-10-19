@@ -4,6 +4,8 @@ from src.transformation.html_parser import AcademicHTMLParser
 from src.indexing.chunker import AcademicChunker
 from src.indexing.qdrant_manager import QdrantManager
 
+pytestmark = [pytest.mark.system, pytest.mark.live_storage]
+
 
 @pytest.fixture
 def synthetic_html_paper():

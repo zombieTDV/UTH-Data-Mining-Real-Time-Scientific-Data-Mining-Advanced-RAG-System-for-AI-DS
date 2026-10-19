@@ -34,6 +34,9 @@ class QdrantManager:
         self.url = (url or settings.QDRANT_URL).rstrip("/")
         self.collection_name = collection_name or settings.QDRANT_COLLECTION
         self.api_key = api_key or getattr(settings, "QDRANT_API_KEY", None) or None
+        self._session = requests.Session()
+        if self.api_key:
+            self._session.headers.update({"api-key": self.api_key})
         self._client = None
         self._init_client()
 
@@ -68,7 +71,7 @@ class QdrantManager:
         col = collection_name or self.collection_name
         try:
             # Check existence via REST
-            resp = requests.get(f"{self.url}/collections/{col}", headers=self._headers, timeout=5)
+            resp = self._session.get(f"{self.url}/collections/{col}", headers=self._headers, timeout=5)
             if resp.status_code == 200:
                 return True
 
@@ -79,7 +82,7 @@ class QdrantManager:
                     "distance": "Cosine",
                 }
             }
-            create_resp = requests.put(f"{self.url}/collections/{col}", json=payload, headers=self._headers, timeout=10)
+            create_resp = self._session.put(f"{self.url}/collections/{col}", json=payload, headers=self._headers, timeout=10)
             if create_resp.status_code in (200, 201):
                 logger.info("[Qdrant] Created collection '%s' (dim=%d, distance=Cosine)", col, self.VECTOR_DIM)
                 # Create payload indexes for fast filtering
@@ -97,7 +100,7 @@ class QdrantManager:
         """Creates a payload index on a field for fast filtering."""
         try:
             url = f"{self.url}/collections/{col}/index"
-            requests.put(
+            self._session.put(
                 url,
                 json={"field_name": field_name, "field_schema": field_type},
                 headers=self._headers,
@@ -110,7 +113,7 @@ class QdrantManager:
         """Returns the total number of vectors in the collection."""
         col = collection_name or self.collection_name
         try:
-            resp = requests.get(f"{self.url}/collections/{col}", headers=self._headers, timeout=5)
+            resp = self._session.get(f"{self.url}/collections/{col}", headers=self._headers, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("result", {}).get("points_count", 0)
@@ -233,7 +236,7 @@ class QdrantManager:
 
         try:
             # Qdrant v1.10+ query API (or fallback to points/search)
-            resp = requests.post(
+            resp = self._session.post(
                 f"{self.url}/collections/{col}/points/query",
                 json=search_payload,
                 headers=self._headers,
@@ -251,7 +254,7 @@ class QdrantManager:
                 }
                 if qdrant_filter:
                     legacy_payload["filter"] = qdrant_filter
-                resp2 = requests.post(
+                resp2 = self._session.post(
                     f"{self.url}/collections/{col}/points/search",
                     json=legacy_payload,
                     headers=self._headers,
