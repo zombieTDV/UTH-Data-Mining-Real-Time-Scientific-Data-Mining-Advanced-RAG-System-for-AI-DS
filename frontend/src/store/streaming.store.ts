@@ -29,6 +29,7 @@ export interface LiveDag {
   name: string;
   frequency: string;
   kind: string;
+  present?: boolean; // false when the DAG file is not loaded in Airflow
   paused: boolean;
   running: boolean;
   next_run?: string | null;
@@ -40,7 +41,7 @@ export interface LiveSnapshot {
   stage: 'idle' | 'harvest' | 'queued' | 'embedding' | 'gold';
   time: string;
   // ready/unacked/consumers: ingest queue (metadata -> fetch worker); embed_*: Silver records -> embed worker
-  queue: { status: string; ready: number; unacked: number; consumers: number; dead: number; embed_ready?: number; embed_unacked?: number; embed_consumers?: number };
+  queue: { status: string; ready: number; unacked: number; consumers: number; dead: number; embed_ready?: number; embed_unacked?: number; embed_consumers?: number; embed_max?: number };
   airflow: { reachable: boolean; scheduler_healthy: boolean; dags: LiveDag[] };
   corpus: {
     vectors: number;

@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     RABBITMQ_MGMT_URL: str
     RABBITMQ_QUEUE_INGEST: str = "scientific_paper_ingest"
     RABBITMQ_QUEUE_EMBED: str = "scientific_chunk_embed"
+    EMBED_QUEUE_MAX: int = 500  # same env var as the worker: the fetch stage pauses at this embed-queue depth
 
     # Apache Airflow REST API (DAG monitoring and control)
     AIRFLOW_API_URL: str
@@ -66,6 +67,7 @@ class Settings(BaseSettings):
     OLLAMA_SERVICE_URL: str
     LLM_MODEL_PATH: str = "./models/qwen2.5-7b-instruct-q4_k_m/qwen2.5-7b-instruct-q4_k_m.gguf"
     LLM_CONTEXT_WINDOW: int = 16384
+    LLM_PRELOAD: bool = True  # False keeps the local GGUF out of memory until a chat request needs it
     LLM_MAX_TOKENS: int = 1536
     LLM_TEMPERATURE: float = 0.7
     GROQ_API_KEY: str = ""

@@ -1675,8 +1675,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                               <rect
                                 x="65"
                                 y={cutoffY - 17}
-                                width="116"
-                                height="15"
+                                width="0"
+                                height="0"
                                 rx="3"
                                 fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.95)'}
                                 stroke="rgba(16, 185, 129, 0.45)"
@@ -1690,7 +1690,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                                 fontWeight="800"
                                 fill="#10b981"
                               >
-                                80% PARETO CUTOFF
+                                80%
                               </text>
 
                               {/* Cumulative Curve Path */}
