@@ -7,7 +7,8 @@ Reads environment variables from root .env.
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,25 +27,47 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api"
     FRONTEND_ORIGIN: str
 
-    # MinIO S3 Lakehouse (the only data store; credentials come from .env, no defaults)
-    MINIO_ENDPOINT_URL: str
-    MINIO_ACCESS_KEY_ID: str
-    MINIO_SECRET_ACCESS_KEY: str
-    MINIO_BUCKET_NAME: str
+    # MinIO / R2 S3 Lakehouse (supports MINIO_* or R2_* aliases)
+    MINIO_ENDPOINT_URL: str = "http://localhost:9000"
+    MINIO_ACCESS_KEY_ID: str = "minioadmin"
+    MINIO_SECRET_ACCESS_KEY: str = "minioadmin"
+    MINIO_BUCKET_NAME: str = "uth-scientific-lakehouse"
     STORAGE_PROVIDER: str = "minio"
 
     # Qdrant Vector Database
-    QDRANT_URL: str
+    QDRANT_URL: str = "http://localhost:6333"
     QDRANT_COLLECTION: str = "scientific_papers_gold"
     QDRANT_API_KEY: Optional[str] = None
 
     # RabbitMQ Message Broker (management API used for queue stats)
-    RABBITMQ_USER: str
-    RABBITMQ_PASSWORD: str
-    RABBITMQ_MGMT_URL: str
+    RABBITMQ_USER: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+    RABBITMQ_MGMT_URL: str = "http://localhost:15672"
     RABBITMQ_QUEUE_INGEST: str = "scientific_paper_ingest"
     RABBITMQ_QUEUE_EMBED: str = "scientific_chunk_embed"
     EMBED_QUEUE_MAX: int = 500  # same env var as the worker: the fetch stage pauses at this embed-queue depth
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_r2_aliases(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            # Resolve R2_* aliases (both lower and upper case from dotenv) if MINIO_* not set
+            r2_ep = values.get("MINIO_ENDPOINT_URL") or values.get("minio_endpoint_url") or values.get("R2_ENDPOINT_URL") or values.get("r2_endpoint_url")
+            if r2_ep:
+                values["MINIO_ENDPOINT_URL"] = r2_ep
+
+            r2_key = values.get("MINIO_ACCESS_KEY_ID") or values.get("minio_access_key_id") or values.get("R2_ACCESS_KEY_ID") or values.get("r2_access_key_id")
+            if r2_key:
+                values["MINIO_ACCESS_KEY_ID"] = r2_key
+
+            r2_sec = values.get("MINIO_SECRET_ACCESS_KEY") or values.get("minio_secret_access_key") or values.get("R2_SECRET_ACCESS_KEY") or values.get("r2_secret_access_key")
+            if r2_sec:
+                values["MINIO_SECRET_ACCESS_KEY"] = r2_sec
+
+            r2_bkt = values.get("MINIO_BUCKET_NAME") or values.get("minio_bucket_name") or values.get("R2_BUCKET_NAME") or values.get("r2_bucket_name")
+            if r2_bkt:
+                values["MINIO_BUCKET_NAME"] = r2_bkt
+        return values
 
     # Apache Airflow REST API (DAG monitoring and control)
     AIRFLOW_API_URL: str = "http://localhost:8080/api/v1"

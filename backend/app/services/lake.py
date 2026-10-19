@@ -94,7 +94,10 @@ class Lake:
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") in _MISSING:
                 return default
-            raise
+            return default
+        except Exception as e:
+            logger.debug("[Lake] get_json failed for key %s: %s", key, e)
+            return default
         with self._lock:
             self._json_cache[key] = (now, data)
         return data
