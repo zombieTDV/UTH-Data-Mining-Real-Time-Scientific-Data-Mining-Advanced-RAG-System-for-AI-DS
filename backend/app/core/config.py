@@ -35,9 +35,9 @@ class Settings(BaseSettings):
     STORAGE_PROVIDER: str = "minio"
 
     # Qdrant Vector Database
-    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_URL: str = "https://qdrant.minio-quangmanh.io.vn"
     QDRANT_COLLECTION: str = "scientific_papers_gold"
-    QDRANT_API_KEY: Optional[str] = None
+    QDRANT_API_KEY: Optional[str] = "uth_guest_readonly_key_4b71a8e9d2c"
 
     # RabbitMQ Message Broker (management API used for queue stats)
     RABBITMQ_USER: str = "guest"
@@ -67,6 +67,14 @@ class Settings(BaseSettings):
             r2_bkt = values.get("MINIO_BUCKET_NAME") or values.get("minio_bucket_name") or values.get("R2_BUCKET_NAME") or values.get("r2_bucket_name")
             if r2_bkt:
                 values["MINIO_BUCKET_NAME"] = r2_bkt
+
+            # Resolve Qdrant URL and key if present
+            qdrant_url = values.get("QDRANT_URL") or values.get("qdrant_url")
+            if qdrant_url:
+                values["QDRANT_URL"] = qdrant_url
+            qdrant_key = values.get("QDRANT_API_KEY") or values.get("qdrant_api_key")
+            if qdrant_key:
+                values["QDRANT_API_KEY"] = qdrant_key
         return values
 
     # Apache Airflow REST API (DAG monitoring and control)
