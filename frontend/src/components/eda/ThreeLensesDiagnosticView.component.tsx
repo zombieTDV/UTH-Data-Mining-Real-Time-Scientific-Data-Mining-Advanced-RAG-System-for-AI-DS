@@ -43,8 +43,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   const isVi = language === 'vi';
   const isDark = theme === 'dark';
 
-  // Sub-tab switcher across the Three Lenses (§6.1 - §6.4)
-  const [activeTab, setActiveTab] = useState<'lens3_bivariate' | 'lens2_univariate' | 'governance'>('lens3_bivariate');
+  // Sub-tab switcher across the Statistical Lenses
+  const [activeTab, setActiveTab] = useState<'lens3_bivariate' | 'lens2_univariate'>('lens3_bivariate');
 
   // Pair selection in Lens 3 (default: words_x_math_density from lecture case study)
   const [selectedPairKey, setSelectedPairKey] = useState<string>('words_x_math_density');
@@ -233,7 +233,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
           </span>
         </div>
 
-        {/* 3-Lens Pill Switcher Tabs */}
+        {/* Statistical Lens Pill Switcher Tabs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
           {[
             {
@@ -245,11 +245,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               id: 'lens2_univariate' as const,
               label: isVi ? 'LĂNG KÍNH 2: ĐƠN BIẾN & Q-Q CHUẨN HOÁ' : 'LENS 2: UNIVARIATE & Q-Q NORMALITY',
               icon: '◬',
-            },
-            {
-              id: 'governance' as const,
-              label: isVi ? 'ĐIỀU PHỐI PIPELINE' : 'PIPELINE GOVERNANCE',
-              icon: '⚙',
             },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
@@ -1207,79 +1202,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 </svg>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------------------------------------------------------- */}
-      {/* TAB 3: DOWNSTREAM PIPELINE GOVERNANCE (§6.4)                      */}
-      {/* ---------------------------------------------------------------- */}
-      {activeTab === 'governance' && (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '8px', overflowY: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', flex: 1 }}>
-            {diagnosticData?.downstream_governance?.map((gov) => (
-              <div
-                key={gov.rule_id}
-                style={{
-                  backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.02)',
-                  borderRadius: '6px',
-                  border: `1px solid ${themeStyles.border}`,
-                  borderTop: `3px solid ${gov.badge_color}`,
-                  padding: '10px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      padding: '1px 5px',
-                      borderRadius: '3px',
-                      backgroundColor: `${gov.badge_color}22`,
-                      color: gov.badge_color,
-                      border: `1px solid ${gov.badge_color}55`,
-                    }}
-                  >
-                    {gov.tag}
-                  </span>
-                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 800 }}>
-                    ✓ PRODUCTION VALIDATED
-                  </span>
-                </div>
-
-                <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                  {gov.observed_geometry}
-                </div>
-
-                <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: gov.badge_color }}>
-                  Bằng chứng: <strong>{gov.empirical_evidence}</strong>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: themeStyles.textSecondary,
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc',
-                    padding: '6px 8px',
-                    borderRadius: '4px',
-                    borderLeft: `2px solid ${gov.badge_color}`,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  <strong style={{ color: themeStyles.textPrimary }}>{isVi ? 'Yêu cầu kiến trúc: ' : 'Pipeline Requirement: '}</strong>
-                  {gov.pipeline_requirement}
-                </div>
-
-                <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: 'auto', paddingTop: '4px' }}>
-                  <strong>Thực thi trong Lakehouse: </strong>
-                  {gov.applied_in_lakehouse}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}
