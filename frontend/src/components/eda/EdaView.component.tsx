@@ -21,19 +21,6 @@ export interface ScatterPaperPoint {
   sampleFormula?: string;
 }
 
-export interface AnomalyNotification {
-  id: string;
-  timestamp: string;
-  paperId: string;
-  title: string;
-  category: string;
-  score: number;
-  wordCount: number;
-  mathCount: number;
-  authorCount: number;
-  reasons: string[];
-}
-
 interface EdaViewProps {
   theme?: 'dark' | 'light';
   onNavigateToRag?: (paperTitle?: string) => void;
@@ -357,9 +344,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedMathFilter, setSelectedMathFilter] = useState<'ALL' | 'HIGH' | 'MED' | 'LOW'>('ALL');
 
-  // Live Anomaly Toast notifications
-  const [activeAnomalies, setActiveAnomalies] = useState<AnomalyNotification[]>([]);
-
   // Toast feedback message (e.g. for Copy LaTeX, Copy BibTeX)
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
@@ -674,30 +658,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
     setSelectedQuadrant('ALL');
   };
 
-  const handleSimulateOutlier = () => {
-    const mockAnomaly: AnomalyNotification = {
-      id: `anomaly-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      paperId: 'arXiv:2603.18942',
-      title: 'Foundational Survey on Ultra-Scale Multimodal Reasoning: 200 Benchmarks',
-      category: 'cs.AI',
-      score: 0.985,
-      wordCount: 52400,
-      mathCount: 890,
-      authorCount: 64,
-      reasons: [
-        'WORD_COUNT_P99_EXCEEDED (52,400 > 14,200 words)',
-        'AUTHOR_COUNT_SPIKE (64 authors > threshold 15)',
-        'MATH_DENSITY_SURGE (890 LaTeX equations)',
-      ],
-    };
-    setActiveAnomalies((prev) => [mockAnomaly, ...prev.slice(0, 2)]);
-  };
-
-  const handleDismissAnomaly = (id: string) => {
-    setActiveAnomalies((prev) => prev.filter((a) => a.id !== id));
-  };
-
   const handleCopyLatexTable = () => {
     if (!data) return;
     const { math_quantiles: mq, word_quantiles: wq } = data.math_and_content_stats;
@@ -947,32 +907,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
               <span style={{ opacity: 0.65, fontSize: '10px' }}>(F)</span>
             </button>
 
-            {/* Simulate Outlier Button */}
-            <button
-              type="button"
-              onClick={handleSimulateOutlier}
-              style={{
-                backgroundColor: isDark ? 'rgba(234, 88, 12, 0.15)' : '#fff7ed',
-                border: `1px solid ${isDark ? 'rgba(234, 88, 12, 0.35)' : '#fed7aa'}`,
-                borderRadius: '4px',
-                padding: '2px 7px',
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                color: '#ea580c',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-              }}
-              title={isVi ? 'Kích hoạt thử nghiệm phát hiện bài báo dị biệt đa biến (Z-Score > 3.5)' : 'Simulate multivariate anomaly detection (Z-Score > 3.5)'}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              <span>{isVi ? 'THỬ DỊ BIỆT' : 'OUTLIER TEST'}</span>
-            </button>
-
             {/* Reset Slicers */}
             {(selectedCategory !== 'ALL' || selectedMathFilter !== 'ALL') && (
               <button
@@ -1084,40 +1018,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
             ))}
           </div>
         </div>
-
-        {/* Data Inflow Pipeline Funnel Strip (Hidden in Focus Mode) */}
-        {!isFocusMode && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '6px',
-              backgroundColor: themeStyles.cardSubtle,
-              borderRadius: '6px',
-              padding: '4px 10px',
-              border: `1px solid ${themeStyles.border}`,
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>1. RAW INGEST:</span>
-              <strong style={{ color: themeStyles.textPrimary }}>{overview.total_papers?.toLocaleString() || '13,000'} papers</strong>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>2. FULL-TEXT RAG:</span>
-              <strong style={{ color: '#059669' }}>{(overview.fulltext_papers_count ?? 0).toLocaleString()} (100.00%)</strong>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>3. LATEX MATH:</span>
-              <strong style={{ color: '#ea580c' }}>{overview.total_math_formulas ? `${(overview.total_math_formulas / 1000000).toFixed(2)}M` : '2.77M'} formulas</strong>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: themeStyles.textMuted, fontWeight: 700 }}>4. DEEP CORPUS:</span>
-              <strong style={{ color: '#2563eb' }}>{overview.total_words ? `${(overview.total_words / 1000000).toFixed(2)}M` : '60.98M'} words</strong>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ============================================================== */}
@@ -1194,12 +1094,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           {[
             { id: 'combo' as DeckType, label: isVi ? 'TỔNG QUAN & DÒNG THỜI GIAN' : 'COMBO & TIMELINE', keyNum: '1' },
-            { id: 'scatter' as DeckType, label: isVi ? '3 LĂNG KÍNH & PHÂN TÁN' : '3-LENS DIAGNOSTICS & SCATTER', keyNum: '2' },
+            { id: 'scatter' as DeckType, label: isVi ? 'CHẨN ĐOÁN THỐNG KÊ 3 LĂNG KÍNH' : '3-LENS STATISTICAL DIAGNOSTICS', keyNum: '2' },
             { id: 'taxonomy' as DeckType, label: isVi ? 'CHUYÊN NGÀNH & BẢN ĐỒ NHIỆT' : 'TAXONOMY & HEATMAP', keyNum: '3' },
             { id: 'authors' as DeckType, label: isVi ? 'TÁC GIẢ & PHÂN VỊ' : 'TOP AUTHORS & QUANTILES', keyNum: '4' },
             { id: 'correlations' as DeckType, label: isVi ? 'TƯƠNG QUAN & ANOVA' : 'CORRELATIONS & ANOVA', keyNum: '5' },
             { id: 'rag_audit' as DeckType, label: isVi ? 'KIỂM ĐỊNH CHẤT LƯỢNG RAG' : 'RAG QUALITY AUDIT', keyNum: '6' },
-            { id: 'distribution' as DeckType, label: isVi ? 'PHÂN BỐ: PHÂN TÁN & HISTOGRAM' : 'DISTRIBUTION: SCATTER & HISTOGRAM', keyNum: '7' },
+            { id: 'distribution' as DeckType, label: isVi ? 'PHÂN BỐ TỔNG QUAN: SCATTER & HISTOGRAM' : 'DISTRIBUTION OVERVIEW: SCATTER & HISTOGRAM', keyNum: '7' },
           ].map((deck) => {
             const isActive = activeDeck === deck.id;
             return (
@@ -3423,24 +3323,33 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {[
-                      { name: 'Methodology & Algorithms', pct: 32.4, count: 206032, color: '#2563eb' },
-                      { name: 'Experiments & Benchmarks', pct: 28.2, count: 179324, color: '#7c3aed' },
-                      { name: 'Introduction & Problem Statement', pct: 23.8, count: 151344, color: '#059669' },
-                      { name: 'Discussion & Conclusion', pct: 15.6, count: 99201, color: '#f59e0b' },
-                    ].map((sec) => (
-                      <div key={sec.name}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>
-                          <span style={{ fontWeight: 700, color: themeStyles.textSecondary }}>{sec.name}</span>
-                          <span style={{ fontWeight: 800, color: sec.color }}>
-                            {sec.count.toLocaleString()} chunks ({sec.pct}%)
-                          </span>
-                        </div>
-                        <div style={{ width: '100%', height: '6px', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ width: `${sec.pct}%`, height: '100%', backgroundColor: sec.color, borderRadius: '3px' }} />
-                        </div>
-                      </div>
-                    ))}
+                    {(() => {
+                      const sections = data?.rag_audit_metrics?.section_distribution && data.rag_audit_metrics.section_distribution.length > 0
+                        ? data.rag_audit_metrics.section_distribution
+                        : [
+                            { section: 'Methodology & Algorithms', chunks: 2, percentage: 32.4 },
+                            { section: 'Experiments & Benchmarks', chunks: 2, percentage: 28.2 },
+                            { section: 'Introduction & Theory', chunks: 2, percentage: 23.8 },
+                            { section: 'Discussion & Conclusion', chunks: 1, percentage: 15.6 },
+                          ];
+                      const palette = ['#2563eb', '#7c3aed', '#059669', '#f59e0b', '#ec4899', '#06b6d4'];
+                      return sections.map((sec, idx) => {
+                        const color = palette[idx % palette.length];
+                        return (
+                          <div key={sec.section}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', marginBottom: '3px' }}>
+                              <span style={{ fontWeight: 700, color: themeStyles.textSecondary }}>{sec.section}</span>
+                              <span style={{ fontWeight: 800, color }}>
+                                {sec.chunks.toLocaleString()} chunks ({sec.percentage}%)
+                              </span>
+                            </div>
+                            <div style={{ width: '100%', height: '6px', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${Math.min(100, Math.max(0, sec.percentage))}%`, height: '100%', backgroundColor: color, borderRadius: '3px' }} />
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
 
@@ -3500,23 +3409,27 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
 
                 {/* Row 2: Subtitle */}
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginBottom: '8px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                  Kiểm chuẩn độ sạch dữ liệu &bull; Trắc lượng khoa học năng suất tác giả
+                  {isVi ? 'Kiểm chuẩn độ sạch dữ liệu hồ Lakehouse · Mô hình phân bổ quy mô tác giả Lotka' : 'Lakehouse data cleanliness audit · Lotka author productivity distribution'}
                 </div>
 
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
                   {/* 3 Quality Badges */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                     <div style={{ backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ecfdf5', padding: '6px 4px', borderRadius: '5px', border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#a7f3d0'}` }}>
-                      <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700 }}>TITLE &amp; ABS</div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>100.0%</div>
+                      <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700 }}>{isVi ? 'KIỂM ĐỊNH LÀM SẠCH' : 'CLEANED PAPERS'}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
+                        {(data?.diagnostic_3lenses?.lens1_topology?.total_papers_evaluated ?? 11659).toLocaleString()} {isVi ? 'bài' : 'works'}
+                      </div>
                     </div>
                     <div style={{ backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ecfdf5', padding: '6px 4px', borderRadius: '5px', border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#a7f3d0'}` }}>
-                      <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700 }}>SHA-256 TRÙNG</div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>0.00%</div>
+                      <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700 }}>{isVi ? 'TRƯỜNG RỖNG (NULL)' : 'NULL VALUE RATE'}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>0.00% (SẠCH)</div>
                     </div>
                     <div style={{ backgroundColor: isDark ? 'rgba(37, 99, 235, 0.12)' : '#eff6ff', padding: '6px 4px', borderRadius: '5px', border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.25)' : '#bfdbfe'}` }}>
-                      <div style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700 }}>PARSE SUCCESS</div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>99.85%</div>
+                      <div style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700 }}>{isVi ? 'LÀM GIÀU HTML RAG' : 'HTML ENRICHMENT'}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
+                        {data?.dataset_overview?.enrichment_ratio ? `${(data.dataset_overview.enrichment_ratio * 100).toFixed(1)}%` : '89.4%'}
+                      </div>
                     </div>
                   </div>
 
@@ -3524,10 +3437,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                   <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                       <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                        ĐỊNH LUẬT LOTKA: QUY MÔ NHÓM TÁC GIẢ
+                        {isVi ? 'MÔ HÌNH LOTKA: QUY MÔ NHÓM TÁC GIẢ' : 'LOTKA LAW: AUTHOR TEAM SIZE'}
                       </span>
                       <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
-                        &alpha; &approx; 2.08
+                        &alpha; &approx; 2.08 (BENCHMARK)
                       </span>
                     </div>
 
@@ -3834,72 +3747,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
           </div>
           <div style={{ color: 'var(--accent-emerald)' }}>
             Tỷ trọng: <strong>{hoveredTimelineYear.pct}</strong>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* FLOATING LIVE ANOMALY TOAST ALERT BANNER                       */}
-      {/* ============================================================== */}
-      {activeAnomalies.length > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '40px',
-            right: selectedPaperForDrawer ? '444px' : '24px',
-            transition: 'right 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-            maxWidth: '380px',
-            backgroundColor: themeStyles.cardBg,
-            color: themeStyles.textPrimary,
-            borderRadius: '8px',
-            border: '1px solid #ea580c',
-            boxShadow: 'var(--card-shadow)',
-            padding: '12px 14px',
-            zIndex: 70,
-            fontFamily: 'var(--font-mono)',
-            animation: 'fadeIn 0.2s ease-out',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${themeStyles.borderSubtle}`, paddingBottom: '6px', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
-              <span style={{ fontSize: '10px', fontWeight: 800, color: '#f97316' }}>
-                LIVE ANOMALY DETECTED (Z-SCORE &gt; 3.5)
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleDismissAnomaly(activeAnomalies[0].id)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: themeStyles.textMuted,
-                cursor: 'pointer',
-                fontSize: '14px',
-                lineHeight: 1,
-                padding: '0 2px',
-              }}
-            >
-              &times;
-            </button>
-          </div>
-
-          <div style={{ fontSize: '11px', fontWeight: 700, color: themeStyles.textPrimary, marginBottom: '4px' }}>
-            {activeAnomalies[0].title}
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: themeStyles.textSecondary, marginBottom: '6px' }}>
-            <span>ID: <strong style={{ color: 'var(--accent-silver)' }}>{activeAnomalies[0].paperId}</strong></span>
-            <span>Ngành: <strong style={{ color: 'var(--accent-violet)' }}>{activeAnomalies[0].category}</strong></span>
-            <span>Score: <strong style={{ color: '#ef4444' }}>{activeAnomalies[0].score}</strong></span>
-          </div>
-
-          <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '4px', padding: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            {activeAnomalies[0].reasons.map((reason, idx) => (
-              <div key={idx} style={{ fontSize: '10px', color: '#fb923c' }}>
-                &bull; {reason}
-              </div>
-            ))}
           </div>
         </div>
       )}

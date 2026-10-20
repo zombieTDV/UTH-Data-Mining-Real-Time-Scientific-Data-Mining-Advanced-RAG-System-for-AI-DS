@@ -236,7 +236,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
             }}
           >
-            LECTURE §6.1-§6.4
+            {isVi ? '3 LĂNG KÍNH CHẨN ĐOÁN' : 'THREE-LENS SUITE'}
           </span>
         </div>
 
@@ -255,7 +255,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             },
             {
               id: 'governance' as const,
-              label: isVi ? '§6.4 ĐIỀU PHỐI PIPELINE' : '§6.4 PIPELINE GOVERNANCE',
+              label: isVi ? 'ĐIỀU PHỐI PIPELINE' : 'PIPELINE GOVERNANCE',
               icon: '⚙',
             },
           ].map((tab) => {
@@ -347,7 +347,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 Cặp biến tương tác:
               </span>
               {[
-                { key: 'words_x_math_density', label: 'Mật độ Toán × Số từ (§6.3 Case Study)' },
+                { key: 'words_x_math_density', label: isVi ? 'Mật độ Toán × Số từ' : 'Math Density × Words' },
                 { key: 'math_x_authors', label: 'Toán × Tác giả (Nghịch lý tác giả)' },
                 { key: 'words_x_math', label: 'Số từ × Công thức (Đồng biến)' },
                 { key: 'words_x_citations', label: 'Số từ × Trích dẫn (Pareto)' },
@@ -453,11 +453,11 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   marginTop: '1px',
                 }}
               >
-                {activePair.warning.badge}
+                {activePair.warning.badge.replace(/§\s*6(\.\d+)?/gi, '').replace(/BÀI GIẢNG/gi, 'PHÂN TÍCH').trim()}
               </span>
               <div style={{ fontSize: '11px', color: themeStyles.textPrimary, lineHeight: 1.35 }}>
-                <strong style={{ color: '#d97706' }}>{activePair.warning.title}: </strong>
-                <span>{activePair.warning.text}</span>
+                <strong style={{ color: '#d97706' }}>{activePair.warning.title.replace(/§\s*6(\.\d+)?/gi, '').replace(/Case Study/gi, 'Trọng điểm').trim()}: </strong>
+                <span>{activePair.warning.text.replace(/§\s*6(\.\d+)?/gi, '').trim()}</span>
               </div>
             </div>
           )}
@@ -1314,8 +1314,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             }}
           >
             <div style={{ fontSize: '11px', color: themeStyles.textPrimary }}>
-              <strong style={{ color: '#0284c7' }}>BÀI GIẢNG §6.4: </strong>
-              <span>Hình học dữ liệu thực nghiệm quyết định cấu trúc bắt buộc của các bước tiền xử lý &amp; học máy.</span>
+              <strong style={{ color: '#0284c7' }}>{isVi ? 'QUY TẮC THIẾT KẾ: ' : 'DESIGN PRINCIPLES: '}</strong>
+              <span>{isVi ? 'Hình học dữ liệu thực nghiệm quyết định cấu trúc bắt buộc của các bước tiền xử lý & học máy.' : 'Observed empirical geometry dictates mandatory preprocessing and machine learning architecture.'}</span>
             </div>
             <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#0284c7' }}>
               4 QUY TẮC ĐÃ ÁP DỤNG TRÊN LAKEHOUSE
@@ -1376,7 +1376,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                     lineHeight: 1.35,
                   }}
                 >
-                  <strong style={{ color: themeStyles.textPrimary }}>Yêu cầu kiến trúc (§6.4): </strong>
+                  <strong style={{ color: themeStyles.textPrimary }}>{isVi ? 'Yêu cầu kiến trúc: ' : 'Pipeline Requirement: '}</strong>
                   {gov.pipeline_requirement}
                 </div>
 
