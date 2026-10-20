@@ -65,6 +65,10 @@ def duck_connect() -> duckdb.DuckDBPyConnection:
     con.execute("SET s3_url_style='path'")
     con.execute("SET s3_region='us-east-1'")
     con.execute(f"SET s3_use_ssl={'true' if ep.scheme == 'https' else 'false'}")
+    # A read touches every Silver part; retry a dropped MinIO connection instead of failing the whole query
+    con.execute("SET http_retries=8")
+    con.execute("SET http_retry_wait_ms=500")
+    con.execute("SET http_retry_backoff=2")
     return con
 
 
