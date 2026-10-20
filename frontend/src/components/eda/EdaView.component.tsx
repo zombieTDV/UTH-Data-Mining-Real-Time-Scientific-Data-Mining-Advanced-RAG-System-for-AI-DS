@@ -3277,7 +3277,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
-                <span>HỎI BÀI BÁO NÀY TRONG RAG CHAT</span>
+                <span>{isVi ? 'HỎI BÀI BÁO NÀY TRONG RAG CHAT' : 'ASK THIS PAPER IN RAG CHAT'}</span>
               </button>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -3306,7 +3306,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                     <line x1="7" y1="17" x2="17" y2="7" />
                     <polyline points="7 7 17 7 17 17" />
                   </svg>
-                  <span>ĐỌC AR5IV</span>
+                  <span>{isVi ? 'ĐỌC AR5IV' : 'READ AR5IV'}</span>
                 </a>
 
                 <button
@@ -3334,7 +3334,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                     <line x1="16" y1="13" x2="8" y2="13" />
                     <line x1="16" y1="17" x2="8" y2="17" />
                   </svg>
-                  <span>COPY BIBTEX</span>
+                  <span>{isVi ? 'SAO CHÉP BIBTEX' : 'COPY BIBTEX'}</span>
                 </button>
               </div>
             </div>

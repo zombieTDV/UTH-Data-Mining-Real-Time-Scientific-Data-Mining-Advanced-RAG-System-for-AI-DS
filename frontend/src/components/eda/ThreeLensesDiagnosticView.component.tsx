@@ -895,7 +895,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
           {/* Feature Selector Tabs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flexShrink: 0 }}>
             <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-              Biến kiểm định:
+              {isVi ? 'Biến kiểm định:' : 'Test Feature:'}
             </span>
             {diagnosticData?.lens2_univariate &&
               Object.values(diagnosticData.lens2_univariate).map((feat) => {
@@ -941,7 +941,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-                  HỆ SỐ LỆCH (SKEWNESS S)
+                  {isVi ? 'HỆ SỐ LỆCH (SKEWNESS S)' : 'SKEWNESS (S)'}
                 </span>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
                   {activeUnivariate.skew_category}
@@ -967,7 +967,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-                  ĐỘ NHỌN (KURTOSIS K)
+                  {isVi ? 'ĐỘ NHỌN (KURTOSIS K)' : 'KURTOSIS (K)'}
                 </span>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed' }}>
                   {activeUnivariate.kurtosis_category}
@@ -1018,7 +1018,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               }}
             >
               <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-                VỊ TRÍ &amp; PHÂN VỊ (CENTROID &amp; QUANTILES)
+                {isVi ? 'VỊ TRÍ & PHÂN VỊ (CENTROID & QUANTILES)' : 'CENTROID & QUANTILES'}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginTop: '4px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                 <div>
@@ -1048,18 +1048,18 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                  BIỂU ĐỒ TẦN SUẤT &amp; ĐƯỜNG MẬT ĐỘ GAUSSIAN KDE
+                  {isVi ? 'BIỂU ĐỒ TẦN SUẤT & ĐƯỜNG MẬT ĐỘ GAUSSIAN KDE' : 'FREQUENCY HISTOGRAM & GAUSSIAN KDE'}
                 </span>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                  25 bins &bull; Mean vs Median divergence
+                  {isVi ? '25 khoảng · Phân kỳ Mean vs Median' : '25 bins · Mean vs Median divergence'}
                 </span>
               </div>
               <ChartLegend
                 items={[
-                  { label: 'Số bài trong mỗi khoảng (25 khoảng)', color: '#3b82f6', mark: 'bar' },
-                  { label: 'Mật độ KDE (chuẩn hóa theo đỉnh)', color: '#06b6d4', mark: 'line' },
-                  { label: 'Trung bình (mean)', color: '#2563eb', mark: 'dashed' },
-                  { label: 'Trung vị (median)', color: '#ea580c', mark: 'dashed' },
+                  { label: isVi ? 'Số bài trong mỗi khoảng (25 khoảng)' : 'Paper count per bin (25 bins)', color: '#3b82f6', mark: 'bar' },
+                  { label: isVi ? 'Mật độ KDE (chuẩn hóa theo đỉnh)' : 'KDE density (normalized)', color: '#06b6d4', mark: 'line' },
+                  { label: isVi ? 'Trung bình (mean)' : 'Mean', color: '#2563eb', mark: 'dashed' },
+                  { label: isVi ? 'Trung vị (median)' : 'Median', color: '#ea580c', mark: 'dashed' },
                 ]}
               />
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
@@ -1092,7 +1092,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       </g>
                     );
                   })()}
-                  <AxisTitle axis="y" x={12} y={120} text="Số bài báo" fontSize={10} />
+                  <AxisTitle axis="y" x={12} y={120} text={isVi ? 'Số bài báo' : 'Paper count'} fontSize={10} />
                   <AxisTitle axis="x" x={260} y={232} text={`${activeUnivariate.label} (${activeUnivariate.unit})`} fontSize={10} />
 
                   {/* Histogram Bars */}
@@ -1180,13 +1180,13 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   Q-Q PLOT (NORMAL QUANTILE-QUANTILE)
                 </span>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#dc2626' }}>
-                  Độ lệch khỏi đường chéo 45°
+                  {isVi ? 'Độ lệch khỏi đường chéo 45°' : 'Deviation from 45° reference line'}
                 </span>
               </div>
               <ChartLegend
                 items={[
-                  { label: 'Phân vị của dữ liệu', color: '#3b82f6', mark: 'dot' },
-                  { label: 'Đường y = x (nếu là phân phối chuẩn)', color: '#dc2626', mark: 'dashed' },
+                  { label: isVi ? 'Phân vị của dữ liệu' : 'Sample quantiles', color: '#3b82f6', mark: 'dot' },
+                  { label: isVi ? 'Đường y = x (nếu là phân phối chuẩn)' : 'y = x line (Normal distribution)', color: '#dc2626', mark: 'dashed' },
                 ]}
               />
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
@@ -1208,7 +1208,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   {[-2, 0, 2, 4].map((z) => (
                     <text key={`qy${z}`} x="36" y={180 - ((z + 2.5) / 7) * 160 + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>{z}</text>
                   ))}
-                  <AxisTitle axis="y" x={14} y={110} text="Phân vị thực nghiệm (z)" fontSize={10} />
+                  <AxisTitle axis="y" x={14} y={110} text={isVi ? 'Phân vị thực nghiệm (z)' : 'Sample quantiles (z)'} fontSize={10} />
 
                   {/* Q-Q Points */}
                   {activeUnivariate.qq_points &&
@@ -1230,7 +1230,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       );
                     })}
 
-                  <AxisTitle axis="x" x={210} y={232} text="Phân vị lý thuyết của phân phối chuẩn (z)" fontSize={10} />
+                  <AxisTitle axis="x" x={210} y={232} text={isVi ? 'Phân vị lý thuyết của phân phối chuẩn (z)' : 'Theoretical quantiles (z)'} fontSize={10} />
                 </svg>
               </div>
             </div>
