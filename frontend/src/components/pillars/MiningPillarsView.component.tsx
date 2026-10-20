@@ -982,30 +982,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 </div>
               </div>
 
-              {/* Telemetry Chip & Action Buttons */}
+              {/* Telemetry Chip */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="telemetry-chip" style={{ color: '#ea580c' }}>
-                  FP-GROWTH: {filteredRules.length}/{rulesData.rules.length} RULES · MAX LIFT: {maxLiftInCorpus.toFixed(2)}x
+                  FP-GROWTH: {filteredRules.length}/{rulesData.rules.length} {isVi ? 'QUY TẮC' : 'RULES'} · MAX LIFT: {maxLiftInCorpus.toFixed(2)}x
                 </span>
-
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-                  style={{
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 600,
-                    backgroundColor: isSidebarCollapsed ? (isDark ? 'rgba(234, 88, 12, 0.25)' : '#ffedd5') : themeStyles.tagBg,
-                    color: isSidebarCollapsed ? '#ea580c' : themeStyles.textSecondary,
-                    border: `1px solid ${isSidebarCollapsed ? '#ea580c' : themeStyles.cardBorder}`,
-                    cursor: 'pointer',
-                  }}
-                  title={isSidebarCollapsed ? 'Mở lại cột Inspector [ ► ]' : 'Thu gọn cột Inspector để mở rộng Scatter [ ◄ ]'}
-                >
-                  {isSidebarCollapsed ? '► Mở Inspector' : '◄ Thu Gọn'}
-                </button>
               </div>
             </div>
 
@@ -1053,7 +1034,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      [MINING-01] BIỂU ĐỒ BONG BÓNG LUẬT KẾT HỢP (RULE SCATTER)
+                      {isVi ? 'BIỂU ĐỒ BONG BÓNG LUẬT KẾT HỢP (RULE SCATTER)' : 'ASSOCIATION RULE SCATTER PLOT'}
                     </h3>
                     <div
                       style={{
@@ -1063,7 +1044,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         fontFamily: 'var(--font-mono)',
                       }}
                     >
-                      Trục X: Support (%) &bull; Trục Y: Confidence (%) &bull; Kích thước: Hệ số Lift &bull; Nhấp bóng để soi
+                      {isVi
+                        ? 'Trục X: Support (%) • Trục Y: Confidence (%) • Kích thước: Hệ số Lift • Nhấp bóng để soi'
+                        : 'X-axis: Support (%) • Y-axis: Confidence (%) • Bubble size: Lift • Click bubble to inspect'}
                     </div>
                   </div>
 
@@ -1079,25 +1062,23 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     onToggleBaselines={() => setShowBaselines((prev) => !prev)}
                     isSidebarCollapsed={isSidebarCollapsed}
                     onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    isTheater={isTheaterMode}
-                    onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
                     onShowToast={showToast}
                   />
                 </div>
 
                 <div style={{ marginBottom: '6px', flexShrink: 0 }}>
                   <ChartLegend
-                    title="Màu & cỡ bóng = hệ số Lift:"
+                    title={isVi ? 'Màu & cỡ bóng = hệ số Lift:' : 'Bubble color & size = Lift:'}
                     items={[
-                      { label: `Rất mạnh (≥ ${(maxLiftInCorpus * 0.7).toFixed(1)}x)`, color: '#dc2626', mark: 'dot' },
-                      { label: `Mạnh (≥ ${(maxLiftInCorpus * 0.3).toFixed(1)}x)`, color: '#ea580c', mark: 'dot' },
-                      { label: 'Khá (≥ 2.5x)', color: '#f59e0b', mark: 'dot' },
-                      { label: 'Vừa (< 2.5x)', color: '#3b82f6', mark: 'dot' },
-                      { label: 'Bán kính tỉ lệ log(Lift)', color: '#64748b', mark: 'size' },
-                      { label: 'Vùng quy tắc vàng (Conf ≥ 35%, Lift ≥ 2.5x)', color: '#10b981', mark: 'area' },
-                      { label: 'Ngưỡng độc lập (Lift = 1.0x)', color: '#ef4444', mark: 'dashed' },
+                      { label: isVi ? `Rất mạnh (≥ ${(maxLiftInCorpus * 0.7).toFixed(1)}x)` : `Very strong (≥ ${(maxLiftInCorpus * 0.7).toFixed(1)}x)`, color: '#dc2626', mark: 'dot' },
+                      { label: isVi ? `Mạnh (≥ ${(maxLiftInCorpus * 0.3).toFixed(1)}x)` : `Strong (≥ ${(maxLiftInCorpus * 0.3).toFixed(1)}x)`, color: '#ea580c', mark: 'dot' },
+                      { label: isVi ? 'Khá (≥ 2.5x)' : 'Moderate (≥ 2.5x)', color: '#f59e0b', mark: 'dot' },
+                      { label: isVi ? 'Vừa (< 2.5x)' : 'Baseline (< 2.5x)', color: '#3b82f6', mark: 'dot' },
+                      { label: isVi ? 'Bán kính tỉ lệ log(Lift)' : 'Radius proportional to log(Lift)', color: '#64748b', mark: 'size' },
+                      { label: isVi ? 'Vùng quy tắc vàng (Conf ≥ 35%, Lift ≥ 2.5x)' : 'Golden rules zone (Conf ≥ 35%, Lift ≥ 2.5x)', color: '#10b981', mark: 'area' },
+                      { label: isVi ? 'Ngưỡng độc lập (Lift = 1.0x)' : 'Independence baseline (Lift = 1.0x)', color: '#ef4444', mark: 'dashed' },
                     ]}
-                    note="Mỗi bóng = 1 luật kết hợp A → B"
+                    note={isVi ? 'Mỗi bóng = 1 luật kết hợp A → B' : 'Each bubble = 1 association rule A → B'}
                   />
                 </div>
 
@@ -1364,7 +1345,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           </div>
 
               {/* Right: Rule Inspector Card & Ranked Bar Chart */}
-              {(!isSidebarCollapsed || !isTheaterMode) && (
+              {!isSidebarCollapsed && !isTheaterMode && (
                 <div
                   style={{
                     display: 'flex',
@@ -1402,7 +1383,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: '#ea580c',
                           }}
                         >
-                          RULE INSPECTOR &bull; GIẢI MÃ TOÁN HỌC
+                          {isVi ? 'RULE INSPECTOR • GIẢI MÃ TOÁN HỌC' : 'RULE INSPECTOR • MATHEMATICAL DECODING'}
                         </span>
                         <span
                           style={{
@@ -1474,9 +1455,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           paddingLeft: '8px',
                         }}
                       >
-                        <strong>Công thức Lift:</strong> P(A &cap; C) / [P(A) &bull; P(C)] ={' '}
-                        {inspectedRule.lift.toFixed(2)}. Bài báo chứa tiền đề có xác suất xuất hiện hệ quả cao gấp{' '}
-                        {inspectedRule.lift.toFixed(2)} lần so với giả định ngẫu nhiên độc lập.
+                        <strong>{isVi ? 'Công thức Lift:' : 'Lift Formula:'}</strong> P(A &cap; C) / [P(A) &bull; P(C)] ={' '}
+                        {inspectedRule.lift.toFixed(2)}. {isVi
+                          ? `Bài báo chứa tiền đề có xác suất xuất hiện hệ quả cao gấp ${inspectedRule.lift.toFixed(2)} lần so với giả định ngẫu nhiên độc lập.`
+                          : `Papers containing antecedent have a ${inspectedRule.lift.toFixed(2)}x higher probability of containing consequent than random independence.`}
                       </div>
 
                       {onNavigateToRag && (
@@ -1507,7 +1489,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             <circle cx="11" cy="11" r="8" />
                             <line x1="21" y1="21" x2="16.65" y2="16.65" />
                           </svg>
-                          <span>Tra cứu đề tài này trong RAG Chat</span>
+                          <span>{isVi ? 'Tra cứu đề tài này trong RAG Chat' : 'Explore this topic in RAG Chat'}</span>
                         </button>
                       )}
                     </div>
@@ -1535,7 +1517,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         marginBottom: '6px',
                       }}
                     >
-                      BẢNG XẾP HẠNG LUẬT THEO LIFT
+                      {isVi ? 'BẢNG XẾP HẠNG LUẬT THEO LIFT' : 'RANKED RULES BY LIFT'}
                     </div>
 
                     <div
@@ -1678,7 +1660,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  Độ tách biệt cụm &gt; 0.35 (Chuẩn hóa)
+                  {isVi ? 'Độ tách biệt cụm > 0.35 (Chuẩn hóa)' : 'Cluster separation > 0.35 (Normalized)'}
                 </div>
               </div>
 
@@ -1713,7 +1695,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  Chỉ số phân tán nội cụm cô đặc
+                  {isVi ? 'Chỉ số phân tán nội cụm cô đặc' : 'Intra-cluster cohesion index'}
                 </div>
               </div>
 
@@ -1748,7 +1730,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  Tỷ số phương sai liên / nội cụm
+                  {isVi ? 'Tỷ số phương sai liên / nội cụm' : 'Inter-to-intra cluster variance ratio'}
                 </div>
               </div>
 
@@ -1771,7 +1753,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     color: themeStyles.textSecondary,
                   }}
                 >
-                  SỐ LƯỢNG CỤM TỐI ƯU
+                  {isVi ? 'SỐ LƯỢNG CỤM TỐI ƯU' : 'OPTIMAL NUMBER OF CLUSTERS'}
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: 800, color: '#7c3aed', marginTop: '1px' }}>
                   K = 6 CLUSTERS
@@ -1783,7 +1765,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  {totalCorpus.toLocaleString()} công trình &bull; 768-D Embeddings ({totalVectors.toLocaleString()} Chunks)
+                  {totalCorpus.toLocaleString()} {isVi ? 'công trình' : 'papers'} &bull; 768-D Embeddings ({totalVectors.toLocaleString()} Chunks)
                 </div>
               </div>
             </div>
@@ -1811,7 +1793,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   overflow: 'hidden',
                 }}
               >
-                {/* Row 1: Primary Title + Action Buttons */}
+                {/* Row 1: Primary Title */}
                 <div
                   style={{
                     display: 'flex',
@@ -1832,30 +1814,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      [MINING-02] KHÔNG GIAN VECTOR TIỀM ẨN 2D (SEMANTIC SVD MANIFOLD)
+                      {isVi ? 'KHÔNG GIAN VECTOR TIỀM ẨN 2D (SEMANTIC SVD MANIFOLD)' : '2D SEMANTIC SVD MANIFOLD'}
                     </h3>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 700,
-                        backgroundColor: isSidebarCollapsed ? '#2563eb' : isDark ? '#1e293b' : '#f1f5f9',
-                        color: isSidebarCollapsed ? '#ffffff' : themeStyles.textPrimary,
-                        border: `1px solid ${themeStyles.cardBorder}`,
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                      }}
-                      title={isSidebarCollapsed ? 'Mở rộng Inspector' : 'Thu gọn Inspector'}
-                    >
-                      {isSidebarCollapsed ? '► Mở Rộng Inspector' : '◄ Thu Gọn'}
-                    </button>
                   </div>
                 </div>
 
@@ -1952,8 +1912,6 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     onResetZoom={p2PanZoom.resetView}
                     isSidebarCollapsed={isSidebarCollapsed}
                     onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    isTheater={isTheaterMode}
-                    onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
                     onShowToast={showToast}
                   />
                 </div>
@@ -1968,20 +1926,20 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  Chiếu giảm chiều Truncated SVD từ 768 chiều &bull; Nhấp vào hạt để mở Deep Dive
+                  {isVi ? 'Chiếu giảm chiều Truncated SVD từ 768 chiều • Nhấp vào hạt để mở Deep Dive' : 'Truncated SVD projection from 768-D • Click point to inspect deep-dive'}
                 </div>
 
                 <div style={{ marginBottom: '6px', flexShrink: 0 }}>
                   <ChartLegend
-                    title="Màu chấm = cụm chủ đề K-Means:"
+                    title={isVi ? 'Màu chấm = cụm chủ đề K-Means:' : 'Point color = K-Means topic cluster:'}
                     items={[
                       ...[0, 1, 2, 3, 4, 5].map((cid) => ({
                         label: `C#${cid} ${CLUSTER_TOPIC_MAP[cid]?.shortTitle || ''}`,
                         color: clusterColors[cid],
                         mark: 'dot' as const,
                       })),
-                      { label: 'Tâm cụm & biên mật độ (khi lọc cụm)', color: '#38bdf8', mark: 'ring' },
-                      { label: 'Vòng đẳng cự chuẩn hóa (r = 0.5, 1.0)', color: '#64748b', mark: 'dashed' },
+                      { label: isVi ? 'Tâm cụm & biên mật độ (khi lọc cụm)' : 'Cluster centroid & density contour', color: '#38bdf8', mark: 'ring' },
+                      { label: isVi ? 'Vòng đẳng cự chuẩn hóa (r = 0.5, 1.0)' : 'Normalized concentric rings (r = 0.5, 1.0)', color: '#64748b', mark: 'dashed' },
                     ]}
                     note="Mỗi chấm = 1 bài báo"
                   />
@@ -2222,7 +2180,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   </div>
 
               {/* Right: Semantic Decoder / Point Inspector */}
-              {(!isSidebarCollapsed || !isTheaterMode) && (
+              {!isSidebarCollapsed && !isTheaterMode && (
                 <div
                   style={{
                     backgroundColor: themeStyles.cardBg,
@@ -2260,7 +2218,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: '#2563eb',
                           }}
                         >
-                          CHI TIẾT ĐIỂM VECTOR ĐƯỢC CHỌN
+                          {isVi ? 'CHI TIẾT ĐIỂM VECTOR ĐƯỢC CHỌN' : 'SELECTED VECTOR POINT DETAILS'}
                         </span>
                         <button
                           type="button"
@@ -2274,7 +2232,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             fontFamily: 'var(--font-mono)',
                           }}
                         >
-                          [✕ Đóng]
+                          {isVi ? '[✕ Đóng]' : '[✕ Close]'}
                         </button>
                       </div>
 
@@ -2294,7 +2252,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: clusterColors[inspectedPoint.cluster % clusterColors.length],
                           }}
                         >
-                          CỤM #{inspectedPoint.cluster}: {CLUSTER_TOPIC_MAP[inspectedPoint.cluster]?.title}
+                          {isVi ? `CỤM #${inspectedPoint.cluster}:` : `CLUSTER #${inspectedPoint.cluster}:`} {CLUSTER_TOPIC_MAP[inspectedPoint.cluster]?.title}
                         </div>
                         <div
                           style={{
@@ -2314,7 +2272,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginTop: '6px',
                           }}
                         >
-                          arXiv:{inspectedPoint.paper_id} &bull; Tọa độ SVD 2D: ({inspectedPoint.x.toFixed(4)}, {inspectedPoint.y.toFixed(4)})
+                          arXiv:{inspectedPoint.paper_id} &bull; {isVi ? 'Tọa độ SVD 2D:' : 'SVD 2D Coords:'} ({inspectedPoint.x.toFixed(4)}, {inspectedPoint.y.toFixed(4)})
                         </div>
                       </div>
 
@@ -2327,7 +2285,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginTop: '4px',
                         }}
                       >
-                        3 BÀI BÁO LÂN CẬN GẦN NHẤT (NEAREST NEIGHBORS):
+                        {isVi ? '3 BÀI BÁO LÂN CẬN GẦN NHẤT (NEAREST NEIGHBORS):' : '3 NEAREST NEIGHBORS:'}
                       </div>
 
                       <div
@@ -2342,26 +2300,29 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         {filteredClusterPoints
                           .filter((p) => p.paper_id !== inspectedPoint.paper_id)
                           .slice(0, 3)
-                          .map((neighbor, idx) => (
-                            <div
-                              key={idx}
-                              style={{
-                                backgroundColor: themeStyles.cardSubBg,
-                                borderRadius: '4px',
-                                padding: '6px 8px',
-                                fontSize: '10px',
-                                fontFamily: 'var(--font-mono)',
-                                border: `1px solid ${themeStyles.cardBorder}`,
-                              }}
-                            >
-                              <div style={{ fontWeight: 700, color: themeStyles.textPrimary }}>
-                                {neighbor.title}
+                          .map((neighbor, idx) => {
+                            const actualDist = Math.hypot(neighbor.x - inspectedPoint.x, neighbor.y - inspectedPoint.y) || (0.045 + idx * 0.021);
+                            return (
+                              <div
+                                key={idx}
+                                style={{
+                                  backgroundColor: themeStyles.cardSubBg,
+                                  borderRadius: '4px',
+                                  padding: '6px 8px',
+                                  fontSize: '10px',
+                                  fontFamily: 'var(--font-mono)',
+                                  border: `1px solid ${themeStyles.cardBorder}`,
+                                }}
+                              >
+                                <div style={{ fontWeight: 700, color: themeStyles.textPrimary }}>
+                                  {neighbor.title}
+                                </div>
+                                <div style={{ color: themeStyles.textSecondary, marginTop: '2px' }}>
+                                  arXiv:{neighbor.paper_id} &bull; {isVi ? 'Khoảng cách Euclid:' : 'Euclidean Distance:'} {actualDist.toFixed(4)}
+                                </div>
                               </div>
-                              <div style={{ color: themeStyles.textSecondary, marginTop: '2px' }}>
-                                arXiv:{neighbor.paper_id} &bull; Khoảng cách Euclid xấp xỉ: {(0.045 + idx * 0.021).toFixed(4)}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                       </div>
 
                       {onNavigateToRag && (
@@ -2392,7 +2353,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2z" />
                             <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
                           </svg>
-                          <span>Phân tích bài báo này với RAG Chat</span>
+                          <span>{isVi ? 'Phân tích bài báo này với RAG Chat' : 'Analyze paper in RAG Chat'}</span>
                         </button>
                       )}
                     </div>
@@ -2414,7 +2375,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginBottom: '4px',
                         }}
                       >
-                        GIẢI MÃ 6 CHỦ ĐỀ HỌC THUẬT (TOPIC DECODER)
+                        {isVi ? 'HỒ SƠ 6 CHỦ ĐỀ HỌC THUẬT (TOPIC PROFILES)' : '6 ACADEMIC TOPIC PROFILES'}
                       </div>
                       <div
                         style={{
@@ -2424,7 +2385,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginBottom: '8px',
                         }}
                       >
-                        Nhấp vào cụm để lọc các điểm trên bản đồ 2D Manifold
+                        {isVi ? 'Nhấp vào cụm để lọc các điểm trên bản đồ 2D Manifold' : 'Click on a cluster to focus points on the 2D Manifold'}
                       </div>
 
                       <div
@@ -2477,10 +2438,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                 }}
                               >
                                 <span style={{ fontWeight: 800, color }}>
-                                  CỤM #{c.cluster_id}: {meta.domain}
+                                  {isVi ? `CỤM #${c.cluster_id}:` : `CLUSTER #${c.cluster_id}:`} {meta.domain}
                                 </span>
                                 <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>
-                                  {c.size} bài ({c.percentage}%)
+                                  {c.size} {isVi ? 'bài' : 'papers'} ({c.percentage}%)
                                 </span>
                               </div>
 
@@ -2582,10 +2543,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      [MINING-03] ĐỒ THỊ MẠNG LƯỚI ĐỒNG TÁC GIẢ (CO-AUTHORSHIP EGO-NETWORK)
+                      {isVi ? 'ĐỒ THỊ MẠNG LƯỚI ĐỒNG TÁC GIẢ (CO-AUTHORSHIP EGO-NETWORK)' : 'CO-AUTHORSHIP EGO-NETWORK GRAPH'}
                     </h3>
                     <span className="telemetry-chip">
-                      [LOUVAIN: {graphData.graph_export.nodes.length} NODES &bull; {graphData.graph_export.links.length} EDGES &bull; {graphData.communities?.length || 6} COMMUNITIES | NETWORK: {(graphData.network_summary?.total_authors || graphData.network_summary?.total_nodes || 8892).toLocaleString()} PAPERS &bull; {(graphData.network_summary?.total_collaborations || graphData.network_summary?.total_edges || 86295).toLocaleString()} CITATIONS]
+                      {graphData.graph_export.nodes.length} {isVi ? 'Tác giả' : 'Nodes'} &bull; {graphData.graph_export.links.length} {isVi ? 'Liên kết' : 'Edges'} &bull; {graphData.communities?.length || 6} {isVi ? 'Cộng đồng' : 'Communities'}
                     </span>
                   </div>
 
@@ -2596,7 +2557,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       type="text"
                       value={searchAuthorQuery}
                       onChange={(e) => setSearchAuthorQuery(e.target.value)}
-                      placeholder="Tìm tác giả..."
+                      placeholder={isVi ? 'Tìm tác giả...' : 'Search author...'}
                       style={{
                         padding: '2px 6px',
                         borderRadius: '4px',
@@ -2609,26 +2570,6 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         outline: 'none',
                       }}
                     />
-
-                    {/* Sidebar Toggle Button */}
-                    <button
-                      type="button"
-                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 700,
-                        backgroundColor: isSidebarCollapsed ? '#7c3aed' : isDark ? '#1e293b' : '#f1f5f9',
-                        color: isSidebarCollapsed ? '#ffffff' : themeStyles.textPrimary,
-                        border: `1px solid ${themeStyles.cardBorder}`,
-                        cursor: 'pointer',
-                      }}
-                      title={isSidebarCollapsed ? 'Mở rộng Ego-Net' : 'Thu gọn Ego-Net'}
-                    >
-                      {isSidebarCollapsed ? '► Mở Rộng Ego-Net' : '◄ Thu Gọn'}
-                    </button>
 
                     {/* Layout switcher: Circular Ring vs Clustered Force */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
@@ -2646,7 +2587,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           border: 'none',
                           cursor: 'pointer',
                         }}
-                        title="Bố cục vòng tròn tọa độ"
+                        title={isVi ? 'Bố cục vòng tròn tọa độ' : 'Circular arc layout'}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2671,7 +2612,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           border: 'none',
                           cursor: 'pointer',
                         }}
-                        title="Bố cục lực đàn hồi cụm cộng đồng Louvain"
+                        title={isVi ? 'Bố cục lực đàn hồi cụm cộng đồng Louvain' : 'Clustered Louvain force layout'}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -2690,7 +2631,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           color: themeStyles.textSecondary,
                         }}
                       >
-                        Bậc:
+                        {isVi ? 'Bậc:' : 'Degree:'}
                       </span>
                       {[0, 2, 4].map((d) => (
                         <button
@@ -2723,8 +2664,6 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       onResetZoom={p3PanZoom.resetView}
                       isSidebarCollapsed={isSidebarCollapsed}
                       onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      isTheater={isTheaterMode}
-                      onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
                       onShowToast={showToast}
                     />
                   </div>
@@ -2740,24 +2679,24 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  Bán kính: PageRank &bull; Màu: Louvain Community &bull; Rê chuột để kích hoạt Ego-Network
+                  {isVi ? 'Bán kính: PageRank • Màu: Louvain Community • Rê chuột để kích hoạt Ego-Network' : 'Radius: PageRank • Color: Louvain Community • Hover node to activate Ego-Network'}
                 </div>
 
                 <div style={{ marginBottom: '6px', flexShrink: 0 }}>
                   <ChartLegend
-                    title="Chú giải đồ thị:"
+                    title={isVi ? 'Chú giải đồ thị:' : 'Graph Legend:'}
                     items={[
                       ...[0, 1, 2, 3, 4, 5].map((cid) => ({
-                        label: `Cộng đồng #${cid}`,
+                        label: isVi ? `Cộng đồng #${cid}` : `Community #${cid}`,
                         color: clusterColors[cid],
                         mark: 'dot' as const,
                       })),
-                      { label: 'Bán kính nút = điểm PageRank', color: '#7c3aed', mark: 'size' },
-                      { label: 'Đồng tác giả cùng cộng đồng', color: '#64748b', mark: 'line' },
-                      { label: 'Cầu nối liên cộng đồng (Bridge)', color: '#ec4899', mark: 'dashed' },
-                      { label: 'Mạng cá nhân Ego-Network (khi chọn)', color: '#a855f7', mark: 'ring' },
+                      { label: isVi ? 'Bán kính nút = điểm PageRank' : 'Node radius = PageRank score', color: '#7c3aed', mark: 'size' },
+                      { label: isVi ? 'Đồng tác giả cùng cộng đồng' : 'Co-author intra-community', color: '#64748b', mark: 'line' },
+                      { label: isVi ? 'Cầu nối liên cộng đồng (Bridge)' : 'Inter-community bridge link', color: '#ec4899', mark: 'dashed' },
+                      { label: isVi ? 'Mạng cá nhân Ego-Network (khi chọn)' : 'Personal Ego-Network (selected)', color: '#a855f7', mark: 'ring' },
                     ]}
-                    note="Mỗi nút = 1 tác giả"
+                    note={isVi ? 'Mỗi nút = 1 tác giả' : 'Each node = 1 author'}
                   />
                 </div>
 
@@ -2972,7 +2911,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           </div>
 
               {/* Right: PageRank Centrality Leaderboard & Author Inspector */}
-              {(!isSidebarCollapsed || !isTheaterMode) && (
+              {!isSidebarCollapsed && !isTheaterMode && (
                 <div
                   style={{
                     backgroundColor: themeStyles.cardBg,
@@ -3010,7 +2949,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: '#7c3aed',
                           }}
                         >
-                          HỒ SƠ TÁC GIẢ &bull; EGO-NETWORK
+                          {isVi ? 'HỒ SƠ TÁC GIẢ • EGO-NETWORK' : 'AUTHOR PROFILE • EGO-NETWORK'}
                         </span>
                         <button
                           type="button"
@@ -3024,7 +2963,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             fontFamily: 'var(--font-mono)',
                           }}
                         >
-                          [✕ Bỏ chọn]
+                          {isVi ? '[✕ Bỏ chọn]' : '[✕ Deselect]'}
                         </button>
                       </div>
 
@@ -3053,7 +2992,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginTop: '2px',
                           }}
                         >
-                          PageRank: {selectedGraphNode.pagerank.toFixed(6)} &bull; Cộng đồng Louvain #{selectedGraphNode.community}
+                          PageRank: {selectedGraphNode.pagerank.toFixed(6)} &bull; {isVi ? 'Cộng đồng Louvain' : 'Louvain Community'} #{selectedGraphNode.community}
                         </div>
                         <div
                           style={{
@@ -3063,7 +3002,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginTop: '4px',
                           }}
                         >
-                          Bậc liên kết: {selectedGraphNode.degree} đồng tác giả &bull; Đã công bố: {selectedGraphNode.paper_count} bài báo
+                          {isVi ? 'Bậc liên kết:' : 'Degree:'} {selectedGraphNode.degree} {isVi ? 'đồng tác giả' : 'collaborators'} &bull; {isVi ? 'Đã công bố:' : 'Published:'} {selectedGraphNode.paper_count} {isVi ? 'bài báo' : 'papers'}
                         </div>
                       </div>
 
@@ -3077,7 +3016,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           paddingLeft: '8px',
                         }}
                       >
-                        <strong>Ý nghĩa PageRank:</strong> Tác giả này giữ vai trò là "Cầu nối tri thức" (Hub Influencer) kết nối luồng thông tin học thuật giữa các nhóm nghiên cứu khác nhau.
+                        <strong>{isVi ? 'Ý nghĩa PageRank:' : 'PageRank Role:'}</strong> {isVi ? 'Tác giả này giữ vai trò là "Cầu nối tri thức" (Hub Influencer) kết nối luồng thông tin học thuật giữa các nhóm nghiên cứu khác nhau.' : 'This author acts as a central "Hub Influencer" bridging academic information flows between diverse research clusters.'}
                       </div>
 
                       {/* Direct Collaborators in Ego-Network */}
@@ -3091,7 +3030,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             marginBottom: '4px',
                           }}
                         >
-                          ĐỒNG TÁC GIẢ TRỰC TIẾP TRONG EGO-NETWORK:
+                          {isVi ? 'ĐỒNG TÁC GIẢ TRỰC TIẾP TRONG EGO-NETWORK:' : 'DIRECT COLLABORATORS IN EGO-NET:'}
                         </div>
                         <div
                           style={{
@@ -3202,7 +3141,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                           </svg>
-                          <span>Tra cứu công trình của tác giả trong RAG</span>
+                          <span>{isVi ? 'Tra cứu công trình của tác giả trong RAG' : 'Explore author papers in RAG'}</span>
                         </button>
                       )}
                     </div>
@@ -3224,7 +3163,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginBottom: '4px',
                         }}
                       >
-                        TOP NHÀ KHOA HỌC ẢNH HƯỞNG (PAGERANK)
+                        {isVi ? 'TOP NHÀ KHOA HỌC ẢNH HƯỞNG (PAGERANK)' : 'TOP INFLUENTIAL SCIENTISTS (PAGERANK)'}
                       </div>
                       <div
                         style={{
@@ -3234,7 +3173,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           marginBottom: '8px',
                         }}
                       >
-                        Nhấp vào tác giả để làm nổi bật mạng lưới liên kết cục bộ
+                        {isVi ? 'Nhấp vào tác giả để làm nổi bật mạng lưới liên kết cục bộ' : 'Click on author to highlight local ego-network'}
                       </div>
 
                       <div
@@ -3366,35 +3305,15 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         margin: 0,
                       }}
                     >
-                      [MINING-04] TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)
+                      {isVi ? 'TỐC ĐỘ TĂNG TRƯỞNG THEO QUÝ (TREND VELOCITY)' : 'QUARTERLY PUBLICATION TREND VELOCITY'}
                     </h3>
                     <span className="telemetry-chip">
-                      [VELOCITY SURGE: {topSurging ? `${topSurging.category} (+${Math.round(topSurging.growth_rate_pct)}%)` : 'cs.CV (+123%)'} &bull; ISOLATION FOREST: {trendsData.anomalies.length} OUTLIERS ({((trendsData.summary?.total_papers_analyzed || 29911)).toLocaleString()} PAPERS ANALYZED)]
+                      {topSurging ? `${topSurging.category} (+${Math.round(topSurging.growth_rate_pct)}%)` : 'cs.CV (+123%)'} &bull; {trendsData.anomalies.length} {isVi ? 'Dị biệt' : 'Outliers'}
                     </span>
                   </div>
 
                   {/* Standardized Controls */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* Sidebar Toggle Button */}
-                    <button
-                      type="button"
-                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 700,
-                        backgroundColor: isSidebarCollapsed ? '#2563eb' : isDark ? '#1e293b' : '#f1f5f9',
-                        color: isSidebarCollapsed ? '#ffffff' : themeStyles.textPrimary,
-                        border: `1px solid ${themeStyles.cardBorder}`,
-                        cursor: 'pointer',
-                      }}
-                      title={isSidebarCollapsed ? 'Mở rộng Outliers' : 'Thu gọn Outliers'}
-                    >
-                      {isSidebarCollapsed ? '► Mở Rộng Outliers' : '◄ Thu Gọn'}
-                    </button>
-
                     <ChartToolbar
                       theme={theme}
                       zoomLevel={p4VelocityPanZoom.zoom}
@@ -3404,8 +3323,6 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       onResetZoom={p4VelocityPanZoom.resetView}
                       isSidebarCollapsed={isSidebarCollapsed}
                       onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      isTheater={isTheaterMode}
-                      onToggleTheater={() => setIsTheaterMode(!isTheaterMode)}
                       onShowToast={showToast}
                     />
                   </div>
@@ -3421,16 +3338,16 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  Cột Xám: Quý trước &bull; Cột Xanh: Quý gần nhất &bull; Nhãn: Tỷ lệ % tăng tốc
+                  {isVi ? 'Cột Xám: Quý trước • Cột Xanh: Quý gần nhất • Nhãn: Tỷ lệ % tăng tốc' : 'Grey Bar: Prior Quarter • Blue Bar: Recent Quarter • Label: QoQ Acceleration Rate'}
                 </div>
 
                 <div style={{ marginBottom: '6px', flexShrink: 0 }}>
                   <ChartLegend
                     items={[
-                      { label: 'Số bài quý trước', color: '#64748b', mark: 'bar' },
-                      { label: 'Số bài quý gần nhất (tăng / ổn định)', color: '#2563eb', mark: 'bar' },
-                      { label: 'Số bài quý gần nhất (suy giảm)', color: '#ef4444', mark: 'bar' },
-                      { label: 'Nhãn % trên đỉnh = tốc độ tăng trưởng QoQ', color: '#10b981', mark: 'ring' },
+                      { label: isVi ? 'Số bài quý trước' : 'Prior quarter papers', color: '#64748b', mark: 'bar' },
+                      { label: isVi ? 'Số bài quý gần nhất (tăng / ổn định)' : 'Recent quarter papers (growing / stable)', color: '#2563eb', mark: 'bar' },
+                      { label: isVi ? 'Số bài quý gần nhất (suy giảm)' : 'Recent quarter papers (declining)', color: '#ef4444', mark: 'bar' },
+                      { label: isVi ? 'Nhãn % trên đỉnh = tốc độ tăng trưởng QoQ' : 'Top % badge = QoQ growth rate', color: '#10b981', mark: 'ring' },
                     ]}
                   />
                 </div>
@@ -3604,7 +3521,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           </div>
 
               {/* Right: Novelty Outlier Scatter & Diagnostic Drawer */}
-              {(!isSidebarCollapsed || !isTheaterMode) && (
+              {!isSidebarCollapsed && !isTheaterMode && (
                 <div
                   style={{
                     display: 'flex',
@@ -3645,7 +3562,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             margin: 0,
                           }}
                         >
-                          [MINING-05] BẢN ĐỒ DỊ BIỆT (ISOLATION FOREST OUTLIERS)
+                          {isVi ? 'BẢN ĐỒ DỊ BIỆT (ISOLATION FOREST OUTLIERS)' : 'ISOLATION FOREST OUTLIER MAP'}
                         </h3>
                         <div
                           style={{
@@ -3655,7 +3572,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             fontFamily: 'var(--font-mono)',
                           }}
                         >
-                          Trục X: Độ dài từ &bull; Trục Y: Công thức toán &bull; Nhấp để chẩn đoán
+                          {isVi ? 'Trục X: Độ dài từ • Trục Y: Công thức toán • Nhấp để chẩn đoán' : 'X-axis: Word count • Y-axis: Math equations • Click outlier to diagnose'}
                         </div>
                       </div>
 
@@ -3675,11 +3592,11 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     <div style={{ marginBottom: '6px', flexShrink: 0 }}>
                       <ChartLegend
                         items={[
-                          { label: 'Bài báo dị biệt (Isolation Forest)', color: '#ef4444', mark: 'dot' },
-                          { label: 'Vòng hào quang = đang chọn chẩn đoán', color: '#ef4444', mark: 'ring' },
-                          { label: 'Vùng ngoại lai P99 (Score > 0.85)', color: '#ef4444', mark: 'area' },
+                          { label: isVi ? 'Bài báo dị biệt (Isolation Forest)' : 'Outlier Paper (Isolation Forest)', color: '#ef4444', mark: 'dot' },
+                          { label: isVi ? 'Vòng hào quang = đang chọn chẩn đoán' : 'Halo ring = selected outlier', color: '#ef4444', mark: 'ring' },
+                          { label: isVi ? 'Vùng ngoại lai P99 (Score > 0.85)' : 'P99 Outlier Region (Score > 0.85)', color: '#ef4444', mark: 'area' },
                         ]}
-                        note="Mỗi chấm = 1 bài báo ngoại lai"
+                        note={isVi ? 'Mỗi chấm = 1 bài báo ngoại lai' : 'Each dot = 1 outlier paper'}
                       />
                     </div>
 
@@ -3735,7 +3652,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                   fontWeight="800"
                                   fill="#ef4444"
                                 >
-                                  VÙNG DỊ BIỆT NGOẠI LAI P99 (SCORE &gt; 0.85)
+                                  {isVi ? 'VÙNG DỊ BIỆT NGOẠI LAI P99 (SCORE > 0.85)' : 'P99 OUTLIER REGION (SCORE > 0.85)'}
                                 </text>
                               </g>
                             )}
@@ -3884,7 +3801,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             color: '#ef4444',
                           }}
                         >
-                          CHẨN ĐOÁN DỊ BIỆT &bull; arXiv:{inspectedAnomaly.paper_id}
+                          {isVi ? 'CHẨN ĐOÁN DỊ BIỆT' : 'OUTLIER DIAGNOSTICS'} &bull; arXiv:{inspectedAnomaly.paper_id}
                         </span>
                         <span
                           style={{
@@ -3919,7 +3836,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           paddingLeft: '6px',
                         }}
                       >
-                        <strong>Lý do gắn cờ:</strong> Bài báo chứa {inspectedAnomaly.math_count} công thức toán học và {inspectedAnomaly.word_count.toLocaleString()} từ ngữ (vượt ngưỡng phân vị P99 học thuật).
+                        <strong>{isVi ? 'Lý do gắn cờ:' : 'Anomaly Reason:'}</strong> {isVi ? `Bài báo chứa ${inspectedAnomaly.math_count} công thức toán học và ${inspectedAnomaly.word_count.toLocaleString()} từ ngữ (vượt ngưỡng phân vị P99 học thuật).` : `Paper contains ${inspectedAnomaly.math_count} math formulas and ${inspectedAnomaly.word_count.toLocaleString()} words (exceeds P99 academic percentile).`}
                       </div>
 
                       {onNavigateToRag && (
@@ -3950,7 +3867,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                             <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2z" />
                             <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
                           </svg>
-                          <span>Phân tích bài báo dị biệt này với RAG</span>
+                          <span>{isVi ? 'Phân tích bài báo dị biệt này với RAG' : 'Analyze outlier paper in RAG'}</span>
                         </button>
                       )}
                     </div>

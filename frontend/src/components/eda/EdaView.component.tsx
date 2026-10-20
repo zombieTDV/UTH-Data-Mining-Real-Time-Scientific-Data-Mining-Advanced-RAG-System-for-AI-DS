@@ -2305,7 +2305,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
             </div>
 
             {/* AUTHOR STATS & QUANTILE BREAKDOWN */}
-            {(!isSidebarCollapsed || !isTheaterMode) && (
+            {!isSidebarCollapsed && !isTheaterMode && (
               <div
                 style={{
                   backgroundColor: themeStyles.cardBg,
@@ -3050,7 +3050,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
             </div>
 
             {/* COLUMN 2: DATA QUALITY AUDIT & LOTKA'S LAW */}
-            {(!isSidebarCollapsed || !isTheaterMode) && (
+            {!isSidebarCollapsed && !isTheaterMode && (
               <div
                 style={{
                   backgroundColor: themeStyles.cardBg,
