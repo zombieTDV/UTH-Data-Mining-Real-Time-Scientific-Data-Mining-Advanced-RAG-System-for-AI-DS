@@ -411,8 +411,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     'stat.ML',
   ]);
   const [harvestLimit, setHarvestLimit] = useState<number>(10000);
-  const [harvestDelay, setHarvestDelay] = useState<number>(6.0);
-  const [harvestFormats, setHarvestFormats] = useState<string[]>(['HTML5', 'OAI-XML']);
   const [isHarvesting, setIsHarvesting] = useState<boolean>(false);
 
   // Terminal Logs State
@@ -641,12 +639,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     } finally {
       setIsHarvesting(false);
     }
-  };
-
-  const handleToggleFormat = (fmt: string) => {
-    setHarvestFormats((prev) =>
-      prev.includes(fmt) ? prev.filter((f) => f !== fmt) : [...prev, fmt]
-    );
   };
 
   const handleRunDuckQuery = async () => {
@@ -2257,92 +2249,34 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         </div>
                       </div>
 
-                      {/* Limit & Rate Limit */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <div>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
-                            {isVi ? 'GIỚI HẠN THU THẬP' : 'INGESTION LIMIT'}
-                          </span>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            {[1000, 5000, 10000, 25000].map((limitVal) => (
-                              <button
-                                key={limitVal}
-                                type="button"
-                                onClick={() => setHarvestLimit(limitVal)}
-                                style={{
-                                  flex: 1,
-                                  padding: '5px 0',
-                                  borderRadius: '6px',
-                                  fontSize: '11px',
-                                  fontFamily: 'var(--font-mono)',
-                                  fontWeight: harvestLimit === limitVal ? 800 : 600,
-                                  border: harvestLimit === limitVal ? '1px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
-                                  backgroundColor: harvestLimit === limitVal ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#f5f3ff') : themeStyles.btnInspectBg,
-                                  color: harvestLimit === limitVal ? (isDark ? '#c084fc' : '#7c3aed') : themeStyles.btnInspectText,
-                                  cursor: 'pointer',
-                                }}
-                              >
-                                {limitVal.toLocaleString()}
-                              </button>
-                            ))}
-                          </div>
+                      {/* Limit */}
+                      <div>
+                        <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
+                          {isVi ? 'GIỚI HẠN THU THẬP' : 'INGESTION LIMIT'}
+                        </span>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {[1000, 5000, 10000, 25000].map((limitVal) => (
+                            <button
+                              key={limitVal}
+                              type="button"
+                              onClick={() => setHarvestLimit(limitVal)}
+                              style={{
+                                flex: 1,
+                                padding: '5px 0',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: harvestLimit === limitVal ? 800 : 600,
+                                border: harvestLimit === limitVal ? '1px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
+                                backgroundColor: harvestLimit === limitVal ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#f5f3ff') : themeStyles.btnInspectBg,
+                                color: harvestLimit === limitVal ? (isDark ? '#c084fc' : '#7c3aed') : themeStyles.btnInspectText,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {limitVal.toLocaleString()}
+                            </button>
+                          ))}
                         </div>
-
-                        <div>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
-                            {isVi ? 'CHÍNH SÁCH RATE-LIMIT (DELAY)' : 'RATE-LIMIT POLICY (DELAY)'}
-                          </span>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            {[
-                              { val: 3.0, label: '3.0s Fast' },
-                              { val: 6.0, label: '6.0s arXiv Policy' },
-                              { val: 10.0, label: '10.0s Safe' },
-                            ].map((d) => (
-                              <button
-                                key={d.val}
-                                type="button"
-                                onClick={() => setHarvestDelay(d.val)}
-                                style={{
-                                  flex: 1,
-                                  padding: '5px 0',
-                                  borderRadius: '6px',
-                                  fontSize: '10px',
-                                  fontFamily: 'var(--font-mono)',
-                                  fontWeight: harvestDelay === d.val ? 800 : 600,
-                                  border: harvestDelay === d.val ? '1px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
-                                  backgroundColor: harvestDelay === d.val ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#f5f3ff') : themeStyles.btnInspectBg,
-                                  color: harvestDelay === d.val ? (isDark ? '#c084fc' : '#7c3aed') : themeStyles.btnInspectText,
-                                  cursor: 'pointer',
-                                }}
-                              >
-                                {d.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Format checkmarks */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>{isVi ? 'ĐỊNH DẠNG:' : 'FORMATS:'}</span>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={harvestFormats.includes('HTML5')}
-                            onChange={() => handleToggleFormat('HTML5')}
-                            style={{ accentColor: '#7c3aed' }}
-                          />
-                          <span>ar5iv HTML5 Full-Text (Math &amp; Sections)</span>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={harvestFormats.includes('OAI-XML')}
-                            onChange={() => handleToggleFormat('OAI-XML')}
-                            style={{ accentColor: '#7c3aed' }}
-                          />
-                          <span>arXiv OAI-PMH XML Metadata</span>
-                        </label>
                       </div>
                     </div>
 
