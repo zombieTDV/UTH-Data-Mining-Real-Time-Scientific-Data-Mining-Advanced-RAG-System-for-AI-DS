@@ -1,62 +1,68 @@
-import type { FC } from 'react';
+import { useState, type FC } from 'react';
 import { useTranslation } from '../../hooks';
 
 export const LanguageToggle: FC = () => {
   const { language, setLanguage } = useTranslation();
+  const [isHovered, setIsHovered] = useState(false);
+
+  const toggleLanguage = () => {
+    setLanguage(language === 'vi' ? 'en' : 'vi');
+  };
 
   return (
-    <div
-      role="group"
-      aria-label="Language selection"
+    <button
+      type="button"
+      onClick={toggleLanguage}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      title={
+        language === 'vi'
+          ? 'Đang dùng Tiếng Việt · Bấm để đổi sang English'
+          : 'Using English · Click to switch to Tiếng Việt'
+      }
       style={{
-        display: 'inline-flex',
+        width: '34px',
+        height: '34px',
+        borderRadius: '8px',
+        background: isHovered ? 'var(--bg-elevated)' : 'transparent',
+        border: '1px solid ' + (isHovered ? 'var(--border-highlight)' : 'transparent'),
+        color: language === 'vi' ? '#ef4444' : '#3b82f6',
+        display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        padding: '2px',
-        borderRadius: '7px',
-        backgroundColor: 'var(--bg-elevated)',
-        border: '1px solid var(--border-subtle)',
-        gap: '2px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        padding: '0',
+        gap: '1px',
       }}
     >
-      <button
-        type="button"
-        onClick={() => setLanguage('vi')}
-        style={{
-          padding: '2.5px 6.5px',
-          borderRadius: '5px',
-          fontSize: '10px',
-          fontFamily: 'var(--font-mono)',
-          fontWeight: 800,
-          border: 'none',
-          cursor: 'pointer',
-          backgroundColor: language === 'vi' ? 'rgba(239, 68, 68, 0.16)' : 'transparent',
-          color: language === 'vi' ? '#ef4444' : 'var(--text-muted)',
-          transition: 'all 0.15s ease',
-        }}
-        title="Tiếng Việt (Vietnamese)"
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ opacity: 0.9 }}
       >
-        VI
-      </button>
-      <button
-        type="button"
-        onClick={() => setLanguage('en')}
+        <circle cx="12" cy="12" r="10" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+      </svg>
+      <span
         style={{
-          padding: '2.5px 6.5px',
-          borderRadius: '5px',
-          fontSize: '10px',
+          fontSize: '8px',
+          fontWeight: 900,
           fontFamily: 'var(--font-mono)',
-          fontWeight: 800,
-          border: 'none',
-          cursor: 'pointer',
-          backgroundColor: language === 'en' ? 'rgba(59, 130, 246, 0.16)' : 'transparent',
-          color: language === 'en' ? '#3b82f6' : 'var(--text-muted)',
-          transition: 'all 0.15s ease',
+          lineHeight: 1,
+          letterSpacing: '0.04em',
         }}
-        title="English"
       >
-        EN
-      </button>
-    </div>
+        {language.toUpperCase()}
+      </span>
+    </button>
   );
 };
