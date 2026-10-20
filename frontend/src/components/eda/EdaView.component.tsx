@@ -3346,16 +3346,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                     })()}
                   </div>
                 </div>
-
-                {/* Qdrant grounding note */}
-                <div style={{ backgroundColor: isDark ? 'rgba(124, 58, 237, 0.12)' : '#f5f3ff', border: `1px solid ${isDark ? 'rgba(124, 58, 237, 0.25)' : '#ddd6fe'}`, borderRadius: '6px', padding: '6px 8px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#c084fc' : '#5b21b6' }}>
-                  <div style={{ fontWeight: 800, marginBottom: '2px' }}>
-                    KIẾN TRÚC VECTOR GROUNDING:
-                  </div>
-                  <div>
-                    Mỗi vector chunk được nhúng kèm Metadata định danh (arXiv ID, Primary Category, Section Path, và LaTeX Math Token Count) cho phép RAG suy luận có bằng chứng gốc không bị ảo giác.
-                  </div>
-                </div>
               </div>
             </div>
 

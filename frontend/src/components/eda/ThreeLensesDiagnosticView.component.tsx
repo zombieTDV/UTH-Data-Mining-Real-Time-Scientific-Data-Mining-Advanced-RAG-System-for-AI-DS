@@ -426,42 +426,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             </div>
           </div>
 
-          {/* Lecture §6.3 Crucial Warning Banner */}
-          {activePair.warning && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                padding: '6px 10px',
-                borderRadius: '5px',
-                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.10)' : '#fefce8',
-                border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : '#fde047'}`,
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                  backgroundColor: '#f59e0b',
-                  color: '#000000',
-                  flexShrink: 0,
-                  marginTop: '1px',
-                }}
-              >
-                {activePair.warning.badge.replace(/§\s*6(\.\d+)?/gi, '').replace(/BÀI GIẢNG/gi, 'PHÂN TÍCH').trim()}
-              </span>
-              <div style={{ fontSize: '11px', color: themeStyles.textPrimary, lineHeight: 1.35 }}>
-                <strong style={{ color: '#d97706' }}>{activePair.warning.title.replace(/§\s*6(\.\d+)?/gi, '').replace(/Case Study/gi, 'Trọng điểm').trim()}: </strong>
-                <span>{activePair.warning.text.replace(/§\s*6(\.\d+)?/gi, '').trim()}</span>
-              </div>
-            </div>
-          )}
-
           {/* Row: Quadrant Filters, Category Slicers & ChartToolbar */}
           <div
             style={{
@@ -1301,27 +1265,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
       {/* ---------------------------------------------------------------- */}
       {activeTab === 'governance' && (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '8px', overflowY: 'auto' }}>
-          <div
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              backgroundColor: isDark ? 'rgba(56, 189, 248, 0.1)' : '#f0f9ff',
-              border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ fontSize: '11px', color: themeStyles.textPrimary }}>
-              <strong style={{ color: '#0284c7' }}>{isVi ? 'QUY TẮC THIẾT KẾ: ' : 'DESIGN PRINCIPLES: '}</strong>
-              <span>{isVi ? 'Hình học dữ liệu thực nghiệm quyết định cấu trúc bắt buộc của các bước tiền xử lý & học máy.' : 'Observed empirical geometry dictates mandatory preprocessing and machine learning architecture.'}</span>
-            </div>
-            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#0284c7' }}>
-              4 QUY TẮC ĐÃ ÁP DỤNG TRÊN LAKEHOUSE
-            </span>
-          </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', flex: 1 }}>
             {diagnosticData?.downstream_governance?.map((gov) => (
               <div
