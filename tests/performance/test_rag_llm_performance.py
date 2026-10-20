@@ -1,15 +1,15 @@
 """End-to-End Scientific RAG & LLM Generation Performance Benchmark.
 
 Evaluates multi-stage latency and throughput across the complete RAG lifecycle:
-1. Remote Qdrant Vector Retrieval (Top-K semantic chunks over HTTPS)
-2. Prompt Grounding & Context Construction
-3. Local Qwen2.5-7B GGUF Inference on port 9001 (Time-to-First-Token & Token Generation)
-4. End-to-End Total Latency (E2E)
+1a. GPU Dense Query Embedding (Nomic Embed Text v1.5 on CUDA)
+1b. Remote Qdrant Vector Retrieval (Top-K semantic chunks over HTTPS)
+2.  Prompt Grounding & Context Construction
+3.  Local Qwen2.5-7B GGUF Inference on port 9001 (CUDA / Vulkan)
+4.  End-to-End Total Latency (E2E)
 
-Outputs comprehensive statistical distributions:
-- Mean ± Standard Deviation (μ ± σ)
-- Median (p50), 95th Percentile (p95), Min, Max
-- Token throughput (tokens/second)
+Strict Hardware Safeguards:
+- Enforces CUDA execution for PyTorch embedder and local LLM service.
+- Raises RuntimeError immediately if any neural component attempts to execute on CPU.
 
 Usage:
     pytest -s -v -m performance tests/performance/test_rag_llm_performance.py
@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pytest
 import requests
+import torch
 
 # Ensure project root is on sys.path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -103,7 +104,7 @@ class StageMetric:
 
     def to_row(self) -> str:
         return (
-            f"| {self.name:<32} | {self.mean_with_std:<20} | "
+            f"| {self.name:<38} | {self.mean_with_std:<20} | "
             f"{self.p50:>8.2f} {self.unit:<2} | {self.p95:>8.2f} {self.unit:<2} | "
             f"{self.min_val:>8.2f} {self.unit:<2} | {self.max_val:>8.2f} {self.unit:<2} |"
         )
@@ -124,29 +125,64 @@ def compute_stage_metric(name: str, values: List[float], unit: str = "ms") -> St
     )
 
 
-def print_rag_benchmark_table(metrics: List[StageMetric], iterations: int):
+def print_rag_benchmark_table(metrics: List[StageMetric], iterations: int, device_info: str):
     """Prints a formatted ASCII report comparing all RAG pipeline stages."""
     banner = (
-        f"\n{'='*115}\n"
+        f"\n{'='*122}\n"
         f"  END-TO-END SCIENTIFIC RAG + LLM GENERATION BENCHMARK REPORT ({iterations} ITERATIONS)\n"
-        f"  Stack: Remote Qdrant (HTTPS) + Local Qwen2.5-7B GGUF (Port 9001)\n"
-        f"{'='*115}\n"
-        f"| {'Pipeline Stage':<32} | {'Mean ± Std (μ ± σ)':<20} | {'Median (p50)':>11} | {'p95':>11} | {'Min':>11} | {'Max':>11} |\n"
-        f"|{'-'*34}|{'-'*22}|{'-'*13}|{'-'*13}|{'-'*13}|{'-'*13}|"
+        f"  Hardware & Stack: {device_info}\n"
+        f"  Vector Store: Remote Qdrant HTTPS | LLM: Qwen2.5-7B-Instruct (Q4_K_M GGUF)\n"
+        f"{'='*122}\n"
+        f"| {'Pipeline Stage':<38} | {'Mean ± Std (μ ± σ)':<20} | {'Median (p50)':>11} | {'p95':>11} | {'Min':>11} | {'Max':>11} |\n"
+        f"|{'-'*40}|{'-'*22}|{'-'*13}|{'-'*13}|{'-'*13}|{'-'*13}|"
     )
     print(banner)
     for m in metrics:
         print(m.to_row())
-    print(f"{'='*115}\n")
+    print(f"{'='*122}\n")
 
 
-def check_llm_service_ready() -> bool:
-    """Verifies that the local LLM service is active and responsive on port 9001."""
+def get_llm_service_health() -> Dict[str, Any]:
+    """Retrieves health status and loaded model info from port 9001, raising on failure."""
     try:
-        resp = requests.get(LLM_HEALTH_URL, timeout=3.0)
-        return resp.status_code == 200
-    except Exception:
-        return False
+        resp = requests.get(LLM_HEALTH_URL, timeout=5.0)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as exc:
+        raise RuntimeError(
+            f"Local LLM service is not responding at {LLM_HEALTH_URL}: {exc}. "
+            "Please start the service before running benchmarks: "
+            "'node dist/apps/llm-service/apps/llm-service/src/main.js'"
+        ) from exc
+
+
+def assert_hardware_gpu_safeguard(llm_health: Dict[str, Any], embedder: NomicEmbedder):
+    """Enforces hardware governance: raises RuntimeError if any neural stage attempts to run on CPU."""
+    # 1. Host CUDA verification
+    if not torch.cuda.is_available():
+        raise RuntimeError(
+            "[HARDWARE SAFEGUARD VIOLATION] PyTorch CUDA is not available on this machine. "
+            "RAG and LLM performance benchmarks must NOT be executed on CPU. "
+            "Please enable your GPU before running performance benchmarks."
+        )
+
+    # 2. Embedder device verification
+    if embedder.device.type != "cuda":
+        raise RuntimeError(
+            f"[HARDWARE SAFEGUARD VIOLATION] NomicEmbedder initialized on device '{embedder.device}'. "
+            "Academic dense embedding during performance testing must be GPU-accelerated on CUDA. "
+            "CPU execution is strictly prohibited."
+        )
+
+    # 3. LLM service backend verification
+    model_info = llm_health.get("model", {})
+    backend = str(model_info.get("backend", "")).lower()
+    if backend == "cpu":
+        raise RuntimeError(
+            f"[HARDWARE SAFEGUARD VIOLATION] Local LLM service on port 9001 reported backend '{backend}'. "
+            "GGUF token generation during performance benchmarks must run on GPU (CUDA / Vulkan). "
+            "CPU execution is strictly prohibited."
+        )
 
 
 def execute_single_rag_query(
@@ -160,9 +196,13 @@ def execute_single_rag_query(
     """Executes a single RAG cycle measuring exact time per component."""
     t_start = time.perf_counter()
 
-    # 1. Retrieval Stage
-    t_ret_start = time.perf_counter()
+    # 1a. GPU Dense Query Embedding (CUDA)
+    t_emb_start = time.perf_counter()
     query_vector = embedder.embed_query(query)
+    emb_ms = (time.perf_counter() - t_emb_start) * 1000.0
+
+    # 1b. Remote Qdrant Vector Retrieval (HTTPS)
+    t_qdrant_start = time.perf_counter()
     filter_expr = f"primary_category = '{category}'" if category else None
     chunks_df = qdrant.vector_search(
         query_vector=query_vector,
@@ -170,7 +210,7 @@ def execute_single_rag_query(
         filter_expr=filter_expr,
         category_filter=category,
     )
-    retrieval_ms = (time.perf_counter() - t_ret_start) * 1000.0
+    qdrant_ms = (time.perf_counter() - t_qdrant_start) * 1000.0
 
     chunks = chunks_df.to_dict(orient="records") if not chunks_df.empty else []
     for c in chunks:
@@ -233,7 +273,9 @@ def execute_single_rag_query(
 
     return {
         "query": query,
-        "retrieval_ms": retrieval_ms,
+        "emb_ms": emb_ms,
+        "qdrant_ms": qdrant_ms,
+        "retrieval_ms": emb_ms + qdrant_ms,
         "prompt_prep_ms": prompt_prep_ms,
         "ttft_ms": ttft_ms,
         "gen_time_ms": gen_time_ms,
@@ -247,40 +289,49 @@ def execute_single_rag_query(
 
 @pytest.fixture(scope="session")
 def rag_components():
-    """Initializes shared embedder and remote Qdrant manager, checking LLM availability."""
-    if not check_llm_service_ready():
-        pytest.skip("Local LLM service is not responding on http://localhost:9001. Skipping RAG LLM performance test.")
+    """Initializes shared embedder and remote Qdrant manager, enforcing GPU safeguards."""
+    health_data = get_llm_service_health()
+    embedder = NomicEmbedder(device="cuda")
 
-    embedder = NomicEmbedder()
+    # Enforce strict GPU execution
+    assert_hardware_gpu_safeguard(health_data, embedder)
+
     qdrant = QdrantManager()
     count = qdrant.count()
     if count == 0:
-        pytest.skip(f"Remote Qdrant collection '{qdrant.collection_name}' is empty or unreachable.")
+        pytest.fail(f"Remote Qdrant collection '{qdrant.collection_name}' is empty or unreachable.")
 
-    # 1 Warmup query to stabilize model weights and network sockets
-    print("\nWarming up RAG pipeline (1 cycle)...")
+    # 1 Warmup query on GPU to stabilize CUDA contexts and socket pools
+    print("\nWarming up RAG pipeline on CUDA (1 cycle)...")
     execute_single_rag_query(
         embedder=embedder,
         qdrant=qdrant,
         query="What is transformer architecture?",
         max_tokens=30,
     )
-    print("Warm-up complete.")
+    print("GPU Warm-up complete.")
 
-    return embedder, qdrant
+    return embedder, qdrant, health_data
 
 
 @pytest.mark.performance
+@pytest.mark.gpu
 def test_rag_llm_end_to_end_performance(rag_components):
-    """Executes 5-iteration RAG + LLM benchmark and verifies SLA bounds."""
-    embedder, qdrant = rag_components
+    """Executes 5-iteration RAG + LLM benchmark on GPU and verifies SLA bounds."""
+    embedder, qdrant, health_data = rag_components
     queries = BENCHMARK_QUERIES[:5]
 
-    retrieval_times: List[float] = []
+    emb_times: List[float] = []
+    qdrant_times: List[float] = []
+    prompt_times: List[float] = []
     ttft_times: List[float] = []
     generation_times: List[float] = []
     total_times: List[float] = []
     tps_values: List[float] = []
+
+    gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "Unknown GPU"
+    backend = health_data.get("model", {}).get("backend", "cuda")
+    device_info = f"{gpu_name} (LLM backend: {backend}, Embedder: {embedder.device})"
 
     for idx, item in enumerate(queries, 1):
         q = item["query"]
@@ -297,54 +348,74 @@ def test_rag_llm_end_to_end_performance(rag_components):
         assert res["chunks_retrieved"] > 0, f"Query #{idx} failed to retrieve chunks"
         assert res["token_count"] > 5, f"Query #{idx} generated fewer than 5 tokens"
 
-        retrieval_times.append(res["retrieval_ms"])
+        emb_times.append(res["emb_ms"])
+        qdrant_times.append(res["qdrant_ms"])
+        prompt_times.append(res["prompt_prep_ms"])
         ttft_times.append(res["ttft_ms"])
         generation_times.append(res["gen_time_ms"])
         total_times.append(res["total_e2e_ms"])
         tps_values.append(res["tokens_per_sec"])
 
         print(
-            f"[{idx:02d}/{len(queries)}] Retrieval: {res['retrieval_ms']:>6.1f}ms | "
-            f"TTFT: {res['ttft_ms']:>7.1f}ms | "
-            f"E2E: {res['total_e2e_ms']:>7.1f}ms | "
-            f"Speed: {res['tokens_per_sec']:>4.1f} tok/s ({res['token_count']} tokens)"
+            f"[{idx:02d}/{len(queries)}] Embed: {res['emb_ms']:>5.1f}ms | "
+            f"Qdrant: {res['qdrant_ms']:>5.1f}ms | "
+            f"TTFT: {res['ttft_ms']:>6.1f}ms | "
+            f"Gen: {res['gen_time_ms']:>6.1f}ms | "
+            f"Speed: {res['tokens_per_sec']:>4.1f} tok/s ({res['token_count']} tok) | "
+            f"E2E: {res['total_e2e_ms']:>6.1f}ms"
         )
 
     metrics = [
-        compute_stage_metric("1. Qdrant Retrieval Latency", retrieval_times, "ms"),
-        compute_stage_metric("2. LLM Time to First Token (TTFT)", ttft_times, "ms"),
-        compute_stage_metric("3. LLM Token Generation Latency", generation_times, "ms"),
-        compute_stage_metric("4. End-to-End Total Latency (E2E)", total_times, "ms"),
-        compute_stage_metric("5. Generation Speed / Throughput", tps_values, "tok/s"),
+        compute_stage_metric("1a. GPU Dense Query Embedding (CUDA)", emb_times, "ms"),
+        compute_stage_metric("1b. Remote Qdrant Vector Search (HTTPS)", qdrant_times, "ms"),
+        compute_stage_metric("2.  Prompt Grounding & Formatting", prompt_times, "ms"),
+        compute_stage_metric("3.  LLM Time to First Token (TTFT, CUDA)", ttft_times, "ms"),
+        compute_stage_metric("4.  LLM Autoregressive Generation (CUDA)", generation_times, "ms"),
+        compute_stage_metric("5.  End-to-End Total Latency (E2E)", total_times, "ms"),
+        compute_stage_metric("6.  Generation Speed / Throughput", tps_values, "tok/s"),
     ]
 
-    print_rag_benchmark_table(metrics, len(queries))
+    print_rag_benchmark_table(metrics, len(queries), device_info)
 
-    # Assert basic SLAs
+    # Assert GPU performance SLAs
+    ttft_stat = next(m for m in metrics if "Time to First Token" in m.name)
+    assert ttft_stat.mean < 5000.0, f"Mean GPU TTFT {ttft_stat.mean:.2f}ms exceeded 5s SLA"
+
+    tps_stat = next(m for m in metrics if "Generation Speed" in m.name)
+    assert tps_stat.mean > 20.0, f"Mean GPU generation throughput {tps_stat.mean:.2f} tok/s fell below 20 tok/s SLA"
+
     e2e_stat = next(m for m in metrics if "End-to-End" in m.name)
-    assert e2e_stat.mean < 60000.0, f"Mean E2E latency {e2e_stat.mean:.2f}ms exceeded 60s sanity limit"
+    assert e2e_stat.mean < 10000.0, f"Mean E2E latency {e2e_stat.mean:.2f}ms exceeded 10s GPU SLA"
 
 
 def run_standalone_rag_benchmarks(iterations: int = 5):
     """Executes full benchmark suite from CLI and outputs formatted results."""
     print("Verifying local LLM service at http://localhost:9001...")
-    if not check_llm_service_ready():
-        print("[ERROR] Local LLM service on port 9001 is NOT running.")
-        print("Please ensure 'node dist/apps/llm-service/apps/llm-service/src/main.js' is running.")
-        return
+    health_data = get_llm_service_health()
 
-    print("Initializing Nomic Embedder and Qdrant Manager...")
-    embedder = NomicEmbedder()
+    print("Initializing Nomic Embedder on CUDA...")
+    embedder = NomicEmbedder(device="cuda")
+
+    # Enforce hardware safeguard
+    assert_hardware_gpu_safeguard(health_data, embedder)
+
     qdrant = QdrantManager()
     total_points = qdrant.count()
+    gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "Unknown GPU"
+    backend = health_data.get("model", {}).get("backend", "cuda")
+    device_info = f"{gpu_name} (LLM backend: {backend}, Embedder: {embedder.device})"
+
     print(f"Connected to Qdrant: {qdrant.url} (Collection: {qdrant.collection_name}, Points: {total_points:,})")
+    print(f"Hardware Stack: {device_info}")
 
     print("\nExecuting 1 warm-up query to stabilize GPU caches...")
     execute_single_rag_query(embedder, qdrant, "What is machine learning?", top_k=2, max_tokens=30)
     print("Warm-up complete. Commencing scientific RAG + LLM benchmark...\n")
 
     queries = BENCHMARK_QUERIES[:iterations]
-    retrieval_times: List[float] = []
+    emb_times: List[float] = []
+    qdrant_times: List[float] = []
+    prompt_times: List[float] = []
     ttft_times: List[float] = []
     generation_times: List[float] = []
     total_times: List[float] = []
@@ -353,27 +424,31 @@ def run_standalone_rag_benchmarks(iterations: int = 5):
     for idx, item in enumerate(queries, 1):
         q = item["query"]
         cat = item.get("category")
-        print(f"[{idx:02d}/{len(queries)}] Querying: '{q[:45]}...' ", end="", flush=True)
+        print(f"[{idx:02d}/{len(queries)}] Querying: '{q[:40]}...' ", end="", flush=True)
         res = execute_single_rag_query(embedder, qdrant, q, category=cat, top_k=2, max_tokens=50)
         print(
-            f"Done! E2E: {res['total_e2e_ms']:.1f}ms (TTFT: {res['ttft_ms']:.1f}ms, Speed: {res['tokens_per_sec']:.1f} tok/s)"
+            f"Done! E2E: {res['total_e2e_ms']:.1f}ms | TTFT: {res['ttft_ms']:.1f}ms | Speed: {res['tokens_per_sec']:.1f} tok/s"
         )
 
-        retrieval_times.append(res["retrieval_ms"])
+        emb_times.append(res["emb_ms"])
+        qdrant_times.append(res["qdrant_ms"])
+        prompt_times.append(res["prompt_prep_ms"])
         ttft_times.append(res["ttft_ms"])
         generation_times.append(res["gen_time_ms"])
         total_times.append(res["total_e2e_ms"])
         tps_values.append(res["tokens_per_sec"])
 
     metrics = [
-        compute_stage_metric("1. Qdrant Retrieval Latency", retrieval_times, "ms"),
-        compute_stage_metric("2. LLM Time to First Token (TTFT)", ttft_times, "ms"),
-        compute_stage_metric("3. LLM Token Generation Latency", generation_times, "ms"),
-        compute_stage_metric("4. End-to-End Total Latency (E2E)", total_times, "ms"),
-        compute_stage_metric("5. Generation Speed / Throughput", tps_values, "tok/s"),
+        compute_stage_metric("1a. GPU Dense Query Embedding (CUDA)", emb_times, "ms"),
+        compute_stage_metric("1b. Remote Qdrant Vector Search (HTTPS)", qdrant_times, "ms"),
+        compute_stage_metric("2.  Prompt Grounding & Formatting", prompt_times, "ms"),
+        compute_stage_metric("3.  LLM Time to First Token (TTFT, CUDA)", ttft_times, "ms"),
+        compute_stage_metric("4.  LLM Autoregressive Generation (CUDA)", generation_times, "ms"),
+        compute_stage_metric("5.  End-to-End Total Latency (E2E)", total_times, "ms"),
+        compute_stage_metric("6.  Generation Speed / Throughput", tps_values, "tok/s"),
     ]
 
-    print_rag_benchmark_table(metrics, len(queries))
+    print_rag_benchmark_table(metrics, len(queries), device_info)
 
 
 if __name__ == "__main__":

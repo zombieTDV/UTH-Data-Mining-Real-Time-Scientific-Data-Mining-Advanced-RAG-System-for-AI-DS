@@ -3,10 +3,10 @@
 - **Motivation/Background**: Captures the authoritative architectural evolution, algorithmic trade-offs, and design pivots during AI-assisted development of the UTH Scientific Data Mining & Grounded RAG Lakehouse.
 - **Purpose**: Serve as an unambiguous provenance record for future contributors and academic reviewers detailing why technical choices were selected over alternatives and who decided them.
 - **Overview Pipeline**: Chronological capture of genuine decisions resolved during active pair-programming sessions with Vuong.
-- **Detailed Plan**: Master Index Table (D-001 to D-007) followed by standardized, 12-line maximum decision entries detailing status, attribution, triggers, trade-offs, and empirical verification.
+- **Detailed Plan**: Master Index Table (D-001 to D-008) followed by standardized, 12-line maximum decision entries detailing status, attribution, triggers, trade-offs, and empirical verification.
 - **References**: [agents/templates/DECISION_LOG_TEMPLATE.md](../../agents/templates/DECISION_LOG_TEMPLATE.md), [agents/rules/MD_CONVENTION.md](../../agents/rules/MD_CONVENTION.md), [docs/OVERVIEW.md](../OVERVIEW.md).
 - **Created**: 2026-10-20T06:28:00+07:00
-- **Last Updated**: 2026-10-20T06:38:00+07:00
+- **Last Updated**: 2026-10-20T10:52:00+07:00
 
 [STATUS: ACTIVE]
 
@@ -23,6 +23,7 @@
 | [D-005](#d-005--align-default-qdrant-url-to-cloudflare-tunnel) | Align default Qdrant URL to Cloudflare Tunnel | `agent-proposed, human-approved` | `accepted` |
 | [D-006](#d-006--mitigate-retrieval-latency-via-4-tier-optimizations) | Mitigate retrieval latency via 4-tier optimizations | `agent-proposed, human-approved` | `accepted` |
 | [D-007](#d-007--adopt-decision_log_convention-and-contributor-log) | Adopt DECISION_LOG_CONVENTION and contributor log | `human` | `accepted` |
+| [D-008](#d-008--enforce-hardware-safeguards-and-re-benchmark-rag-on-cuda-gpu) | Enforce hardware safeguards and re-benchmark RAG on CUDA GPU | `human` | `accepted` |
 
 ---
 
@@ -104,3 +105,14 @@
 - **Rejected:** Reconstructing unverified historical decisions from arbitrary git commits — risks recording actions not taken by Vuong.
 - **Touches:** `agents/templates/DECISION_LOG_TEMPLATE.md`, `docs/agent_logs/Vuong_DECISION_LOG.md`
 - **Evidence:** Cleaned log down to 7 verified decisions from active pairing sessions; 100% genuine attribution.
+
+### D-008 — Enforce hardware safeguards and re-benchmark RAG on CUDA GPU
+- **Status:** accepted
+- **When:** 2026-10-20T10:28:00+07:00
+- **Decided by:** human
+- **Trigger:** "re run the performent test with suitable part on it and safe guard, raise error when we tries to run thing that should not have been run on CPU" (turn 13)
+- **Decision:** Enforce CUDA execution via assert_hardware_gpu_safeguard and pytest_runtest_setup raising RuntimeError on CPU; re-benchmark RAG on RTX 4060.
+- **Why:** Protects benchmark integrity against silent CPU fallbacks; leverages RTX 4060 GPU for full model inference.
+- **Rejected:** Permitting silent fallback to CPU during performance testing — produces deceptive latency reports.
+- **Touches:** `tests/conftest.py`, `tests/performance/test_rag_llm_performance.py`, `tests/performance/test_qdrant_query_performance.py`, `docs/benchmarks/PERFORMANCE_BENCHMARK_REPORT.md`
+- **Evidence:** `pytest -m performance` passed with 46.33 tok/s (12.7x throughput increase) and 609ms TTFT; verified RuntimeError raised when CPU execution is simulated.

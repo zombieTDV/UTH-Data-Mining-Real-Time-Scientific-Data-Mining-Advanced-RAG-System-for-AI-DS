@@ -50,37 +50,45 @@ This report documents empirical performance benchmarks conducted on the two prim
 - **Local LLM Engine**: `node-llama-cpp` (v3.15.5)
 - **Model**: `Qwen-2.5-7B-Instruct` (GGUF `Q4_K_M`, 4.68 GB on disk)
 - **Compute Hardware**: NVIDIA GeForce RTX 4060 Laptop GPU (8GB GDDR6 VRAM)
-- **Compute Backend**: Vulkan API (`gpu: "vulkan"`)
+- **Compute Backend**: CUDA Accelerated (`gpu: "cuda"`, upgraded from baseline Vulkan)
+- **Dense Embedder**: Nomic Embed Text v1.5 on CUDA (`device: "cuda"`, 768-D)
 - **System Prompt**: Academic Scientific Grounding with LaTeX and Citation enforcement
 
-### 2.1 Empirical Results Summary
+### 2.1 Empirical Results Summary: CUDA Acceleration vs. Baseline
 
-| Metric | Scenario A: Short Concept Query | Scenario B: Mathematical Formulation Query | Average / Baseline |
+| Pipeline Stage / Metric | Baseline (Vulkan API) | Native GPU (CUDA 12.4 + RTX 4060) | Speedup / Impact |
 | :--- | :---: | :---: | :---: |
-| **Query Prompt** | *"What is diffusion distillation?"* | *"Formulate the loss function for DPO..."* | — |
-| **Retrieved Context Chunks** | 3 chunks (~1,450 words) | 3 chunks (~1,520 words) | 3 chunks |
-| **Vector Retrieval Latency** | **849.2 ms** | **872.4 ms** | **860.8 ms** |
-| **Time To First Token (TTFT)** | **18,594.1 ms** (18.59 s) | **18,812.3 ms** (18.81 s) | **18.70 s** |
-| **Total Generation Latency** | **17,358.4 ms** (17.36 s) | **18,124.6 ms** (18.12 s) | **17.74 s** |
-| **Tokens Generated** | 63 tokens | 66 tokens | 64.5 tokens |
-| **Generation Throughput (TPS)** | **3.63 tok/s** | **3.64 tok/s** | **3.64 tok/s** |
-| **Total End-to-End Latency** | **36,801.7 ms** (36.80 s) | **37,809.3 ms** (37.81 s) | **37.31 s** |
+| **Dense Query Embedding** | ~350.0 ms (CPU) | **39.33 ± 21.64 ms** | **~9x faster** |
+| **Prompt Construction** | 5.0 ms | **0.04 ± 0.01 ms** | Instantaneous |
+| **Time To First Token (TTFT)** | 18,700.0 ms (18.70 s) | **609.77 ± 148.83 ms (0.61 s)** | **~30.7x faster** |
+| **Autoregressive Generation (50 tok)** | 17,740.0 ms (17.74 s) | **1,079.43 ± 14.99 ms (1.08 s)** | **~16.4x faster** |
+| **Generation Speed (Throughput)** | **3.64 tok/s** | **46.33 ± 0.64 tok/s** | **12.7x throughput increase** |
+| **Total End-to-End Latency** | 37,310.0 ms (37.31 s) | **3,392.50 ± 607.22 ms (3.39 s)** | **~11.0x faster total turnaround** |
 
-### 2.2 Latency Breakdown Architecture
+### 2.2 Latency Breakdown Architecture (CUDA GPU)
 
 ```
 [User Query]
      │
-     ├── (1) Remote Qdrant Vector Retrieval: ~860 ms  (2.3%)
+     ├── (1a) Dense Query Embedding (CUDA): 39.3 ms (1.2%)
      │
-     ├── (2) Prompt Construction & Context Formatting: ~5 ms (< 0.1%)
+     ├── (1b) Remote Qdrant Vector Retrieval (WAN HTTPS): ~1,660 ms (48.9%)
      │
-     ├── (3) Prompt Evaluation / Prefill (TTFT): ~18,700 ms (50.1%)
-     │       └── Ingestion of ~1,850 context tokens into Vulkan KV cache
+     ├── (2)  Prompt Construction & Grounding: 0.04 ms (< 0.01%)
      │
-     └── (4) Autoregressive Token Generation: ~17,740 ms (47.5%)
-             └── Output stream @ 3.64 tokens/sec with citation grounding
+     ├── (3)  Prompt Evaluation / Prefill (TTFT, CUDA): 609.8 ms (18.0%)
+     │        └── Ingestion of context tokens directly into CUDA KV cache
+     │
+     └── (4)  Autoregressive Token Generation (CUDA): 1,079.4 ms (31.8%)
+              └── Streaming output @ 46.33 tokens/sec with citation grounding
 ```
+
+### 2.3 Hardware Safeguard Enforcement
+To prevent false-positive benchmarks, pathological latency, and CPU starvation:
+1. **Host CUDA Check**: `assert_hardware_gpu_safeguard` enforces `torch.cuda.is_available()`.
+2. **Dense Embedder Verification**: Strictly asserts `embedder.device.type == "cuda"`, raising `RuntimeError` if execution falls back to CPU.
+3. **Local LLM Backend Verification**: Queries `http://localhost:9001/health` and verifies `model.backend != "cpu"`. If CPU is detected, benchmark aborts immediately with `RuntimeError`.
+4. **Pytest Harness Rule**: `tests/conftest.py` implements `pytest_runtest_setup` that fails any test marked `@pytest.mark.gpu` if CUDA is unavailable.
 
 ### 2.3 Hardware & Vulkan Stability Optimization
 

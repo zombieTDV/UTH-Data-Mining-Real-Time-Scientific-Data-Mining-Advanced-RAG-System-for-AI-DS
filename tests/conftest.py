@@ -23,7 +23,8 @@ _TEST_ENV_DEFAULTS = {
     "MINIO_ACCESS_KEY_ID": "test_key",
     "MINIO_SECRET_ACCESS_KEY": "test_secret",
     "MINIO_BUCKET_NAME": "uth-scientific-lakehouse",
-    "QDRANT_URL": "http://localhost:6333",
+    "QDRANT_URL": "https://qdrant.minio-quangmanh.io.vn",
+    "QDRANT_API_KEY": "uth_guest_readonly_key_4b71a8e9d2c",
     "RABBITMQ_USER": "test_user",
     "RABBITMQ_PASSWORD": "test_password",
     "RABBITMQ_MGMT_URL": "http://localhost:15672",
@@ -72,6 +73,19 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_live_storage)
         if "heavy_model" in item.keywords and not run_heavy_models:
             item.add_marker(skip_heavy_models)
+
+
+def pytest_runtest_setup(item):
+    """Enforces hardware safeguards: any test marked 'gpu' must strictly execute on GPU, raising error on CPU."""
+    if "gpu" in item.keywords:
+        import torch
+        if not torch.cuda.is_available():
+            pytest.fail(
+                f"[HARDWARE SAFEGUARD VIOLATION] Test '{item.nodeid}' requires GPU acceleration (@pytest.mark.gpu), "
+                "but no CUDA-enabled GPU was detected. Execution on CPU is strictly prohibited.",
+                pytrace=False,
+            )
+
 
 
 
