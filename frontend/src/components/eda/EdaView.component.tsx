@@ -1140,12 +1140,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
             );
           })}
         </div>
-
-        {/* Hotkey hint */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-          <span>Phím 1-7 chuyển góc nhìn &bull; Phím F thu gọn HUD &bull; Escape đóng chi tiết</span>
-        </div>
       </div>
 
       {/* ============================================================== */}
