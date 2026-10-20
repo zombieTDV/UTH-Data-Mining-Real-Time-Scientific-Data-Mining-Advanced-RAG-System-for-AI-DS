@@ -339,9 +339,8 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
   // Slide-over Paper Detail Drawer state
   const [selectedPaperForDrawer, setSelectedPaperForDrawer] = useState<ScatterPaperPoint | null>(null);
 
-  // PowerBI Interactive Slicers / Filters
+  // Category Slicer / Filter
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [selectedMathFilter, setSelectedMathFilter] = useState<'ALL' | 'HIGH' | 'MED' | 'LOW'>('ALL');
 
   // Toast feedback message (e.g. for Copy LaTeX, Copy BibTeX)
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
@@ -358,7 +357,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
   const [showParetoCurve, setShowParetoCurve] = useState<boolean>(true);
   const [scaleMode, setScaleMode] = useState<'linear' | 'log10'>('linear');
   const [cooccurrenceThreshold, setCooccurrenceThreshold] = useState<number>(0);
-  const [selectedQuadrant, setSelectedQuadrant] = useState<'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4'>('ALL');
   const [selectedCooccurrencePair, setSelectedCooccurrencePair] = useState<{
     category_a: string;
     category_b: string;
@@ -620,35 +618,17 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
     };
   }, [data, activeCategoryData]);
 
-  // Filtered Scatter dataset based on Slicers & Quadrant
+  // Filtered Scatter dataset based on Category Slicer
   const filteredScatterPoints = useMemo(() => {
     let pts = (data?.scatter_points && data.scatter_points.length > 0) ? data.scatter_points : SCATTER_DATASET;
     if (selectedCategory !== 'ALL') {
       pts = pts.filter((p) => p.category === selectedCategory);
     }
-    if (selectedMathFilter === 'HIGH') {
-      pts = pts.filter((p) => p.formulas >= 300);
-    } else if (selectedMathFilter === 'MED') {
-      pts = pts.filter((p) => p.formulas >= 100 && p.formulas < 300);
-    } else if (selectedMathFilter === 'LOW') {
-      pts = pts.filter((p) => p.formulas < 100);
-    }
-    if (selectedQuadrant === 'Q1') {
-      pts = pts.filter((p) => p.words <= 6000 && p.formulas > 300);
-    } else if (selectedQuadrant === 'Q2') {
-      pts = pts.filter((p) => p.words > 6000 && p.formulas > 300);
-    } else if (selectedQuadrant === 'Q3') {
-      pts = pts.filter((p) => p.words <= 6000 && p.formulas <= 300);
-    } else if (selectedQuadrant === 'Q4') {
-      pts = pts.filter((p) => p.words > 6000 && p.formulas <= 300);
-    }
     return pts;
-  }, [selectedCategory, selectedMathFilter, selectedQuadrant, data?.scatter_points]);
+  }, [selectedCategory, data?.scatter_points]);
 
   const handleResetFilters = () => {
     setSelectedCategory('ALL');
-    setSelectedMathFilter('ALL');
-    setSelectedQuadrant('ALL');
   };
 
   const handleCopyBibtex = (paper: ScatterPaperPoint) => {
@@ -768,7 +748,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <h1 style={{ fontSize: isFocusMode ? '11px' : '12px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, letterSpacing: '-0.2px' }}>
-                {isVi ? 'KHÔNG GIAN PHÂN TÍCH KHOA HỌC EDA' : 'SCIENTIFIC EDA WORKSPACE // POWERBI VISUALS'}
+                {isVi ? 'KHÔNG GIAN PHÂN TÍCH KHOA HỌC EDA' : 'SCIENTIFIC EDA WORKSPACE // OLAP ANALYTICS'}
               </h1>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#059669', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)', padding: '1px 5px', borderRadius: '4px' }}>
                 ● DUCKDB OLAP
@@ -879,7 +859,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
             </button>
 
             {/* Reset Slicers */}
-            {(selectedCategory !== 'ALL' || selectedMathFilter !== 'ALL') && (
+            {selectedCategory !== 'ALL' && (
               <button
                 type="button"
                 onClick={handleResetFilters}
@@ -962,32 +942,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
               </button>
             );
           })}
-
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-              {isVi ? 'MẬT ĐỘ TOÁN:' : 'MATH DENSITY:'}
-            </span>
-            {(['ALL', 'HIGH', 'MED', 'LOW'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setSelectedMathFilter(m)}
-                style={{
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: selectedMathFilter === m ? 800 : 600,
-                  backgroundColor: selectedMathFilter === m ? '#ea580c' : themeStyles.cardInner,
-                  color: selectedMathFilter === m ? '#ffffff' : themeStyles.textMuted,
-                  border: `1px solid ${themeStyles.border}`,
-                  cursor: 'pointer',
-                }}
-              >
-                {m === 'ALL' ? (isVi ? 'Tất cả' : 'All') : m === 'HIGH' ? '> 300' : m === 'MED' ? '100-300' : '< 100'}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -2313,7 +2267,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
               {/* Row 2: Subtitle + Toolbar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                  Xếp hạng theo số lượng bài báo trong tập dữ liệu Lakehouse &bull; Click tác giả để lọc
+                  Xếp hạng theo số lượng bài báo trong tập dữ liệu Lakehouse
                 </div>
               </div>
 
