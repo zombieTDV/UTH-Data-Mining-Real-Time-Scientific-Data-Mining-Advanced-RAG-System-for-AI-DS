@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
-import { fetchStorageStats, syncStorage, resetStorageSession } from '../../services';
+import { useEffect } from 'react';
+import { resetStorageSession } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
 import { useTranslation } from '../../hooks';
-import { AnimatedCounter } from '../common';
-import type { StorageStatsResponse } from '../../types';
 import { AdaptiveSchedulerControl } from './AdaptiveSchedulerControl.component';
 
 export interface LakehouseLayer {
@@ -20,34 +18,12 @@ export interface LakehouseLayer {
 
 export function StorageInspector() {
   const { language } = useTranslation();
-  const [stats, setStats] = useState<StorageStatsResponse | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const {
     sessionIngested,
     storageStats,
-    viewMode,
-    setViewMode,
     refreshStorageStats,
   } = useLakehouseStreamStore();
-
-  const handleSyncStorage = async () => {
-    setIsSyncing(true);
-    setSyncMessage(language === 'vi' ? 'Đang quét các đối tượng hồ MinIO S3...' : 'Scanning the MinIO bucket...');
-    try {
-      const res = await syncStorage();
-      await refreshStorageStats();
-      const updated = await fetchStorageStats();
-      setStats(updated);
-      setSyncMessage(res.message || (language === 'vi' ? 'Đã đồng bộ thống kê lưu trữ MinIO thành công.' : 'MinIO storage stats synchronized successfully.'));
-    } catch (e: any) {
-      setSyncMessage(language === 'vi' ? `Đồng bộ thất bại: ${e.message}` : `Sync failed: ${e.message}`);
-    } finally {
-      setIsSyncing(false);
-      setTimeout(() => setSyncMessage(null), 4000);
-    }
-  };
 
   const handleResetSession = async () => {
     if (confirm(language === 'vi' ? 'Đặt lại bộ đếm phiên thu thập thời gian thực về mốc chuẩn?' : 'Reset real-time ingestion session counter back to baseline?')) {
@@ -65,27 +41,18 @@ export function StorageInspector() {
     refreshStorageStats();
   }, [refreshStorageStats]);
 
-  const activeStats = storageStats || stats;
-  const bucketName = activeStats?.bucket ?? '';
-  const isTotalView = viewMode === 'total';
-
-  const activeData = activeStats?.activeLakehouse;
-  const backupData = activeStats?.backupStorage;
-  const totalBucket = activeStats?.totalBucket;
+  const bucketName = storageStats?.bucket ?? '';
+  const activeData = storageStats?.activeLakehouse;
+  const backupData = storageStats?.backupStorage;
 
   const arxivCount = (activeData?.arxivHtmlCount ?? 0);
   const arxivGb = (activeData?.arxivHtmlSizeGb ?? 0).toFixed(3);
-  const doiCount = (activeStats?.sourceBreakdown?.doi ?? 0).toLocaleString();
-  const doiGb = (Number((activeStats?.activeLakehouse?.openalexSizeBytes ?? 0) / (1024**3))).toFixed(3);
+  const doiCount = (storageStats?.sourceBreakdown?.doi ?? 0).toLocaleString();
+  const doiGb = (Number((storageStats?.activeLakehouse?.openalexSizeBytes ?? 0) / (1024**3))).toFixed(3);
   const silverMb = (activeData?.silverParquetSizeMb ?? 0).toFixed(2);
   const goldChunks = (activeData?.activeVectors ?? 0).toLocaleString();
   const goldMb = (activeData?.activeVectorsSizeMb ?? 0).toFixed(2);
   const backupGb = (backupData?.totalSizeGb ?? 0).toFixed(3);
-
-  const activeGb = (Number(activeData?.totalSizeGb ?? 0)).toFixed(3);
-  const activePct = (Number(activeData?.usedPercentage ?? 33.73)).toFixed(1);
-  const totalGb = (totalBucket?.totalSizeGb ?? 0).toFixed(3);
-  const totalPct = (totalBucket?.usedPercentage ?? 47.74).toFixed(1);
 
   const layers: LakehouseLayer[] = [
     {
@@ -202,11 +169,11 @@ export function StorageInspector() {
       padding: '24px',
     }}>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '14px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '14px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-              {language === 'vi' ? 'Lăng kính Lưu trữ MinIO S3 Lakehouse Cục bộ' : 'MinIO Local S3 Lakehouse Storage Lens'}
+            <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              {language === 'vi' ? 'Bảng Phân Tầng Hồ Lưu Trữ MinIO S3 (Granular Layers)' : 'MinIO S3 Granular Lakehouse Layers'}
             </h3>
             <span style={{
               fontSize: '10px',
@@ -220,184 +187,33 @@ export function StorageInspector() {
               {language === 'vi' ? 'MinIO S3 (Độ trễ < 1ms)' : 'Local S3 (< 1ms Latency)'}
             </span>
           </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
-            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{activeStats?.bucket ?? ''}</code> · {language === 'vi' ? 'Điểm cuối S3: MinIO Lakehouse' : 'S3 endpoint: MinIO'}
+          <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
+            Bucket: <code className="mono" style={{ color: 'var(--text-primary)' }}>{bucketName}</code> &bull; {language === 'vi' ? 'Điểm cuối S3: MinIO Lakehouse cục bộ' : 'S3 endpoint: Local MinIO Lakehouse'} &bull; 8 {language === 'vi' ? 'phân vùng dữ liệu' : 'storage layers'}
           </p>
         </div>
 
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* Active vs Total View Switcher */}
-          <div style={{
-            display: 'inline-flex',
-            background: 'var(--bg-elevated)',
-            padding: '3px',
-            borderRadius: '14px',
-            border: '1px solid var(--border-muted)',
-            fontSize: '11px',
-            fontFamily: 'var(--font-mono)',
-          }}>
-            <button
-              type="button"
-              onClick={() => setViewMode('active')}
-              style={{
-                background: !isTotalView ? 'var(--accent-emerald)' : 'transparent',
-                color: !isTotalView ? '#ffffff' : 'var(--text-muted)',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '4px 10px',
-                cursor: 'pointer',
-                fontWeight: !isTotalView ? 600 : 400,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {language === 'vi' ? 'Đang dùng' : 'Active'} (<AnimatedCounter value={Number(activeGb)} decimals={3} /> GB)
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('total')}
-              style={{
-                background: isTotalView ? 'var(--accent-gold)' : 'transparent',
-                color: isTotalView ? '#000000' : 'var(--text-muted)',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '4px 10px',
-                cursor: 'pointer',
-                fontWeight: isTotalView ? 600 : 400,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {language === 'vi' ? 'Tổng hồ' : 'Total Bucket'} (<AnimatedCounter value={Number(totalGb)} decimals={3} /> GB)
-            </button>
-          </div>
-
-          {/* Sync Button */}
-          <button
-            type="button"
-            onClick={handleSyncStorage}
-            disabled={isSyncing}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              cursor: isSyncing ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            {isSyncing ? (language === 'vi' ? 'Đang quét...' : 'Syncing...') : (language === 'vi' ? 'Quét MinIO' : 'Scan MinIO')}
-          </button>
-
           {/* Reset Session Button */}
           {sessionIngested > 0 && (
             <button
               type="button"
               onClick={handleResetSession}
               style={{
-                padding: '6px 10px',
+                padding: '5px 10px',
                 borderRadius: 'var(--radius-sm)',
                 background: 'rgba(239, 68, 68, 0.1)',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
                 color: '#ef4444',
                 fontSize: '11px',
                 fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
                 cursor: 'pointer',
               }}
             >
               {language === 'vi' ? `Đặt lại phiên (+${sessionIngested})` : `Reset Session (+${sessionIngested})`}
             </button>
           )}
-        </div>
-      </div>
-
-      {syncMessage && (
-        <div style={{
-          padding: '8px 14px',
-          borderRadius: 'var(--radius-sm)',
-          background: 'rgba(59, 130, 246, 0.1)',
-          border: '1px solid rgba(59, 130, 246, 0.3)',
-          color: '#60a5fa',
-          fontSize: '12px',
-          fontFamily: 'var(--font-mono)',
-          marginBottom: '16px',
-        }}>
-          {syncMessage}
-        </div>
-      )}
-
-      {/* 3 Overview Metric Boxes */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '12px',
-        marginBottom: '20px',
-      }}>
-        {/* Box 1: Primary Active Lakehouse */}
-        <div style={{
-          background: 'var(--bg-elevated)',
-          padding: '14px',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)',
-        }}>
-          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-            {language === 'vi' ? 'LAKEHOUSE CHÍNH ĐANG HOẠT ĐỘNG' : 'PRIMARY ACTIVE LAKEHOUSE'}
-          </div>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-            <AnimatedCounter value={Number(activeGb)} decimals={3} suffix=" GB" />{' '}
-            <span style={{ fontSize: '13px', color: 'var(--accent-emerald)', fontWeight: 500 }}>
-              (<AnimatedCounter value={Number(activePct)} decimals={1} suffix={language === 'vi' ? '% hạn mức' : '% Free Quota'} />)
-            </span>
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            arXiv HTML5 ({arxivGb} GB) + DOI ({doiGb} GB) + Parquet ({silverMb} MB)
-          </div>
-        </div>
-
-        {/* Box 2: Disaster Recovery Backup */}
-        <div style={{
-          background: 'var(--bg-elevated)',
-          padding: '14px',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)',
-        }}>
-          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-            {language === 'vi' ? 'BẢN LƯU VECTOR & KHÔI PHỤC THẢM HỌA' : 'DISASTER RECOVERY SNAPSHOTS'}
-          </div>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>
-            <AnimatedCounter value={Number(backupGb)} decimals={3} suffix=" GB" />{' '}
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>
-              ({language === 'vi' ? '28 phân đoạn' : '28 segments'})
-            </span>
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {language === 'vi' ? 'Động cơ vector Gold Qdrant kết hợp lưu trữ bền vững MinIO' : 'Gold Qdrant vector engine with persistent MinIO Lakehouse storage'}
-          </div>
-        </div>
-
-        {/* Box 3: Total Physical Bucket */}
-        <div style={{
-          background: 'var(--bg-elevated)',
-          padding: '14px',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)',
-        }}>
-          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-            {language === 'vi' ? 'TỔNG DUNG LƯỢNG HỒ CHỨA MINIO S3' : 'TOTAL MINIO S3 LAKEHOUSE BUCKET'}
-          </div>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-            <AnimatedCounter value={Number(totalGb)} decimals={3} suffix=" GB" />{' '}
-            <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 500 }}>
-              (<AnimatedCounter value={Number(totalPct)} decimals={1} suffix="%" />)
-            </span>
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {(totalBucket?.totalObjects ?? 0).toLocaleString()} {language === 'vi' ? 'đối tượng' : 'objects'} · {language === 'vi' ? `Hạn mức ${totalBucket?.freeTierQuotaGb ?? 20} GB` : `${totalBucket?.freeTierQuotaGb ?? 20} GB budget`}
-          </div>
         </div>
       </div>
 

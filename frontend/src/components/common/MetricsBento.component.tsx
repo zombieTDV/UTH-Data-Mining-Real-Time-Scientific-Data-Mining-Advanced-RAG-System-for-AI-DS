@@ -271,22 +271,84 @@ export const MetricsBento: FC = () => {
             }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#2563eb', display: 'inline-block' }} />
-                DOI
+                DOI: {doiGb.toFixed(2)}G
               </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#8b5cf6', display: 'inline-block' }} />
-                arXiv
+                arXiv: {arxivGb.toFixed(2)}G
               </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#10b981', display: 'inline-block' }} />
-                Parquet
+                Parquet: {silverMb.toFixed(1)}M
               </span>
               {isTotalView && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#f59e0b', display: 'inline-block' }} />
-                  Backup
+                  Backup: {backupGb.toFixed(2)}G
                 </span>
               )}
+            </div>
+          </div>
+
+          {/* Integrated 3-Zone Storage Breakdown Chips (Merged from StorageInspector) */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '6px',
+            marginTop: '10px',
+          }}>
+            <div style={{
+              background: 'var(--bg-elevated)',
+              borderRadius: '4px',
+              padding: '6px 8px',
+              border: '1px solid var(--border-subtle)',
+              borderLeft: '2px solid var(--accent-emerald)',
+            }}>
+              <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                {language === 'vi' ? 'Đang dùng' : 'Active'}
+              </div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                <AnimatedCounter value={activeGb} decimals={2} suffix=" GB" />
+              </div>
+              <div style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                {activePct.toFixed(1)}% {language === 'vi' ? 'hạn mức' : 'quota'}
+              </div>
+            </div>
+
+            <div style={{
+              background: 'var(--bg-elevated)',
+              borderRadius: '4px',
+              padding: '6px 8px',
+              border: '1px solid var(--border-subtle)',
+              borderLeft: '2px solid #f59e0b',
+            }}>
+              <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                {language === 'vi' ? 'Bản lưu' : 'Snapshots'}
+              </div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                <AnimatedCounter value={backupGb} decimals={2} suffix=" GB" />
+              </div>
+              <div style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                {language === 'vi' ? '28 phân đoạn' : '28 segments'}
+              </div>
+            </div>
+
+            <div style={{
+              background: 'var(--bg-elevated)',
+              borderRadius: '4px',
+              padding: '6px 8px',
+              border: '1px solid var(--border-subtle)',
+              borderLeft: '2px solid var(--accent-gold)',
+            }}>
+              <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                {language === 'vi' ? 'Tổng hồ' : 'Total'}
+              </div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                <AnimatedCounter value={totalGb} decimals={2} suffix=" GB" />
+              </div>
+              <div style={{ fontSize: '8.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                {totalPct.toFixed(1)}% / {budgetGb}G
+              </div>
             </div>
           </div>
         </div>
