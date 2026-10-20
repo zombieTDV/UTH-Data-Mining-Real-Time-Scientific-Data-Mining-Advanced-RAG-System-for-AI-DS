@@ -12,6 +12,7 @@ build/
 .ipynb_checkpoints/
 
 # Virtual Environments
+.venv
 .venv/
 venv/
 env/

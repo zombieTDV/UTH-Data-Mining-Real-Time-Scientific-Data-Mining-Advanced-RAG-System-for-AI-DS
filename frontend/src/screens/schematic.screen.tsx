@@ -1,7 +1,6 @@
 import type { FC } from 'react';
 import { InteractiveWorkflowCanvas } from '../components/schematic';
 import { MetricsBento } from '../components/common';
-import { GeometricTelemetryGauges } from '../components/charts';
 import { StorageInspector } from '../components/schematic';
 import { useLakehouseStreamStore } from '../store';
 import type { AppTab, AppTheme, PipelineStatus, SchematicViewMode } from '../types';
@@ -126,7 +125,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
         <div style={{ flex: 1, width: '100%', overflowY: 'auto', padding: '54px 20px 30px' }}>
           <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <MetricsBento />
-            <GeometricTelemetryGauges />
             <StorageInspector />
           </div>
         </div>
