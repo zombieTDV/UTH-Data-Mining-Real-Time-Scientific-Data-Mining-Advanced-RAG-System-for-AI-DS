@@ -1,4 +1,4 @@
-import type { FC, RefObject } from 'react';
+import type { FC } from 'react';
 import { useTranslation } from '../../hooks';
 
 export interface ChartToolbarProps {
@@ -19,9 +19,6 @@ export interface ChartToolbarProps {
   onToggleLens?: () => void;
   isSidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
-  svgRef?: RefObject<SVGSVGElement | null>;
-  filename?: string;
-  csvData?: Array<Record<string, any>> | string;
   onShowToast?: (msg: string) => void;
 }
 
@@ -42,10 +39,6 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
   onToggleLens,
   isSidebarCollapsed,
   onToggleSidebar,
-  svgRef,
-  filename = 'scientific-chart',
-  csvData,
-  onShowToast,
 }) => {
   const { language } = useTranslation();
   const isVi = language === 'vi';
@@ -73,72 +66,6 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
     backgroundColor: isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff',
     color: isDark ? '#38bdf8' : '#2563eb',
     borderColor: isDark ? 'rgba(56, 189, 248, 0.5)' : '#93c5fd',
-  };
-
-  const handleDownloadSvg = () => {
-    if (!svgRef?.current) return;
-    try {
-      const serializer = new XMLSerializer();
-      let source = serializer.serializeToString(svgRef.current);
-      if (!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)) {
-        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-      }
-      if (!source.match(/^<svg[^>]+xmlns:xlink="http:\/\/www\.w3\.org\/1999\/xlink"/)) {
-        source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
-      }
-      const preface = '<?xml version="1.0" standalone="no"?>\r\n';
-      const svgBlob = new Blob([preface, source], { type: 'image/svg+xml;charset=utf-8' });
-      const svgUrl = URL.createObjectURL(svgBlob);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = svgUrl;
-      downloadLink.download = `${filename}.svg`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      URL.revokeObjectURL(svgUrl);
-      if (onShowToast) onShowToast(isVi ? `Đã xuất đồ họa vector ${filename}.svg thành công!` : `Successfully exported vector graphic ${filename}.svg!`);
-    } catch {
-      if (onShowToast) onShowToast(isVi ? 'Không thể xuất file SVG.' : 'Failed to export SVG file.');
-    }
-  };
-
-  const handleDownloadCsv = () => {
-    if (!csvData) return;
-    try {
-      let csvContent = '';
-      if (typeof csvData === 'string') {
-        csvContent = csvData;
-      } else if (Array.isArray(csvData) && csvData.length > 0) {
-        const headers = Object.keys(csvData[0]);
-        csvContent = [
-          headers.join(','),
-          ...csvData.map((row) =>
-            headers
-              .map((fieldName) => {
-                const val = row[fieldName];
-                if (typeof val === 'string' && val.includes(',')) {
-                  return `"${val.replace(/"/g, '""')}"`;
-                }
-                return val ?? '';
-              })
-              .join(',')
-          ),
-        ].join('\n');
-      }
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${filename}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      if (onShowToast) onShowToast(isVi ? `Đã tải xuống dữ liệu nguồn ${filename}.csv!` : `Downloaded raw dataset ${filename}.csv!`);
-    } catch {
-      if (onShowToast) onShowToast(isVi ? 'Không thể xuất file CSV.' : 'Failed to export CSV file.');
-    }
   };
 
   return (
@@ -272,39 +199,6 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
             )}
             <span>{(isTheater || isMaximized) ? (isVi ? 'Thu Nhỏ' : 'Exit') : (isVi ? 'Rạp Hát' : 'Theater')}</span>
           </span>
-        </button>
-      )}
-
-      {/* SVG Export */}
-      {svgRef && (
-        <button
-          type="button"
-          onClick={handleDownloadSvg}
-          style={btnStyle}
-          title={isVi ? 'Tải ảnh vector SVG chuẩn xuất bản học thuật' : 'Download publication-grade SVG vector image'}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
-          </svg>
-          <span>SVG</span>
-        </button>
-      )}
-
-      {/* CSV Export */}
-      {csvData && (
-        <button
-          type="button"
-          onClick={handleDownloadCsv}
-          style={btnStyle}
-          title={isVi ? 'Tải tập dữ liệu nguồn CSV' : 'Download raw CSV dataset'}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="20" x2="18" y2="10" />
-            <line x1="12" y1="20" x2="12" y2="4" />
-            <line x1="6" y1="20" x2="6" y2="14" />
-          </svg>
-          <span>CSV</span>
         </button>
       )}
     </div>

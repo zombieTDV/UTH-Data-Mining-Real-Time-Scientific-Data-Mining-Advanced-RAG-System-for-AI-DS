@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type FC, type MouseEvent } from 'react';
+import { useState, useEffect, useMemo, type FC, type MouseEvent } from 'react';
 import type { EdaResponse, CategoryDistItem, MiningRunStatus, PipelineStatus } from '../../types';
 import { fetchEdaSummary } from '../../services';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
@@ -351,11 +351,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
   const [hoveredBar, setHoveredBar] = useState<{ category: string; count: number; math: number; x: number; y: number } | null>(null);
   const [hoveredTimelineYear, setHoveredTimelineYear] = useState<{ year: string; count: number; pct: string; x: number; y: number } | null>(null);
 
-  // SVG Chart Refs for Vector Export
-  const comboSvgRef = useRef<SVGSVGElement | null>(null);
-  const timelineSvgRef = useRef<SVGSVGElement | null>(null);
-  const donutSvgRef = useRef<SVGSVGElement | null>(null);
-
   // Advanced Chart Insight States
   const [temporalSmoothing, setTemporalSmoothing] = useState<boolean>(false);
   const [correlationMetric, setCorrelationMetric] = useState<'pearson' | 'spearman'>('spearman');
@@ -656,28 +651,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
     setSelectedCategory('ALL');
     setSelectedMathFilter('ALL');
     setSelectedQuadrant('ALL');
-  };
-
-  const handleCopyLatexTable = () => {
-    if (!data) return;
-    const { math_quantiles: mq, word_quantiles: wq } = data.math_and_content_stats;
-    const latexSnippet = `% Generated from UTH Scientific Data Mining Lakehouse (DuckDB OLAP)
-\\begin{table}[h]
-  \\centering
-  \\caption{Non-parametric Quantile Summary of Mathematical & Lexical Density}
-  \\begin{tabular}{lccccc}
-    \\hline
-    \\textbf{Feature Variable} & \\textbf{P25} & \\textbf{Median} & \\textbf{P75} & \\textbf{P95} & \\textbf{Max} \\\\
-    \\hline
-    LaTeX Math Formulas & ${mq.p25} & ${mq.median} & ${mq.p75} & ${mq.p95} & ${mq.max} \\\\
-    Word Count (Tokens) & ${mq.p25.toLocaleString()} & ${wq.median.toLocaleString()} & ${wq.p75.toLocaleString()} & ${wq.p95.toLocaleString()} & ${wq.max.toLocaleString()} \\\\
-    \\hline
-  \\end{tabular}
-\\end{table}`;
-
-    navigator.clipboard.writeText(latexSnippet).then(() => {
-      setFeedbackToast('Đã sao chép bảng mã LaTeX Table vào clipboard!');
-    });
   };
 
   const handleCopyBibtex = (paper: ScatterPaperPoint) => {
@@ -1341,13 +1314,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                   </button>
                   <ChartToolbar
                     theme={theme}
-                    svgRef={comboSvgRef}
-                    filename="eda-category-distribution-combo"
-                    csvData={categoryList.map((c) => ({
-                      category: c.category,
-                      papers: c.count,
-                      math_formulas: c.total_math_formulas,
-                    }))}
                     zoomLevel={comboPanZoom.zoom}
                     hasPannedOrZoomed={comboPanZoom.hasPannedOrZoomed}
                     onZoomIn={() => comboPanZoom.zoomIn(0.25)}
@@ -1388,7 +1354,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 }}
               >
                 <svg
-                  ref={comboSvgRef}
                   viewBox={comboPanZoom.viewBox}
                   preserveAspectRatio="xMidYMid meet"
                   style={{ width: '100%', height: '100%' }}
@@ -1775,13 +1740,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
 
                   <ChartToolbar
                       theme={theme}
-                      svgRef={timelineSvgRef}
-                      filename="eda-temporal-publication-growth"
-                      csvData={temporalAggregatedPoints.points.map((p) => ({
-                        period: p.label,
-                        papers: p.count,
-                        cumulative_share: p.pct,
-                      }))}
                       zoomLevel={timelinePanZoom.zoom}
                       hasPannedOrZoomed={timelinePanZoom.hasPannedOrZoomed}
                       onZoomIn={() => timelinePanZoom.zoomIn(0.25)}
@@ -1815,7 +1773,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                   }}
                 >
                   <svg
-                    ref={timelineSvgRef}
                     viewBox={timelinePanZoom.viewBox}
                     preserveAspectRatio="xMidYMid meet"
                     style={{ width: '100%', height: '100%' }}
@@ -1994,27 +1951,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                       Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'} bài báo
                     </div>
                   </div>
-
-                  <ChartToolbar
-                    theme={theme}
-                    svgRef={donutSvgRef}
-                    filename="eda-taxonomy-distribution-donut"
-                    csvData={categoryList.map((c) => ({
-                      category: c.category,
-                      papers: c.count,
-                      percentage: c.percentage,
-                    }))}
-                    onShowToast={(msg) => {
-                      setFeedbackToast(msg);
-                      setTimeout(() => setFeedbackToast(null), 2500);
-                    }}
-                  />
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minHeight: 0 }}>
                   {/* SVG Donut */}
                   <div style={{ width: '150px', height: '150px', flexShrink: 0 }}>
-                    <svg ref={donutSvgRef} viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+                    <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
                       {donutSlices.map((slice) => (
                         <circle
                           key={slice.category}
@@ -2180,20 +2122,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                       {cooccurrenceThreshold}
                     </span>
                   </div>
-
-                  <ChartToolbar
-                    theme={theme}
-                    filename="interdisciplinary-cooccurrence-matrix"
-                    csvData={category_cooccurrence.map((p) => ({
-                      category_a: p.category_a,
-                      category_b: p.category_b,
-                      cooccurrence_count: p.cooccurrence_count,
-                    }))}
-                    onShowToast={(msg) => {
-                      setFeedbackToast(msg);
-                      setTimeout(() => setFeedbackToast(null), 2500);
-                    }}
-                  />
                 </div>
               </div>
 
@@ -2463,20 +2391,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                   Xếp hạng theo số lượng bài báo trong tập dữ liệu Lakehouse &bull; Click tác giả để lọc
                 </div>
-
-                <ChartToolbar
-                  theme={theme}
-                  filename="top-productive-authors"
-                  csvData={top_authors.map((a, i) => ({
-                    rank: i + 1,
-                    author: a.author,
-                    paper_count: a.paper_count,
-                  }))}
-                  onShowToast={(msg) => {
-                    setFeedbackToast(msg);
-                    setTimeout(() => setFeedbackToast(null), 2500);
-                  }}
-                />
               </div>
 
               <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '5px', paddingRight: '4px' }}>
@@ -2536,32 +2450,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                       MEDIAN: {math_and_content_stats.math_quantiles.median} eq · {math_and_content_stats.word_quantiles.median.toLocaleString()}w
                     </span>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={handleCopyLatexTable}
-                    style={{
-                      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#eff6ff',
-                      border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.4)' : '#bfdbfe'}`,
-                      color: isDark ? '#93c5fd' : '#1d4ed8',
-                      borderRadius: '4px',
-                      padding: '3px 8px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                    title="Sao chép đoạn mã LaTeX Table vào clipboard để dán vào bài báo Overleaf"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                    </svg>
-                    <span>COPY LATEX</span>
-                  </button>
                 </div>
 
                 {/* Row 2: Subtitle */}
@@ -3226,34 +3114,11 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 </div>
               </div>
 
-              {/* Row 2: Subtitle + Toolbar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexShrink: 0 }}>
+              {/* Row 2: Subtitle */}
+              <div style={{ marginBottom: '8px', flexShrink: 0 }}>
                 <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
                   {(data?.rag_audit_metrics?.total_vectors ?? 0).toLocaleString()} vector chunks 768 chiều &bull; Cửa sổ ngữ cảnh 8,192 tokens &bull; {data?.rag_audit_metrics?.index_type || 'Qdrant HNSW (cosine)'}
                 </div>
-
-                <ChartToolbar
-                  theme={theme}
-                  filename="rag-section-contribution-chunks"
-                  csvData={
-                    data?.rag_audit_metrics?.section_distribution
-                      ? data.rag_audit_metrics.section_distribution.map((s) => ({
-                          section: s.section,
-                          chunks: s.chunks,
-                          percentage: s.percentage,
-                        }))
-                      : [
-                          { section: 'Methodology & Algorithms', chunks: 295878, percentage: 32.4 },
-                          { section: 'Experiments & Benchmarks', chunks: 257525, percentage: 28.2 },
-                          { section: 'Introduction & Theory', chunks: 217344, percentage: 23.8 },
-                          { section: 'Discussion & Conclusion', chunks: 142458, percentage: 15.6 },
-                        ]
-                  }
-                  onShowToast={(msg) => {
-                    setFeedbackToast(msg);
-                    setTimeout(() => setFeedbackToast(null), 2500);
-                  }}
-                />
               </div>
 
               <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
@@ -3335,7 +3200,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                   minHeight: 0,
                 }}
               >
-                {/* Row 1: Title + Telemetry + Toolbar */}
+                {/* Row 1: Title + Telemetry */}
                 <div style={{ flexShrink: 0, marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
@@ -3345,21 +3210,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                       ZERO CONTAMINATION
                     </span>
                   </div>
-
-                  <ChartToolbar
-                    theme={theme}
-                    filename="eda-lotka-author-team-distribution"
-                    csvData={[
-                      { team_structure: 'Nhóm nhỏ (2 - 4 tác giả)', papers: 5640, percentage: 56.4 },
-                      { team_structure: 'Lab lớn (5 - 10 tác giả)', papers: 2410, percentage: 24.1 },
-                      { team_structure: 'Tác giả đơn (Solo Author)', papers: 1420, percentage: 14.2 },
-                      { team_structure: 'Mega-consortium (> 10 người)', papers: 530, percentage: 4.9 },
-                    ]}
-                    onShowToast={(msg) => {
-                      setFeedbackToast(msg);
-                      setTimeout(() => setFeedbackToast(null), 2500);
-                    }}
-                  />
                 </div>
 
                 {/* Row 2: Subtitle */}

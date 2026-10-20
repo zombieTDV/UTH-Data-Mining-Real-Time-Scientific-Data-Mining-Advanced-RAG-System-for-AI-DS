@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, type FC, type MouseEvent } from 'react';
+import { useState, useMemo, type FC, type MouseEvent } from 'react';
 import type { Diagnostic3Lenses } from '../../types';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
@@ -73,12 +73,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   // Magnifier Lens tool
   const [isLensActive, setIsLensActive] = useState<boolean>(false);
   const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
-
-  // SVG Refs
-  // SVG Refs
-  const scatterSvgRef = useRef<SVGSVGElement | null>(null);
-  const histSvgRef = useRef<SVGSVGElement | null>(null);
-  const qqSvgRef = useRef<SVGSVGElement | null>(null);
 
   // Pan Zoom hook for bivariate scatter
   const scatterPanZoom = useSvgPanZoom({
@@ -504,8 +498,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ChartToolbar
                 theme={theme}
-                svgRef={scatterSvgRef}
-                filename={`eda-3lens-${selectedPairKey}`}
                 zoomLevel={scatterPanZoom.zoom}
                 hasPannedOrZoomed={scatterPanZoom.hasPannedOrZoomed}
                 onZoomIn={() => scatterPanZoom.zoomIn(0.25)}
@@ -515,14 +507,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 onToggleLens={() => setIsLensActive((v) => !v)}
                 isTheater={isTheaterMode}
                 onToggleTheater={onToggleTheater}
-                csvData={displayPoints.map((p) => ({
-                  id: p.id,
-                  title: p.title,
-                  category: p.category,
-                  x: p.x,
-                  y: p.y,
-                  author: p.author,
-                }))}
                 onShowToast={onShowToast}
               />
             </div>
@@ -557,7 +541,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             }}
           >
             <svg
-              ref={scatterSvgRef}
               viewBox={scatterPanZoom.viewBox}
               preserveAspectRatio="xMidYMid meet"
               style={{
@@ -1084,7 +1067,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               />
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
                 <svg
-                  ref={histSvgRef}
                   viewBox="0 0 500 240"
                   preserveAspectRatio="xMidYMid meet"
                   style={{ width: '100%', height: '100%' }}
@@ -1212,7 +1194,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               />
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
                 <svg
-                  ref={qqSvgRef}
                   viewBox="0 0 400 240"
                   preserveAspectRatio="xMidYMid meet"
                   style={{ width: '100%', height: '100%' }}
