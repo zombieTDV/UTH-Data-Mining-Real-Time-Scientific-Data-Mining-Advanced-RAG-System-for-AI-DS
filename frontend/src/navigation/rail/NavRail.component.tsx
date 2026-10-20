@@ -6,7 +6,7 @@ import { LanguageToggle } from './LanguageToggle.component';
 import { useTranslation } from '../../hooks';
 
 export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onToggleTheme }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const getTabLabel = (id: string, fallback: string) => {
     switch (id) {
@@ -50,30 +50,50 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
         transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}
     >
-      <div
-        title="UTH Scientific Data Mining Lakehouse"
+      <button
+        type="button"
+        title={
+          language === 'vi'
+            ? 'Trường Đại học Giao thông Vận tải TP.HCM (UTH) • Về trang chủ'
+            : 'Ho Chi Minh City University of Transport (UTH) • Home'
+        }
         style={{
           width: '36px',
           height: '36px',
           borderRadius: '9px',
-          backgroundColor: '#ff5722',
+          background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#ffffff',
-          boxShadow: '0 4px 12px rgba(255, 87, 34, 0.4)',
+          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
           cursor: 'pointer',
+          border: 'none',
+          padding: 0,
           marginBottom: '20px',
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
         }}
         onClick={() => onNavigate('schematic')}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.06)';
+          e.currentTarget.style.boxShadow = '0 6px 18px rgba(37, 99, 235, 0.45)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.35)';
+        }}
+        onMouseDown={(e) => {
+          e.currentTarget.style.transform = 'scale(0.94)';
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.transform = 'scale(1.06)';
+        }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <rect x="5" y="5" width="5" height="5" rx="1.5" />
-          <rect x="14" y="5" width="5" height="5" rx="1.5" />
-          <rect x="5" y="14" width="5" height="5" rx="1.5" />
-          <rect x="14" y="14" width="5" height="5" rx="1.5" />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+          <path d="M6 12v5c3 3 9 3 12 0v-5" />
         </svg>
-      </div>
+      </button>
 
       <nav style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', alignItems: 'center' }}>
         {NAV_RAIL_ITEMS.map((item) => {
