@@ -2,6 +2,7 @@ import type { FC } from 'react';
 import { NAV_RAIL_ITEMS, type NavRailProps } from './NavRail.types';
 import { RailIcon } from './RailIcon.component';
 import { ThemeToggle } from './ThemeToggle.component';
+import { LanguageToggle } from './LanguageToggle.component';
 import { useTranslation } from '../../hooks';
 
 export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onToggleTheme }) => {
@@ -105,7 +106,8 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
         })}
       </nav>
 
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+        <LanguageToggle />
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
 
         <div

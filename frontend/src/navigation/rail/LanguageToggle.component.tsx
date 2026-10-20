@@ -16,15 +16,16 @@ export const LanguageToggle: FC = () => {
         backgroundColor: 'var(--bg-elevated)',
         border: '1px solid var(--border-subtle)',
         gap: '2px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
       }}
     >
       <button
         type="button"
         onClick={() => setLanguage('vi')}
         style={{
-          padding: '3px 8px',
+          padding: '2.5px 6.5px',
           borderRadius: '5px',
-          fontSize: '10.5px',
+          fontSize: '10px',
           fontFamily: 'var(--font-mono)',
           fontWeight: 800,
           border: 'none',
@@ -41,9 +42,9 @@ export const LanguageToggle: FC = () => {
         type="button"
         onClick={() => setLanguage('en')}
         style={{
-          padding: '3px 8px',
+          padding: '2.5px 6.5px',
           borderRadius: '5px',
-          fontSize: '10.5px',
+          fontSize: '10px',
           fontFamily: 'var(--font-mono)',
           fontWeight: 800,
           border: 'none',

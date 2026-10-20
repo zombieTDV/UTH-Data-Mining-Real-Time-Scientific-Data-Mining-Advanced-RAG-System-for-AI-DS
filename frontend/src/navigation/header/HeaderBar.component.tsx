@@ -3,7 +3,6 @@ import { StatusPill } from './StatusPill.component';
 import { PipelineStatusPill } from './PipelineStatusPill.component';
 import { StorageMeter } from './StorageMeter.component';
 import { RunPipelineButton } from './RunPipelineButton.component';
-import { LanguageToggle } from './LanguageToggle.component';
 import { useTranslation } from '../../hooks';
 import type { BackendStatus, PipelineStatus } from '../../types';
 
@@ -105,14 +104,13 @@ export const HeaderBar: FC<HeaderBarProps> = ({
         />
       </div>
 
-      {/* Right Controls: Visual Storage Meter + Segmented Language Switch + Pipeline Action */}
+      {/* Right Controls: Visual Storage Meter + Pipeline Action */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
         <StorageMeter
           storageUsedGb={storageUsedGb}
           storageUsedPct={storageUsedPct}
           totalPapers={totalPapers}
         />
-        <LanguageToggle />
         <RunPipelineButton pipelineStatus={pipelineStatus} onClick={onTriggerPipeline} />
       </div>
     </header>
