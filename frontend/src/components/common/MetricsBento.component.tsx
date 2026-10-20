@@ -4,8 +4,10 @@ import { fetchEdaSummary } from '../../services';
 import { StatCard } from './StatCard.component';
 import { AnimatedCounter } from './AnimatedCounter.component';
 import { useLakehouseStreamStore } from '../../store';
+import { useTranslation } from '../../hooks';
 
 export const MetricsBento: FC = () => {
+  const { language } = useTranslation();
   const {
     storageStats,
     totalVectors,
@@ -67,12 +69,12 @@ export const MetricsBento: FC = () => {
     }}>
       {/* 1. Corpus Scale Card */}
       <StatCard
-        label="Corpus Scale"
-        badge="Unique papers (dedup registry)"
+        label={language === 'vi' ? 'Quy mô Tập dữ liệu' : 'Corpus Scale'}
+        badge={language === 'vi' ? 'Bài báo độc nhất' : 'Unique papers'}
         badgeColor="var(--accent-emerald)"
         value={<AnimatedCounter value={totalCorpus || totalCorpusCount} />}
-        unit="works"
-        description="Tier 1 live stream · Tier 2 near-past · Tier 3 historical archive"
+        unit={language === 'vi' ? 'bài' : 'works'}
+        description={language === 'vi' ? 'Tầng 1 luồng trực tiếp · Tầng 2 cận khứ · Tầng 3 nền tảng kinh điển' : 'Tier 1 live stream · Tier 2 near-past · Tier 3 historical archive'}
         footerLeft={<>Tier 2: <AnimatedCounter value={live?.corpus.tier2_rows ?? 0} /> · Tier 3: <AnimatedCounter value={live?.corpus.tier3_rows ?? 0} /></>}
         footerRight={<>Tier 1: <AnimatedCounter value={live?.corpus.tier1_rows ?? arxivCount} /></>}
         glowColor="rgba(96, 165, 250, 0.08)"
@@ -80,13 +82,13 @@ export const MetricsBento: FC = () => {
 
       {/* 2. Gold Zone Vector Lakehouse */}
       <StatCard
-        label="Gold Zone Vector Lakehouse"
+        label={language === 'vi' ? 'Kho Vector Gold Zone' : 'Gold Zone Vector Lakehouse'}
         badge="768 Dim"
         badgeColor="var(--accent-gold)"
         value={<AnimatedCounter value={activeVectors} />}
-        description="Qdrant contextual chunks (live count)"
-        footerLeft={<>Vectors: <AnimatedCounter value={activeVectors} /> ({activeVectorMb.toFixed(1)} MB)</>}
-        footerRight={<>Papers: <AnimatedCounter value={totalCorpus} /></>}
+        description={language === 'vi' ? 'Đoạn ngữ cảnh Qdrant HNSW (thời gian thực)' : 'Qdrant contextual chunks (live count)'}
+        footerLeft={<>{language === 'vi' ? 'Vectors:' : 'Vectors:'} <AnimatedCounter value={activeVectors} /> ({activeVectorMb.toFixed(1)} MB)</>}
+        footerRight={<>{language === 'vi' ? 'Số bài:' : 'Papers:'} <AnimatedCounter value={totalCorpus} /></>}
         glowColor="rgba(234, 179, 8, 0.08)"
       />
 
@@ -120,7 +122,7 @@ export const MetricsBento: FC = () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              MinIO S3 Storage Lens
+              {language === 'vi' ? 'Lưu trữ MinIO S3 Lakehouse' : 'MinIO S3 Storage Lens'}
             </span>
 
             {/* Toggle switch between Active vs Total */}
@@ -128,81 +130,81 @@ export const MetricsBento: FC = () => {
               display: 'inline-flex',
               background: 'var(--bg-elevated)',
               padding: '2px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-muted)',
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono)',
+              borderRadius: '6px',
+              border: '1px solid var(--border-subtle)',
+              gap: '2px',
             }}>
               <button
                 type="button"
                 onClick={() => setViewMode('active')}
                 style={{
-                  background: !isTotalView ? 'var(--accent-emerald)' : 'transparent',
-                  color: !isTotalView ? '#ffffff' : 'var(--text-muted)',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
                   border: 'none',
-                  borderRadius: '10px',
-                  padding: '2px 7px',
                   cursor: 'pointer',
-                  fontWeight: !isTotalView ? 600 : 400,
+                  backgroundColor: !isTotalView ? 'var(--bg-surface)' : 'transparent',
+                  color: !isTotalView ? 'var(--text-primary)' : 'var(--text-muted)',
+                  boxShadow: !isTotalView ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
                   transition: 'all 0.15s ease',
                 }}
               >
-                Active
+                {language === 'vi' ? 'Đang dùng' : 'Active'}
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('total')}
                 style={{
-                  background: isTotalView ? 'var(--accent-gold)' : 'transparent',
-                  color: isTotalView ? '#000000' : 'var(--text-muted)',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
                   border: 'none',
-                  borderRadius: '10px',
-                  padding: '2px 7px',
                   cursor: 'pointer',
-                  fontWeight: isTotalView ? 600 : 400,
+                  backgroundColor: isTotalView ? 'var(--bg-surface)' : 'transparent',
+                  color: isTotalView ? 'var(--text-primary)' : 'var(--text-muted)',
+                  boxShadow: isTotalView ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
                   transition: 'all 0.15s ease',
                 }}
               >
-                Total
+                {language === 'vi' ? 'Tổng hồ' : 'Total'}
               </button>
             </div>
           </div>
 
-          {/* Value Display */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-            <span style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
               <AnimatedCounter value={displayGb} decimals={3} />
             </span>
-            <span style={{ fontSize: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>
+            <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
               GB
             </span>
-            <span style={{
-              marginLeft: 'auto',
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 600,
-              padding: '2px 6px',
-              borderRadius: '4px',
-              background: isTotalView ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-              color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)',
-              border: `1px solid ${isTotalView ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
-            }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              (
               {isTotalView ? (
                 <>
-                  <AnimatedCounter value={displayPct} decimals={1} suffix="%" /> (w/ Backup)
+                  <AnimatedCounter value={displayPct} decimals={1} suffix="%" /> {language === 'vi' ? '(kèm Backup)' : '(w/ Backup)'}
                 </>
               ) : (
                 <>
-                  <AnimatedCounter value={displayPct} decimals={1} suffix="% of budget" />
+                  <AnimatedCounter value={displayPct} decimals={1} suffix={language === 'vi' ? '% ngân sách' : '% of budget'} />
                 </>
               )}
+              )
             </span>
           </div>
 
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {isTotalView
-              ? `Total Bucket: ${(totalBucket?.totalObjects ?? 0).toLocaleString()} objects (${backupGb} GB archived snapshots)`
-              : `Active Pipeline: ${(activeData?.totalObjects ?? 0).toLocaleString()} objects (within the ${budgetGb} GB budget)`}
+              ? (language === 'vi'
+                  ? `Tổng dung lượng hồ: ${(totalBucket?.totalObjects ?? 0).toLocaleString()} đối tượng (${backupGb} GB bản sao lưu)`
+                  : `Total Bucket: ${(totalBucket?.totalObjects ?? 0).toLocaleString()} objects (${backupGb} GB archived snapshots)`)
+              : (language === 'vi'
+                  ? `Pipeline đang dùng: ${(activeData?.totalObjects ?? 0).toLocaleString()} đối tượng (trong hạn mức ${budgetGb} GB)`
+                  : `Active Pipeline: ${(activeData?.totalObjects ?? 0).toLocaleString()} objects (within the ${budgetGb} GB budget)`)}
           </div>
 
           {/* Multi-Tier Segmented Progress Bar */}
@@ -301,24 +303,26 @@ export const MetricsBento: FC = () => {
         }}>
           <span>
             {isTotalView ? (
-              'Local MinIO (no egress fees)'
+              language === 'vi' ? 'MinIO cục bộ (không tính phí tải)' : 'Local MinIO (no egress fees)'
             ) : (
-              <>Free Left: <AnimatedCounter value={Number(remainingFreeGb)} decimals={3} suffix=" GB" /></>
+              <>{language === 'vi' ? 'Còn trống:' : 'Free Left:'} <AnimatedCounter value={Number(remainingFreeGb)} decimals={3} suffix=" GB" /></>
             )}
           </span>
           <span style={{ color: isTotalView ? '#f59e0b' : 'var(--accent-emerald)' }}>
-            {isTotalView ? `Backup: +${backupGb} GB` : 'Safe in 10GB Quota'}
+            {isTotalView
+              ? `Backup: +${backupGb} GB`
+              : (language === 'vi' ? `An toàn trong hạn mức ${budgetGb}GB` : `Safe in ${budgetGb}GB Quota`)}
           </span>
         </div>
       </div>
 
       {/* 4. Mathematical Extraction Engine */}
       <StatCard
-        label="Mathematical Extraction Engine"
+        label={language === 'vi' ? 'Bộ Trích xuất Công thức Toán học' : 'Mathematical Extraction Engine'}
         badge="LaTeX Parser"
         badgeColor="var(--accent-violet)"
-        value={<><AnimatedCounter value={currentFormulas} /> Formulas</>}
-        description="Cleaned and normalized into pure LaTeX syntax across Silver & Gold"
+        value={<><AnimatedCounter value={currentFormulas} /> {language === 'vi' ? 'Công thức' : 'Formulas'}</>}
+        description={language === 'vi' ? 'Làm sạch và chuẩn hóa sang cú pháp LaTeX chuẩn trên Silver & Gold' : 'Cleaned and normalized into pure LaTeX syntax across Silver & Gold'}
         footerLeft="Dual-Pass Regex + MathML"
         footerRight="Formula AST Tokenizer"
         gridColumn="span 6"
@@ -338,11 +342,11 @@ export const MetricsBento: FC = () => {
 
       {/* 5. Inference Infrastructure */}
       <StatCard
-        label="Inference Infrastructure"
+        label={language === 'vi' ? 'Hạ tầng Truy xuất Suy luận RAG' : 'Inference Infrastructure'}
         badge="Local"
         badgeColor="var(--accent-emerald)"
         value="Unified MLOps & RAG"
-        description="Vector dense ANN retrieval · Qdrant HNSW (cosine)"
+        description={language === 'vi' ? 'Truy xuất vector mật độ cao ANN · Qdrant HNSW (Cosine)' : 'Vector dense ANN retrieval · Qdrant HNSW (cosine)'}
         footerLeft="MinIO S3 API"
         footerRight="Sub-50ms Latency"
         gridColumn="span 6"
@@ -357,8 +361,10 @@ export const MetricsBento: FC = () => {
           color: 'var(--accent-emerald)',
           textAlign: 'right',
         }}>
-          <div>10.00 GB budget</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>No request quotas</div>
+          <div>{language === 'vi' ? `Hạn mức ${budgetGb}.00 GB` : `${budgetGb}.00 GB budget`}</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+            {language === 'vi' ? 'Không giới hạn số lượt truy vấn' : 'No request quotas'}
+          </div>
         </div>
       </StatCard>
     </div>

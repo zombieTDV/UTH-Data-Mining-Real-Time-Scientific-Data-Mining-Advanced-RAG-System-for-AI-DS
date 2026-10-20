@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, type FC } from 'react';
 import { ParquetTypePill } from './ExplorerGlyphs.component';
+import { useTranslation } from '../../hooks';
 
 export interface ParquetColumn {
   name: string;
@@ -34,6 +35,8 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
   sizeFormatted,
   lastModified,
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const [filterText, setFilterText] = useState('');
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -181,19 +184,19 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
-            Total Corpus: <strong style={{ color: '#06b6d4' }}>{totalRows != null ? totalRows.toLocaleString() : 'N/A'}</strong> rows
+            {isVi ? 'Tổng số bản ghi: ' : 'Total Corpus: '}<strong style={{ color: '#06b6d4' }}>{totalRows != null ? totalRows.toLocaleString() : 'N/A'}</strong> {isVi ? 'dòng' : 'rows'}
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
-            Columns: <strong style={{ color: 'var(--text-primary, #f8fafc)' }}>{columns.length}</strong>
+            {isVi ? 'Số cột: ' : 'Columns: '}<strong style={{ color: 'var(--text-primary, #f8fafc)' }}>{columns.length}</strong>
           </span>
           {sizeFormatted && (
             <span style={{ fontSize: '11px', color: 'var(--text-secondary, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
-              Size: <strong style={{ color: 'var(--text-primary, #f8fafc)' }}>{sizeFormatted}</strong>
+              {isVi ? 'Dung lượng: ' : 'Size: '}<strong style={{ color: 'var(--text-primary, #f8fafc)' }}>{sizeFormatted}</strong>
             </span>
           )}
           {lastModified && (
             <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', fontFamily: 'var(--font-mono)' }}>
-              Modified: {lastModified}
+              {isVi ? 'Sửa đổi: ' : 'Modified: '}{lastModified}
             </span>
           )}
         </div>
@@ -287,7 +290,7 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
               setFilterText(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Filter sample records..."
+            placeholder={isVi ? 'Lọc bản ghi mẫu...' : 'Filter sample records...'}
             style={{
               width: '240px',
               backgroundColor: 'rgba(0, 0, 0, 0.25)',
@@ -301,7 +304,9 @@ export const ParquetTableViewer: FC<ParquetTableViewerProps> = ({
             }}
           />
           <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', fontFamily: 'var(--font-mono)' }}>
-            Showing {filteredRows.length} of {sampleRows.length} sample rows (First 50 sampled)
+            {isVi
+              ? `Hiển thị ${filteredRows.length} trên ${sampleRows.length} dòng mẫu (Lấy 50 dòng đầu)`
+              : `Showing ${filteredRows.length} of ${sampleRows.length} sample rows (First 50 sampled)`}
           </span>
         </div>
 

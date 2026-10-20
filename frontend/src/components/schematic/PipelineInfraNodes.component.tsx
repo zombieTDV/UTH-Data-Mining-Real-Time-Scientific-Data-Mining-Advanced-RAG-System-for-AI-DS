@@ -1,5 +1,6 @@
 import type { FC, ReactNode } from 'react';
 import type { LiveDag, LiveSnapshot } from '../../store/streaming.store';
+import { useTranslation } from '../../hooks';
 
 /**
  * Orchestration + messaging nodes of the workflow canvas: Apache Airflow (schedules the harvest DAGs) and
@@ -250,6 +251,7 @@ export const AirflowNode: FC<{
   selected: boolean;
   onClick: () => void;
 }> = ({ live, theme, selected, onClick }) => {
+  const { language } = useTranslation();
   const af = live?.airflow;
   const dags = af?.dags ?? [];
   const running = dags.filter((d) => d.running);
@@ -274,7 +276,9 @@ export const AirflowNode: FC<{
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <span style={{ fontSize: '13px', fontWeight: 900, color: active ? '#10b981' : theme.textPrimary, fontFamily: mono }}>
-          {running.length > 0 ? `${running.length} running` : 'Idle'}
+          {running.length > 0
+            ? (language === 'vi' ? `${running.length} đang chạy` : `${running.length} running`)
+            : (language === 'vi' ? 'Nghỉ' : 'Idle')}
         </span>
         <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>{dags.length} DAGs</span>
       </div>
@@ -383,6 +387,7 @@ export const RabbitQueueNode: FC<{
   selected: boolean;
   onClick: () => void;
 }> = ({ stage, live, theme, selected, onClick }) => {
+  const { language } = useTranslation();
   const n = queueNumbers(live);
   const ingest = stage === 'ingest';
   const ready = ingest ? n.ingestReady : n.embedReady;
@@ -396,8 +401,8 @@ export const RabbitQueueNode: FC<{
       : unknown
       ? { label: 'N/A', tone: 'idle' as const }
       : workers === 0
-      ? { label: 'NO WORKER', tone: ready > 0 ? ('down' as const) : ('idle' as const) }
-      : { label: active ? '● FLOWING' : 'IDLE', tone: active ? ('ok' as const) : ('idle' as const) };
+      ? { label: language === 'vi' ? 'THIẾU WORKER' : 'NO WORKER', tone: ready > 0 ? ('down' as const) : ('idle' as const) }
+      : { label: active ? (language === 'vi' ? '● ĐANG CHẢY' : '● FLOWING') : (language === 'vi' ? 'CHỜ' : 'IDLE'), tone: active ? ('ok' as const) : ('idle' as const) };
 
   return (
     <NodeShell
@@ -413,7 +418,11 @@ export const RabbitQueueNode: FC<{
     >
       <QueueLane
         theme={theme}
-        name={ingest ? 'metadata chờ tải' : 'bản ghi chờ embed'}
+        name={
+          ingest
+            ? (language === 'vi' ? 'metadata chờ tải' : 'metadata queued')
+            : (language === 'vi' ? 'bản ghi chờ embed' : 'records queued')
+        }
         worker={ingest ? 'fetch worker' : 'embed worker'}
         ready={ready}
         busy={busy}
@@ -422,7 +431,9 @@ export const RabbitQueueNode: FC<{
         unknown={unknown}
       />
       <div style={{ fontSize: '9.5px', fontFamily: mono, color: theme.textMuted, lineHeight: 1.5 }}>
-        {ingest ? 'HTML5 → ar5iv → abstract, ghi Bronze + Silver' : 'chunk → Nomic 768-D (1 lần gọi / lô) → Qdrant'}
+        {ingest
+          ? (language === 'vi' ? 'HTML5 → ar5iv → abstract, ghi Bronze + Silver' : 'HTML5 → ar5iv → abstract, write Bronze + Silver')
+          : (language === 'vi' ? 'chunk → Nomic 768-D (1 lần gọi / lô) → Qdrant' : 'chunk → Nomic 768-D (1 batch call) → Qdrant')}
       </div>
     </NodeShell>
   );
@@ -435,19 +446,25 @@ const sectionTitle = (theme: NodeTheme, text: string) => (
 );
 
 export const AirflowPanel: FC<{ live: LiveSnapshot | null; theme: NodeTheme }> = ({ live, theme }) => {
+  const { language } = useTranslation();
   const dags = live?.airflow?.dags ?? [];
   const cell = { padding: '7px 10px', borderBottom: `1px solid ${theme.drawerSectionBorder}`, textAlign: 'left' as const };
   return (
     <div>
-      {sectionTitle(theme, 'DAG ĐANG ĐƯỢC LẬP LỊCH (LIVE TỪ AIRFLOW REST API)')}
+      {sectionTitle(
+        theme,
+        language === 'vi'
+          ? 'DAG ĐANG ĐƯỢC LẬP LỊCH (LIVE TỪ AIRFLOW REST API)'
+          : 'SCHEDULED DAGS (LIVE FROM AIRFLOW REST API)'
+      )}
       <div style={{ border: `1px solid ${theme.drawerSectionBorder}`, borderRadius: '8px', overflow: 'hidden', backgroundColor: theme.drawerSectionBg }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: mono, color: theme.textPrimary }}>
           <thead>
             <tr style={{ color: theme.textMuted, fontSize: '10px' }}>
               <th style={cell}>DAG</th>
-              <th style={cell}>LỊCH</th>
-              <th style={cell}>TRẠNG THÁI</th>
-              <th style={cell}>LẦN CHẠY GẦN NHẤT</th>
+              <th style={cell}>{language === 'vi' ? 'LỊCH' : 'SCHEDULE'}</th>
+              <th style={cell}>{language === 'vi' ? 'TRẠNG THÁI' : 'STATUS'}</th>
+              <th style={cell}>{language === 'vi' ? 'LẦN CHẠY GẦN NHẤT' : 'LAST RUN'}</th>
             </tr>
           </thead>
           <tbody>
@@ -476,7 +493,7 @@ export const AirflowPanel: FC<{ live: LiveSnapshot | null; theme: NodeTheme }> =
             {dags.length === 0 && (
               <tr>
                 <td style={{ ...cell, color: theme.textMuted }} colSpan={4}>
-                  Airflow chưa phản hồi.
+                  {language === 'vi' ? 'Airflow chưa phản hồi.' : 'Airflow not responding.'}
                 </td>
               </tr>
             )}
@@ -488,15 +505,37 @@ export const AirflowPanel: FC<{ live: LiveSnapshot | null; theme: NodeTheme }> =
 };
 
 export const RabbitPanel: FC<{ live: LiveSnapshot | null; theme: NodeTheme }> = ({ live, theme }) => {
+  const { language } = useTranslation();
   const n = queueNumbers(live);
   const stages = [
-    { q: 'scientific_paper_ingest', role: 'Bản tin metadata từ DAG', worker: 'fetch worker: tải HTML, Bronze, Silver', ready: n.ingestReady, busy: n.ingestBusy, workers: n.fetchWorkers, cap: null as number | null },
-    { q: 'scientific_chunk_embed', role: 'Bản ghi Silver đã có toàn văn', worker: 'embed worker: chunk, Nomic, Qdrant', ready: n.embedReady, busy: n.embedBusy, workers: n.embedWorkers, cap: n.embedMax },
+    {
+      q: 'scientific_paper_ingest',
+      role: language === 'vi' ? 'Bản tin metadata từ DAG' : 'Metadata messages from DAG',
+      worker: language === 'vi' ? 'fetch worker: tải HTML, Bronze, Silver' : 'fetch worker: downloads HTML, Bronze, Silver',
+      ready: n.ingestReady,
+      busy: n.ingestBusy,
+      workers: n.fetchWorkers,
+      cap: null as number | null,
+    },
+    {
+      q: 'scientific_chunk_embed',
+      role: language === 'vi' ? 'Bản ghi Silver đã có toàn văn' : 'Silver records with full text',
+      worker: language === 'vi' ? 'embed worker: chunk, Nomic, Qdrant' : 'embed worker: chunk, Nomic, Qdrant',
+      ready: n.embedReady,
+      busy: n.embedBusy,
+      workers: n.embedWorkers,
+      cap: n.embedMax,
+    },
   ];
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px' }}>
       <div>
-        {sectionTitle(theme, 'HAI TẦNG HÀNG ĐỢI (LIVE TỪ RABBITMQ MANAGEMENT API)')}
+        {sectionTitle(
+          theme,
+          language === 'vi'
+            ? 'HAI TẦNG HÀNG ĐỢI (LIVE TỪ RABBITMQ MANAGEMENT API)'
+            : 'TWO-TIER QUEUES (LIVE FROM RABBITMQ MANAGEMENT API)'
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {stages.map((s) => (
             <div key={s.q} style={{ backgroundColor: theme.drawerSectionBg, border: `1px solid ${theme.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 12px', fontFamily: mono }}>
@@ -504,13 +543,15 @@ export const RabbitPanel: FC<{ live: LiveSnapshot | null; theme: NodeTheme }> = 
                 <span style={{ fontSize: '11.5px', fontWeight: 800, color: theme.textPrimary }}>{s.q}</span>
                 <span style={{ fontSize: '14px', fontWeight: 900, color: theme.textPrimary }}>
                   {s.ready.toLocaleString()}
-                  <span style={{ fontSize: '10px', color: theme.textMuted, fontWeight: 700 }}>{s.cap ? ` / ${s.cap} chờ` : ' chờ'}</span>
+                  <span style={{ fontSize: '10px', color: theme.textMuted, fontWeight: 700 }}>
+                    {s.cap ? (language === 'vi' ? ` / ${s.cap} chờ` : ` / ${s.cap} queued`) : (language === 'vi' ? ' chờ' : ' queued')}
+                  </span>
                 </span>
               </div>
               <div style={{ fontSize: '10px', color: theme.textMuted, marginTop: '2px' }}>{s.role}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', color: theme.textSecondary, marginTop: '6px' }}>
                 <StatusDot color={s.workers > 0 ? '#10b981' : '#ef4444'} pulse={s.workers > 0 && s.busy > 0} />
-                {s.worker} · ×{s.workers} · {s.busy} đang xử lý
+                {s.worker} · ×{s.workers} · {s.busy} {language === 'vi' ? 'đang xử lý' : 'in flight'}
               </div>
             </div>
           ))}
@@ -518,9 +559,9 @@ export const RabbitPanel: FC<{ live: LiveSnapshot | null; theme: NodeTheme }> = 
       </div>
       <div style={{ backgroundColor: theme.drawerSectionBg, border: `1px solid ${theme.drawerSectionBorder}`, borderRadius: '8px', padding: '12px 14px', fontFamily: mono, fontSize: '10.5px', color: theme.textSecondary, lineHeight: 1.65 }}>
         <div style={{ fontSize: '11px', fontWeight: 800, color: theme.textPrimary, marginBottom: '6px' }}>BACKPRESSURE</div>
-        <div>• Tier 2/3 đẩy lô 1.000 bài, chờ Q1 &lt; 200 mới cào tiếp.</div>
-        <div>• Fetch worker dừng khi Q2 ≥ {n.embedMax}: model không bị dồn.</div>
-        <div>• Lỗi được thử lại trong chính queue của nó, quá 3 lần thì vào dead-letter.</div>
+        <div>{language === 'vi' ? '• Tier 2/3 đẩy lô 1.000 bài, chờ Q1 < 200 mới cào tiếp.' : '• Tier 2/3 pushes 1,000 batches, awaits Q1 < 200 before next.'}</div>
+        <div>{language === 'vi' ? `• Fetch worker dừng khi Q2 ≥ ${n.embedMax}: model không bị dồn.` : `• Fetch worker pauses when Q2 ≥ ${n.embedMax}: protects model.`}</div>
+        <div>{language === 'vi' ? '• Lỗi được thử lại trong chính queue của nó, quá 3 lần thì vào dead-letter.' : '• Failures retried within queue, dead-lettered after 3 tries.'}</div>
         <div style={{ marginTop: '8px', fontWeight: 700, color: n.dead > 0 ? '#ef4444' : '#10b981' }}>
           dead-letter: {n.dead.toLocaleString()}
         </div>

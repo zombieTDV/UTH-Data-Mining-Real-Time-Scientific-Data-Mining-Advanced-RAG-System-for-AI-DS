@@ -1,12 +1,16 @@
 import type { ReactNode } from 'react';
 import { useLakehouseStreamStore, type LiveSnapshot } from '../../store';
+import { useTranslation } from '../../hooks';
 
 export interface ToolItem {
   id: string;
   name: string;
   category: 'Storage' | 'Compute' | 'Vector DB' | 'Model & Engine' | 'Data Source';
+  categoryVi: string;
   role: string;
+  roleVi: string;
   spec: string;
+  specVi: string;
   status: 'Operational' | 'Active' | 'Synced' | 'Offline';
   icon: ReactNode;
 }
@@ -16,8 +20,11 @@ export const TOOLS_DATA: ToolItem[] = [
     id: 'minio',
     name: 'MinIO S3',
     category: 'Storage',
+    categoryVi: 'Lưu trữ',
     role: 'Bronze · Silver · Gold lakehouse (single store)',
+    roleVi: 'Hồ dữ liệu Bronze · Silver · Gold (Lưu trữ đơn nhất)',
     spec: 'S3 API · local object storage',
+    specVi: 'S3 API · lưu trữ đối tượng cục bộ',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -30,8 +37,11 @@ export const TOOLS_DATA: ToolItem[] = [
     id: 'duckdb',
     name: 'DuckDB',
     category: 'Compute',
+    categoryVi: 'Tính toán OLAP',
     role: 'In-Process Vectorized SQL Engine',
+    roleVi: 'Động cơ SQL Vector hoá chạy trực tiếp trong tiến trình',
     spec: 'Zero-copy Parquet queries over MinIO (S3)',
+    specVi: 'Truy vấn Parquet Zero-copy trên MinIO (S3)',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -45,8 +55,11 @@ export const TOOLS_DATA: ToolItem[] = [
     id: 'qdrant',
     name: 'Qdrant',
     category: 'Vector DB',
+    categoryVi: 'Cơ sở dữ liệu Vector',
     role: 'Gold vector store (768-D, cosine HNSW)',
+    roleVi: 'Kho vector Gold (768 chiều, cosine HNSW)',
     spec: 'Embeddings · cosine ANN',
+    specVi: 'Embeddings · tìm kiếm cosine ANN',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -61,8 +74,11 @@ export const TOOLS_DATA: ToolItem[] = [
     id: 'parquet',
     name: 'Apache Parquet',
     category: 'Storage',
+    categoryVi: 'Lưu trữ Cột',
     role: 'Silver Canonical Storage Format',
+    roleVi: 'Định dạng lưu trữ chuẩn hoá tầng Silver',
     spec: 'Snappy Compressed · Tier 1 & Tier 2',
+    specVi: 'Nén Snappy · Chặng 1 & Chặng 2',
     status: 'Synced',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -77,8 +93,11 @@ export const TOOLS_DATA: ToolItem[] = [
     id: 'qwen',
     name: 'Qwen 2.5 7B',
     category: 'Model & Engine',
+    categoryVi: 'Mô hình & Động cơ',
     role: 'Scientific RAG Generation',
+    roleVi: 'Mô hình sinh câu trả lời RAG Khoa học',
     spec: 'Instruct Q4_K_M GGUF · 4k Context',
+    specVi: 'Instruct Q4_K_M GGUF · Ngữ cảnh 4k',
     status: 'Active',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -92,8 +111,11 @@ export const TOOLS_DATA: ToolItem[] = [
     id: 'hardware-accel',
     name: 'Hardware Accelerator',
     category: 'Compute',
+    categoryVi: 'Tính toán Tăng tốc',
     role: 'GPU Acceleration & Inference',
+    roleVi: 'Tăng tốc phần cứng GPU & suy luận',
     spec: 'Apple Silicon MPS (Metal) acceleration',
+    specVi: 'Tăng tốc phần cứng Apple Silicon MPS / CUDA',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -110,8 +132,11 @@ export const TOOLS_DATA: ToolItem[] = [
     id: 'nomic',
     name: 'Nomic Embed v1.5',
     category: 'Model & Engine',
+    categoryVi: 'Mô hình & Động cơ',
     role: 'Academic Literature Embeddings',
+    roleVi: 'Mô hình vector hoá tài liệu khoa học',
     spec: '768 Dimensions · Matryoshka · 8k Context',
+    specVi: '768 Chiều · Matryoshka · Ngữ cảnh 8k',
     status: 'Operational',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -124,8 +149,11 @@ export const TOOLS_DATA: ToolItem[] = [
     id: 'arxiv',
     name: 'arXiv OAI-PMH & ar5iv',
     category: 'Data Source',
+    categoryVi: 'Nguồn Dữ liệu',
     role: 'Scientific harvesting (RSS + API)',
+    roleVi: 'Thu thập bài báo khoa học (RSS + API)',
     spec: 'cs.AI, cs.LG, cs.CV, cs.CL, stat.ML · HTML5 full text',
+    specVi: 'cs.AI, cs.LG, cs.CV, cs.CL, stat.ML · Toàn văn HTML5',
     status: 'Synced',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -138,31 +166,54 @@ export const TOOLS_DATA: ToolItem[] = [
 ];
 
 /** Replace the static specs/status of the infrastructure cards with what the backend monitor reports right now. */
-function withLive(tool: ToolItem, live: LiveSnapshot | null): ToolItem {
+function withLive(tool: ToolItem, live: LiveSnapshot | null, isVi: boolean): ToolItem {
   if (!live) return tool;
   if (tool.id === 'minio') {
     const gb = live.storage.storage_total_gb;
-    return { ...tool, status: gb === undefined ? 'Offline' : 'Operational', spec: `S3 API · ${(live.storage.objects ?? 0).toLocaleString()} objects · ${(gb ?? 0).toFixed(2)} GB` };
+    const spec = isVi
+      ? `S3 API · ${(live.storage.objects ?? 0).toLocaleString()} đối tượng · ${(gb ?? 0).toFixed(2)} GB`
+      : `S3 API · ${(live.storage.objects ?? 0).toLocaleString()} objects · ${(gb ?? 0).toFixed(2)} GB`;
+    return { ...tool, status: gb === undefined ? 'Offline' : 'Operational', spec, specVi: spec };
   }
   if (tool.id === 'qdrant') {
-    return { ...tool, status: live.corpus.vectors > 0 ? 'Operational' : 'Offline', spec: `${live.corpus.vectors.toLocaleString()} vectors · cosine ANN` };
+    const spec = isVi
+      ? `${live.corpus.vectors.toLocaleString()} vector · cosine ANN`
+      : `${live.corpus.vectors.toLocaleString()} vectors · cosine ANN`;
+    return { ...tool, status: live.corpus.vectors > 0 ? 'Operational' : 'Offline', spec, specVi: spec };
   }
   if (tool.id === 'arxiv') {
     const t1 = live.airflow.dags.find((d) => d.key === 'tier1');
-    return { ...tool, status: t1?.running ? 'Active' : 'Synced', spec: `${tool.spec} · session +${live.session.ingested.toLocaleString()} papers` };
+    const spec = isVi
+      ? `${tool.specVi} · phiên +${live.session.ingested.toLocaleString()} bài`
+      : `${tool.spec} · session +${live.session.ingested.toLocaleString()} papers`;
+    return { ...tool, status: t1?.running ? 'Active' : 'Synced', spec, specVi: spec };
   }
   return tool;
 }
 
 export function ToolLogosGrid() {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const { live } = useLakehouseStreamStore();
+
+  const getStatusLabel = (status: ToolItem['status']) => {
+    if (!isVi) return status;
+    switch (status) {
+      case 'Operational': return 'Hoạt động';
+      case 'Active': return 'Đang chạy';
+      case 'Synced': return 'Đồng bộ';
+      case 'Offline': return 'Ngoại tuyến';
+      default: return status;
+    }
+  };
+
   return (
     <div style={{
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
       gap: '12px',
     }}>
-      {TOOLS_DATA.map((t) => withLive(t, live)).map((tool) => (
+      {TOOLS_DATA.map((t) => withLive(t, live, isVi)).map((tool) => (
         <div
           key={tool.id}
           style={{
@@ -206,12 +257,12 @@ export function ToolLogosGrid() {
                 color: tool.status === 'Offline' ? '#ef4444' : tool.status === 'Active' ? 'var(--accent-violet)' : 'var(--accent-emerald)',
                 border: tool.status === 'Offline' ? '1px solid rgba(239, 68, 68, 0.3)' : tool.status === 'Active' ? '1px solid rgba(124, 58, 237, 0.3)' : '1px solid rgba(5, 150, 105, 0.3)',
               }}>
-                {tool.status}
+                {getStatusLabel(tool.status)}
               </span>
             </div>
 
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-              {tool.role}
+              {isVi ? tool.roleVi : tool.role}
             </div>
 
             <div style={{
@@ -222,7 +273,7 @@ export function ToolLogosGrid() {
               overflow: 'hidden',
               textOverflow: 'ellipsis',
             }}>
-              {tool.spec}
+              {isVi ? tool.specVi : tool.spec}
             </div>
           </div>
         </div>

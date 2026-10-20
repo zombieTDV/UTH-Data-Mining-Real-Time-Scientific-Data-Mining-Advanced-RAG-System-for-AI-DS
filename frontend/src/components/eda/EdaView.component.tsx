@@ -4,7 +4,7 @@ import { fetchEdaSummary } from '../../services';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
 import { DistributionView } from './DistributionView.component';
-import { useSvgPanZoom } from '../../hooks';
+import { useSvgPanZoom, useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { ThreeLensesDiagnosticView } from './ThreeLensesDiagnosticView.component';
 
@@ -336,6 +336,8 @@ const SCATTER_DATASET: ScatterPaperPoint[] = [
 ];
 
 export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, miningRun, pipelineStatus = 'IDLE', onRefreshMining }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const isDark = theme === 'dark';
 
   const [data, setData] = useState<EdaResponse | null>(null);
@@ -835,7 +837,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <h1 style={{ fontSize: isFocusMode ? '11px' : '12px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, letterSpacing: '-0.2px' }}>
-                SCIENTIFIC EDA WORKSPACE // POWERBI VISUALS
+                {isVi ? 'KHÔNG GIAN PHÂN TÍCH KHOA HỌC EDA' : 'SCIENTIFIC EDA WORKSPACE // POWERBI VISUALS'}
               </h1>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#059669', backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)', padding: '1px 5px', borderRadius: '4px' }}>
                 ● DUCKDB OLAP
@@ -863,16 +865,16 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                     color: themeStyles.textSecondary,
                     fontWeight: 700,
                   }}
-                  title={failed ? `Lần chạy gần nhất lỗi: ${miningRun?.error}` : 'Thời điểm engine tính EDA + Model và số bài trong Silver lúc đó'}
+                  title={failed ? (isVi ? `Lần chạy gần nhất lỗi: ${miningRun?.error}` : `Last run failed: ${miningRun?.error}`) : (isVi ? 'Thời điểm engine tính EDA + Model' : 'Timestamp of EDA + Model computation')}
                 >
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: tone, display: 'inline-block' }} />
                   {running ? (
-                    <span>Đang tính lại EDA + Model (bắt đầu {fmt(miningRun?.started_at).slice(11)})…</span>
+                    <span>{isVi ? `Đang tính lại EDA + Model (bắt đầu ${fmt(miningRun?.started_at).slice(11)})…` : `Recomputing EDA + Model (started ${fmt(miningRun?.started_at).slice(11)})…`}</span>
                   ) : failed ? (
-                    <span style={{ color: '#ef4444' }}>Lần cập nhật lỗi · dữ liệu cũ từ {fmt(miningRun?.last_run)}</span>
+                    <span style={{ color: '#ef4444' }}>{isVi ? `Lần cập nhật lỗi · dữ liệu cũ từ ${fmt(miningRun?.last_run)}` : `Update failed · stale data from ${fmt(miningRun?.last_run)}`}</span>
                   ) : (
                     <span>
-                      Dữ liệu: <strong style={{ color: themeStyles.textPrimary }}>{(miningRun?.total_papers ?? 0).toLocaleString()}</strong> bài · cập nhật {fmt(miningRun?.last_run)}
+                      {isVi ? 'Dữ liệu: ' : 'Corpus: '}<strong style={{ color: themeStyles.textPrimary }}>{(miningRun?.total_papers ?? 0).toLocaleString()}</strong> {isVi ? 'bài' : 'works'} · {isVi ? 'cập nhật ' : 'updated '}{fmt(miningRun?.last_run)}
                     </span>
                   )}
                 </div>
@@ -901,7 +903,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 alignItems: 'center',
                 gap: '4px',
               }}
-              title="Chạy lại engine trên toàn bộ Silver hiện có, rồi tải lại tab EDA và Model"
+              title={isVi ? 'Chạy lại engine trên toàn bộ Silver hiện có' : 'Re-run the mining engine on current Silver lakehouse'}
             >
               <svg
                 width="11"
@@ -916,7 +918,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 <path d="M21 12a9 9 0 1 1-2.64-6.36" />
                 <polyline points="21 3 21 9 15 9" />
               </svg>
-              <span>{pipelineStatus === 'RUNNING' ? 'ĐANG CẬP NHẬT…' : 'CẬP NHẬT'}</span>
+              <span>{pipelineStatus === 'RUNNING' ? (isVi ? 'ĐANG CẬP NHẬT…' : 'RECOMPUTING…') : (isVi ? 'CẬP NHẬT' : 'RECOMPUTE')}</span>
             </button>
 
             {/* Focus / Zen Mode Toggle */}
@@ -938,10 +940,10 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 gap: '4px',
                 transition: 'all 0.15s ease',
               }}
-              title="Nhấn phím F để bật / tắt chế độ phóng to biểu đồ"
+              title={isVi ? 'Nhấn phím F để bật / tắt chế độ phóng to biểu đồ' : 'Press F to toggle chart focus'}
             >
               <span>{isFocusMode ? '⤡' : '⤢'}</span>
-              <span>{isFocusMode ? 'THOÁT FOCUS' : 'FOCUS MODE'}</span>
+              <span>{isFocusMode ? (isVi ? 'THOÁT FOCUS' : 'EXIT FOCUS') : (isVi ? 'FOCUS MODE' : 'FOCUS MODE')}</span>
               <span style={{ opacity: 0.65, fontSize: '10px' }}>(F)</span>
             </button>
 
@@ -963,12 +965,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 alignItems: 'center',
                 gap: '3px',
               }}
-              title="Kích hoạt thử nghiệm phát hiện bài báo dị biệt đa biến (Z-Score > 3.5)"
+              title={isVi ? 'Kích hoạt thử nghiệm phát hiện bài báo dị biệt đa biến (Z-Score > 3.5)' : 'Simulate multivariate anomaly detection (Z-Score > 3.5)'}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
-              <span>OUTLIER TEST</span>
+              <span>{isVi ? 'THỬ DỊ BIỆT' : 'OUTLIER TEST'}</span>
             </button>
 
             {/* Reset Slicers */}
@@ -992,12 +994,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 }}
               >
                 <span>&times;</span>
-                <span>RESET</span>
+                <span>{isVi ? 'ĐẶT LẠI' : 'RESET'}</span>
               </button>
             )}
 
             <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, backgroundColor: themeStyles.cardSubtle, padding: '2px 7px', borderRadius: '4px', border: `1px solid ${themeStyles.border}` }}>
-              Đang chọn: <strong style={{ color: themeStyles.textPrimary }}>{filteredKpi.totalPapers.toLocaleString()}</strong> bài ({filteredKpi.sharePercent}%)
+              {isVi ? 'Đang chọn: ' : 'Selected: '}<strong style={{ color: themeStyles.textPrimary }}>{filteredKpi.totalPapers.toLocaleString()}</strong> {isVi ? 'bài' : 'works'} ({filteredKpi.sharePercent}%)
             </div>
           </div>
         </div>
@@ -1005,7 +1007,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
         {/* Slicer Pills Row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap', paddingTop: isFocusMode ? '0' : '3px', borderTop: isFocusMode ? 'none' : `1px solid ${themeStyles.borderSubtle}` }}>
           <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-            SLICER:
+            {isVi ? 'BỘ LỌC:' : 'SLICER:'}
           </span>
 
           <button
@@ -1023,7 +1025,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
               cursor: 'pointer',
             }}
           >
-            TẤT CẢ ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
+            {isVi ? 'TẤT CẢ' : 'ALL'} ({overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'})
           </button>
 
           {categoryList.slice(0, 8).map((cat) => {
@@ -1058,7 +1060,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-              MẬT ĐỘ TOÁN:
+              {isVi ? 'MẬT ĐỘ TOÁN:' : 'MATH DENSITY:'}
             </span>
             {(['ALL', 'HIGH', 'MED', 'LOW'] as const).map((m) => (
               <button
@@ -1077,7 +1079,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                   cursor: 'pointer',
                 }}
               >
-                {m === 'ALL' ? 'Tất cả' : m === 'HIGH' ? '> 300' : m === 'MED' ? '100-300' : '< 100'}
+                {m === 'ALL' ? (isVi ? 'Tất cả' : 'All') : m === 'HIGH' ? '> 300' : m === 'MED' ? '100-300' : '< 100'}
               </button>
             ))}
           </div>
@@ -1191,13 +1193,13 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
         {/* Deck Capsules (6 Decks) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           {[
-            { id: 'combo' as DeckType, label: 'COMBO & TIMELINE', keyNum: '1' },
-            { id: 'scatter' as DeckType, label: '3-LENS DIAGNOSTICS & SCATTER', keyNum: '2' },
-            { id: 'taxonomy' as DeckType, label: 'TAXONOMY & HEATMAP', keyNum: '3' },
-            { id: 'authors' as DeckType, label: 'TOP AUTHORS & QUANTILES', keyNum: '4' },
-            { id: 'correlations' as DeckType, label: 'CORRELATIONS & ANOVA', keyNum: '5' },
-            { id: 'rag_audit' as DeckType, label: 'RAG QUALITY AUDIT', keyNum: '6' },
-            { id: 'distribution' as DeckType, label: 'PHÂN BỐ: SCATTER & HISTOGRAM', keyNum: '7' },
+            { id: 'combo' as DeckType, label: isVi ? 'TỔNG QUAN & DÒNG THỜI GIAN' : 'COMBO & TIMELINE', keyNum: '1' },
+            { id: 'scatter' as DeckType, label: isVi ? '3 LĂNG KÍNH & PHÂN TÁN' : '3-LENS DIAGNOSTICS & SCATTER', keyNum: '2' },
+            { id: 'taxonomy' as DeckType, label: isVi ? 'CHUYÊN NGÀNH & BẢN ĐỒ NHIỆT' : 'TAXONOMY & HEATMAP', keyNum: '3' },
+            { id: 'authors' as DeckType, label: isVi ? 'TÁC GIẢ & PHÂN VỊ' : 'TOP AUTHORS & QUANTILES', keyNum: '4' },
+            { id: 'correlations' as DeckType, label: isVi ? 'TƯƠNG QUAN & ANOVA' : 'CORRELATIONS & ANOVA', keyNum: '5' },
+            { id: 'rag_audit' as DeckType, label: isVi ? 'KIỂM ĐỊNH CHẤT LƯỢNG RAG' : 'RAG QUALITY AUDIT', keyNum: '6' },
+            { id: 'distribution' as DeckType, label: isVi ? 'PHÂN BỐ: PHÂN TÁN & HISTOGRAM' : 'DISTRIBUTION: SCATTER & HISTOGRAM', keyNum: '7' },
           ].map((deck) => {
             const isActive = activeDeck === deck.id;
             return (

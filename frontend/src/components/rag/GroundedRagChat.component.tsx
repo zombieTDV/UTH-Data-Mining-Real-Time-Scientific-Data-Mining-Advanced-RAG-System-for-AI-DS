@@ -3,6 +3,7 @@ import type { ChatResponse } from '../../types';
 import { sendChatQuery, streamChatQuery, fetchPaper } from '../../services';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { useLakehouseStreamStore } from '../../store';
+import { useTranslation } from '../../hooks';
 
 export interface GroundedRagChatProps {
   theme?: 'dark' | 'light';
@@ -37,57 +38,86 @@ interface InspectedPaperData {
   doi?: string;
 }
 
-const RESEARCH_PROMPT_SUGGESTIONS = [
+const getResearchPromptSuggestions = (isVi: boolean) => [
   {
-    label: 'Diffusion Distillation',
-    query: 'What is the role of sampling z_t in conditional diffusion distillation according to CoDi paper 2310.01407?',
+    label: isVi ? 'Khuếch tán Distillation' : 'Diffusion Distillation',
+    query: isVi
+      ? 'Vai trò của lấy mẫu z_t trong conditional diffusion distillation theo bài báo CoDi 2310.01407 là gì?'
+      : 'What is the role of sampling z_t in conditional diffusion distillation according to CoDi paper 2310.01407?',
     category: 'cs.CV',
   },
   {
-    label: 'LoRA Efficiency',
-    query: 'How does low-rank adaptation (LoRA) reduce trainable parameters while preserving cross-entropy convergence?',
+    label: isVi ? 'Hiệu năng LoRA' : 'LoRA Efficiency',
+    query: isVi
+      ? 'Low-rank adaptation (LoRA) giảm bớt tham số huấn luyện như thế nào mà vẫn bảo toàn độ hội tụ cross-entropy?'
+      : 'How does low-rank adaptation (LoRA) reduce trainable parameters while preserving cross-entropy convergence?',
     category: 'cs.CL',
   },
   {
-    label: 'SGLD Generalization',
-    query: 'What are the empirical convergence bounds for Stochastic Gradient Langevin Dynamics (SGLD) optimization?',
+    label: isVi ? 'Tổng quát hóa SGLD' : 'SGLD Generalization',
+    query: isVi
+      ? 'Các giới hạn hội tụ thực nghiệm cho tối ưu hóa Stochastic Gradient Langevin Dynamics (SGLD) là gì?'
+      : 'What are the empirical convergence bounds for Stochastic Gradient Langevin Dynamics (SGLD) optimization?',
     category: 'stat.ML',
   },
   {
     label: 'FlashAttention-2',
-    query: 'How does FlashAttention-2 optimize thread block memory layout to minimize HBM IO traffic?',
+    query: isVi
+      ? 'FlashAttention-2 tối ưu hóa bố cục bộ nhớ thread block như thế nào để giảm thiểu lưu lượng HBM IO?'
+      : 'How does FlashAttention-2 optimize thread block memory layout to minimize HBM IO traffic?',
     category: 'cs.AI',
   },
 ];
 
-const RAG_STREAMING_STATUSES = [
-  'Querying Qdrant Gold Lakehouse (768-D vectors)...',
-  'Verifying context & multi-source citations...',
-  'Qwen2.5-7B synthesizing grounded academic response...',
-];
+const getRagStreamingStatuses = (isVi: boolean) =>
+  isVi
+    ? [
+        'Đang truy vấn Qdrant Gold Lakehouse (vector 768 chiều)...',
+        'Xác thực ngữ cảnh & trích dẫn đa nguồn học thuật...',
+        'Qwen2.5-7B đang tổng hợp câu trả lời học thuật grounded...',
+      ]
+    : [
+        'Querying Qdrant Gold Lakehouse (768-D vectors)...',
+        'Verifying context & multi-source citations...',
+        'Qwen2.5-7B synthesizing grounded academic response...',
+      ];
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: 'msg-0',
-    sender: 'assistant',
-    text: 'Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse (Qdrant, HNSW cosine, 768-D embeddings). Every response is strictly grounded in verified academic full texts. What scientific question can I answer for you today?',
-    timestamp: '12:00:00',
-  },
-];
+const getInitialGreeting = (isVi: boolean, works: number, vectors: number): ChatMessage => ({
+  id: 'msg-0',
+  sender: 'assistant',
+  text: isVi
+    ? `Xin chào! Tôi là **Trợ lý Khoa học UTH RAG**.\n\nĐược vận hành bởi **Qwen2.5-7B-Instruct** và kết nối trực tiếp đến Lakehouse học thuật (Qdrant, HNSW cosine, vector 768 chiều). Mọi câu trả lời đều được neo chặt chẽ (grounded) trên toàn văn bài báo đã qua kiểm định (${works.toLocaleString()} công trình, ${vectors.toLocaleString()} vector). Bạn cần giải đáp câu hỏi khoa học nào hôm nay?`
+    : `Hello! I am your **UTH Scientific RAG Assistant**.\n\nPowered by **Qwen2.5-7B-Instruct** and connected in real-time to your academic Lakehouse (Qdrant, HNSW cosine, 768-D embeddings). Every response is strictly grounded in verified academic full texts (${works.toLocaleString()} works, ${vectors.toLocaleString()} vectors). What scientific question can I answer for you today?`,
+  timestamp: '12:00:00',
+});
 
 export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   theme = 'dark',
   initialQuery = '',
   onClearInitialQuery,
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const { totalCorpus, totalVectors } = useLakehouseStreamStore();
   const isDark = theme === 'dark';
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    getInitialGreeting(isVi, totalCorpus, totalVectors),
+  ]);
   const [inputText, setInputText] = useState<string>(initialQuery);
   const [loading, setLoading] = useState<boolean>(false);
   const [useStreaming, setUseStreaming] = useState<boolean>(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [streamingStepIndex, setStreamingStepIndex] = useState<number>(0);
+
+  // Synchronize initial greeting when language changes if no interaction yet
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 1 && prev[0].id === 'msg-0') {
+        return [getInitialGreeting(isVi, totalCorpus, totalVectors)];
+      }
+      return prev;
+    });
+  }, [isVi, totalCorpus, totalVectors]);
 
   // Paper Dossier Drawer State
   const [inspectedPaper, setInspectedPaper] = useState<InspectedPaperData | null>(null);
@@ -105,11 +135,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     }
 
     const interval = setInterval(() => {
-      setStreamingStepIndex((prev) => (prev + 1) % RAG_STREAMING_STATUSES.length);
+      setStreamingStepIndex((prev) => (prev + 1) % getRagStreamingStatuses(isVi).length);
     }, 1400);
 
     return () => clearInterval(interval);
-  }, [messages]);
+  }, [messages, isVi]);
 
   useEffect(() => {
     if (initialQuery && initialQuery.trim()) {
@@ -131,11 +161,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     setIsDossierLoading(true);
     setInspectedPaper({
       paperId,
-      title: `Academic Paper ${paperId}`,
-      authors: ['Research Author Group'],
+      title: `${isVi ? 'Bài báo khoa học' : 'Academic Paper'} ${paperId}`,
+      authors: [isVi ? 'Nhóm tác giả nghiên cứu' : 'Research Author Group'],
       category: 'cs.AI',
-      abstract: 'Retrieving canonical paper abstract and chunks from Qdrant Gold Lakehouse...',
-      sectionTitle: sectionTitle || 'Main Methodology',
+      abstract: isVi ? 'Đang truy xuất bản tóm tắt và các đoạn trích từ Qdrant Gold Lakehouse...' : 'Retrieving canonical paper abstract and chunks from Qdrant Gold Lakehouse...',
+      sectionTitle: sectionTitle || (isVi ? 'Phương pháp luận chính' : 'Main Methodology'),
       score: '0.8510',
       chunkText: '',
     });
@@ -151,15 +181,15 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         const displayChunk = matchedChunk || chunks.find(c => c.section_title && c.section_title.toLowerCase() !== 'abstract') || first;
 
         const abstractChunk = chunks.find(c => c.section_title?.toLowerCase() === 'abstract' || c.chunk_id?.includes('_c000'));
-        const resolvedAbstract = first.abstract || abstractChunk?.text || displayChunk.abstract || 'Abstract content indexed in Qdrant Lakehouse.';
+        const resolvedAbstract = first.abstract || abstractChunk?.text || displayChunk.abstract || (isVi ? 'Nội dung tóm tắt được lập chỉ mục trong Qdrant Lakehouse.' : 'Abstract content indexed in Qdrant Lakehouse.');
 
         setInspectedPaper({
           paperId,
-          title: first.title || `Paper ${paperId}`,
-          authors: (first.authors && first.authors.length > 0) ? first.authors : ['Academic Authors'],
+          title: first.title || `${isVi ? 'Bài báo' : 'Paper'} ${paperId}`,
+          authors: (first.authors && first.authors.length > 0) ? first.authors : [isVi ? 'Nhóm tác giả học thuật' : 'Academic Authors'],
           category: first.primary_category || 'cs.AI',
           abstract: resolvedAbstract,
-          sectionTitle: displayChunk.section_title || sectionTitle || 'Main Methodology',
+          sectionTitle: displayChunk.section_title || sectionTitle || (isVi ? 'Phương pháp luận chính' : 'Main Methodology'),
           score: displayChunk.score ? displayChunk.score.toFixed(4) : (first.score ? first.score.toFixed(4) : '0.8510'),
           chunkText: displayChunk.text ? (displayChunk.text.length > 350 ? displayChunk.text.slice(0, 350) + '...' : displayChunk.text) : '',
           doi: first.doi || (paperId.startsWith('doi_') ? `https://doi.org/${paperId.replace(/^doi_/, '').replace(/_/g, '/')}` : undefined),
@@ -168,16 +198,15 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
     } catch (err) {
       setInspectedPaper({
         paperId,
-        title: `Paper ID: ${paperId}`,
-        authors: ['Scientific Research Group'],
+        title: `${isVi ? 'Mã bài báo' : 'Paper ID'}: ${paperId}`,
+        authors: [isVi ? 'Nhóm nghiên cứu khoa học' : 'Scientific Research Group'],
         category: 'cs.AI',
-        abstract: 'Unable to retrieve abstract details for this record from Lakehouse.',
-        sectionTitle: sectionTitle || 'Full Document Text',
+        abstract: isVi ? 'Không thể truy xuất chi tiết tóm tắt từ Lakehouse cho bản ghi này.' : 'Unable to retrieve abstract details for this record from Lakehouse.',
+        sectionTitle: sectionTitle || (isVi ? 'Toàn văn tài liệu' : 'Full Document Text'),
         score: '0.8500',
-        chunkText: 'Chunk content is currently unavailable or updating.',
+        chunkText: isVi ? 'Nội dung đoạn trích hiện chưa có sẵn hoặc đang cập nhật.' : 'Chunk content is currently unavailable or updating.',
       });
     } finally {
-
       setIsDossierLoading(false);
     }
   };
@@ -291,7 +320,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
         });
       } catch (err: any) {
         updateAssistantMessage(fallbackMsgId, {
-          text: `**System Alert:** ${err?.message || 'Could not connect to the backend service'}. Please verify that the FastAPI backend is running on port 8000.`,
+          text: `**${isVi ? 'Cảnh Báo Hệ Thống' : 'System Alert'}:** ${err?.message || (isVi ? 'Không thể kết nối dịch vụ backend' : 'Could not connect to the backend service')}. ${isVi ? 'Vui lòng kiểm tra FastAPI backend trên cổng 8000.' : 'Please verify that the FastAPI backend is running on port 8000.'}`,
           citations: [],
           similarity_score: '0.0000',
           generation_time: '0.00s',
@@ -324,7 +353,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
       });
     } catch (err: any) {
       updateAssistantMessage(assistantMsgId, {
-        text: `**System Alert:** ${err?.message || 'Could not connect to the backend service'}. Please verify that the FastAPI backend is running on port 8000.`,
+        text: `**${isVi ? 'Cảnh Báo Hệ Thống' : 'System Alert'}:** ${err?.message || (isVi ? 'Không thể kết nối dịch vụ backend' : 'Could not connect to the backend service')}. ${isVi ? 'Vui lòng kiểm tra FastAPI backend trên cổng 8000.' : 'Please verify that the FastAPI backend is running on port 8000.'}`,
         citations: [],
         similarity_score: '0.0000',
         generation_time: '0.00s',
@@ -355,7 +384,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
   };
 
   const handleClearHistory = () => {
-    setMessages([INITIAL_MESSAGES[0]]);
+    setMessages([getInitialGreeting(isVi, totalCorpus, totalVectors)]);
   };
 
   const formatCitationBadgeLabel = (paperId: string, sectionTitle?: string): string => {
@@ -408,7 +437,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             type="button"
             onClick={() => handleInspectCitation(paperId, section)}
             className="citation-chip"
-            title={`Inspect Academic Dossier: ${badgeLabel}`}
+            title={isVi ? `Xem hồ sơ học thuật: ${badgeLabel}` : `Inspect Academic Dossier: ${badgeLabel}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -624,14 +653,14 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
               }}
             />
             <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#38bdf8' : '#0f172a' }}>
-              SCIENTIFIC RAG RADAR
+              {isVi ? 'RADAR RAG KHOA HỌC' : 'SCIENTIFIC RAG RADAR'}
             </span>
           </div>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
 
           <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b' }}>
-            {totalCorpus.toLocaleString()} Works · {totalVectors.toLocaleString()} Qdrant Vectors (Nomic 768-D)
+            {totalCorpus.toLocaleString()} {isVi ? 'Công trình' : 'Works'} · {totalVectors.toLocaleString()} {isVi ? 'Vector Qdrant (Nomic 768-D)' : 'Qdrant Vectors (Nomic 768-D)'}
           </span>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
@@ -640,7 +669,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <button
             type="button"
             onClick={() => setUseStreaming((prev) => !prev)}
-            title="Toggle token streaming vs direct response"
+            title={isVi ? 'Bật/tắt truyền luồng token trực tiếp' : 'Toggle token streaming vs direct response'}
             style={{
               fontSize: '10.5px',
               fontFamily: 'var(--font-mono)',
@@ -656,7 +685,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
               gap: '4px',
             }}
           >
-            <span>SSE STREAM: {useStreaming ? 'ON' : 'OFF'}</span>
+            <span>SSE STREAM: {useStreaming ? (isVi ? 'BẬT' : 'ON') : (isVi ? 'TẮT' : 'OFF')}</span>
           </button>
 
           <span style={{ color: isDark ? '#334155' : '#cbd5e1' }}>|</span>
@@ -664,7 +693,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           <button
             type="button"
             onClick={handleClearHistory}
-            title="Reset conversation thread"
+            title={isVi ? 'Đặt lại luồng hội thoại' : 'Reset conversation thread'}
             style={{
               fontSize: '11px',
               fontFamily: 'var(--font-mono)',
@@ -680,7 +709,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
             </svg>
-            <span>CLEAR</span>
+            <span>{isVi ? 'XÓA' : 'CLEAR'}</span>
           </button>
         </div>
       </div>
@@ -742,7 +771,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       : '0 3px 10px rgba(255, 87, 34, 0.35)',
                   }}
                 >
-                  {isUser ? 'ME' : 'RAG'}
+                  {isUser ? (isVi ? 'TÔI' : 'ME') : 'RAG'}
                 </div>
 
                 {/* Message Body */}
@@ -842,7 +871,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                             letterSpacing: '0.2px',
                           }}
                         >
-                          {RAG_STREAMING_STATUSES[streamingStepIndex]}
+                          {getRagStreamingStatuses(isVi)[streamingStepIndex % getRagStreamingStatuses(isVi).length]}
                         </span>
                       </div>
                     ) : (
@@ -883,11 +912,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                         ● Qdrant Vector ANN (768-D)
                       </span>
                       <span>·</span>
-                      <span>Sim: <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{msg.similarity_score || '0.8510'}</strong></span>
+                      <span>{isVi ? 'Độ tương đồng:' : 'Sim:'} <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{msg.similarity_score || '0.8510'}</strong></span>
                       <span>·</span>
-                      <span>Latency: <strong style={{ color: isDark ? '#f59e0b' : '#d97706' }}>{msg.generation_time || '0.01s'}</strong></span>
+                      <span>{isVi ? 'Độ trễ:' : 'Latency:'} <strong style={{ color: isDark ? '#f59e0b' : '#d97706' }}>{msg.generation_time || '0.01s'}</strong></span>
                       <span>·</span>
-                      <span>Context: {msg.context_chunks_used || 5} Chunks</span>
+                      <span>{isVi ? 'Ngữ cảnh:' : 'Context:'} {msg.context_chunks_used || 5} {isVi ? 'Đoạn' : 'Chunks'}</span>
 
                       {msg.authority_boosted && (
                         <>
@@ -904,7 +933,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                               borderRadius: '4px',
                               border: '1px solid rgba(245, 158, 11, 0.3)',
                             }}
-                            title={`Tác giả bài báo nằm trong Top PageRank Citation Graph: ${msg.top_influencer_author || 'High-Impact Influencer'}`}
+                            title={isVi ? `Tác giả bài báo nằm trong Top PageRank Citation Graph: ${msg.top_influencer_author || 'Nhà nghiên cứu ảnh hưởng cao'}` : `Author ranked in Top PageRank Citation Graph: ${msg.top_influencer_author || 'High-Impact Influencer'}`}
                           >
                             ★ Graph PageRank Boost {msg.top_influencer_author ? `(${msg.top_influencer_author.split('(')[0].trim()})` : ''}
                           </span>
@@ -926,7 +955,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                               borderRadius: '4px',
                               border: '1px solid rgba(139, 92, 246, 0.3)',
                             }}
-                            title={`Mở rộng từ khóa dựa trên luật kết hợp FP-Growth: ${msg.rule_expansions.join(', ')}`}
+                            title={isVi ? `Mở rộng từ khóa dựa trên luật kết hợp FP-Growth: ${msg.rule_expansions.join(', ')}` : `Keyword expansion based on FP-Growth association rules: ${msg.rule_expansions.join(', ')}`}
                           >
                             ☍ Rules: {msg.rule_expansions.join(', ')}
                           </span>
@@ -936,7 +965,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       <button
                         type="button"
                         onClick={() => handleCopyText(msg.id, msg.text)}
-                        title="Copy entire answer text"
+                        title={isVi ? 'Sao chép toàn bộ nội dung câu trả lời' : 'Copy entire answer text'}
                         style={{
                           marginLeft: '8px',
                           backgroundColor: 'transparent',
@@ -953,7 +982,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                         </svg>
-                        <span>{copiedId === msg.id ? 'COPIED' : 'COPY'}</span>
+                        <span>{copiedId === msg.id ? (isVi ? 'ĐÃ CHÉP' : 'COPIED') : (isVi ? 'CHÉP' : 'COPY')}</span>
                       </button>
                     </div>
                   )}
@@ -1005,7 +1034,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', animation: 'stageGlowOrange 1.2s infinite' }} />
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ff5722', animation: 'stageGlowOrange 1.4s infinite' }} />
                 </div>
-                <span>Executing Qdrant Vector ANN retrieval &amp; Qwen2.5 prompt grounding...</span>
+                <span>{isVi ? 'Đang truy vấn vector ANN Qdrant & neo ngữ cảnh mô hình Qwen2.5...' : 'Executing Qdrant Vector ANN retrieval & Qwen2.5 prompt grounding...'}</span>
               </div>
             </div>
           )}
@@ -1058,7 +1087,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   color: '#ffffff',
                 }}
               >
-                {inspectedPaper.paperId.startsWith('openalex:') ? 'OPENALEX DOSSIER' : 'ARXIV DOSSIER'}
+                {inspectedPaper.paperId.startsWith('openalex:') ? (isVi ? 'HỒ SƠ OPENALEX' : 'OPENALEX DOSSIER') : (isVi ? 'HỒ SƠ ARXIV' : 'ARXIV DOSSIER')}
               </span>
               <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: isDark ? '#38bdf8' : '#0284c7', fontWeight: 700 }}>
                 {inspectedPaper.paperId}
@@ -1068,7 +1097,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
             <button
               type="button"
               onClick={() => setInspectedPaper(null)}
-              title="Close dossier"
+              title={isVi ? 'Đóng hồ sơ' : 'Close dossier'}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -1095,13 +1124,13 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
           >
             {isDossierLoading ? (
               <div style={{ padding: '30px', textAlign: 'center', color: isDark ? '#94a3b8' : '#64748b', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-                Fetching paper chunks from Qdrant Gold...
+                {isVi ? 'Đang lấy các đoạn trích từ Qdrant Gold...' : 'Fetching paper chunks from Qdrant Gold...'}
               </div>
             ) : (
               <>
                 <div>
                   <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    Paper Title
+                    {isVi ? 'Tiêu đề bài báo' : 'Paper Title'}
                   </div>
                   <h3 style={{ fontSize: '14px', fontWeight: 700, color: isDark ? '#f8fafc' : '#0f172a', margin: 0, lineHeight: '1.4' }}>
                     {inspectedPaper.title}
@@ -1110,18 +1139,18 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
                 <div style={{ display: 'flex', gap: '12px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                   <div>
-                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>Domain: </span>
+                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>{isVi ? 'Chuyên ngành: ' : 'Domain: '}</span>
                     <strong style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>{inspectedPaper.category}</strong>
                   </div>
                   <div>
-                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>Similarity: </span>
+                    <span style={{ color: isDark ? '#64748b' : '#94a3b8' }}>{isVi ? 'Độ tương đồng: ' : 'Similarity: '}</span>
                     <strong style={{ color: '#10b981' }}>{inspectedPaper.score}</strong>
                   </div>
                 </div>
 
                 <div>
                   <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    Authors
+                    {isVi ? 'Tác giả' : 'Authors'}
                   </div>
                   <div style={{ fontSize: '12px', color: isDark ? '#cbd5e1' : '#334155' }}>
                     {Array.isArray(inspectedPaper.authors) ? inspectedPaper.authors.join(', ') : inspectedPaper.authors}
@@ -1130,7 +1159,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
 
                 <div>
                   <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#94a3b8' : '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    Abstract
+                    {isVi ? 'Tóm tắt bài báo (Abstract)' : 'Abstract'}
                   </div>
                   <div
                     style={{
@@ -1150,7 +1179,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 {inspectedPaper.chunkText && (
                   <div>
                     <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#ff5722', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 700 }}>
-                      Retrieved Qdrant Context Chunk ({inspectedPaper.sectionTitle})
+                      {isVi ? `Đoạn trích Qdrant (${inspectedPaper.sectionTitle})` : `Retrieved Qdrant Context Chunk (${inspectedPaper.sectionTitle})`}
                     </div>
                     <div
                       style={{
@@ -1200,10 +1229,10 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   >
                     <span>
                       {inspectedPaper.doi
-                        ? 'OPEN DOI / ARTICLE PAGE'
+                        ? (isVi ? 'MỞ TRANG DOI / BÀI BÁO' : 'OPEN DOI / ARTICLE PAGE')
                         : inspectedPaper.paperId.startsWith('openalex:')
-                        ? 'OPEN OPENALEX PAGE'
-                        : 'OPEN ARXIV ABSTRACT PAGE'}
+                        ? (isVi ? 'MỞ TRANG OPENALEX' : 'OPEN OPENALEX PAGE')
+                        : (isVi ? 'MỞ TRANG ARXIV TOÀN VĂN' : 'OPEN ARXIV ABSTRACT PAGE')}
                     </span>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -1215,7 +1244,9 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      const q = `Explain the theoretical methodology, empirical validation, and core algorithms of paper "${inspectedPaper.title}".`;
+                      const q = isVi
+                        ? `Giải thích phương pháp luận lý thuyết, kiểm chứng thực nghiệm và các thuật toán cốt lõi của bài báo "${inspectedPaper.title}".`
+                        : `Explain the theoretical methodology, empirical validation, and core algorithms of paper "${inspectedPaper.title}".`;
                       setInputText(q);
                       setInspectedPaper(null);
                       handleSendMessage(q);
@@ -1232,7 +1263,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                       cursor: 'pointer',
                     }}
                   >
-                    ASK RAG FOLLOW-UP QUESTION
+                    {isVi ? 'HỎI THÊM VỀ BÀI BÁO NÀY' : 'ASK RAG FOLLOW-UP QUESTION'}
                   </button>
                 </div>
               </>
@@ -1280,7 +1311,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
               paddingBottom: '2px',
             }}
           >
-            {RESEARCH_PROMPT_SUGGESTIONS.map((item, idx) => (
+            {getResearchPromptSuggestions(isVi).map((item, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -1324,7 +1355,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder="Ask any scientific inquiry across 36,414 academic works..."
+                placeholder={isVi ? `Tra cứu câu hỏi khoa học trên ${totalCorpus.toLocaleString()} công trình học thuật...` : `Ask any scientific inquiry across ${totalCorpus.toLocaleString()} academic works...`}
                 style={{
                   width: '100%',
                   border: 'none',
@@ -1341,7 +1372,11 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                 }}
               />
               <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#64748b' : '#94a3b8' }}>
-                Grounded by Qdrant Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline
+                {isVi ? (
+                  <>Neo bằng Qdrant Gold · Nhấn <strong>Enter</strong> để gửi, <strong>Shift+Enter</strong> xuống dòng</>
+                ) : (
+                  <>Grounded by Qdrant Gold · Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for newline</>
+                )}
               </div>
             </div>
 
@@ -1372,7 +1407,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
                     <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                   </svg>
-                  <span>RETRIEVING...</span>
+                  <span>{isVi ? 'ĐANG TẢI...' : 'RETRIEVING...'}</span>
                 </>
               ) : (
                 <>
@@ -1380,7 +1415,7 @@ export const GroundedRagChat: FC<GroundedRagChatProps> = ({
                     <line x1="22" y1="2" x2="11" y2="13" />
                     <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
-                  <span>SEND</span>
+                  <span>{isVi ? 'GỬI' : 'SEND'}</span>
                 </>
               )}
             </button>

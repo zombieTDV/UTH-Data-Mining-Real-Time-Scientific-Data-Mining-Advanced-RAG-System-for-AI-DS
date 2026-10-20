@@ -16,7 +16,7 @@ import {
 } from '../../services';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
-import { useSvgPanZoom } from '../../hooks';
+import { useSvgPanZoom, useTranslation } from '../../hooks';
 
 export interface MiningPillarsViewProps {
   theme?: 'dark' | 'light';
@@ -69,6 +69,8 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   onNavigateToRag,
   dataVersion,
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const isDark = theme === 'dark';
   const { totalCorpus, totalVectors } = useLakehouseStreamStore();
 
@@ -716,7 +718,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
-                TRỤ CỘT 01 [Phím 1]
+                {isVi ? 'TRỤ CỘT 01 [Phím 1]' : 'PILLAR 01 [Key 1]'}
               </span>
               <span
                 style={{
@@ -733,10 +735,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
-              LUẬT KẾT HỢP (RULES)
+              {isVi ? 'LUẬT KẾT HỢP (RULES)' : 'ASSOCIATION RULES'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              {rulesData?.rules.length || 0} Rules &bull; Max Lift {maxLiftInCorpus.toFixed(1)}x
+              {rulesData?.rules.length || 0} {isVi ? 'Quy tắc' : 'Rules'} &bull; Max Lift {maxLiftInCorpus.toFixed(1)}x
             </div>
           </button>
 
@@ -760,7 +762,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#2563eb' }}>
-                TRỤ CỘT 02 [Phím 2]
+                {isVi ? 'TRỤ CỘT 02 [Phím 2]' : 'PILLAR 02 [Key 2]'}
               </span>
               <span
                 style={{
@@ -777,10 +779,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
-              PHÂN CỤM NGỮ NGHĨA
+              {isVi ? 'PHÂN CỤM NGỮ NGHĨA' : 'SEMANTIC CLUSTERING'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              6 Cụm đề tài &bull; SVD 2D Manifold
+              {isVi ? '6 Cụm đề tài' : '6 Topic clusters'} &bull; SVD 2D Manifold
             </div>
           </button>
 
@@ -804,7 +806,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed' }}>
-                TRỤ CỘT 03 [Phím 3]
+                {isVi ? 'TRỤ CỘT 03 [Phím 3]' : 'PILLAR 03 [Key 3]'}
               </span>
               <span
                 style={{
@@ -821,7 +823,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
-              ĐỒ THỊ KHOA HỌC (GRAPH)
+              {isVi ? 'ĐỒ THỊ KHOA HỌC (GRAPH)' : 'SCIENTIFIC NETWORK'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
               {graphData?.graph_export?.nodes?.length || 120} Nodes &bull; {graphData?.graph_export?.links?.length || 293} Edges &bull; Ego-net
@@ -848,7 +850,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
-                TRỤ CỘT 04 [Phím 4]
+                {isVi ? 'TRỤ CỘT 04 [Phím 4]' : 'PILLAR 04 [Key 4]'}
               </span>
               <span
                 style={{
@@ -865,10 +867,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
-              XU HƯỚNG &amp; DỊ BIỆT
+              {isVi ? 'XU HƯỚNG & DỊ BIỆT' : 'TRENDS & ANOMALIES'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              {topSurging ? `+${Math.round(topSurging.growth_rate_pct)}% Surge` : '+123% Surge'} &bull; {trendsData?.anomalies?.length || 260} Outliers
+              {topSurging ? `+${Math.round(topSurging.growth_rate_pct)}% Surge` : '+123% Surge'} &bull; {trendsData?.anomalies?.length || 260} {isVi ? 'Dị biệt' : 'Outliers'}
             </div>
           </button>
 

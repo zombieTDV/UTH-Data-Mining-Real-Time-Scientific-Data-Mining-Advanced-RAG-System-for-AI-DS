@@ -9,6 +9,7 @@ import {
   triggerSchedulerHarvest,
 } from '../../services';
 import { useLakehouseStreamStore } from '../../store';
+import { useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { AnimatedCounter } from '../common/AnimatedCounter.component';
 import { AirflowNode, AirflowPanel, FlowConnector, RabbitPanel, RabbitQueueNode } from './PipelineInfraNodes.component';
@@ -296,6 +297,8 @@ export interface InteractiveWorkflowCanvasProps {
 export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   theme = 'dark',
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const isDark = theme === 'dark';
 
   const themeStyles = {
@@ -378,17 +381,23 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const RAG_QUERY_PRESETS = [
     {
       label: 'Diffusion Loss',
-      query: 'Tối ưu hoá hàm mất mát trong mô hình diffusion cho dữ liệu toán học?',
+      query: isVi
+        ? 'Tối ưu hoá hàm mất mát trong mô hình diffusion cho dữ liệu toán học?'
+        : 'Optimizing loss functions in diffusion models for mathematical data?',
       formula: '\\mathcal{L}_{\\text{diff}} = \\mathbb{E}_{t, x_0, \\epsilon} \\left[ w_t \\cdot \\delta_{\\text{Huber}} ( \\epsilon - \\epsilon_\\theta(x_t, t) ) \\right]',
     },
     {
       label: 'Attention Scaling',
-      query: 'Cơ chế Attention trong Transformer đối với chuỗi ký hiệu LaTeX?',
+      query: isVi
+        ? 'Cơ chế Attention trong Transformer đối với chuỗi ký hiệu LaTeX?'
+        : 'Attention mechanism in Transformers for LaTeX symbol sequences?',
       formula: '\\text{Attn}(Q, K, V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right) V',
     },
     {
       label: 'PageRank Graph',
-      query: 'Độ đo trung tâm PageRank trong đồ thị trích dẫn mạng lưới khoa học?',
+      query: isVi
+        ? 'Độ đo trung tâm PageRank trong đồ thị trích dẫn mạng lưới khoa học?'
+        : 'PageRank centrality measure in scientific citation graphs?',
       formula: 'PR(u) = \\frac{1-d}{N} + d \\sum_{v \\in B_u} \\frac{PR(v)}{L(v)}',
     },
   ];
@@ -916,8 +925,12 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>Source Ingest</div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Federated Crawlers</div>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#c084fc' : '#6d28d9' }}>
+                    {isVi ? 'Thu Thập Nguồn' : 'Source Ingest'}
+                  </div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                    {isVi ? 'Bộ Cào Đa Nguồn' : 'Federated Crawlers'}
+                  </div>
                 </div>
               </div>
 
@@ -943,7 +956,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <AnimatedCounter value={displayWorks} />
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  {isStreaming ? `+${streamSessionCount} mới (${streamSpeed}/m)` : 'Works Ingested'}
+                  {isStreaming
+                    ? (isVi ? `+${streamSessionCount} mới (${streamSpeed}/m)` : `+${streamSessionCount} new (${streamSpeed}/m)`)
+                    : (isVi ? 'Bài Đã Thu Thập' : 'Works Ingested')}
                 </span>
               </div>
 
@@ -1064,7 +1079,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 cursor: 'pointer',
               }}
             >
-              INSPECT TOOL
+              {isVi ? 'SOI CHI TIẾT' : 'INSPECT TOOL'}
             </button>
           </div>
 
@@ -1157,7 +1172,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48' }}>MinIO S3</div>
-                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Bronze Lake</div>
+                  <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                    {isVi ? 'Hồ Dữ Liệu Bronze' : 'Bronze Lake'}
+                  </div>
                 </div>
               </div>
 
@@ -1188,7 +1205,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontFamily: 'var(--font-mono)',
                   color: 'var(--text-muted)',
                 }}>
-                  Primary Lake
+                  {isVi ? 'Hồ Lưu Trữ Chính' : 'Primary Lake'}
                 </span>
               </div>
 
@@ -1296,7 +1313,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 cursor: 'pointer',
               }}
             >
-              INSPECT TOOL
+              {isVi ? 'SOI CHI TIẾT' : 'INSPECT TOOL'}
             </button>
           </div>
 
@@ -1545,7 +1562,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706' }}>DuckDB</div>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>In-Process OLAP</div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
+                        {isVi ? 'OLAP Trong Tiến Trình' : 'In-Process OLAP'}
+                      </div>
                     </div>
                   </div>
 
@@ -1569,7 +1588,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <AnimatedCounter value={liveFormulas} />
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                      Formulas Parsed
+                      {isVi ? 'Công Thức Đã Tách' : 'Formulas Parsed'}
                     </span>
                   </div>
 
@@ -1642,7 +1661,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     cursor: 'pointer',
                   }}
                 >
-                  INSPECT TOOL
+                  {isVi ? 'SOI CHI TIẾT' : 'INSPECT TOOL'}
                 </button>
               </div>
             </div>
@@ -1872,7 +1891,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         </div>
 
                         <div>
-                          <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>Grounded RAG</div>
+                          <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>
+                            {isVi ? 'RAG Khoa Học' : 'Grounded RAG'}
+                          </div>
                           <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Qwen 2.5 QA</div>
                         </div>
                       </div>
@@ -1894,7 +1915,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         {isGroundedRagReady && (
                           <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#34d399', boxShadow: '0 0 6px #34d399' }} />
                         )}
-                        {isGroundedRagReady ? '● READY FOR RAG' : 'Metal'}
+                        {isGroundedRagReady ? (isVi ? '● SẴN SÀNG TRUY VẤN' : '● READY FOR RAG') : 'Metal'}
                       </span>
                     </div>
 
@@ -1914,17 +1935,17 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         justifyContent: 'center',
                         gap: '5px',
                       }}>
-                        <span style={{ color: '#10b981' }}>✔</span> PIPELINE PRIMED · READY TO QUERY
+                        <span style={{ color: '#10b981' }}>✔</span> {isVi ? 'PIPELINE ĐÃ ĐỒNG BỘ · SẴN SÀNG TRUY VẤN' : 'PIPELINE PRIMED · READY TO QUERY'}
                       </div>
                     )}
 
               <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${themeStyles.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '13px', fontWeight: 900, color: themeStyles.textPrimary, fontFamily: 'var(--font-mono)' }}>
-                    Verified Citations
+                    {isVi ? 'Trích Dẫn Xác Thực' : 'Verified Citations'}
                   </span>
                   <span style={{ fontSize: '10px', fontWeight: 700, color: isDark ? '#a5b4fc' : '#6366f1' }}>
-                    100% Grounded
+                    {isVi ? '100% Khách Quan' : '100% Grounded'}
                   </span>
                 </div>
 
@@ -1996,7 +2017,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                INSPECT TOOL
+                {isVi ? 'SOI CHI TIẾT' : 'INSPECT TOOL'}
               </button>
             </div>
         </div>
@@ -2120,7 +2141,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <circle cx="12" cy="12" r="3" />
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
-                CẤU HÌNH &amp; ĐIỀU KHIỂN
+                {isVi ? 'CẤU HÌNH & ĐIỀU KHIỂN' : 'CONTROL & RUN'}
               </button>
 
               <button
@@ -2147,7 +2168,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <line x1="8" y1="21" x2="16" y2="21" />
                   <line x1="12" y1="17" x2="12" y2="21" />
                 </svg>
-                THÔNG SỐ &amp; TELEMETRY
+                {isVi ? 'THÔNG SỐ & TELEMETRY' : 'SPECS & TELEMETRY'}
               </button>
 
               <button
@@ -2173,7 +2194,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   <polyline points="4 17 10 11 4 5" />
                   <line x1="12" y1="19" x2="20" y2="19" />
                 </svg>
-                TERMINAL LOGS
+                {isVi ? 'NHẬT KÝ THỰC THI' : 'TERMINAL LOGS'}
                 <span
                   style={{
                     fontSize: '10px',
@@ -2209,10 +2230,18 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontFamily: 'var(--font-mono)',
                   transition: 'all 0.15s ease',
                 }}
-                title={drawerExpanded ? 'Thu gọn chiều cao drawer' : 'Mở rộng toàn màn hình drawer'}
+                title={
+                  drawerExpanded
+                    ? (isVi ? 'Thu gọn chiều cao drawer' : 'Collapse drawer height')
+                    : (isVi ? 'Mở rộng toàn màn hình drawer' : 'Expand full-height drawer')
+                }
               >
                 <span>{drawerExpanded ? '▼' : '▲'}</span>
-                <span style={{ fontSize: '10px' }}>{drawerExpanded ? 'THU GỌN' : 'MỞ RỘNG'}</span>
+                <span style={{ fontSize: '10px' }}>
+                  {drawerExpanded
+                    ? (isVi ? 'THU GỌN' : 'COLLAPSE')
+                    : (isVi ? 'MỞ RỘNG' : 'EXPAND')}
+                </span>
               </button>
 
               <button
@@ -2232,10 +2261,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
                 }}
-                title="Đóng bảng điều khiển"
+                title={isVi ? 'Đóng bảng điều khiển' : 'Close inspector panel'}
               >
                 <span>&times;</span>
-                <span style={{ fontSize: '10px' }}>ĐÓNG</span>
+                <span style={{ fontSize: '10px' }}>{isVi ? 'ĐÓNG' : 'CLOSE'}</span>
               </button>
             </div>
           </div>
@@ -2256,10 +2285,10 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                            CHỌN DANH MỤC CÀO (CATEGORIES TO HARVEST)
+                            {isVi ? 'CHỌN DANH MỤC THU THẬP' : 'CATEGORIES TO HARVEST'}
                           </span>
                           <span style={{ fontSize: '10px', color: isDark ? '#c084fc' : '#7c3aed', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                            {harvestCategories.length} đã chọn
+                            {harvestCategories.length} {isVi ? 'đã chọn' : 'selected'}
                           </span>
                         </div>
 
@@ -2308,7 +2337,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                         <div>
                           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
-                            GIỚI HẠN THU THẬP (INGESTION LIMIT)
+                            {isVi ? 'GIỚI HẠN THU THẬP' : 'INGESTION LIMIT'}
                           </span>
                           <div style={{ display: 'flex', gap: '6px' }}>
                             {[1000, 5000, 10000, 25000].map((limitVal) => (
@@ -2337,7 +2366,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                         <div>
                           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
-                            CHÍNH SÁCH RATE-LIMIT (DELAY)
+                            {isVi ? 'CHÍNH SÁCH RATE-LIMIT (DELAY)' : 'RATE-LIMIT POLICY (DELAY)'}
                           </span>
                           <div style={{ display: 'flex', gap: '6px' }}>
                             {[
@@ -2371,7 +2400,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
                       {/* Format checkmarks */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>ĐỊNH DẠNG:</span>
+                        <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>{isVi ? 'ĐỊNH DẠNG:' : 'FORMATS:'}</span>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                           <input
                             type="checkbox"

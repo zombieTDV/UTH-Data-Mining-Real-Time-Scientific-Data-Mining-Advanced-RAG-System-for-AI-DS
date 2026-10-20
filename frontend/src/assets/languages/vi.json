@@ -47,6 +47,7 @@
   },
   "nav": {
     "schematic": "LUỒNG",
+    "explorer": "S3",
     "eda": "PHÂN TÍCH",
     "pillars": "MÔ HÌNH",
     "rag": "RAG",
@@ -54,10 +55,11 @@
     "home": "TRANG CHỦ",
     "settings": "CÀI ĐẶT",
     "schematicTitle": "[Alt+1] Sơ đồ Lakehouse & Lưu trữ",
-    "edaTitle": "[Alt+2] Phân tích EDA Khoa học (DuckDB)",
-    "pillarsTitle": "[Alt+3] 4 Trụ cột Khai thác",
-    "ragTitle": "[Alt+4] RAG Khoa học Chat",
-    "logsTitle": "[Alt+5] Nhật ký Telemetry & Động cơ",
+    "explorerTitle": "[Alt+2] Trình khám phá MinIO S3 Lakehouse & Trực quan",
+    "edaTitle": "[Alt+3] Phân tích EDA Khoa học (DuckDB)",
+    "pillarsTitle": "[Alt+4] 4 Trụ cột Khai phá Dữ liệu",
+    "ragTitle": "[Alt+5] Trợ lý RAG Truy hồi Khoa học",
+    "logsTitle": "[Alt+6] Nhật ký Giám sát & Động cơ Cốt lõi",
     "toggleTheme": "Chuyển chế độ sáng/tối",
     "switchLanguage": "Chuyển ngôn ngữ"
   },

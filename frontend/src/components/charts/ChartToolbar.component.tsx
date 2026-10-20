@@ -1,4 +1,5 @@
 import type { FC, RefObject } from 'react';
+import { useTranslation } from '../../hooks';
 
 export interface ChartToolbarProps {
   theme?: 'dark' | 'light';
@@ -46,6 +47,8 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
   csvData,
   onShowToast,
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const isDark = theme === 'dark';
 
   const btnStyle = {
@@ -93,9 +96,9 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
       downloadLink.click();
       document.body.removeChild(downloadLink);
       URL.revokeObjectURL(svgUrl);
-      if (onShowToast) onShowToast(`Đã xuất đồ họa vector ${filename}.svg thành công!`);
+      if (onShowToast) onShowToast(isVi ? `Đã xuất đồ họa vector ${filename}.svg thành công!` : `Successfully exported vector graphic ${filename}.svg!`);
     } catch {
-      if (onShowToast) onShowToast('Không thể xuất file SVG.');
+      if (onShowToast) onShowToast(isVi ? 'Không thể xuất file SVG.' : 'Failed to export SVG file.');
     }
   };
 
@@ -132,9 +135,9 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      if (onShowToast) onShowToast(`Đã tải xuống dữ liệu nguồn ${filename}.csv!`);
+      if (onShowToast) onShowToast(isVi ? `Đã tải xuống dữ liệu nguồn ${filename}.csv!` : `Downloaded raw dataset ${filename}.csv!`);
     } catch {
-      if (onShowToast) onShowToast('Không thể xuất file CSV.');
+      if (onShowToast) onShowToast(isVi ? 'Không thể xuất file CSV.' : 'Failed to export CSV file.');
     }
   };
 
@@ -152,7 +155,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
       {(onZoomIn || onZoomOut || onResetZoom) && (
         <div
           style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}
-          title="Cuộn chuột / Trackpad để phóng to • Kéo để di chuyển góc nhìn (Drag to Pan)"
+          title={isVi ? 'Cuộn chuột / Trackpad để phóng to • Kéo để di chuyển góc nhìn (Drag to Pan)' : 'Scroll / Trackpad to zoom • Drag to pan'}
         >
           {onResetZoom && (
             <button
@@ -167,7 +170,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
                 backgroundColor: (hasPannedOrZoomed || (zoomLevel !== undefined && zoomLevel !== 1)) ? (isDark ? 'rgba(56, 189, 248, 0.16)' : '#e0f2fe') : btnStyle.backgroundColor,
                 border: (hasPannedOrZoomed || (zoomLevel !== undefined && zoomLevel !== 1)) ? `1px solid ${isDark ? 'rgba(56, 189, 248, 0.4)' : '#93c5fd'}` : btnStyle.border,
               }}
-              title="Đặt lại góc nhìn và tỷ lệ ban đầu 100% (Reset Pan & Zoom)"
+              title={isVi ? 'Đặt lại góc nhìn và tỷ lệ ban đầu 100% (Reset Pan & Zoom)' : 'Reset pan and scale to 100%'}
             >
               ↺ Reset {zoomLevel !== undefined ? `(${Math.round(zoomLevel * 100)}%)` : ''}
             </button>
@@ -177,7 +180,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
               type="button"
               onClick={onZoomOut}
               style={btnStyle}
-              title="Thu nhỏ đồ thị (Zoom Out)"
+              title={isVi ? 'Thu nhỏ đồ thị (Zoom Out)' : 'Zoom out'}
             >
               -
             </button>
@@ -187,7 +190,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
               type="button"
               onClick={onZoomIn}
               style={btnStyle}
-              title="Phóng to đồ thị (Zoom In)"
+              title={isVi ? 'Phóng to đồ thị (Zoom In)' : 'Zoom in'}
             >
               +
             </button>
@@ -201,7 +204,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
           type="button"
           onClick={onToggleLens}
           style={isLensActive ? activeBtnStyle : btnStyle}
-          title="Kính lúp soi cụm hạt dày đặc (2.5x)"
+          title={isVi ? 'Kính lúp soi cụm hạt dày đặc (2.5x)' : 'Magnifying lens for dense clusters (2.5x)'}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" />
@@ -217,7 +220,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
           type="button"
           onClick={onToggleBaselines}
           style={showBaselines ? activeBtnStyle : btnStyle}
-          title="Bật / tắt các đường chuẩn tham chiếu (Mean, Median, P90)"
+          title={isVi ? 'Bật / tắt các đường chuẩn tham chiếu (Mean, Median, P90)' : 'Toggle statistical baselines (Mean, Median, P90)'}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
@@ -233,9 +236,11 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
           type="button"
           onClick={onToggleSidebar}
           style={isSidebarCollapsed ? activeBtnStyle : btnStyle}
-          title={isSidebarCollapsed ? 'Mở lại bảng chi tiết [ ► ]' : 'Thu gọn bảng chi tiết để mở rộng đồ thị 100% [ ◄ ]'}
+          title={isSidebarCollapsed
+            ? (isVi ? 'Mở lại bảng chi tiết [ ► ]' : 'Expand inspector panel [ ► ]')
+            : (isVi ? 'Thu gọn bảng chi tiết để mở rộng đồ thị 100% [ ◄ ]' : 'Collapse panel to expand chart to 100% [ ◄ ]')}
         >
-          <span>{isSidebarCollapsed ? '► Bảng' : '◄ Bảng'}</span>
+          <span>{isSidebarCollapsed ? (isVi ? '► Bảng' : '► Panel') : (isVi ? '◄ Bảng' : '◄ Panel')}</span>
         </button>
       )}
 
@@ -245,7 +250,9 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
           type="button"
           onClick={onToggleTheater || onToggleMaximize}
           style={(isTheater || isMaximized) ? activeBtnStyle : btnStyle}
-          title={(isTheater || isMaximized) ? 'Thu nhỏ về khung nhìn thường' : 'Phóng đại toàn màn hình 100% (Theater Mode)'}
+          title={(isTheater || isMaximized)
+            ? (isVi ? 'Thu nhỏ về khung nhìn thường' : 'Exit fullscreen / theater')
+            : (isVi ? 'Phóng đại toàn màn hình 100% (Theater Mode)' : 'Expand to full screen (Theater Mode)')}
         >
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             {(isTheater || isMaximized) ? (
@@ -263,7 +270,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
                 <line x1="3" y1="21" x2="10" y2="14" />
               </svg>
             )}
-            <span>{(isTheater || isMaximized) ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+            <span>{(isTheater || isMaximized) ? (isVi ? 'Thu Nhỏ' : 'Exit') : (isVi ? 'Rạp Hát' : 'Theater')}</span>
           </span>
         </button>
       )}
@@ -274,7 +281,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
           type="button"
           onClick={handleDownloadSvg}
           style={btnStyle}
-          title="Tải ảnh vector SVG chuẩn xuất bản học thuật"
+          title={isVi ? 'Tải ảnh vector SVG chuẩn xuất bản học thuật' : 'Download publication-grade SVG vector image'}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -290,7 +297,7 @@ export const ChartToolbar: FC<ChartToolbarProps> = ({
           type="button"
           onClick={handleDownloadCsv}
           style={btnStyle}
-          title="Tải tập dữ liệu nguồn CSV"
+          title={isVi ? 'Tải tập dữ liệu nguồn CSV' : 'Download raw CSV dataset'}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="20" x2="18" y2="10" />

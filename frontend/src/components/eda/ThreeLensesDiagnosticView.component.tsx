@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, type FC, type MouseEvent } from 'react';
 import type { Diagnostic3Lenses } from '../../types';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
-import { useSvgPanZoom } from '../../hooks';
+import { useSvgPanZoom, useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 
 export interface ScatterPaperPoint {
@@ -37,6 +37,8 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   selectedPaperId,
   onShowToast,
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const isDark = theme === 'dark';
 
   // Sub-tab switcher across the Three Lenses (§6.1 - §6.4)
@@ -241,9 +243,21 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
         {/* 3-Lens Pill Switcher Tabs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
           {[
-            { id: 'lens3_bivariate' as const, label: 'LENS 1 & 3: TƯƠNG TÁC ĐA BIẾN & MI', icon: '☍' },
-            { id: 'lens2_univariate' as const, label: 'LENS 2: ĐƠN BIẾN & Q-Q NORMALITY', icon: '◬' },
-            { id: 'governance' as const, label: '§6.4 ĐIỀU HƯỚNG PIPELINE', icon: '⚙' },
+            {
+              id: 'lens3_bivariate' as const,
+              label: isVi ? 'LĂNG KÍNH 1 & 3: TƯƠNG TÁC ĐA BIẾN & MI' : 'LENS 1 & 3: BIVARIATE & MI',
+              icon: '☍',
+            },
+            {
+              id: 'lens2_univariate' as const,
+              label: isVi ? 'LĂNG KÍNH 2: ĐƠN BIẾN & Q-Q CHUẨN HOÁ' : 'LENS 2: UNIVARIATE & Q-Q NORMALITY',
+              icon: '◬',
+            },
+            {
+              id: 'governance' as const,
+              label: isVi ? '§6.4 ĐIỀU PHỐI PIPELINE' : '§6.4 PIPELINE GOVERNANCE',
+              icon: '⚙',
+            },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             return (

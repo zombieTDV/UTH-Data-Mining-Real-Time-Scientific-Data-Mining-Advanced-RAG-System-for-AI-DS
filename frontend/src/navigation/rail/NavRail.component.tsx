@@ -11,6 +11,7 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
   const getTabLabel = (id: string, fallback: string) => {
     switch (id) {
       case 'schematic': return t('nav.schematic') || fallback;
+      case 'explorer': return t('nav.explorer') || fallback;
       case 'eda': return t('nav.eda') || fallback;
       case 'pillars': return t('nav.pillars') || fallback;
       case 'rag': return t('nav.rag') || fallback;
@@ -22,6 +23,7 @@ export const NavRail: FC<NavRailProps> = ({ activeTab, theme, onNavigate, onTogg
   const getTabTitle = (id: string, fallback: string) => {
     switch (id) {
       case 'schematic': return t('nav.schematicTitle') || fallback;
+      case 'explorer': return t('nav.explorerTitle') || fallback;
       case 'eda': return t('nav.edaTitle') || fallback;
       case 'pillars': return t('nav.pillarsTitle') || fallback;
       case 'rag': return t('nav.ragTitle') || fallback;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FC } from 'react';
 import type { AppTheme } from '../types';
+import { useTranslation } from '../hooks';
 import {
   ExplorerStorageHud,
   ExplorerFileTree,
@@ -14,6 +15,8 @@ export interface ExplorerScreenProps {
 }
 
 export const ExplorerScreen: FC<ExplorerScreenProps> = () => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const [treeData, setTreeData] = useState<ExplorerTreeResponseData | null>(null);
   const [selectedFile, setSelectedFile] = useState<ExplorerFileItem | null>(null);
   const [previewData, setPreviewData] = useState<FilePreviewData | null>(null);
@@ -78,10 +81,18 @@ export const ExplorerScreen: FC<ExplorerScreenProps> = () => {
     try {
       const freshData = await syncExplorerBucket();
       setTreeData(freshData);
-      setSyncNotice(`Remote snapshot synchronized successfully (${freshData.total_objects.toLocaleString()} objects, ${freshData.total_size_gb.toFixed(2)} GB).`);
+      setSyncNotice(
+        isVi
+          ? `Đã đồng bộ ảnh chụp từ xa thành công (${freshData.total_objects.toLocaleString()} đối tượng, ${freshData.total_size_gb.toFixed(2)} GB).`
+          : `Remote snapshot synchronized successfully (${freshData.total_objects.toLocaleString()} objects, ${freshData.total_size_gb.toFixed(2)} GB).`
+      );
       setTimeout(() => setSyncNotice(null), 5000);
     } catch (err: any) {
-      setSyncNotice(`Sync warning: ${err?.message || 'Failed to execute remote scan'}`);
+      setSyncNotice(
+        isVi
+          ? `Cảnh báo đồng bộ: ${err?.message || 'Không thể thực thi quét từ xa'}`
+          : `Sync warning: ${err?.message || 'Failed to execute remote scan'}`
+      );
       setTimeout(() => setSyncNotice(null), 6000);
     } finally {
       setIsSyncing(false);
@@ -117,8 +128,12 @@ export const ExplorerScreen: FC<ExplorerScreenProps> = () => {
             animation: 'spin 1s linear infinite',
           }}
         />
-        <div style={{ fontSize: '15px', fontWeight: 600 }}>Loading the MinIO lakehouse inventory...</div>
-        <div style={{ fontSize: '12px', color: '#64748b' }}>Listing the MinIO bucket (cached for a few minutes)</div>
+        <div style={{ fontSize: '15px', fontWeight: 600 }}>
+          {isVi ? 'Đang nạp danh mục MinIO lakehouse...' : 'Loading the MinIO lakehouse inventory...'}
+        </div>
+        <div style={{ fontSize: '12px', color: '#64748b' }}>
+          {isVi ? 'Đang liệt kê bucket MinIO (bộ nhớ đệm vài phút)' : 'Listing the MinIO bucket (cached for a few minutes)'}
+        </div>
       </div>
     );
   }
@@ -137,7 +152,9 @@ export const ExplorerScreen: FC<ExplorerScreenProps> = () => {
           textAlign: 'center',
         }}
       >
-        <div style={{ color: '#ef4444', fontSize: '16px', fontWeight: 700 }}>Lakehouse Manifest Offline</div>
+        <div style={{ color: '#ef4444', fontSize: '16px', fontWeight: 700 }}>
+          {isVi ? 'Mất kết nối Manifest Lakehouse' : 'Lakehouse Manifest Offline'}
+        </div>
         <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '13px', maxWidth: '420px' }}>{treeError}</div>
         <button
           onClick={() => window.location.reload()}
@@ -152,7 +169,7 @@ export const ExplorerScreen: FC<ExplorerScreenProps> = () => {
             cursor: 'pointer',
           }}
         >
-          Reload Dashboard
+          {isVi ? 'Tải lại Bảng Điều Khiển' : 'Reload Dashboard'}
         </button>
       </div>
     );

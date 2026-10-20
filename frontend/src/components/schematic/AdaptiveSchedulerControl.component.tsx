@@ -37,6 +37,7 @@ const fmtTime = (iso?: string | null): string => {
  */
 export const AdaptiveSchedulerControl: FC = () => {
   const { language } = useTranslation();
+  const isVi = language === 'vi';
   const { live } = useLakehouseStreamStore();
   const [loading, setLoading] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -91,14 +92,14 @@ export const AdaptiveSchedulerControl: FC = () => {
     try {
       if (daemonRunning) {
         const res = await stopSchedulerDaemon(false);
-        showFeedback(res.message || 'Đã tắt hệ thống cào tự động (Daemon Stopped)');
+        showFeedback(res.message || (isVi ? 'Đã tắt hệ thống cào tự động (Daemon Stopped)' : 'Orchestration daemon stopped'));
       } else {
         const res = await startSchedulerDaemon(30);
-        showFeedback(res.message || 'Đã bật hệ thống cào tự động (Daemon Started)');
+        showFeedback(res.message || (isVi ? 'Đã bật hệ thống cào tự động (Daemon Started)' : 'Orchestration daemon started'));
       }
       await loadStatus();
     } catch (e: any) {
-      showFeedback(`Lỗi: ${e.message}`);
+      showFeedback(`${isVi ? 'Lỗi' : 'Error'}: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -108,10 +109,10 @@ export const AdaptiveSchedulerControl: FC = () => {
     setLoading(true);
     try {
       const res = await toggleSchedulerSource(key, !currentEnabled);
-      showFeedback(res.message || `Đã chuyển đổi trạng thái nguồn ${key.toUpperCase()}`);
+      showFeedback(res.message || (isVi ? `Đã chuyển đổi trạng thái nguồn ${key.toUpperCase()}` : `Toggled source status for ${key.toUpperCase()}`));
       await loadStatus();
     } catch (e: any) {
-      showFeedback(`Lỗi: ${e.message}`);
+      showFeedback(`${isVi ? 'Lỗi' : 'Error'}: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -121,10 +122,10 @@ export const AdaptiveSchedulerControl: FC = () => {
     setLoading(true);
     try {
       const res = await cancelSchedulerTask();
-      showFeedback(res.message || 'Đã dừng khẩn cấp tác vụ đang cào.');
+      showFeedback(res.message || (isVi ? 'Đã dừng khẩn cấp tác vụ đang cào.' : 'Emergency stopped running task.'));
       await loadStatus();
     } catch (e: any) {
-      showFeedback(`Lỗi: ${e.message}`);
+      showFeedback(`${isVi ? 'Lỗi' : 'Error'}: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -134,10 +135,10 @@ export const AdaptiveSchedulerControl: FC = () => {
     setTriggeringSource(key);
     try {
       const res = await triggerSchedulerHarvest(key, undefined, true, true);
-      showFeedback(res.message || `Đã kích hoạt cào cho ${key.toUpperCase()}`);
+      showFeedback(res.message || (isVi ? `Đã kích hoạt cào cho ${key.toUpperCase()}` : `Triggered harvest for ${key.toUpperCase()}`));
       await loadStatus();
     } catch (e: any) {
-      showFeedback(`Lỗi: ${e.message}`);
+      showFeedback(`${isVi ? 'Lỗi' : 'Error'}: ${e.message}`);
     } finally {
       setTriggeringSource(null);
     }
@@ -218,7 +219,7 @@ export const AdaptiveSchedulerControl: FC = () => {
                 boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
               }}
             >
-              <span>⏹</span> Dừng Khẩn Cấp ({activeSource.toUpperCase()}{activePid ? ` #${activePid}` : ''})
+              <span>⏹</span> {isVi ? 'Dừng Khẩn Cấp' : 'Emergency Stop'} ({activeSource.toUpperCase()}{activePid ? ` #${activePid}` : ''})
             </button>
           )}
 
@@ -253,8 +254,8 @@ export const AdaptiveSchedulerControl: FC = () => {
               }}
             />
             {daemonRunning
-              ? language === 'vi' ? 'TẮT CÀO TỰ ĐỘNG' : 'STOP AUTO-DAEMON'
-              : language === 'vi' ? 'BẬT CÀO TỰ ĐỘNG' : 'START AUTO-DAEMON'}
+              ? isVi ? 'TẮT CÀO TỰ ĐỘNG' : 'STOP AUTO-DAEMON'
+              : isVi ? 'BẬT CÀO TỰ ĐỘNG' : 'START AUTO-DAEMON'}
           </button>
         </div>
       </div>
@@ -287,18 +288,20 @@ export const AdaptiveSchedulerControl: FC = () => {
           }}
         >
           <span>RabbitMQ: <b style={{ color: queue.status === 'HEALTHY' ? 'var(--accent-emerald)' : '#ef4444' }}>{queue.status}</b></span>
-          <span title="Bản tin metadata chờ fetch worker tải toàn văn">
-            Q1 tải bài: <b style={{ color: 'var(--text-primary)' }}>{queue.ready.toLocaleString()}</b> chờ · {queue.unacked} đang xử lý · worker{' '}
+          <span title={isVi ? 'Bản tin metadata chờ fetch worker tải toàn văn' : 'Metadata messages awaiting full-text fetch worker'}>
+            {isVi ? 'Q1 tải bài:' : 'Q1 Fetch:'} <b style={{ color: 'var(--text-primary)' }}>{queue.ready.toLocaleString()}</b> {isVi ? 'chờ' : 'ready'} · {queue.unacked} {isVi ? 'đang xử lý' : 'unacked'} · worker{' '}
             <b style={{ color: queue.consumers > 0 ? 'var(--accent-emerald)' : '#ef4444' }}>{queue.consumers}</b>
           </span>
-          <span title="Bản ghi Silver chờ embed worker chunk + embed vào Qdrant">
-            Q2 embed: <b style={{ color: 'var(--text-primary)' }}>{(queue.embed_ready ?? 0).toLocaleString()}</b> chờ · {queue.embed_unacked ?? 0} đang xử lý · worker{' '}
+          <span title={isVi ? 'Bản ghi Silver chờ embed worker chunk + embed vào Qdrant' : 'Silver records awaiting embed worker to chunk + embed into Qdrant'}>
+            {isVi ? 'Q2 embed:' : 'Q2 Embed:'} <b style={{ color: 'var(--text-primary)' }}>{(queue.embed_ready ?? 0).toLocaleString()}</b> {isVi ? 'chờ' : 'ready'} · {queue.embed_unacked ?? 0} {isVi ? 'đang xử lý' : 'unacked'} · worker{' '}
             <b style={{ color: (queue.embed_consumers ?? 0) > 0 ? 'var(--accent-emerald)' : '#ef4444' }}>{queue.embed_consumers ?? 0}</b>
           </span>
           <span>dead-letter <b style={{ color: queue.dead > 0 ? '#ef4444' : 'var(--text-primary)' }}>{queue.dead}</b></span>
           <span>Airflow: <b style={{ color: live?.airflow.reachable ? 'var(--accent-emerald)' : '#ef4444' }}>{live?.airflow.reachable ? (live.airflow.scheduler_healthy ? 'scheduler OK' : 'scheduler DOWN') : 'OFFLINE'}</b></span>
           {((queue.ready + queue.unacked > 0 && queue.consumers === 0) || ((queue.embed_ready ?? 0) > 0 && (queue.embed_consumers ?? 0) === 0)) && (
-            <span style={{ color: '#ef4444', fontWeight: 700 }}>⚠ Có tin trong hàng đợi nhưng chưa có worker: hãy chạy ingestion worker.</span>
+            <span style={{ color: '#ef4444', fontWeight: 700 }}>
+              {isVi ? '⚠ Có tin trong hàng đợi nhưng chưa có worker: hãy chạy ingestion worker.' : '⚠ Messages pending in queue but no active workers: please start ingestion workers.'}
+            </span>
           )}
         </div>
       )}
@@ -353,7 +356,7 @@ export const AdaptiveSchedulerControl: FC = () => {
                   type="button"
                   onClick={() => handleToggleSource(key, isEnabled)}
                   disabled={loading}
-                  title={isEnabled ? 'Bấm để Tắt nguồn này' : 'Bấm để Bật nguồn này'}
+                  title={isEnabled ? (isVi ? 'Bấm để Tắt nguồn này' : 'Click to disable source') : (isVi ? 'Bấm để Bật nguồn này' : 'Click to enable source')}
                   style={{
                     padding: '2px 8px',
                     borderRadius: '10px',
@@ -366,7 +369,7 @@ export const AdaptiveSchedulerControl: FC = () => {
                     color: isEnabled ? 'var(--accent-emerald)' : '#ef4444',
                   }}
                 >
-                  {isEnabled ? '🟢 BẬT' : '🔴 TẮT'}
+                  {isEnabled ? (isVi ? '🟢 BẬT' : '🟢 ON') : (isVi ? '🔴 TẮT' : '🔴 OFF')}
                 </button>
               </div>
 
@@ -385,9 +388,9 @@ export const AdaptiveSchedulerControl: FC = () => {
                   marginBottom: '10px',
                 }}
               >
-                <div>Lần chạy cuối: <span style={{ color: 'var(--text-primary)' }}>{item.last_run ? fmtTime(item.last_run) : 'Chưa'}</span> <span style={{ color: item.status === 'FAILED' ? '#ef4444' : 'var(--accent-emerald)' }}>{item.status}</span></div>
-                <div>Lần tới: <span style={{ color: 'var(--accent-blue)' }}>{fmtTime(item.next_run)}</span></div>
-                <div>Phiên này: <span style={{ color: 'var(--accent-emerald)', fontWeight: 700 }}>{getHarvestedCount(key, item.total_papers_harvested).toLocaleString()} bài</span></div>
+                <div>{isVi ? 'Lần chạy cuối: ' : 'Last run: '}<span style={{ color: 'var(--text-primary)' }}>{item.last_run ? fmtTime(item.last_run) : (isVi ? 'Chưa' : 'Never')}</span> <span style={{ color: item.status === 'FAILED' ? '#ef4444' : 'var(--accent-emerald)' }}>{item.status}</span></div>
+                <div>{isVi ? 'Lần tới: ' : 'Next run: '}<span style={{ color: 'var(--accent-blue)' }}>{fmtTime(item.next_run)}</span></div>
+                <div>{isVi ? 'Phiên này: ' : 'This session: '}<span style={{ color: 'var(--accent-emerald)', fontWeight: 700 }}>{getHarvestedCount(key, item.total_papers_harvested).toLocaleString()} {isVi ? 'bài' : 'papers'}</span></div>
               </div>
 
               {/* Action: Trigger Now */}
@@ -413,7 +416,7 @@ export const AdaptiveSchedulerControl: FC = () => {
                   transition: 'background 0.15s ease',
                 }}
               >
-                {isRunning ? '🔵 Đang chạy trong Airflow...' : isTriggering ? '⏳ Đang khởi động...' : '▶ Cào Ngay'}
+                {isRunning ? (isVi ? '🔵 Đang chạy trong Airflow...' : '🔵 Running in Airflow...') : isTriggering ? (isVi ? '⏳ Đang khởi động...' : '⏳ Launching...') : (isVi ? '▶ Cào Ngay' : '▶ Harvest Now')}
               </button>
             </div>
           );

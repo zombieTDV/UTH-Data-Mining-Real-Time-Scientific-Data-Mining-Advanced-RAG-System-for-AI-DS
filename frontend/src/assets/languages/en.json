@@ -47,6 +47,7 @@
   },
   "nav": {
     "schematic": "FLOW",
+    "explorer": "S3",
     "eda": "EDA",
     "pillars": "MODEL",
     "rag": "RAG",
@@ -54,10 +55,11 @@
     "home": "HOME",
     "settings": "SETTINGS",
     "schematicTitle": "[Alt+1] Lakehouse Schematic & Storage",
-    "edaTitle": "[Alt+2] Real-Time Scientific EDA (DuckDB)",
-    "pillarsTitle": "[Alt+3] 4 Mining Pillars",
-    "ragTitle": "[Alt+4] Grounded Scientific RAG Chat",
-    "logsTitle": "[Alt+5] Telemetry Logs & Core Engines",
+    "explorerTitle": "[Alt+2] MinIO S3 Lakehouse Explorer & Viewer",
+    "edaTitle": "[Alt+3] Real-Time Scientific EDA (DuckDB)",
+    "pillarsTitle": "[Alt+4] 4 Mining Pillars",
+    "ragTitle": "[Alt+5] Grounded Scientific RAG Chat",
+    "logsTitle": "[Alt+6] Telemetry Logs & Core Engines",
     "toggleTheme": "Toggle light/dark mode",
     "switchLanguage": "Switch language"
   },

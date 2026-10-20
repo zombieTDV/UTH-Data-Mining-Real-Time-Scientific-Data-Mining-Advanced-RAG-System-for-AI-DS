@@ -1,6 +1,7 @@
 import { useMemo, useState, type FC, type MouseEvent } from 'react';
 import type { EdaResponse } from '../../types';
 import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
+import { useTranslation } from '../../hooks';
 
 /**
  * Plain distribution views for the EDA tab:
@@ -81,6 +82,8 @@ const Toggle: FC<{ options: { id: string; label: string }[]; value: string; onCh
 // ---------------------------------------------------------------- scatter (no clustering)
 
 const PaperScatter: FC<{ data: EdaResponse }> = ({ data }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const [scale, setScale] = useState<'log' | 'linear'>('log');
   const [hover, setHover] = useState<{ x: number; y: number; p: NonNullable<EdaResponse['scatter_points']>[number] } | null>(null);
   const points = useMemo(() => (data.scatter_points ?? []).filter((p) => p.words > 0), [data.scatter_points]);
@@ -118,17 +121,27 @@ const PaperScatter: FC<{ data: EdaResponse }> = ({ data }) => {
 
   return (
     <Card
-      title="Số từ và số công thức của từng bài (chưa phân cụm)"
-      subtitle={`${points.length} bài mẫu từ Silver · mỗi chấm là một bài, không gom nhóm hay tô màu theo cụm`}
+      title={isVi ? 'Số từ và số công thức của từng bài (chưa phân cụm)' : 'Words vs. Formulas per Paper (Unclustered)'}
+      subtitle={
+        isVi
+          ? `${points.length} bài mẫu từ Silver · mỗi chấm là một bài, không gom nhóm hay tô màu theo cụm`
+          : `${points.length} sample works from Silver · each dot represents one paper, without clustering`
+      }
       right={
         <Toggle
-          options={[{ id: 'log', label: 'Thang log10' }, { id: 'linear', label: 'Thang tuyến tính' }]}
+          options={[
+            { id: 'log', label: isVi ? 'Thang log10' : 'Log10 Scale' },
+            { id: 'linear', label: isVi ? 'Thang tuyến tính' : 'Linear Scale' },
+          ]}
           value={scale}
           onChange={(id) => setScale(id as 'log' | 'linear')}
         />
       }
     >
-      <ChartLegend items={[{ label: 'Một bài báo', color: POINT, mark: 'dot' }]} note="Rê chuột lên chấm để xem tên bài" />
+      <ChartLegend
+        items={[{ label: isVi ? 'Một bài báo' : 'Single Paper', color: POINT, mark: 'dot' }]}
+        note={isVi ? 'Rê chuột lên chấm để xem tên bài' : 'Hover over a dot to view paper details'}
+      />
       <div style={{ position: 'relative', flex: 1, minHeight: '260px' }}>
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%' }}>
           {frame.yTicks.map((v) => (
@@ -164,8 +177,26 @@ const PaperScatter: FC<{ data: EdaResponse }> = ({ data }) => {
               onMouseLeave={() => setHover(null)}
             />
           ))}
-          <AxisTitle axis="y" x={18} y={(T + B) / 2} text={`Số công thức toán trong bài${scale === 'log' ? ' (log10)' : ''}`} />
-          <AxisTitle axis="x" x={(L + R) / 2} y={B + 42} text={`Số từ của toàn văn${scale === 'log' ? ' (log10)' : ''}`} />
+          <AxisTitle
+            axis="y"
+            x={18}
+            y={(T + B) / 2}
+            text={
+              isVi
+                ? `Số công thức toán trong bài${scale === 'log' ? ' (log10)' : ''}`
+                : `Math formulas in paper${scale === 'log' ? ' (log10)' : ''}`
+            }
+          />
+          <AxisTitle
+            axis="x"
+            x={(L + R) / 2}
+            y={B + 42}
+            text={
+              isVi
+                ? `Số từ của toàn văn${scale === 'log' ? ' (log10)' : ''}`
+                : `Full-text word count${scale === 'log' ? ' (log10)' : ''}`
+            }
+          />
         </svg>
         {hover && (
           <div
@@ -187,9 +218,9 @@ const PaperScatter: FC<{ data: EdaResponse }> = ({ data }) => {
             }}
           >
             <div style={{ fontWeight: 600, marginBottom: '4px' }}>{hover.p.title}</div>
-            <div>Chuyên mục: {hover.p.category}</div>
-            <div>Số từ: {hover.p.words.toLocaleString()}</div>
-            <div>Số công thức: {hover.p.formulas.toLocaleString()}</div>
+            <div>{isVi ? 'Chuyên mục: ' : 'Category: '}{hover.p.category}</div>
+            <div>{isVi ? 'Số từ: ' : 'Words: '}{hover.p.words.toLocaleString()}</div>
+            <div>{isVi ? 'Số công thức: ' : 'Formulas: '}{hover.p.formulas.toLocaleString()}</div>
           </div>
         )}
       </div>
@@ -200,6 +231,8 @@ const PaperScatter: FC<{ data: EdaResponse }> = ({ data }) => {
 // ---------------------------------------------------------------- histogram
 
 const VariableHistogram: FC<{ data: EdaResponse }> = ({ data }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const vars = data.diagnostic_3lenses?.lens2_univariate ?? {};
   const keys = Object.keys(vars);
   const [key, setKey] = useState<string>(keys.includes('words') ? 'words' : keys[0] ?? '');
@@ -208,7 +241,10 @@ const VariableHistogram: FC<{ data: EdaResponse }> = ({ data }) => {
 
   if (!v || !v.histogram_bins?.length) {
     return (
-      <Card title="Histogram" subtitle="Chưa có dữ liệu phân phối: hãy chạy lại mining">
+      <Card
+        title="Histogram"
+        subtitle={isVi ? 'Chưa có dữ liệu phân phối: hãy chạy lại mining' : 'No distribution data: recompute mining engine'}
+      >
         <div />
       </Card>
     );
@@ -228,14 +264,18 @@ const VariableHistogram: FC<{ data: EdaResponse }> = ({ data }) => {
   return (
     <Card
       title={`Histogram: ${v.label}`}
-      subtitle={`${bins.length} khoảng đều nhau${n ? ` trên ${n.toLocaleString()} bài toàn văn` : ''} · lệch ${v.skewness > 0 ? 'phải' : 'trái'} (skewness ${v.skewness})`}
+      subtitle={
+        isVi
+          ? `${bins.length} khoảng đều nhau${n ? ` trên ${n.toLocaleString()} bài toàn văn` : ''} · lệch ${v.skewness > 0 ? 'phải' : 'trái'} (độ lệch ${v.skewness})`
+          : `${bins.length} equal intervals${n ? ` across ${n.toLocaleString()} full-text papers` : ''} · skewed ${v.skewness > 0 ? 'right' : 'left'} (skewness ${v.skewness})`
+      }
       right={<Toggle options={keys.map((k) => ({ id: k, label: vars[k].short || k }))} value={key} onChange={setKey} />}
     >
       <ChartLegend
         items={[
-          { label: 'Số bài trong khoảng', color: POINT, mark: 'bar' },
-          { label: `Trung bình = ${fmt(v.mean)} ${v.unit}`, color: '#ea580c', mark: 'dashed' },
-          { label: `Trung vị = ${fmt(v.median)} ${v.unit}`, color: '#10b981', mark: 'dashed' },
+          { label: isVi ? 'Số bài trong khoảng' : 'Papers in bin', color: POINT, mark: 'bar' },
+          { label: `${isVi ? 'Trung bình' : 'Mean'} = ${fmt(v.mean)} ${v.unit}`, color: '#ea580c', mark: 'dashed' },
+          { label: `${isVi ? 'Trung vị' : 'Median'} = ${fmt(v.median)} ${v.unit}`, color: '#10b981', mark: 'dashed' },
         ]}
       />
       <div style={{ position: 'relative', flex: 1, minHeight: '260px' }}>
