@@ -2491,27 +2491,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                             </>
                           )}
                         </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setBottomTab('logs')}
-                          style={{
-                            width: '100%',
-                            backgroundColor: themeStyles.btnInspectBg,
-                            color: themeStyles.btnInspectText,
-                            border: `1px solid ${themeStyles.btnInspectBorder}`,
-                            borderRadius: '8px',
-                            padding: '6px 0',
-                            fontSize: '11px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            textAlign: 'center',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          XEM REAL-TIME STREAMING LOGS &rarr;
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -2587,67 +2566,45 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         }}
                       />
 
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        {/* Tactical Obsidian Amber Action Pill */}
-                        <button
-                          type="button"
-                          onClick={handleRunDuckQuery}
-                          disabled={duckRunning}
-                          style={{
-                            flex: 1,
-                            backgroundColor: themeStyles.amberGhostBg,
-                            color: themeStyles.amberGhostText,
-                            border: `1px solid ${isDark ? '#f59e0b' : '#d97706'}`,
-                            borderRadius: '8px',
-                            padding: '8px 14px',
-                            fontSize: '11px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            cursor: duckRunning ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            boxShadow: isDark ? '0 0 14px rgba(245, 158, 11, 0.20)' : '0 2px 6px rgba(217, 119, 6, 0.12)',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {duckRunning ? (
-                            <>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                              </svg>
-                              <span>ĐANG CHẠY SIMD EXECUTION...</span>
-                            </>
-                          ) : (
-                            <>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                              </svg>
-                              <span>THỰC THI TRUY VẤN DUCKDB (0.041s)</span>
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setBottomTab('logs')}
-                          style={{
-                            padding: '0 14px',
-                            backgroundColor: themeStyles.btnInspectBg,
-                            border: `1px solid ${themeStyles.btnInspectBorder}`,
-                            borderRadius: '8px',
-                            fontSize: '11px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
-                            color: themeStyles.btnInspectText,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          XEM LOGS
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRunDuckQuery}
+                        disabled={duckRunning}
+                        style={{
+                          width: '100%',
+                          backgroundColor: themeStyles.amberGhostBg,
+                          color: themeStyles.amberGhostText,
+                          border: `1px solid ${isDark ? '#f59e0b' : '#d97706'}`,
+                          borderRadius: '8px',
+                          padding: '8px 14px',
+                          fontSize: '11px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 800,
+                          cursor: duckRunning ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          boxShadow: isDark ? '0 0 14px rgba(245, 158, 11, 0.20)' : '0 2px 6px rgba(217, 119, 6, 0.12)',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {duckRunning ? (
+                          <>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                              <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+                            </svg>
+                            <span>ĐANG CHẠY SIMD EXECUTION...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                            </svg>
+                            <span>THỰC THI TRUY VẤN DUCKDB (0.041s)</span>
+                          </>
+                        )}
+                      </button>
                     </div>
 
                     {/* Results Table & Micro Distribution Chart */}
