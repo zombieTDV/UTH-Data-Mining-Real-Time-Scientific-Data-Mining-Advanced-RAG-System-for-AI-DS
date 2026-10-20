@@ -229,7 +229,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
             }}
           >
-            {isVi ? '3 LĂNG KÍNH CHẨN ĐOÁN' : 'THREE-LENS SUITE'}
+            {isVi ? 'LĂNG KÍNH CHẨN ĐOÁN THỐNG KÊ' : 'STATISTICAL DIAGNOSTIC LENSES'}
           </span>
         </div>
 
@@ -238,12 +238,12 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
           {[
             {
               id: 'lens3_bivariate' as const,
-              label: isVi ? 'LĂNG KÍNH 1 & 3: TƯƠNG TÁC ĐA BIẾN & MI' : 'LENS 1 & 3: BIVARIATE & MI',
+              label: isVi ? 'LĂNG KÍNH ĐA BIẾN: TƯƠNG TÁC & MUTUAL INFO' : 'BIVARIATE LENS: INTERACTION & MUTUAL INFO',
               icon: '☍',
             },
             {
               id: 'lens2_univariate' as const,
-              label: isVi ? 'LĂNG KÍNH 2: ĐƠN BIẾN & Q-Q CHUẨN HOÁ' : 'LENS 2: UNIVARIATE & Q-Q NORMALITY',
+              label: isVi ? 'LĂNG KÍNH ĐƠN BIẾN: PHÂN PHỐI & Q-Q NORMALITY' : 'UNIVARIATE LENS: DISTRIBUTION & Q-Q NORMALITY',
               icon: '◬',
             },
           ].map((tab) => {
@@ -703,17 +703,27 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 const isHovered = hoveredPoint?.id === pt.id;
                 const col = getCatColor(pt.category);
 
+                // Determine if point falls into the selected quadrant
+                const isLeft = cx < 485;
+                const isTop = cy <= 160;
+                const inQuadrant =
+                  selectedQuadrant === 'ALL' ||
+                  (selectedQuadrant === 'Q1' && isLeft && isTop) ||
+                  (selectedQuadrant === 'Q2' && !isLeft && isTop) ||
+                  (selectedQuadrant === 'Q3' && isLeft && !isTop) ||
+                  (selectedQuadrant === 'Q4' && !isLeft && !isTop);
+
                 return (
                   <circle
                     key={pt.id}
                     cx={cx}
                     cy={cy}
-                    r={isSelected ? '8' : isHovered ? '7' : '4.5'}
+                    r={isSelected ? '8' : isHovered ? '7' : inQuadrant ? (selectedQuadrant !== 'ALL' ? '5.5' : '4.5') : '3'}
                     fill={col}
-                    stroke={isSelected ? '#f59e0b' : isDark ? '#0f172a' : '#ffffff'}
-                    strokeWidth={isSelected ? '2.5' : isHovered ? '2' : '1'}
-                    opacity={isSelected || isHovered ? 1 : 0.85}
-                    style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
+                    stroke={isSelected ? '#f59e0b' : (selectedQuadrant !== 'ALL' && inQuadrant ? '#ffffff' : (isDark ? '#0f172a' : '#ffffff'))}
+                    strokeWidth={isSelected ? '2.5' : isHovered ? '2' : (selectedQuadrant !== 'ALL' && inQuadrant ? '1.5' : '1')}
+                    opacity={isSelected || isHovered ? 1 : inQuadrant ? (selectedQuadrant !== 'ALL' ? 1 : 0.85) : 0.12}
+                    style={{ cursor: 'pointer', transition: 'r 0.15s ease, opacity 0.2s ease' }}
                     onClick={() => onSelectPaper({
                       id: pt.id,
                       title: pt.title,
