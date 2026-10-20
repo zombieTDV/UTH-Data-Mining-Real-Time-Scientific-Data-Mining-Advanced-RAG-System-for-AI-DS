@@ -21,6 +21,7 @@ import pandas as pd
 from src.config.settings import settings
 from src.mining.lake_access import SILVER_PRIMARY_KEY, duck_connect, put_artifact, qdrant_client, s3_uri, sample_abstract_vectors
 from sklearn.cluster import MiniBatchKMeans, DBSCAN
+from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import normalize
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
@@ -100,63 +101,82 @@ class SemanticClusterAnalyzer:
         pca = PCA(n_components=2, random_state=42)
         coords_2d = pca.fit_transform(vectors_centered)
 
-        # 2. Partitioning: K-Means with K selection / sweep
-        logger.info("[PILLAR 2] Sweeping K-Means across candidate K values [4, 6, 8]...")
+        # 2. Gaussian Mixture Model (GMM) - Probabilistic Soft Clustering
+        logger.info("[PILLAR 2] Executing Gaussian Mixture Model (GMM - EM) with K=%d...", n_clusters)
         best_k = n_clusters
-        best_sil = -1.0
-        best_kmeans = None
-        best_labels = None
-
-        candidate_ks = [4, 6, 8]
         val_sample_idx = np.random.choice(len(vectors_norm), size=min(1500, len(vectors_norm)), replace=False)
 
-        for k in candidate_ks:
-            km = MiniBatchKMeans(n_clusters=k, random_state=42, batch_size=512, n_init=3)
-            labels = km.fit_predict(vectors_norm)
-            sil = float(silhouette_score(vectors_norm[val_sample_idx], labels[val_sample_idx], metric="cosine"))
-            logger.info("[PILLAR 2] K=%d -> Silhouette Score: %.4f", k, sil)
-            if k == n_clusters or sil > best_sil:
-                if k == n_clusters:
-                    best_k = k
-                    best_sil = sil
-                    best_kmeans = km
-                    best_labels = labels
+        # Baseline K-Means for benchmark comparison
+        km = MiniBatchKMeans(n_clusters=best_k, random_state=42, batch_size=512, n_init=3)
+        km_labels = km.fit_predict(vectors_norm)
+        sil_score = float(silhouette_score(vectors_norm[val_sample_idx], km_labels[val_sample_idx], metric="cosine"))
+        db_score = float(davies_bouldin_score(vectors_norm, km_labels))
+        ch_score = float(calinski_harabasz_score(vectors_norm, km_labels))
 
-        if best_kmeans is None:
-            best_kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=42, batch_size=512, n_init=3)
-            best_labels = best_kmeans.fit_predict(vectors_norm)
-            best_k = n_clusters
+        # 3. 2D Visual Scaling & Gaussian Mixture Estimation
+        display_sample = min(800, len(vectors_norm))
+        coords_scaled = coords_2d[:display_sample] * 5.0
 
-        # Final validity metrics
-        sil_score = float(silhouette_score(vectors_norm[val_sample_idx], best_labels[val_sample_idx], metric="cosine"))
-        db_score = float(davies_bouldin_score(vectors_norm, best_labels))
-        ch_score = float(calinski_harabasz_score(vectors_norm, best_labels))
+        gmm = GaussianMixture(
+            n_components=best_k,
+            covariance_type="full",
+            random_state=42,
+            max_iter=200,
+            n_init=3,
+        )
+        gmm.fit(coords_scaled)
+        probs = gmm.predict_proba(coords_scaled)
+        gmm_labels = gmm.predict(coords_scaled)
+
+        bic_score = float(gmm.bic(coords_scaled))
+        aic_score = float(gmm.aic(coords_scaled))
+        log_lik = float(gmm.score(coords_scaled))
 
         logger.info(
-            "[PILLAR 2] [SUCCESS] K-Means (K=%d) -> Silhouette: %.4f, Davies-Bouldin: %.4f, Calinski-Harabasz: %.1f",
+            "[PILLAR 2] [SUCCESS] GMM (K=%d) -> BIC: %.1f, AIC: %.1f, Log-Likelihood: %.4f | Silhouette: %.4f",
             best_k,
+            bic_score,
+            aic_score,
+            log_lik,
             sil_score,
-            db_score,
-            ch_score,
         )
 
-        # 3. Density Clustering: DBSCAN on normalized representations
+        # 4. Covariance Ellipses for 2D Confidence Contours (2-sigma ~ 95.4% mass)
+        cluster_ellipses = {}
+        for c_id in range(best_k):
+            cov = gmm.covariances_[c_id]
+            vals, vecs = np.linalg.eigh(cov)
+            order = vals.argsort()[::-1]
+            vals = vals[order]
+            vecs = vecs[:, order]
+            rx = float(2.0 * np.sqrt(max(1e-5, vals[0])))
+            ry = float(2.0 * np.sqrt(max(1e-5, vals[1])))
+            theta = float(np.degrees(np.arctan2(vecs[1, 0], vecs[0, 0])))
+            mean = gmm.means_[c_id]
+            cluster_ellipses[c_id] = {
+                "cx": round(float(mean[0]), 4),
+                "cy": round(float(mean[1]), 4),
+                "rx": round(rx, 4),
+                "ry": round(ry, 4),
+                "theta_deg": round(theta, 2),
+                "weight": round(float(gmm.weights_[c_id]), 4),
+            }
+
+        # 5. Density Clustering: DBSCAN on normalized representations
         logger.info("[PILLAR 2] Executing DBSCAN density clustering (eps=0.28, min_samples=10)...")
         dbscan = DBSCAN(eps=0.28, min_samples=10, metric="cosine")
         dbscan_labels = dbscan.fit_predict(vectors_norm)
         noise_count = int(np.sum(dbscan_labels == -1))
         num_dbscan_clusters = len(set(dbscan_labels) - {-1})
         noise_ratio = round(float(noise_count) / max(1, len(vectors_norm)), 4)
-        logger.info("[PILLAR 2] DBSCAN found %d dense core clusters with %.1f%% noise.", num_dbscan_clusters, noise_ratio * 100)
 
-        # 4. Cluster Profiling: Summarize dominant categories per K-Means cluster
+        # 6. Cluster Profiling: Summarize dominant categories per GMM component
         cluster_profiles = []
         for c_id in range(best_k):
-            mask = best_labels == c_id
-            cluster_meta = [metadata[i] for i in range(len(metadata)) if mask[i]]
+            mask = gmm_labels == c_id
+            cluster_meta = [metadata[i] for i in range(display_sample) if mask[i]]
             categories = [m.get("primary_category", "unknown") for m in cluster_meta if m.get("primary_category")]
             top_cats = Counter(categories).most_common(3)
-            # Pick representative unique paper titles
             sample_titles = []
             for m in cluster_meta:
                 t = m.get("title", "")
@@ -168,20 +188,35 @@ class SemanticClusterAnalyzer:
             cluster_profiles.append({
                 "cluster_id": c_id,
                 "size": int(np.sum(mask)),
-                "percentage": round(float(np.sum(mask)) * 100.0 / len(vectors_norm), 2),
+                "percentage": round(float(np.sum(mask)) * 100.0 / display_sample, 2),
+                "weight": round(float(gmm.weights_[c_id]), 4),
                 "dominant_categories": [{"category": cat, "count": cnt} for cat, cnt in top_cats],
                 "sample_titles": sample_titles,
+                "ellipse": cluster_ellipses.get(c_id),
             })
 
-        # 5. Prepare scatter points for 2D visual representation (downsampled for FE payload)
-        display_sample = min(800, len(vectors_norm))
-        coords_scaled = coords_2d[:display_sample] * 5.0
+        # 7. Prepare scatter points with soft posterior responsibilities
+        max_probs = np.max(probs, axis=1)
+        cross_disc_count = int(np.sum(max_probs < 0.65))
         scatter_points = []
         for i in range(display_sample):
+            p_vec = probs[i]
+            sorted_indices = np.argsort(p_vec)[::-1]
+            c_primary = int(sorted_indices[0])
+            p_primary = round(float(p_vec[c_primary]), 3)
+            c_secondary = int(sorted_indices[1])
+            p_secondary = round(float(p_vec[c_secondary]), 3)
+            is_cross_disc = bool(p_primary < 0.65)
+
             scatter_points.append({
                 "x": round(float(coords_scaled[i, 0]), 4),
                 "y": round(float(coords_scaled[i, 1]), 4),
-                "cluster": int(best_labels[i]),
+                "cluster": c_primary,
+                "max_probability": p_primary,
+                "secondary_cluster": c_secondary,
+                "secondary_probability": p_secondary,
+                "is_cross_disciplinary": is_cross_disc,
+                "cluster_probabilities": [round(float(p), 3) for p in p_vec],
                 "category": str(metadata[i].get("primary_category", "unknown")),
                 "title": str(metadata[i].get("title", "")),
                 "paper_id": str(metadata[i].get("paper_id", "")),
@@ -189,16 +224,22 @@ class SemanticClusterAnalyzer:
 
         results = {
             "summary": {
+                "algorithm": "Gaussian Mixture Model (GMM - EM Soft Clustering)",
                 "sample_analyzed": len(vectors_norm),
                 "vector_dimensions": vectors.shape[1],
                 "optimal_k": best_k,
                 "dbscan_clusters_found": num_dbscan_clusters,
                 "dbscan_noise_ratio": noise_ratio,
+                "cross_disciplinary_papers": cross_disc_count,
+                "cross_disciplinary_ratio": round(float(cross_disc_count) / max(1, display_sample), 4),
             },
             "validity_metrics": {
                 "silhouette_score": round(sil_score, 4),
                 "davies_bouldin_index": round(db_score, 4),
                 "calinski_harabasz_index": round(ch_score, 1),
+                "bic": round(bic_score, 2),
+                "aic": round(aic_score, 2),
+                "log_likelihood": round(log_lik, 4),
             },
             "cluster_profiles": cluster_profiles,
             "scatter_2d": scatter_points,

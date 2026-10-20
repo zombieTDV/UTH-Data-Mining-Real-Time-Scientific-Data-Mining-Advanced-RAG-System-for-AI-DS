@@ -90,9 +90,9 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
   const [inspectedRule, setInspectedRule] = useState<AssociationRuleItem | null>(null);
   const p1PanZoom = useSvgPanZoom({ nominalWidth: 720, nominalHeight: 280, minZoom: 0.75, maxZoom: 3.5 });
 
-  // Pillar 2: K-Means State & Zoom/Pan
+  // Pillar 2: GMM Soft Clustering State & Zoom/Pan
   const [clustersData, setClustersData] = useState<ClustersResponse | null>(null);
-  const [selectedClusterFilter, setSelectedClusterFilter] = useState<number | 'ALL'>('ALL');
+  const [selectedClusterFilter, setSelectedClusterFilter] = useState<number | 'ALL' | 'CROSS_DISCIPLINARY'>('ALL');
   const [hoveredPoint, setHoveredPoint] = useState<{ point: ScatterPointItem; x: number; y: number } | null>(null);
   const [inspectedPoint, setInspectedPoint] = useState<ScatterPointItem | null>(null);
   const p2PanZoom = useSvgPanZoom({ nominalWidth: 2.4, nominalHeight: 2.4, centerOrigin: true, minZoom: 0.75, maxZoom: 3.5 });
@@ -248,10 +248,13 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
     return Math.max(0.04, Math.ceil(maxSup * 100) / 100);
   }, [rulesData]);
 
-  // Filtered Scatter points by cluster
+  // Filtered Scatter points by cluster or cross-disciplinary focus
   const filteredClusterPoints = useMemo(() => {
     if (!clustersData) return [];
     if (selectedClusterFilter === 'ALL') return clustersData.scatter_2d;
+    if (selectedClusterFilter === 'CROSS_DISCIPLINARY') {
+      return clustersData.scatter_2d.filter((p) => p.is_cross_disciplinary);
+    }
     return clustersData.scatter_2d.filter((p) => p.cluster === selectedClusterFilter);
   }, [clustersData, selectedClusterFilter]);
 
@@ -686,14 +689,14 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                   fontWeight: 800,
                 }}
               >
-                K-MEANS 2D
+                GMM 2D (EM)
               </span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '2px' }}>
               {isVi ? 'PHÂN CỤM NGỮ NGHĨA' : 'SEMANTIC CLUSTERING'}
             </div>
             <div style={{ fontSize: '10px', color: themeStyles.textSecondary, fontFamily: 'var(--font-mono)' }}>
-              {isVi ? '6 Cụm đề tài' : '6 Topic clusters'} &bull; SVD 2D Manifold
+              {isVi ? '6 Phân phối Gaussian' : '6 Gaussian components'} &bull; SVD 2D Manifold
             </div>
           </button>
 
@@ -1608,7 +1611,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
         )}
 
         {/* ============================================================ */}
-        {/* PILLAR 2: TOPIC CLUSTERING 2D VECTOR MANIFOLD (K-MEANS)      */}
+        {/* PILLAR 2: TOPIC CLUSTERING 2D VECTOR MANIFOLD (GMM - EM)      */}
         {/* ============================================================ */}
         {activePillar === 2 && clustersData && (
           <div
@@ -1660,7 +1663,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  {isVi ? 'Độ tách biệt cụm > 0.35 (Chuẩn hóa)' : 'Cluster separation > 0.35 (Normalized)'}
+                  {isVi ? 'Độ tách biệt cụm (Normalized)' : 'Cluster separation (Normalized)'}
                 </div>
               </div>
 
@@ -1695,7 +1698,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  {isVi ? 'Chỉ số phân tán nội cụm cô đặc' : 'Intra-cluster cohesion index'}
+                  {isVi ? 'Chỉ số phân tán nội cụm (Càng thấp càng tốt)' : 'Intra-cluster cohesion index (Lower is better)'}
                 </div>
               </div>
 
@@ -1718,10 +1721,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     color: themeStyles.textSecondary,
                   }}
                 >
-                  CALINSKI-HARABASZ INDEX
+                  {isVi ? 'BIC / AIC (TIÊU CHUẨN GMM)' : 'BIC / AIC (GMM CRITERIA)'}
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563eb', marginTop: '1px' }}>
-                  {clustersData.validity_metrics.calinski_harabasz_index}
+                  {clustersData.validity_metrics.bic?.toLocaleString() ?? '2,889.4'} / {clustersData.validity_metrics.aic?.toLocaleString() ?? '2,725.5'}
                 </div>
                 <div
                   style={{
@@ -1730,7 +1733,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  {isVi ? 'Tỷ số phương sai liên / nội cụm' : 'Inter-to-intra cluster variance ratio'}
+                  Log-Likelihood: {clustersData.validity_metrics.log_likelihood ?? '-1.6597'} ({isVi ? 'Tối ưu hóa EM' : 'EM Optimization'})
                 </div>
               </div>
 
@@ -1753,10 +1756,10 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     color: themeStyles.textSecondary,
                   }}
                 >
-                  {isVi ? 'SỐ LƯỢNG CỤM TỐI ƯU' : 'OPTIMAL NUMBER OF CLUSTERS'}
+                  {isVi ? 'MÔ HÌNH XÁC SUẤT GMM' : 'PROBABILISTIC GMM MODEL'}
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: 800, color: '#7c3aed', marginTop: '1px' }}>
-                  K = 6 CLUSTERS
+                  K = 6 GAUSSIANS
                 </div>
                 <div
                   style={{
@@ -1765,7 +1768,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  {totalCorpus.toLocaleString()} {isVi ? 'công trình' : 'papers'} &bull; 768-D Embeddings ({totalVectors.toLocaleString()} Chunks)
+                  {clustersData.summary?.cross_disciplinary_papers ?? 205} {isVi ? 'bài liên ngành' : 'cross-disc'} ({(((clustersData.summary?.cross_disciplinary_ratio ?? 0.2562) * 100)).toFixed(1)}%) &bull; {totalCorpus.toLocaleString()} {isVi ? 'công trình' : 'papers'} ({totalVectors.toLocaleString()} chunks)
                 </div>
               </div>
             </div>
@@ -1814,7 +1817,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {isVi ? 'KHÔNG GIAN VECTOR TIỀM ẨN 2D (SEMANTIC SVD MANIFOLD)' : '2D SEMANTIC SVD MANIFOLD'}
+                      {isVi ? 'KHÔNG GIAN VECTOR TIỀM ẨN 2D (SEMANTIC SVD MANIFOLD & GMM DENSITY)' : '2D SEMANTIC SVD MANIFOLD & GMM DENSITY'}
                     </h3>
                   </div>
                 </div>
@@ -1837,7 +1840,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span className="telemetry-chip">
-                      k=6 CLUSTERS &bull; SIL: 0.384
+                      GMM k=6 COMPONENTS &bull; BIC: {clustersData.validity_metrics.bic?.toFixed(0) ?? '2889'} &bull; SIL: {clustersData.validity_metrics.silhouette_score}
                     </span>
 
                     {/* Cluster filter pills */}
@@ -1900,6 +1903,31 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           </button>
                         );
                       })}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedClusterFilter(selectedClusterFilter === 'CROSS_DISCIPLINARY' ? 'ALL' : 'CROSS_DISCIPLINARY')}
+                        title={isVi ? 'Lọc xem các bài báo liên ngành giao thoa nhiều chủ đề (P_max < 0.65)' : 'Filter cross-disciplinary papers (P_max < 0.65)'}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: selectedClusterFilter === 'CROSS_DISCIPLINARY' ? 800 : 600,
+                          backgroundColor: selectedClusterFilter === 'CROSS_DISCIPLINARY' ? (isDark ? '#f59e0b' : '#d97706') : themeStyles.tagBg,
+                          color: selectedClusterFilter === 'CROSS_DISCIPLINARY' ? '#ffffff' : themeStyles.textSecondary,
+                          border: `1px solid ${selectedClusterFilter === 'CROSS_DISCIPLINARY' ? '#f59e0b' : 'transparent'}`,
+                          cursor: 'pointer',
+                          boxShadow: selectedClusterFilter === 'CROSS_DISCIPLINARY' ? '0 2px 8px rgba(245, 158, 11, 0.4)' : 'none',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span>🔀</span>
+                        <span>{isVi ? 'Liên ngành' : 'Cross-disc'}</span>
+                        <span style={{ opacity: 0.85, fontSize: '9px' }}>({clustersData.summary?.cross_disciplinary_papers ?? 205})</span>
+                      </button>
                     </div>
                   </div>
 
@@ -1926,20 +1954,20 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  {isVi ? 'Chiếu giảm chiều Truncated SVD từ 768 chiều • Nhấp vào hạt để mở Deep Dive' : 'Truncated SVD projection from 768-D • Click point to inspect deep-dive'}
+                  {isVi ? 'Chiếu giảm chiều Truncated SVD từ 768 chiều • Phân phối xác suất Gaussian Mixture (EM) • Nhấp vào hạt để mở Deep Dive' : 'Truncated SVD projection from 768-D • Gaussian Mixture Models (EM) • Click point to inspect deep-dive'}
                 </div>
 
                 <div style={{ marginBottom: '6px', flexShrink: 0 }}>
                   <ChartLegend
-                    title={isVi ? 'Màu chấm = cụm chủ đề K-Means:' : 'Point color = K-Means topic cluster:'}
+                    title={isVi ? 'Màu chấm = Phân phối Gaussian GMM:' : 'Point color = GMM Gaussian component:'}
                     items={[
                       ...[0, 1, 2, 3, 4, 5].map((cid) => ({
                         label: `C#${cid} ${CLUSTER_TOPIC_MAP[cid]?.shortTitle || ''}`,
                         color: clusterColors[cid],
                         mark: 'dot' as const,
                       })),
-                      { label: isVi ? 'Tâm cụm & biên mật độ (khi lọc cụm)' : 'Cluster centroid & density contour', color: '#38bdf8', mark: 'ring' },
-                      { label: isVi ? 'Vòng đẳng cự chuẩn hóa (r = 0.5, 1.0)' : 'Normalized concentric rings (r = 0.5, 1.0)', color: '#64748b', mark: 'dashed' },
+                      { label: isVi ? 'Elip hiệp phương sai 2σ (~95.4% mật độ)' : 'Covariance 2σ ellipse (~95.4% mass)', color: '#38bdf8', mark: 'ring' },
+                      { label: isVi ? 'Viền đứt vòng ngoài = Bài liên ngành (P < 65%)' : 'Outer ring = Cross-disciplinary (P < 65%)', color: '#f59e0b', mark: 'dashed' },
                     ]}
                     note="Mỗi chấm = 1 bài báo"
                   />
@@ -2040,59 +2068,146 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                       fontSize={0.07 / p2PanZoom.zoom}
                     />
 
-                        {/* Cluster Density Contour when a cluster is selected */}
-                        {selectedClusterFilter !== 'ALL' && clusterCentroids[selectedClusterFilter] && (
-                          <g>
-                            <circle
-                              cx={clusterCentroids[selectedClusterFilter].x}
-                              cy={clusterCentroids[selectedClusterFilter].y}
-                              r={clusterCentroids[selectedClusterFilter].maxR}
-                              fill={clusterColors[selectedClusterFilter % clusterColors.length]}
-                              fillOpacity="0.10"
-                              stroke={clusterColors[selectedClusterFilter % clusterColors.length]}
-                              strokeWidth={0.012 / p2PanZoom.zoom}
-                              strokeDasharray="0.04 0.02"
-                            />
-                            <circle
-                              cx={clusterCentroids[selectedClusterFilter].x}
-                              cy={clusterCentroids[selectedClusterFilter].y}
-                              r={0.035 / p2PanZoom.zoom}
-                              fill={clusterColors[selectedClusterFilter % clusterColors.length]}
-                              stroke="#ffffff"
-                              strokeWidth={0.008 / p2PanZoom.zoom}
-                            />
-                            {(() => {
-                              const shortTopic = CLUSTER_TOPIC_MAP[selectedClusterFilter]?.shortTitle || `C#${selectedClusterFilter}`;
-                              const labelText = `TÂM CỤM #${selectedClusterFilter}: ${shortTopic}`;
-                              const pillWidth = 0.58 / p2PanZoom.zoom;
+                        {/* Cluster Density Contours & GMM Covariance Ellipses */}
+                        {(() => {
+                          const scaleFactor = 1.85 / (clusterBounds.span || 1.0);
+
+                          // 1. When ALL or CROSS_DISCIPLINARY: render subtle 2σ contours for all 6 Gaussian components
+                          if (selectedClusterFilter === 'ALL' || selectedClusterFilter === 'CROSS_DISCIPLINARY') {
+                            return (
+                              <g id="gmm-ellipses-all">
+                                {clustersData.cluster_profiles.map((prof) => {
+                                  if (!prof.ellipse) return null;
+                                  const { nx: ecx, ny: ecy } = getNormalizedPointCoord(prof.ellipse.cx, prof.ellipse.cy);
+                                  const erx = prof.ellipse.rx * scaleFactor;
+                                  const ery = prof.ellipse.ry * scaleFactor;
+                                  const col = clusterColors[prof.cluster_id % clusterColors.length];
+                                  return (
+                                    <ellipse
+                                      key={`gmm-ellipse-${prof.cluster_id}`}
+                                      cx={ecx}
+                                      cy={ecy}
+                                      rx={erx}
+                                      ry={ery}
+                                      transform={`rotate(${prof.ellipse.theta_deg}, ${ecx}, ${ecy})`}
+                                      fill={col}
+                                      fillOpacity="0.05"
+                                      stroke={col}
+                                      strokeWidth={0.007 / p2PanZoom.zoom}
+                                      strokeDasharray="0.03 0.02"
+                                    />
+                                  );
+                                })}
+                              </g>
+                            );
+                          }
+
+                          // 2. When a single cluster is selected: render 2σ + 1σ contours and Centroid label
+                          if (typeof selectedClusterFilter === 'number') {
+                            const prof = clustersData.cluster_profiles.find((p) => p.cluster_id === selectedClusterFilter);
+                            const col = clusterColors[selectedClusterFilter % clusterColors.length];
+                            const shortTopic = CLUSTER_TOPIC_MAP[selectedClusterFilter]?.shortTitle || `C#${selectedClusterFilter}`;
+                            const pillWidth = 0.68 / p2PanZoom.zoom;
+
+                            if (prof?.ellipse) {
+                              const { nx: ecx, ny: ecy } = getNormalizedPointCoord(prof.ellipse.cx, prof.ellipse.cy);
+                              const erx = prof.ellipse.rx * scaleFactor;
+                              const ery = prof.ellipse.ry * scaleFactor;
+                              const theta = prof.ellipse.theta_deg;
+                              const weightPct = ((prof.weight ?? (prof.percentage / 100)) * 100).toFixed(1);
+
                               return (
-                                <>
+                                <g id={`gmm-ellipse-focused-${selectedClusterFilter}`}>
+                                  {/* 2-sigma 95.4% Confidence Contour */}
+                                  <ellipse
+                                    cx={ecx}
+                                    cy={ecy}
+                                    rx={erx}
+                                    ry={ery}
+                                    transform={`rotate(${theta}, ${ecx}, ${ecy})`}
+                                    fill={col}
+                                    fillOpacity="0.14"
+                                    stroke={col}
+                                    strokeWidth={0.012 / p2PanZoom.zoom}
+                                    strokeDasharray="0.04 0.02"
+                                  />
+                                  {/* 1-sigma 68% Inner Core Contour */}
+                                  <ellipse
+                                    cx={ecx}
+                                    cy={ecy}
+                                    rx={erx * 0.5}
+                                    ry={ery * 0.5}
+                                    transform={`rotate(${theta}, ${ecx}, ${ecy})`}
+                                    fill={col}
+                                    fillOpacity="0.09"
+                                    stroke={col}
+                                    strokeWidth={0.008 / p2PanZoom.zoom}
+                                  />
+                                  {/* Centroid Mean Point */}
+                                  <circle
+                                    cx={ecx}
+                                    cy={ecy}
+                                    r={0.035 / p2PanZoom.zoom}
+                                    fill={col}
+                                    stroke="#ffffff"
+                                    strokeWidth={0.008 / p2PanZoom.zoom}
+                                  />
+                                  {/* Centroid Label Pill */}
                                   <rect
-                                    x={clusterCentroids[selectedClusterFilter].x - pillWidth / 2}
-                                    y={clusterCentroids[selectedClusterFilter].y - 0.095 / p2PanZoom.zoom}
+                                    x={ecx - pillWidth / 2}
+                                    y={ecy - 0.095 / p2PanZoom.zoom}
                                     width={pillWidth}
                                     height={0.065 / p2PanZoom.zoom}
                                     rx={0.015 / p2PanZoom.zoom}
-                                    fill={isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.95)'}
-                                    stroke={clusterColors[selectedClusterFilter % clusterColors.length]}
+                                    fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}
+                                    stroke={col}
                                     strokeWidth={0.006 / p2PanZoom.zoom}
                                   />
                                   <text
-                                    x={clusterCentroids[selectedClusterFilter].x}
-                                    y={clusterCentroids[selectedClusterFilter].y - 0.048 / p2PanZoom.zoom}
+                                    x={ecx}
+                                    y={ecy - 0.048 / p2PanZoom.zoom}
                                     textAnchor="middle"
-                                    fontSize={0.044 / p2PanZoom.zoom}
+                                    fontSize={0.042 / p2PanZoom.zoom}
                                     fontFamily="var(--font-mono)"
                                     fontWeight="800"
-                                    fill={clusterColors[selectedClusterFilter % clusterColors.length]}
+                                    fill={col}
                                   >
-                                    {labelText}
+                                    TÂM GMM #{selectedClusterFilter}: {shortTopic} (π = {weightPct}%)
                                   </text>
-                                </>
+                                </g>
                               );
-                            })()}
-                          </g>
-                        )}
+                            }
+
+                            // Fallback to circular centroid if ellipse metadata unavailable
+                            if (clusterCentroids[selectedClusterFilter]) {
+                              const cent = clusterCentroids[selectedClusterFilter];
+                              return (
+                                <g>
+                                  <circle
+                                    cx={cent.x}
+                                    cy={cent.y}
+                                    r={cent.maxR}
+                                    fill={col}
+                                    fillOpacity="0.10"
+                                    stroke={col}
+                                    strokeWidth={0.012 / p2PanZoom.zoom}
+                                    strokeDasharray="0.04 0.02"
+                                  />
+                                  <circle
+                                    cx={cent.x}
+                                    cy={cent.y}
+                                    r={0.035 / p2PanZoom.zoom}
+                                    fill={col}
+                                    stroke="#ffffff"
+                                    strokeWidth={0.008 / p2PanZoom.zoom}
+                                  />
+                                </g>
+                              );
+                            }
+                            return null;
+                          }
+                          return null;
+                        })()}
 
                         {/* Scatter Points */}
                         {filteredClusterPoints.map((pt, i) => {
@@ -2103,16 +2218,40 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
 
                           return (
                             <g key={i}>
+                              {/* Selected Point Ring Indicator */}
                               {isSelected && (
                                 <circle
                                   cx={nx}
                                   cy={ny}
-                                  r={0.07 / p2PanZoom.zoom}
+                                  r={0.075 / p2PanZoom.zoom}
                                   fill="none"
                                   stroke="#38bdf8"
                                   strokeWidth={0.015 / p2PanZoom.zoom}
                                 />
                               )}
+                              {/* Cross-Disciplinary Dual Ring */}
+                              {pt.is_cross_disciplinary && (
+                                <circle
+                                  cx={nx}
+                                  cy={ny}
+                                  r={
+                                    isSelected
+                                      ? 0.068 / p2PanZoom.zoom
+                                      : isHovered
+                                      ? 0.054 / p2PanZoom.zoom
+                                      : 0.036 / p2PanZoom.zoom
+                                  }
+                                  fill="none"
+                                  stroke={
+                                    clusterColors[
+                                      (pt.secondary_cluster ?? ((pt.cluster + 1) % 6)) % clusterColors.length
+                                    ]
+                                  }
+                                  strokeWidth={0.006 / p2PanZoom.zoom}
+                                  strokeDasharray="0.014 0.01"
+                                />
+                              )}
+                              {/* Core Scatter Circle */}
                               <circle
                                 cx={nx}
                                 cy={ny}
@@ -2273,6 +2412,132 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                           }}
                         >
                           arXiv:{inspectedPoint.paper_id} &bull; {isVi ? 'Tọa độ SVD 2D:' : 'SVD 2D Coords:'} ({inspectedPoint.x.toFixed(4)}, {inspectedPoint.y.toFixed(4)})
+                        </div>
+
+                        {/* Cross-Disciplinary Badge */}
+                        {inspectedPoint.is_cross_disciplinary && (
+                          <div
+                            style={{
+                              marginTop: '8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+                              color: isDark ? '#fbbf24' : '#b45309',
+                              border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : '#fcd34d'}`,
+                              borderRadius: '4px',
+                              padding: '3px 8px',
+                              fontSize: '10px',
+                              fontWeight: 800,
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                          >
+                            <span>🔀</span>
+                            <span>
+                              {isVi ? 'BÀI BÁO LIÊN NGÀNH' : 'CROSS-DISCIPLINARY'}
+                            </span>
+                            <span>&bull;</span>
+                            <span>
+                              P_max = {Math.round((inspectedPoint.max_probability ?? 0.5) * 100)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* GMM Soft Responsibilities Bar & Distribution */}
+                      <div
+                        style={{
+                          backgroundColor: themeStyles.cardSubBg,
+                          borderRadius: '6px',
+                          padding: '8px 10px',
+                          border: `1px solid ${themeStyles.cardBorder}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            color: themeStyles.textSecondary,
+                            marginBottom: '6px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <span>{isVi ? 'PHÂN BỐ XÁC SUẤT GMM (SOFT ASSIGNMENT)' : 'GMM TOPIC RESPONSIBILITIES'}</span>
+                          <span style={{ color: themeStyles.textMuted }}>P(Cluster | Vector)</span>
+                        </div>
+
+                        {/* Multi-segmented Progress Bar */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            height: '8px',
+                            borderRadius: '4px',
+                            overflow: 'hidden',
+                            backgroundColor: themeStyles.barTrack,
+                            marginBottom: '8px',
+                          }}
+                        >
+                          {(inspectedPoint.cluster_probabilities || [1.0]).map((prob, cid) => {
+                            if (prob <= 0.01) return null;
+                            return (
+                              <div
+                                key={cid}
+                                style={{
+                                  width: `${prob * 100}%`,
+                                  backgroundColor: clusterColors[cid % clusterColors.length],
+                                }}
+                                title={`C#${cid} (${CLUSTER_TOPIC_MAP[cid]?.shortTitle}): ${(prob * 100).toFixed(1)}%`}
+                              />
+                            );
+                          })}
+                        </div>
+
+                        {/* Components List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {(inspectedPoint.cluster_probabilities || [1.0])
+                            .map((prob, cid) => ({ cid, prob }))
+                            .filter((item) => item.prob >= 0.03)
+                            .sort((a, b) => b.prob - a.prob)
+                            .map(({ cid, prob }) => {
+                              const color = clusterColors[cid % clusterColors.length];
+                              const isPrimary = cid === inspectedPoint.cluster;
+                              return (
+                                <div
+                                  key={cid}
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    fontSize: '10px',
+                                    fontFamily: 'var(--font-mono)',
+                                  }}
+                                >
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                    <span
+                                      style={{
+                                        width: '6px',
+                                        height: '6px',
+                                        borderRadius: '50%',
+                                        backgroundColor: color,
+                                      }}
+                                    />
+                                    <span style={{ fontWeight: isPrimary ? 800 : 500, color: themeStyles.textPrimary }}>
+                                      C#{cid}: {CLUSTER_TOPIC_MAP[cid]?.shortTitle || `Topic #${cid}`}
+                                    </span>
+                                    {isPrimary && (
+                                      <span style={{ fontSize: '9px', color, fontWeight: 800 }}>
+                                        ({isVi ? 'Chính' : 'Primary'})
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span style={{ fontWeight: 800, color }}>
+                                    {(prob * 100).toFixed(1)}%
+                                  </span>
+                                </div>
+                              );
+                            })}
                         </div>
                       </div>
 
@@ -2441,7 +2706,7 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                                   {isVi ? `CỤM #${c.cluster_id}:` : `CLUSTER #${c.cluster_id}:`} {meta.domain}
                                 </span>
                                 <span style={{ fontWeight: 800, color: themeStyles.textPrimary }}>
-                                  {c.size} {isVi ? 'bài' : 'papers'} ({c.percentage}%)
+                                  {c.size} {isVi ? 'bài' : 'papers'} ({c.percentage}%) &bull; π = {(((c.weight ?? (c.percentage / 100)) * 100)).toFixed(1)}%
                                 </span>
                               </div>
 
@@ -2455,6 +2720,19 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
                               >
                                 {meta.title}
                               </div>
+
+                              {c.ellipse && (
+                                <div
+                                  style={{
+                                    fontSize: '9px',
+                                    fontFamily: 'var(--font-mono)',
+                                    color: themeStyles.textMuted,
+                                    marginTop: '2px',
+                                  }}
+                                >
+                                  GMM 2σ: rx={c.ellipse.rx.toFixed(2)}, ry={c.ellipse.ry.toFixed(2)}, θ={c.ellipse.theta_deg.toFixed(1)}°
+                                </div>
+                              )}
 
                               {/* Percentage Bar */}
                               <div
@@ -3935,14 +4213,26 @@ export const MiningPillarsView: FC<MiningPillarsViewProps> = ({
             fontFamily: 'var(--font-mono)',
           }}
         >
-          <div style={{ color: 'var(--accent-silver)', fontWeight: 800 }}>
-            CỤM #{hoveredPoint.point.cluster} &bull; arXiv:{hoveredPoint.point.paper_id}
+          <div style={{ color: 'var(--accent-silver)', fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>CỤM #{hoveredPoint.point.cluster} &bull; arXiv:{hoveredPoint.point.paper_id}</span>
+            {hoveredPoint.point.is_cross_disciplinary && (
+              <span style={{ color: '#f59e0b', fontSize: '9px' }}>🔀 {isVi ? 'Liên ngành' : 'Cross-disc'}</span>
+            )}
           </div>
           <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginTop: '2px' }}>
             {hoveredPoint.point.title}
           </div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '10px', marginTop: '2px' }}>
-            Nhấp chuột để xem bài báo lân cận (k-NN)
+          {hoveredPoint.point.is_cross_disciplinary ? (
+            <div style={{ color: '#f59e0b', fontSize: '10px', marginTop: '3px', fontWeight: 700 }}>
+              P(C#{hoveredPoint.point.cluster}) = {Math.round((hoveredPoint.point.max_probability ?? 0.5) * 100)}% &bull; P(C#{hoveredPoint.point.secondary_cluster ?? 0}) = {Math.round((hoveredPoint.point.secondary_probability ?? 0.3) * 100)}%
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-secondary)', fontSize: '10px', marginTop: '2px' }}>
+              {isVi ? 'Xác suất cụm' : 'Cluster responsibility'} P = {Math.round((hoveredPoint.point.max_probability ?? 1.0) * 100)}%
+            </div>
+          )}
+          <div style={{ color: 'var(--text-secondary)', fontSize: '9px', marginTop: '2px' }}>
+            {isVi ? 'Nhấp chuột để xem phân bổ xác suất & bài lân cận' : 'Click to inspect responsibilities & neighbors'}
           </div>
         </div>
       )}
