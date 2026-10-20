@@ -1062,25 +1062,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 </span>
               </div>
             </div>
-
-            <button
-              type="button"
-              style={{
-                width: '100%',
-                marginTop: '10px',
-                padding: '4px 0',
-                border: `1px solid ${themeStyles.btnInspectBorder}`,
-                borderRadius: '6px',
-                backgroundColor: themeStyles.btnInspectBg,
-                color: themeStyles.btnInspectText,
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {isVi ? 'SOI CHI TIẾT' : 'INSPECT TOOL'}
-            </button>
           </div>
 
           {/* Horizontal Connector 1 */}
@@ -1296,25 +1277,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 )}
               </div>
             </div>
-
-            <button
-              type="button"
-              style={{
-                width: '100%',
-                marginTop: '10px',
-                padding: '4px 0',
-                border: `1px solid ${themeStyles.btnInspectBorder}`,
-                borderRadius: '6px',
-                backgroundColor: themeStyles.btnInspectBg,
-                color: themeStyles.btnInspectText,
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {isVi ? 'SOI CHI TIẾT' : 'INSPECT TOOL'}
-            </button>
           </div>
 
           {/* Horizontal Connector 2 */}
@@ -1644,25 +1606,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     </span>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  style={{
-                    width: '100%',
-                    marginTop: '10px',
-                    padding: '4px 0',
-                    border: `1px solid ${themeStyles.btnInspectBorder}`,
-                    borderRadius: '6px',
-                    backgroundColor: themeStyles.btnInspectBg,
-                    color: themeStyles.btnInspectText,
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {isVi ? 'SOI CHI TIẾT' : 'INSPECT TOOL'}
-                </button>
               </div>
             </div>
           </div>
@@ -2000,25 +1943,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </span>
                 </div>
               </div>
-
-              <button
-                type="button"
-                style={{
-                  width: '100%',
-                  marginTop: '10px',
-                  padding: '4px 0',
-                  border: `1px solid ${themeStyles.btnInspectBorder}`,
-                  borderRadius: '6px',
-                  backgroundColor: themeStyles.btnInspectBg,
-                  color: themeStyles.btnInspectText,
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {isVi ? 'SOI CHI TIẾT' : 'INSPECT TOOL'}
-              </button>
             </div>
         </div>
       </div>

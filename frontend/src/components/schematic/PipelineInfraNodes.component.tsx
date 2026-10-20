@@ -169,25 +169,6 @@ const NodeShell: FC<{
       <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: `1px solid ${theme.cardDivider}`, display: 'flex', flexDirection: 'column', gap: '7px' }}>
         {children}
       </div>
-
-      <button
-        type="button"
-        style={{
-          width: '100%',
-          marginTop: '10px',
-          padding: '4px 0',
-          border: `1px solid ${theme.btnInspectBorder}`,
-          borderRadius: '6px',
-          backgroundColor: theme.btnInspectBg,
-          color: theme.btnInspectText,
-          fontSize: '10px',
-          fontFamily: mono,
-          fontWeight: 700,
-          cursor: 'pointer',
-        }}
-      >
-        INSPECT TOOL
-      </button>
     </div>
   );
 };
