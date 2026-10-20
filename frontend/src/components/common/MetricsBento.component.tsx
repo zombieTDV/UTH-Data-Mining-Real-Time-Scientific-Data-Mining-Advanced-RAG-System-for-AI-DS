@@ -3,11 +3,13 @@ import type { FC } from 'react';
 import { fetchEdaSummary } from '../../services';
 import { StatCard } from './StatCard.component';
 import { AnimatedCounter } from './AnimatedCounter.component';
-import { useLakehouseStreamStore } from '../../store';
+import { ScientificMath } from './ScientificMath.component';
+import { useLakehouseStreamStore, useThemeStore } from '../../store';
 import { useTranslation } from '../../hooks';
 
 export const MetricsBento: FC = () => {
   const { language } = useTranslation();
+  const { theme } = useThemeStore();
   const {
     storageStats,
     totalVectors,
@@ -332,11 +334,49 @@ export const MetricsBento: FC = () => {
           borderRadius: 'var(--radius-sm)',
           background: 'rgba(124, 58, 237, 0.08)',
           border: '1px solid rgba(124, 58, 237, 0.2)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '12px',
-          color: 'var(--accent-violet)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          minHeight: '38px',
         }}>
-          {'$L_{distill} = \\|z_t - \\hat{z}_s\\|^2$'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflowX: 'auto' }}>
+            <span style={{
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              color: 'var(--text-muted)',
+              whiteSpace: 'nowrap',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}>
+              {language === 'vi' ? 'Công thức mẫu:' : 'Sample LaTeX:'}
+            </span>
+            <ScientificMath
+              math="\mathcal{L}_{\text{distill}} = \|z_t - \hat{z}_s\|^2"
+              theme={theme}
+              style={{
+                color: 'var(--accent-violet)',
+                backgroundColor: 'transparent',
+                fontSize: '13px',
+                padding: 0,
+                margin: 0,
+              }}
+            />
+          </div>
+          <span style={{
+            fontSize: '9.5px',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 700,
+            color: 'var(--accent-violet)',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            background: 'rgba(124, 58, 237, 0.15)',
+            border: '1px solid rgba(124, 58, 237, 0.3)',
+            whiteSpace: 'nowrap',
+          }}>
+            KaTeX
+          </span>
         </div>
       </StatCard>
 

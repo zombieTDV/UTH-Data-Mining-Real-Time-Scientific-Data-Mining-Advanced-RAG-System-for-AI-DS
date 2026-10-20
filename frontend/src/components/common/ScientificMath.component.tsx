@@ -1,4 +1,4 @@
-import { type FC, useMemo, useState, type MouseEvent } from 'react';
+import { type FC, useMemo, useState, type MouseEvent, type CSSProperties } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { useTranslation } from '../../hooks';
@@ -8,6 +8,7 @@ export interface ScientificMathProps {
   block?: boolean;
   className?: string;
   theme?: 'dark' | 'light';
+  style?: CSSProperties;
 }
 
 export const ScientificMath: FC<ScientificMathProps> = ({
@@ -15,6 +16,7 @@ export const ScientificMath: FC<ScientificMathProps> = ({
   block = false,
   className = '',
   theme = 'dark',
+  style,
 }) => {
   const { language } = useTranslation();
   const [copied, setCopied] = useState<boolean>(false);
@@ -54,6 +56,7 @@ export const ScientificMath: FC<ScientificMathProps> = ({
           overflowX: 'auto',
           textAlign: 'center',
           boxShadow: isDark ? '0 2px 10px rgba(0, 0, 0, 0.3)' : '0 1px 4px rgba(0, 0, 0, 0.05)',
+          ...style,
         }}
       >
         <div dangerouslySetInnerHTML={{ __html: html }} />
@@ -95,6 +98,7 @@ export const ScientificMath: FC<ScientificMathProps> = ({
         backgroundColor: isDark ? 'rgba(56, 189, 248, 0.08)' : 'rgba(2, 132, 199, 0.06)',
         color: isDark ? '#38bdf8' : '#0369a1',
         fontSize: '0.98em',
+        ...style,
       }}
       dangerouslySetInnerHTML={{ __html: html }}
     />
