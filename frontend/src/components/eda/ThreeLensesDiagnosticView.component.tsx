@@ -25,6 +25,7 @@ interface ThreeLensesDiagnosticViewProps {
   onSelectPaper: (paper: ScatterPaperPoint) => void;
   selectedPaperId?: string;
   onShowToast: (msg: string) => void;
+  selectedCategory?: string;
 }
 
 export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
@@ -36,6 +37,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   onSelectPaper,
   selectedPaperId,
   onShowToast,
+  selectedCategory = 'ALL',
 }) => {
   const { language } = useTranslation();
   const isVi = language === 'vi';
@@ -52,9 +54,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
 
   // Quadrant filter in 2D scatter
   const [selectedQuadrant, setSelectedQuadrant] = useState<'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4'>('ALL');
-
-  // Category filter in 2D scatter
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   // Hover states
   const [hoveredPoint, setHoveredPoint] = useState<{
@@ -466,33 +465,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   </button>
                 );
               })}
-
-              <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 4px' }} />
-
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Chủ đề:</span>
-              {['ALL', 'cs.LG', 'stat.ML', 'cs.CV', 'cs.AI', 'cs.CL', 'cs.RO'].map((cat) => {
-                const isCatActive = selectedCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat)}
-                    style={{
-                      padding: '1px 6px',
-                      borderRadius: '3px',
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: isCatActive ? 800 : 500,
-                      backgroundColor: isCatActive ? (categoryColors[cat] || '#3b82f6') : 'transparent',
-                      color: isCatActive ? '#ffffff' : themeStyles.textSecondary,
-                      border: `1px solid ${isCatActive ? (categoryColors[cat] || '#3b82f6') : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -505,8 +477,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 onResetZoom={scatterPanZoom.resetView}
                 isLensActive={isLensActive}
                 onToggleLens={() => setIsLensActive((v) => !v)}
-                isTheater={isTheaterMode}
-                onToggleTheater={onToggleTheater}
                 onShowToast={onShowToast}
               />
             </div>

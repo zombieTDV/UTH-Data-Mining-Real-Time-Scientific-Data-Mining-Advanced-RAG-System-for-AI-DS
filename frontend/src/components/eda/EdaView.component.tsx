@@ -3,12 +3,11 @@ import type { EdaResponse, CategoryDistItem, MiningRunStatus, PipelineStatus } f
 import { fetchEdaSummary } from '../../services';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
-import { DistributionView } from './DistributionView.component';
 import { useSvgPanZoom, useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 import { ThreeLensesDiagnosticView } from './ThreeLensesDiagnosticView.component';
 
-export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit' | 'distribution';
+export type DeckType = 'combo' | 'scatter' | 'taxonomy' | 'authors' | 'correlations' | 'rag_audit';
 
 export interface ScatterPaperPoint {
   id: string;
@@ -410,7 +409,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
       else if (e.key === '4') setActiveDeck('authors');
       else if (e.key === '5') setActiveDeck('correlations');
       else if (e.key === '6') setActiveDeck('rag_audit');
-      else if (e.key === '7') setActiveDeck('distribution');
       else if (e.key === 'f' || e.key === 'F') setIsFocusMode((prev) => !prev);
       else if (e.key === 'Escape') setSelectedPaperForDrawer(null);
     };
@@ -1072,7 +1070,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
             { id: 'authors' as DeckType, label: isVi ? 'TÁC GIẢ & PHÂN VỊ' : 'TOP AUTHORS & QUANTILES', keyNum: '4' },
             { id: 'correlations' as DeckType, label: isVi ? 'TƯƠNG QUAN & ANOVA' : 'CORRELATIONS & ANOVA', keyNum: '5' },
             { id: 'rag_audit' as DeckType, label: isVi ? 'KIỂM ĐỊNH CHẤT LƯỢNG RAG' : 'RAG QUALITY AUDIT', keyNum: '6' },
-            { id: 'distribution' as DeckType, label: isVi ? 'PHÂN BỐ TỔNG QUAN: SCATTER & HISTOGRAM' : 'DISTRIBUTION OVERVIEW: SCATTER & HISTOGRAM', keyNum: '7' },
           ].map((deck) => {
             const isActive = activeDeck === deck.id;
             return (
@@ -1168,71 +1165,12 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 minHeight: 0,
               }}
             >
-              {/* Row 1: Title + Viewport Controls (Two-Tier Swiss Architecture) */}
+              {/* Row 1: Title (Two-Tier Swiss Architecture) */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '6px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)', flexShrink: 0 }}>
-                    [EDA-01]
-                  </span>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     PHÂN BỐ BÀI BÁO &amp; CÔNG THỨC TOÁN
                   </h3>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 600,
-                      backgroundColor: isSidebarCollapsed ? (isDark ? 'rgba(56, 189, 248, 0.25)' : '#e0f2fe') : (isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'),
-                      color: isSidebarCollapsed ? '#38bdf8' : themeStyles.textSecondary,
-                      border: `1px solid ${isSidebarCollapsed ? '#38bdf8' : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                    title={isSidebarCollapsed ? 'Mở lại biểu đồ xu hướng thời gian [ ► ]' : 'Thu gọn biểu đồ phụ để mở rộng đồ thị 100% [ ◄ ]'}
-                  >
-                    {isSidebarCollapsed ? '► Mở Biểu Đồ Phụ' : '◄ Thu Gọn Biểu Đồ Phụ'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsTheaterMode((prev) => !prev)}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      backgroundColor: isTheaterMode ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7') : (isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'),
-                      color: isTheaterMode ? '#f59e0b' : themeStyles.textSecondary,
-                      border: `1px solid ${isTheaterMode ? '#f59e0b' : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                    title="Phóng đại toàn màn hình 100% (Theater Mode)"
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      {isTheaterMode ? (
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="4 14 10 14 10 20" />
-                          <polyline points="20 10 14 10 14 4" />
-                          <line x1="14" y1="10" x2="21" y2="3" />
-                          <line x1="3" y1="21" x2="10" y2="14" />
-                        </svg>
-                      ) : (
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="15 3 21 3 21 9" />
-                          <polyline points="9 21 3 21 3 15" />
-                          <line x1="21" y1="3" x2="14" y2="10" />
-                          <line x1="3" y1="21" x2="10" y2="14" />
-                        </svg>
-                      )}
-                      <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
-                    </span>
-                  </button>
                 </div>
               </div>
 
@@ -1255,18 +1193,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                     EPOCH: 2023-2024 &bull; PEAK: {peakTemporalPeriod.period} (n={peakTemporalPeriod.count.toLocaleString()})
                   </span>
                   <span style={{ color: themeStyles.textMuted }}>&bull; Trục trái: Số bài &bull; Trục phải: Eq</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '8px', height: '8px', backgroundColor: '#2563eb', borderRadius: '2px' }} />
-                    <span style={{ color: themeStyles.textSecondary }}>Papers</span>
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '8px', height: '2px', backgroundColor: '#ea580c' }} />
-                    <span style={{ color: themeStyles.textSecondary }}>Formulas</span>
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '8px', height: '2px', backgroundColor: '#10b981', borderTop: '1px dashed #10b981' }} />
-                    <span style={{ color: themeStyles.textSecondary }}>Pareto 80/20</span>
-                  </span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -1648,12 +1574,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                   minHeight: 0,
                 }}
               >
-                {/* Row 1: Title & Classification (Two-Tier Swiss Architecture) */}
+                {/* Row 1: Title (Two-Tier Swiss Architecture) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '28px', marginBottom: '6px', flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)', flexShrink: 0 }}>
-                      [EDA-02]
-                    </span>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       TĂNG TRƯỞNG THEO THỜI GIAN
                     </h3>
@@ -1713,7 +1636,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                           border: 'none',
                           cursor: 'pointer',
                         }}
-                        title="Làm mịn trung bình động 3 điểm Gaussian: khử nhiễu đợt cào khởi tạo 5,027 bài tại 01/24"
+                        title="Làm mịn trung bình động 3 mốc (3-Point Moving Average Smoothing)"
                       >
                         Smoothed
                       </button>
@@ -1731,9 +1654,9 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                           borderRadius: '3px',
                           border: '1px solid rgba(16, 185, 129, 0.3)',
                         }}
-                        title="Đã khử nhiễu đợt cào 5,027 bài tại 01/24 bằng bộ lọc Gaussian 30-Day Moving Window"
+                        title="Bộ lọc làm mịn trung bình động 3 mốc (3-Point Moving Average)"
                       >
-                        Khử nhiễu Batch
+                        Đã làm mịn
                       </span>
                     )}
                   </div>
@@ -1883,7 +1806,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
         )}
 
         {/* ------------------------------------------------------------ */}
-        {/* SUB-DECK 2: CHẨN ĐOÁN 3 THẤU KÍNH & TƯƠNG TÁC ĐA BIẾN (EDA-03) */}
+        {/* SUB-DECK 2: CHẨN ĐOÁN 3 THẤU KÍNH & TƯƠNG TÁC ĐA BIẾN        */}
         {/* ------------------------------------------------------------ */}
         {activeDeck === 'scatter' && (
           <ThreeLensesDiagnosticView
@@ -1892,6 +1815,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
             onToggleTheater={() => setIsTheaterMode((prev) => !prev)}
             diagnosticData={data?.diagnostic_3lenses}
             fallbackPoints={filteredScatterPoints}
+            selectedCategory={selectedCategory}
             onSelectPaper={(pt) => setSelectedPaperForDrawer(pt)}
             selectedPaperId={selectedPaperForDrawer?.id}
             onShowToast={(msg) => {
@@ -1945,7 +1869,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                 <div style={{ flexShrink: 0, marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
-                      [EDA-04] CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
+                      CƠ CẤU CHUYÊN NGÀNH (TAXONOMY DONUT)
                     </h3>
                     <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
                       Tỷ lệ phần trăm phân bố {overview.total_papers ? overview.total_papers.toLocaleString() : '13,000'} bài báo
@@ -2018,7 +1942,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                    [EDA-05] MA TRẬN GIAO THOA LIÊN NGÀNH
+                    MA TRẬN GIAO THOA LIÊN NGÀNH
                   </h3>
                 </div>
 
@@ -2425,7 +2349,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
               </div>
             </div>
 
-            {/* AUTHOR STATS & QUANTILE BREAKDOWN WITH LATEX EXPORT */}
+            {/* AUTHOR STATS & QUANTILE BREAKDOWN */}
             {(!isSidebarCollapsed || !isTheaterMode) && (
               <div
                 style={{
@@ -2440,7 +2364,7 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                   minHeight: 0,
                 }}
               >
-                {/* Row 1: Title + Telemetry + LaTeX Export */}
+                {/* Row 1: Title + Telemetry */}
                 <div style={{ flexShrink: 0, marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
@@ -2515,16 +2439,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                       </div>
                     </div>
                   </div>
-
-                  {/* Synthesis Insight Note */}
-                  <div style={{ backgroundColor: themeStyles.cardSubtle, border: `1px solid ${themeStyles.borderSubtle}`, borderRadius: '6px', padding: '6px 8px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                    <div style={{ fontWeight: 800, color: themeStyles.textPrimary, marginBottom: '2px' }}>
-                      NOTE TỔNG KẾT HỌC THUẬT:
-                    </div>
-                    <div>
-                      Các tác giả hàng đầu có mức độ liên kết đa ngành trung bình 3.4 chuyên ngành. 75% bài báo trong Lakehouse chứa từ 48 đến 342 công thức toán học và đạt quy mô trên 4,900 từ vựng.
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -2574,9 +2488,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
               {/* Row 1: Title + Switcher Controls */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0, flexWrap: 'wrap', gap: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'var(--badge-bg)', border: '1px solid var(--badge-border)', color: 'var(--accent-silver)' }}>
-                    [EDA-06]
-                  </span>
                   <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
                     MA TRẬN TƯƠNG QUAN ĐA BIẾN (CORRELATION MATRIX)
                   </h3>
@@ -3005,10 +2916,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
         {/* ------------------------------------------------------------ */}
         {/* SUB-DECK 6: RAG VECTOR LAKEHOUSE & DATA QUALITY AUDIT        */}
         {/* ------------------------------------------------------------ */}
-        {activeDeck === 'distribution' && data && (
-          <DistributionView data={data} theme={theme} />
-        )}
-
         {activeDeck === 'rag_audit' && (
           <div
             style={{
