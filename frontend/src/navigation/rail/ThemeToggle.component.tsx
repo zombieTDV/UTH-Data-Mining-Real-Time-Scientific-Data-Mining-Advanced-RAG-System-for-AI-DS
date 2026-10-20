@@ -16,13 +16,14 @@ export const ThemeToggle: FC<ThemeToggleProps> = ({ theme, onToggle }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode (Shortcut: Shift+T)`}
+      aria-label="Toggle theme"
       style={{
         width: '34px',
         height: '34px',
         borderRadius: '8px',
         background: isHovered ? 'var(--bg-elevated)' : 'transparent',
-        border: '1px solid ' + (isHovered ? 'var(--border-highlight)' : 'transparent'),
-        color: 'var(--text-secondary)',
+        border: 'none',
+        color: isHovered ? 'var(--text-primary)' : 'var(--text-secondary)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
