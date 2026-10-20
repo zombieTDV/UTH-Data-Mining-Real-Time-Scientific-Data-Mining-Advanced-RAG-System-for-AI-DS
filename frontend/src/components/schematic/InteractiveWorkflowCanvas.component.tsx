@@ -288,7 +288,7 @@ Ground every assertion strictly in the provided Qdrant chunks.
 };
 
 export interface InteractiveWorkflowCanvasProps {
-  onNavigateTab?: (tab: 'schematic' | 'eda' | 'pillars' | 'rag') => void;
+  onNavigateTab?: (tab: 'schematic' | 'eda' | 'pillars' | 'rag' | 'logs') => void;
   isPipelineRunning?: boolean;
   onTriggerPipeline?: () => void;
   theme?: 'dark' | 'light';
@@ -296,6 +296,7 @@ export interface InteractiveWorkflowCanvasProps {
 
 export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   theme = 'dark',
+  onNavigateTab,
 }) => {
   const { language } = useTranslation();
   const isVi = language === 'vi';
@@ -351,13 +352,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('start-flow');
-  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
-  const [drawerExpanded, setDrawerExpanded] = useState<boolean>(false);
-  const [bottomTab, setBottomTab] = useState<'control' | 'specs' | 'logs'>('control');
-  const [logFilter, setLogFilter] = useState<'ALL' | 'SUCCESS' | 'EXEC' | 'WARN' | 'INFO'>('ALL');
-  const [logCopied, setLogCopied] = useState<boolean>(false);
-  const [activeSpecTab, setActiveSpecTab] = useState<'SPEC' | 'PAYLOAD' | 'CURL'>('SPEC');
-  const [specCopied, setSpecCopied] = useState<boolean>(false);
+  const [activeModal, setActiveModal] = useState<
+    'none' | 'airflow' | 'harvest' | 'rabbitmq' | 'storage' | 'parquet' | 'duckdb' | 'qdrant' | 'rag'
+  >('none');
 
   const DUCK_SQL_PRESETS = [
     {
@@ -412,12 +409,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   ]);
   const [harvestLimit, setHarvestLimit] = useState<number>(10000);
   const [isHarvesting, setIsHarvesting] = useState<boolean>(false);
-
-  // Terminal Logs State
-  const [logs, setLogs] = useState<Array<{ id: number | string; time: string; level: 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC'; tag: string; msg: string }>>([
-  ]);
-  const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
-  const logsEndRef = useRef<HTMLDivElement>(null);
 
   // DuckDB Interactive State
   const [duckQueryPreset, setDuckQueryPreset] = useState<string>(
@@ -481,6 +472,15 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
+  // Close any open modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveModal('none');
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button, section, aside, pre, code, input, select, textarea')) return;
     setIsDragging(true);
@@ -523,7 +523,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     lastPaperDeltaBytes,
     activePipelineStage,
     totalVectors,
-    logs: storeLogs,
     triggerStorageSync,
     live,
   } = useLakehouseStreamStore();
@@ -534,27 +533,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const fetchFlowing = !!q && q.ready + q.unacked > 0 && q.consumers > 0; // Q1 -> fetch worker -> MinIO
   const embedQueued = !!q && (q.embed_ready ?? 0) + (q.embed_unacked ?? 0) > 0; // Silver -> Q2
   const embedFlowing = embedQueued && (q?.embed_consumers ?? 0) > 0; // Q2 -> embed worker -> Qdrant
-
-  // Terminal logs: the backend's single ordered log buffer (Airflow, harvest DAGs, worker, RabbitMQ, Qdrant)
-  const allTerminalLogs = useMemo(
-    () => [
-      ...[...(storeLogs || [])].reverse().map((sl) => ({
-        id: sl.seq,
-        time: sl.time,
-        level: (sl.level === 'ERROR' || sl.level === 'WARN' ? 'WARN' : sl.level === 'SUCCESS' ? 'SUCCESS' : 'INFO') as 'INFO' | 'SUCCESS' | 'WARN' | 'EXEC',
-        tag: sl.tag,
-        msg: sl.msg,
-      })),
-      ...logs,
-    ],
-    [storeLogs, logs],
-  );
-
-  useEffect(() => {
-    if (autoScrollLogs && bottomTab === 'logs') {
-      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [allTerminalLogs, autoScrollLogs, bottomTab]);
 
   const sourceBreakdown = storageStats?.sourceBreakdown || storageStats?.activeLakehouse?.sourceBreakdown;
   const liveArxivCount = sourceBreakdown?.arxiv ?? 0;
@@ -585,7 +563,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       }
     } else {
       try {
-        setBottomTab('logs');
         await startStreamingIngestion(streamTarget, 2.0);
       } catch (err) {
         console.error(err);
@@ -613,10 +590,14 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
 
   const handleOpenInspector = (nodeId: string) => {
     setSelectedNodeId(nodeId);
-    setDrawerOpen(true);
-    if (nodeId === 'start-flow' || nodeId === 'airflow-orchestrator' || nodeId.startsWith('rabbitmq')) {
-      setBottomTab('control');
-    }
+    if (nodeId === 'airflow-orchestrator') setActiveModal('airflow');
+    else if (nodeId === 'start-flow') setActiveModal('harvest');
+    else if (nodeId.startsWith('rabbitmq')) setActiveModal('rabbitmq');
+    else if (nodeId === 'bronze-instance') setActiveModal('storage');
+    else if (nodeId === 'silver-parquet') setActiveModal('parquet');
+    else if (nodeId === 'review-duckdb') setActiveModal('duckdb');
+    else if (nodeId === 'gold-qdrant') setActiveModal('qdrant');
+    else if (nodeId === 'grounded-rag') setActiveModal('rag');
   };
 
   const handleToggleCategory = (cat: string) => {
@@ -630,12 +611,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     setIsHarvesting(true);
     try {
       await triggerSchedulerHarvest('tier2', harvestLimit, true, true);
-      setBottomTab('logs');
+      setActiveModal('none');
     } catch (err: any) {
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now(), time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'WARN' as const, tag: 'AIRFLOW', msg: `Could not trigger the Tier 2 DAG: ${err?.message || err}` },
-      ]);
+      console.warn('Could not trigger the Tier 2 DAG:', err);
     } finally {
       setIsHarvesting(false);
     }
@@ -644,7 +622,6 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
   const handleRunDuckQuery = async () => {
     setDuckRunning(true);
     try {
-
       const res = await executeDuckDbQuery(duckQueryPreset);
       const rows = res.rows.map((r: any) => ({
         category: String(r.category || r.primary_category || r.paper_id || 'All'),
@@ -655,17 +632,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
       setDuckResults(rows.length > 0 ? rows : [
         { category: 'Empty', papers: 0, formulas: 0, avg_math: 0 }
       ]);
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'DUCKDB-LIVE', msg: `DuckDB SIMD executed in ${(res.execution_time_ms / 1000).toFixed(3)}s over ${res.row_count} records in Silver Parquet.` },
-      ]);
     } catch (err: any) {
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now(), time: now, level: 'WARN' as const, tag: 'DUCKDB-ERROR', msg: `Query failed: ${err.message}` },
-      ]);
+      console.warn('DuckDB Query failed:', err);
     } finally {
       setDuckRunning(false);
     }
@@ -685,17 +653,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           }))
         );
       }
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now(), time: now, level: 'EXEC' as const, tag: 'QDRANT-LIVE', msg: `ANN query found ${res.total_results} chunks in the Qdrant Gold collection (${liveVectors.toLocaleString()} vectors).` },
-      ]);
     } catch (err: any) {
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now(), time: now, level: 'WARN' as const, tag: 'QDRANT-ERROR', msg: `Search error: ${err.message}` },
-      ]);
+      console.warn('Vector search error:', err);
     } finally {
       setVectorSearching(false);
     }
@@ -706,17 +665,8 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
     try {
       const res = await sendChatQuery(ragPrompt);
       setRagResponse(res.answer || 'Không tìm thấy ngữ cảnh thỏa điều kiện grounding.');
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now(), time: now, level: 'SUCCESS' as const, tag: 'RAG-LIVE', msg: `Grounded RAG synthesis generated (${res.generation_time}) using ${res.context_chunks_used} chunks with similarity ${res.similarity_score}.` },
-      ]);
     } catch (err: any) {
-      const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-      setLogs((prev) => [
-        ...prev,
-        { id: Date.now(), time: now, level: 'WARN' as const, tag: 'RAG-ERROR', msg: `RAG error: ${err.message}` },
-      ]);
+      console.warn('RAG error:', err);
     } finally {
       setRagGenerating(false);
     }
@@ -844,7 +794,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
         <div
           ref={contentRef}
           style={{
-            transform: `translate(${pan.x}px, ${pan.y + (drawerOpen ? -130 : 0)}px) scale(${zoom})`,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: 'center center',
             transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
             display: 'flex',
@@ -858,7 +808,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           <AirflowNode
             live={live}
             theme={themeStyles}
-            selected={selectedNodeId === 'airflow-orchestrator' && drawerOpen}
+            selected={selectedNodeId === 'airflow-orchestrator' && activeModal === 'airflow'}
             onClick={() => handleOpenInspector('airflow-orchestrator')}
           />
           <FlowConnector active={airflowActive} theme={themeStyles} rgb="8, 145, 178" head="#22d3ee" />
@@ -877,7 +827,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               padding: '14px 16px',
               border: isStageActive('harvest')
                 ? '2px solid #a855f7'
-                : selectedNodeId === 'start-flow' && drawerOpen
+                : selectedNodeId === 'start-flow' && activeModal === 'harvest'
                 ? '2px solid #7c3aed'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('harvest')
@@ -1053,6 +1003,35 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   Zenodo {liveZenodoCount.toLocaleString()}
                 </span>
               </div>
+
+              {/* In-Node Quick Action */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveModal('harvest');
+                }}
+                style={{
+                  width: '100%',
+                  marginTop: '8px',
+                  padding: '5px 8px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  backgroundColor: isDark ? 'rgba(124, 58, 237, 0.22)' : '#ede9fe',
+                  color: isDark ? '#c084fc' : '#7c3aed',
+                  border: `1px solid ${isDark ? 'rgba(124, 58, 237, 0.4)' : '#ddd6fe'}`,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '5px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>⚡ {isVi ? 'Điều Khiển Thu Thập' : 'Ingest Controls'}</span>
+              </button>
             </div>
           </div>
 
@@ -1087,7 +1066,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             stage="ingest"
             live={live}
             theme={themeStyles}
-            selected={selectedNodeId === 'rabbitmq-q1' && drawerOpen}
+            selected={selectedNodeId === 'rabbitmq-q1' && activeModal === 'rabbitmq'}
             onClick={() => handleOpenInspector('rabbitmq-q1')}
           />
           <FlowConnector active={fetchFlowing} theme={themeStyles} rgb="234, 88, 12" head="#fb923c" />
@@ -1106,7 +1085,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               padding: '14px 16px',
               border: isStageActive('bronze')
                 ? '2px solid #f43f5e'
-                : selectedNodeId === 'bronze-instance' && drawerOpen
+                : selectedNodeId === 'bronze-instance' && activeModal === 'storage'
                 ? '2px solid #e11d48'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('bronze')
@@ -1268,6 +1247,35 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   </span>
                 )}
               </div>
+
+              {/* In-Node Quick Action */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveModal('storage');
+                }}
+                style={{
+                  width: '100%',
+                  marginTop: '8px',
+                  padding: '5px 8px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  backgroundColor: isDark ? 'rgba(225, 29, 72, 0.22)' : '#ffe4e6',
+                  color: isDark ? '#fb7185' : '#e11d48',
+                  border: `1px solid ${isDark ? 'rgba(225, 29, 72, 0.4)' : '#fecdd3'}`,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '5px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>🔍 {isVi ? 'Quản Trị Phân Vùng MinIO' : 'MinIO Partitions'}</span>
+              </button>
             </div>
           </div>
 
@@ -1313,7 +1321,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                 padding: '12px 16px',
                 border: isStageActive('parallel')
                   ? '2px solid #10b981'
-                  : selectedNodeId === 'silver-parquet' && drawerOpen
+                  : selectedNodeId === 'silver-parquet' && activeModal === 'parquet'
                   ? '2px solid #10b981'
                   : `1px solid ${themeStyles.cardBorder}`,
                 boxShadow: isStageActive('parallel')
@@ -1432,6 +1440,35 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     PyArrow OLAP
                   </span>
                 </div>
+
+                {/* In-Node Quick Action */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveModal('parquet');
+                  }}
+                  style={{
+                    width: '100%',
+                    marginTop: '8px',
+                    padding: '5px 8px',
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.22)' : '#d1fae5',
+                    color: isDark ? '#34d399' : '#059669',
+                    border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.4)' : '#a7f3d0'}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>🔍 {isVi ? 'Xem Parquet Schema & Số Liệu' : 'Inspect Parquet Schema'}</span>
+                </button>
               </div>
             </div>
 
@@ -1475,7 +1512,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   padding: '14px 16px',
                   border: isStageActive('duckdb')
                     ? '2px solid #f59e0b'
-                    : selectedNodeId === 'review-duckdb' && drawerOpen
+                    : selectedNodeId === 'review-duckdb' && activeModal === 'duckdb'
                     ? '2px solid #f59e0b'
                     : `1px solid ${themeStyles.cardBorder}`,
                   boxShadow: isStageActive('duckdb')
@@ -1597,6 +1634,35 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       &lt;18ms Query
                     </span>
                   </div>
+
+                  {/* In-Node Quick Action */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveModal('duckdb');
+                    }}
+                    style={{
+                      width: '100%',
+                      marginTop: '8px',
+                      padding: '5px 8px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.22)' : '#fef3c7',
+                      color: isDark ? '#fbbf24' : '#b45309',
+                      border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.4)' : '#fde68a'}`,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>⚡ {isVi ? 'Chạy Truy Vấn SQL DuckDB' : 'Run SQL Query'}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1608,7 +1674,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
             stage="embed"
             live={live}
             theme={themeStyles}
-            selected={selectedNodeId === 'rabbitmq-q2' && drawerOpen}
+            selected={selectedNodeId === 'rabbitmq-q2' && activeModal === 'rabbitmq'}
             onClick={() => handleOpenInspector('rabbitmq-q2')}
           />
           <FlowConnector active={embedFlowing} theme={themeStyles} rgb="234, 88, 12" head="#fb923c" />
@@ -1626,7 +1692,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
               padding: '12px 16px',
               border: isStageActive('parallel')
                 ? '2px solid #3b82f6'
-                : selectedNodeId === 'gold-qdrant' && drawerOpen
+                : selectedNodeId === 'gold-qdrant' && activeModal === 'qdrant'
                 ? '2px solid #2563eb'
                 : `1px solid ${themeStyles.cardBorder}`,
               boxShadow: isStageActive('parallel')
@@ -1743,6 +1809,35 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                   NVMe Cached
                 </span>
               </div>
+
+              {/* In-Node Quick Action */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveModal('qdrant');
+                }}
+                style={{
+                  width: '100%',
+                  marginTop: '8px',
+                  padding: '5px 8px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.22)' : '#eff6ff',
+                  color: isDark ? '#60a5fa' : '#2563eb',
+                  border: `1px solid ${isDark ? 'rgba(37, 99, 235, 0.4)' : '#bfdbfe'}`,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '5px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>🔍 {isVi ? 'Tìm Kiếm Vector Semantics' : 'Search Vectors'}</span>
+              </button>
             </div>
           </div>
 
@@ -1786,7 +1881,7 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                       padding: '14px 16px',
                       border: (isStageActive('parallel') || isGroundedRagReady)
                         ? '2px solid #818cf8'
-                        : selectedNodeId === 'grounded-rag' && drawerOpen
+                        : selectedNodeId === 'grounded-rag' && activeModal === 'rag'
                         ? '2px solid #6366f1'
                         : `1px solid ${themeStyles.cardBorder}`,
                       boxShadow: (isStageActive('parallel') || isGroundedRagReady)
@@ -1934,886 +2029,752 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                     Metal Engine
                   </span>
                 </div>
+
+                {/* In-Node Quick Actions for Grounded RAG */}
+                <div style={{ marginTop: '6px', display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onNavigateTab) {
+                        onNavigateTab('rag');
+                      } else {
+                        setActiveModal('rag');
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '6px 8px',
+                      fontSize: '10.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 800,
+                      borderRadius: '6px',
+                      backgroundColor: isDark ? '#6366f1' : '#4f46e5',
+                      color: '#ffffff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>💬 {isVi ? 'Mở Chat RAG ↗' : 'Open RAG Chat ↗'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveModal('rag');
+                    }}
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: '10.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      backgroundColor: isDark ? 'rgba(99, 102, 241, 0.22)' : '#ede9fe',
+                      color: isDark ? '#a5b4fc' : '#4338ca',
+                      border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.4)' : '#c7d2fe'}`,
+                      cursor: 'pointer',
+                    }}
+                    title={isVi ? 'Kiểm thử nhanh' : 'Quick test'}
+                  >
+                    ⚡
+                  </button>
+                </div>
               </div>
             </div>
         </div>
       </div>
 
+            {/* ============================================================== */}
+      {/* MODERN GLASSMORPHIC MODAL WORKBENCH (ZERO-DRAWER ARCHITECTURE)  */}
       {/* ============================================================== */}
-      {/* BOTTOM DRAWER / INSPECTOR PANEL WITH TABS, CONTROLS & LOGS    */}
-      {/* ============================================================== */}
-      {drawerOpen && selectedTool && (
-        <section
+      {activeModal !== 'none' && (
+        <div
           style={{
             position: 'fixed',
-            bottom: 0,
-            left: '58px',   // Aligned beside the 58px sidebar rail
-            right: 0,
-            height: drawerExpanded ? 'calc(100vh - 120px)' : '390px',
-            backgroundColor: themeStyles.drawerBg,
-            borderTop: `2px solid ${themeStyles.drawerBorder}`,
-            boxShadow: isDark ? '0 -10px 32px rgba(0, 0, 0, 0.55)' : '0 -10px 32px rgba(0, 0, 0, 0.12)',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 50,
             display: 'flex',
-            flexDirection: 'column',
-            zIndex: 45,
-            transition: 'height 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
-            animation: 'slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
+          onClick={() => setActiveModal('none')}
         >
-          {/* Panel Top Navigation & Title Bar */}
           <div
             style={{
-              height: '48px',
-              padding: '0 20px',
-              borderBottom: `1px solid ${themeStyles.drawerHeaderBorder}`,
+              backgroundColor: isDark ? '#0b0f19' : '#ffffff',
+              border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.16)' : '#e2e8f0'}`,
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: activeModal === 'duckdb' || activeModal === 'parquet' ? '900px' : '780px',
+              maxHeight: '85vh',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: themeStyles.drawerHeaderBg,
-              flexShrink: 0,
+              flexDirection: 'column',
+              boxShadow: isDark
+                ? '0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 40px rgba(0, 0, 0, 0.5)'
+                : '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            {/* Left: Tool identity & Status badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  backgroundColor: selectedTool.badgeColor,
-                }}
-              />
+            {/* Modal Header */}
+            <div
+              style={{
+                height: '52px',
+                padding: '0 20px',
+                borderBottom: `1px solid ${themeStyles.cardBorder}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: isDark ? '#0e1422' : '#f8fafc',
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor:
+                      activeModal === 'parquet' ? '#10b981' :
+                      activeModal === 'duckdb' ? '#f59e0b' :
+                      activeModal === 'qdrant' ? '#2563eb' :
+                      activeModal === 'harvest' ? '#7c3aed' :
+                      activeModal === 'storage' ? '#e11d48' :
+                      activeModal === 'airflow' ? '#0891b2' :
+                      activeModal === 'rabbitmq' ? '#ea580c' : '#6366f1',
+                    boxShadow: '0 0 8px currentColor',
+                  }}
+                />
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                  {selectedTool.category.toUpperCase()}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                    {selectedTool?.category?.toUpperCase() || (
+                      activeModal === 'parquet' ? 'SILVER CURATED STORE' :
+                      activeModal === 'duckdb' ? 'VECTORIZED OLAP' :
+                      activeModal === 'qdrant' ? 'GOLD VECTOR STORE' :
+                      activeModal === 'harvest' ? 'SOURCE INGESTION' :
+                      activeModal === 'storage' ? 'OBJECT STORAGE LAKE' :
+                      activeModal === 'airflow' ? 'WORKFLOW SCHEDULER' :
+                      activeModal === 'rabbitmq' ? 'MESSAGE BROKER' : 'SCIENTIFIC RAG'
+                    )}
+                  </span>
+                  <span style={{ color: themeStyles.wire }}>/</span>
+                  <h3 style={{ fontSize: '13.5px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
+                    {activeModal === 'parquet' ? 'Apache Parquet Columnar Lakehouse' :
+                     activeModal === 'duckdb' ? 'DuckDB & LaTeX Parser' :
+                     activeModal === 'qdrant' ? 'Qdrant Vector Store & Semantic Search' :
+                     activeModal === 'harvest' ? 'Source Ingest (Federated Harvesters)' :
+                     activeModal === 'storage' ? 'MinIO Object Storage Lake' :
+                     activeModal === 'airflow' ? 'Apache Airflow Orchestrator' :
+                     activeModal === 'rabbitmq' ? 'RabbitMQ 2-Stage Work Queues' : 'Qwen 2.5 & Grounded RAG QA'}
+                  </h3>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                  ESC
                 </span>
-                <span style={{ color: themeStyles.wire }}>/</span>
-                <h3 style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, margin: 0 }}>
-                  {selectedTool.name}
-                </h3>
-                <span
+                <button
+                  type="button"
+                  onClick={() => setActiveModal('none')}
+                  title="Đóng (ESC)"
                   style={{
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
+                    background: 'transparent',
+                    border: `1px solid ${themeStyles.cardBorder}`,
                     color: themeStyles.textMuted,
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    fontWeight: 600,
+                    borderRadius: '8px',
+                    width: '28px',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  {selectedTool.engineVersion}
-                </span>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 800,
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
-                    color: isDark ? '#34d399' : '#059669',
-                    border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'transparent'}`,
-                    padding: '2px 7px',
-                    borderRadius: '9999px',
-                  }}
-                >
-                  ● {selectedTool.status}
-                </span>
+                  ✕
+                </button>
               </div>
             </div>
 
-            {/* Center: 3 Navigation Tabs */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                backgroundColor: themeStyles.drawerTabsTrack,
-                padding: '3px',
-                borderRadius: '8px',
-                border: `1px solid ${themeStyles.drawerTabsTrackBorder}`,
-                gap: '2px',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setBottomTab('control')}
-                style={{
-                  padding: '5px 14px',
-                  fontSize: '11px',
-                  fontWeight: bottomTab === 'control' ? 800 : 600,
-                  fontFamily: 'var(--font-mono)',
-                  color: bottomTab === 'control' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
-                  backgroundColor: bottomTab === 'control' ? themeStyles.drawerTabActiveBg : 'transparent',
-                  borderRadius: '6px',
-                  border: bottomTab === 'control' && isDark ? '1px solid rgba(255, 255, 255, 0.16)' : 'none',
-                  boxShadow: bottomTab === 'control' ? (isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)') : 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-                {isVi ? 'CẤU HÌNH & ĐIỀU KHIỂN' : 'CONTROL & RUN'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setBottomTab('specs')}
-                style={{
-                  padding: '5px 14px',
-                  fontSize: '11px',
-                  fontWeight: bottomTab === 'specs' ? 800 : 600,
-                  fontFamily: 'var(--font-mono)',
-                  color: bottomTab === 'specs' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
-                  backgroundColor: bottomTab === 'specs' ? themeStyles.drawerTabActiveBg : 'transparent',
-                  borderRadius: '6px',
-                  border: bottomTab === 'specs' && isDark ? '1px solid rgba(255, 255, 255, 0.16)' : 'none',
-                  boxShadow: bottomTab === 'specs' ? (isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)') : 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                  <line x1="8" y1="21" x2="16" y2="21" />
-                  <line x1="12" y1="17" x2="12" y2="21" />
-                </svg>
-                {isVi ? 'THÔNG SỐ & TELEMETRY' : 'SPECS & TELEMETRY'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setBottomTab('logs')}
-                style={{
-                  padding: '5px 14px',
-                  fontSize: '11px',
-                  fontWeight: bottomTab === 'logs' ? 800 : 600,
-                  fontFamily: 'var(--font-mono)',
-                  color: bottomTab === 'logs' ? themeStyles.drawerTabActiveText : themeStyles.drawerTabInactiveText,
-                  backgroundColor: bottomTab === 'logs' ? themeStyles.drawerTabActiveBg : 'transparent',
-                  borderRadius: '6px',
-                  border: bottomTab === 'logs' && isDark ? '1px solid rgba(255, 255, 255, 0.16)' : 'none',
-                  boxShadow: bottomTab === 'logs' ? (isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)') : 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="4 17 10 11 4 5" />
-                  <line x1="12" y1="19" x2="20" y2="19" />
-                </svg>
-                {isVi ? 'NHẬT KÝ THỰC THI' : 'TERMINAL LOGS'}
-                <span
-                  style={{
-                    fontSize: '10px',
-                    backgroundColor: bottomTab === 'logs' ? (isDark ? '#38bdf8' : '#0f172a') : (isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1'),
-                    color: bottomTab === 'logs' ? (isDark ? '#0f172a' : '#ffffff') : (isDark ? '#cbd5e1' : '#1e293b'),
-                    padding: '1px 5px',
-                    borderRadius: '9999px',
-                    fontWeight: 800,
-                  }}
-                >
-                  {allTerminalLogs.length}
-                </span>
-              </button>
-            </div>
-
-            {/* Right: Expand/Collapse toggle + Close button */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setDrawerExpanded((prev) => !prev)}
-                style={{
-                  background: 'transparent',
-                  border: `1px solid ${themeStyles.drawerBorder}`,
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  color: themeStyles.textMuted,
-                  cursor: 'pointer',
-                  padding: '4px 10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-mono)',
-                  transition: 'all 0.15s ease',
-                }}
-                title={
-                  drawerExpanded
-                    ? (isVi ? 'Thu gọn chiều cao drawer' : 'Collapse drawer height')
-                    : (isVi ? 'Mở rộng toàn màn hình drawer' : 'Expand full-height drawer')
-                }
-              >
-                <span>{drawerExpanded ? '▼' : '▲'}</span>
-                <span style={{ fontSize: '10px' }}>
-                  {drawerExpanded
-                    ? (isVi ? 'THU GỌN' : 'COLLAPSE')
-                    : (isVi ? 'MỞ RỘNG' : 'EXPAND')}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                style={{
-                  background: 'transparent',
-                  border: `1px solid ${themeStyles.drawerBorder}`,
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: themeStyles.textMuted,
-                  cursor: 'pointer',
-                  padding: '4px 10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-mono)',
-                }}
-                title={isVi ? 'Đóng bảng điều khiển' : 'Close inspector panel'}
-              >
-                <span>&times;</span>
-                <span style={{ fontSize: '10px' }}>{isVi ? 'ĐÓNG' : 'CLOSE'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Panel Scrollable Body */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', backgroundColor: themeStyles.drawerBg, color: themeStyles.textPrimary }}>
-            {/* ============================================================== */}
-            {/* TAB 1: CẤU HÌNH & ĐIỀU KHIỂN (INTERACTIVE CONTROLS)           */}
-            {/* ============================================================== */}
-            {bottomTab === 'control' && (
-              <div>
-                {/* 1. arXiv Harvester Controls */}
-                {selectedTool.id === 'start-flow' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '20px' }}>
-                    {/* Left Form Controls */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      {/* Categories Section */}
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                            {isVi ? 'CHỌN DANH MỤC THU THẬP' : 'CATEGORIES TO HARVEST'}
-                          </span>
-                          <span style={{ fontSize: '10px', color: isDark ? '#c084fc' : '#7c3aed', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                            {harvestCategories.length} {isVi ? 'đã chọn' : 'selected'}
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {[
-                            { key: 'cs.AI', label: 'cs.AI (Artificial Intelligence)' },
-                            { key: 'cs.LG', label: 'cs.LG (Machine Learning)' },
-                            { key: 'cs.CV', label: 'cs.CV (Computer Vision)' },
-                            { key: 'cs.CL', label: 'cs.CL (Computation & Language)' },
-                            { key: 'stat.ML', label: 'stat.ML (Machine Learning Stats)' },
-                            { key: 'cs.RO', label: 'cs.RO (Robotics)' },
-                            { key: 'cs.CR', label: 'cs.CR (Cryptography & Security)' },
-                            { key: 'cs.NE', label: 'cs.NE (Neural & Evolutionary)' },
-                          ].map((cat) => {
-                            const isSelected = harvestCategories.includes(cat.key);
-                            return (
-                              <button
-                                key={cat.key}
-                                type="button"
-                                onClick={() => handleToggleCategory(cat.key)}
-                                style={{
-                                  padding: '4px 10px',
-                                  borderRadius: '6px',
-                                  fontSize: '11px',
-                                  fontFamily: 'var(--font-mono)',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  border: isSelected ? '1px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
-                                  backgroundColor: isSelected ? '#7c3aed' : themeStyles.btnInspectBg,
-                                  color: isSelected ? '#ffffff' : themeStyles.btnInspectText,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  transition: 'all 0.15s ease',
-                                }}
-                              >
-                                <span>{isSelected ? '✓' : '+'}</span>
-                                <span>{cat.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
+            {/* Modal Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', color: themeStyles.textPrimary }}>
+              {/* 1. APACHE PARQUET MODAL (Fixes White Screen & Displays Real Telemetry) */}
+              {activeModal === 'parquet' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {/* Real-time Telemetry Bento Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                    <div style={{ padding: '14px', borderRadius: '10px', backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}` }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                        DUNG LƯỢNG PARQUET
                       </div>
-
-                      {/* Limit */}
-                      <div>
-                        <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, display: 'block', marginBottom: '6px' }}>
-                          {isVi ? 'GIỚI HẠN THU THẬP' : 'INGESTION LIMIT'}
-                        </span>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          {[1000, 5000, 10000, 25000].map((limitVal) => (
-                            <button
-                              key={limitVal}
-                              type="button"
-                              onClick={() => setHarvestLimit(limitVal)}
-                              style={{
-                                flex: 1,
-                                padding: '5px 0',
-                                borderRadius: '6px',
-                                fontSize: '11px',
-                                fontFamily: 'var(--font-mono)',
-                                fontWeight: harvestLimit === limitVal ? 800 : 600,
-                                border: harvestLimit === limitVal ? '1px solid #7c3aed' : `1px solid ${themeStyles.cardBorder}`,
-                                backgroundColor: harvestLimit === limitVal ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#f5f3ff') : themeStyles.btnInspectBg,
-                                color: harvestLimit === limitVal ? (isDark ? '#c084fc' : '#7c3aed') : themeStyles.btnInspectText,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              {limitVal.toLocaleString()}
-                            </button>
-                          ))}
-                        </div>
+                      <div style={{ fontSize: '18px', fontWeight: 900, color: '#10b981', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+                        {liveSilverMb.toFixed(2)} MB
                       </div>
-
-                      {/* Ingestion Formats (Informative Badges) */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                        <span style={{ fontWeight: 800, color: themeStyles.textSecondary, fontSize: '11px' }}>
-                          {isVi ? 'ĐỊNH DẠNG TỰ ĐỘNG:' : 'INGESTION FORMATS:'}
-                        </span>
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : '#f3e8ff',
-                          color: isDark ? '#c084fc' : '#7c3aed',
-                          border: `1px solid ${isDark ? 'rgba(124, 58, 237, 0.3)' : '#e9d5ff'}`,
-                          fontWeight: 700,
-                          fontSize: '10.5px',
-                        }}>
-                          <span style={{ color: isDark ? '#34d399' : '#059669' }}>✓</span>
-                          <span>ar5iv HTML5 Full-Text (Math &amp; Sections)</span>
-                        </div>
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-                          color: isDark ? '#60a5fa' : '#2563eb',
-                          border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe'}`,
-                          fontWeight: 700,
-                          fontSize: '10.5px',
-                        }}>
-                          <span style={{ color: isDark ? '#34d399' : '#059669' }}>✓</span>
-                          <span>arXiv OAI-PMH XML Metadata</span>
-                        </div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
+                        Nén Snappy / ZSTD 4.2x
                       </div>
                     </div>
 
-                    {/* Right Ingestion Action Card */}
-                    <div
-                      style={{
-                        backgroundColor: themeStyles.drawerSectionBg,
-                        border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                        borderRadius: '10px',
-                        padding: '14px 16px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '8px' }}>
-                          TRẠNG THÁI VÀ BẢN GHI ĐÍCH
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: themeStyles.textMuted }}>Target Bucket:</span>
-                            <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>{`s3://${storageStats?.bucket ?? ''}`}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: themeStyles.textMuted }}>Partition Scheme:</span>
-                            <span style={{ fontWeight: 700, color: themeStyles.textPrimary }}>bronze/raw_html/year=2026/</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: themeStyles.textMuted }}>Integrity Check:</span>
-                            <span style={{ fontWeight: 700, color: isDark ? '#34d399' : '#059669' }}>SHA-256 Digest Required</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: themeStyles.textMuted }}>Concurrent Workers:</span>
-                            <span style={{ fontWeight: 700, color: isDark ? '#60a5fa' : '#2563eb' }}>4 Async HTTPX Clients</span>
-                          </div>
-                        </div>
+                    <div style={{ padding: '14px', borderRadius: '10px', backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}` }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                        BÀI BÁO ĐÃ CHUẨN HOÁ
                       </div>
+                      <div style={{ fontSize: '18px', fontWeight: 900, color: themeStyles.textPrimary, marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+                        {liveTotalWorks.toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
+                        Deduplicated theo SHA-256
+                      </div>
+                    </div>
 
-                      <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {/* 1. Real-time Streaming CDC Section */}
-                        <div
-                          style={{
-                            padding: '10px 12px',
-                            backgroundColor: isDark ? (isStreaming ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.04)') : (isStreaming ? '#ecfdf5' : '#f0fdf4'),
-                            border: `1px solid ${isDark ? (isStreaming ? 'rgba(16, 185, 129, 0.35)' : 'rgba(255, 255, 255, 0.10)') : (isStreaming ? '#10b981' : '#bbf7d0')}`,
-                            borderRadius: '8px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '6px',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span
-                                style={{
-                                  width: '7px',
-                                  height: '7px',
-                                  borderRadius: '50%',
-                                  backgroundColor: isStreaming ? '#10b981' : '#64748b',
-                                  boxShadow: isStreaming ? '0 0 8px #10b981' : 'none',
-                                  animation: isStreaming ? 'stageGlowOrange 1.2s infinite' : 'none',
-                                }}
-                              />
-                              <span style={{ fontSize: '10.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#166534' }}>
-                                REALTIME STREAMING (CDC 2025/2026)
-                              </span>
-                            </div>
-                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textMuted, fontWeight: 700 }}>
-                              {isStreaming ? `${streamSpeed} bài/phút` : 'STANDBY'}
-                            </span>
-                          </div>
+                    <div style={{ padding: '14px', borderRadius: '10px', backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}` }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                        CÔNG THỨC TOÁN HỌC
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: 900, color: '#f59e0b', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+                        {formulasExtracted.toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
+                        MathML & LaTeX Chuẩn
+                      </div>
+                    </div>
 
-                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Mục tiêu:</span>
-                            {[1000, 3000, 5000].map((t) => (
-                              <button
-                                key={t}
-                                type="button"
-                                onClick={() => setStreamTarget(t)}
-                                disabled={isStreaming}
-                                style={{
-                                  fontSize: '10px',
-                                  fontFamily: 'var(--font-mono)',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  border: streamTarget === t ? '1px solid #16a34a' : `1px solid ${themeStyles.cardBorder}`,
-                                  backgroundColor: streamTarget === t ? (isDark ? 'rgba(22, 163, 74, 0.25)' : '#dcfce7') : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#ffffff'),
-                                  color: streamTarget === t ? (isDark ? '#4ade80' : '#166534') : themeStyles.textMuted,
-                                  fontWeight: streamTarget === t ? 800 : 500,
-                                  cursor: isStreaming ? 'not-allowed' : 'pointer',
-                                }}
-                              >
-                                {t.toLocaleString()} bài
-                              </button>
-                            ))}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={handleToggleStreaming}
-                            style={{
-                              width: '100%',
-                              backgroundColor: isStreaming ? '#ef4444' : '#10b981',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '6px',
-                              padding: '8px 0',
-                              fontSize: '11px',
-                              fontFamily: 'var(--font-mono)',
-                              fontWeight: 800,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px',
-                              boxShadow: isStreaming ? '0 2px 8px rgba(239, 68, 68, 0.35)' : '0 2px 8px rgba(16, 185, 129, 0.35)',
-                              transition: 'all 0.15s ease',
-                            }}
-                          >
-                            {isStreaming ? (
-                              <>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                                </svg>
-                                <span>⏸ DỪNG STREAMING (+{streamSessionCount} BÀI ĐÃ CÀO)</span>
-                              </>
-                            ) : (
-                              <>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                  <polygon points="5 3 19 12 5 21 5 3" />
-                                </svg>
-                                <span>▶ BẮT ĐẦU REALTIME STREAMING ({streamTarget.toLocaleString()} BÀI MỚI)</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-
-                        {/* 2. Batch Harvest */}
-                        <button
-                          type="button"
-                          onClick={handleStartHarvest}
-                          disabled={isHarvesting || harvestCategories.length === 0}
-                          style={{
-                            width: '100%',
-                            backgroundColor: isHarvesting ? '#94a3b8' : '#7c3aed',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '10px 0',
-                            fontSize: '12px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            cursor: isHarvesting ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.28)',
-                          }}
-                        >
-                          {isHarvesting ? (
-                            <>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                              </svg>
-                              <span>ĐANG CÀO DỮ LIỆU...</span>
-                            </>
-                          ) : (
-                            <>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                                <polygon points="5 3 19 12 5 21 5 3" />
-                              </svg>
-                              <span>▶ BẮT ĐẦU CÀO DỮ LIỆU (RUN HARVESTER)</span>
-                            </>
-                          )}
-                        </button>
+                    <div style={{ padding: '14px', borderRadius: '10px', backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}` }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
+                        FILE PHÂN VÙNG
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: 900, color: '#3b82f6', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+                        {liveSilverPartitions} Partitions
+                      </div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '2px' }}>
+                        s3://.../silver/papers/
                       </div>
                     </div>
                   </div>
-                )}
 
-                {/* 2. DuckDB SIMD Controls */}
-                {selectedTool.id === 'review-duckdb' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                          TRUY VẤN VECTORIZED SIMD SQL (DUCKDB IN-PROCESS)
+                  {/* Schema Architecture Section */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
+                        CẤU TRÚC CANONICAL SCHEMA (23 TRƯỜNG DỮ LIỆU PYARROW)
+                      </span>
+                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 700 }}>
+                        ✓ Column Projection & Pushdown Enabled
+                      </span>
+                    </div>
+
+                    <div style={{
+                      backgroundColor: themeStyles.codeBoxBg,
+                      border: `1px solid ${themeStyles.codeBoxBorder}`,
+                      borderRadius: '10px',
+                      padding: '14px',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '11px',
+                      lineHeight: 1.6,
+                      maxHeight: '260px',
+                      overflowY: 'auto',
+                    }}>
+                      <div style={{ color: '#38bdf8', fontWeight: 700, marginBottom: '6px' }}>
+                        Schema • pyarrow.Table • silver/papers/year=YYYY/papers.parquet
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 20px' }}>
+                        <div><span style={{ color: '#10b981' }}>paper_id:</span> string (Primary Key)</div>
+                        <div><span style={{ color: '#10b981' }}>abstract_hash:</span> string (SHA-256 Lakehouse Dedup)</div>
+                        <div><span style={{ color: '#10b981' }}>doi:</span> string (CrossRef Identifier)</div>
+                        <div><span style={{ color: '#10b981' }}>title:</span> string (Normalized Scientific Title)</div>
+                        <div><span style={{ color: '#10b981' }}>abstract:</span> string (Full-Text Normalized)</div>
+                        <div><span style={{ color: '#10b981' }}>authors:</span> list&lt;string&gt; (Author Graph)</div>
+                        <div><span style={{ color: '#10b981' }}>categories:</span> list&lt;string&gt; (cs.AI, cs.LG, stat.ML...)</div>
+                        <div><span style={{ color: '#10b981' }}>primary_category:</span> string (Partition Key)</div>
+                        <div><span style={{ color: '#10b981' }}>published_date:</span> timestamp[us]</div>
+                        <div><span style={{ color: '#10b981' }}>total_sections:</span> int32 (HTML5 / ar5iv section count)</div>
+                        <div><span style={{ color: '#10b981' }}>total_math_count:</span> int32 (MathML Formula Density)</div>
+                        <div><span style={{ color: '#10b981' }}>total_words:</span> int32 (Corpus Volume)</div>
+                        <div><span style={{ color: '#10b981' }}>sections_json:</span> string (Hierarchical Taxonomy)</div>
+                        <div><span style={{ color: '#10b981' }}>clean_full_text:</span> string (Gold Embedding Source)</div>
+                        <div><span style={{ color: '#10b981' }}>source:</span> string (arxiv | cvf | semanticscholar)</div>
+                        <div><span style={{ color: '#10b981' }}>content_origin:</span> string (arxiv_html5 | ar5iv | abstract)</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* LaTeX / MathML Normalized Formula Sample */}
+                  <div style={{
+                    backgroundColor: themeStyles.drawerSectionBg,
+                    border: `1px solid ${themeStyles.drawerSectionBorder}`,
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}>
+                    <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f59e0b' }}>
+                      CÔNG THỨC TOÁN HỌC CHUẨN HOÁ TRONG PARQUET (MATHML / LATEX AST):
+                    </div>
+                    <div style={{
+                      backgroundColor: themeStyles.codeBoxBg,
+                      border: `1px solid ${themeStyles.codeBoxBorder}`,
+                      borderRadius: '6px',
+                      padding: '8px',
+                      textAlign: 'center',
+                    }}>
+                      <ScientificMath math="\mathcal{L}_{\text{diff}} = \mathbb{E}_{t, x_0, \epsilon} \left[ w_t \cdot \delta_{\text{Huber}} ( \epsilon - \epsilon_\theta(x_t, t) ) \right]" block />
+                    </div>
+                  </div>
+
+                  {/* Footer CTAs */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: `1px solid ${themeStyles.cardDivider}` }}>
+                    <div style={{ fontSize: '11px', color: themeStyles.textMuted }}>
+                      Apache Parquet được nén với Snappy/ZSTD, hỗ trợ truy vấn không sao chép (zero-copy) qua DuckDB httpfs.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveModal('duckdb')}
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: '#f59e0b',
+                        color: '#000000',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '11.5px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
+                      }}
+                    >
+                      ⚡ {isVi ? 'Truy Vấn File Parquet Bằng DuckDB' : 'Query Parquet with DuckDB'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. DUCKDB SQL QUERY WORKBENCH MODAL */}
+              {activeModal === 'duckdb' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Preset Queries */}
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
+                      CÂU TRUY VẤN MẪU (SQL PRESETS)
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {DUCK_SQL_PRESETS.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setDuckQueryPreset(p.sql)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: duckQueryPreset === p.sql ? 800 : 600,
+                            backgroundColor: duckQueryPreset === p.sql
+                              ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7')
+                              : themeStyles.cardBg,
+                            color: duckQueryPreset === p.sql ? '#f59e0b' : themeStyles.textMuted,
+                            border: `1px solid ${duckQueryPreset === p.sql ? '#f59e0b' : themeStyles.cardBorder}`,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SQL Textarea */}
+                  <div>
+                    <textarea
+                      value={duckQueryPreset}
+                      onChange={(e) => setDuckQueryPreset(e.target.value)}
+                      rows={4}
+                      style={{
+                        width: '100%',
+                        backgroundColor: themeStyles.codeBoxBg,
+                        color: isDark ? '#fbbf24' : '#b45309',
+                        border: `1px solid ${themeStyles.codeBoxBorder}`,
+                        borderRadius: '8px',
+                        padding: '12px',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '11.5px',
+                        lineHeight: 1.5,
+                        resize: 'none',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  {/* Execute Button */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      disabled={duckRunning}
+                      onClick={handleRunDuckQuery}
+                      style={{
+                        padding: '8px 18px',
+                        backgroundColor: duckRunning ? '#64748b' : '#f59e0b',
+                        color: '#000000',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        cursor: duckRunning ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
+                      }}
+                    >
+                      {duckRunning ? '⏳ ĐANG THỰC THI SIMD...' : '⚡ THỰC THI DUCKDB SIMD'}
+                    </button>
+                  </div>
+
+                  {/* Tabular Results View */}
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
+                      KẾT QUẢ TRUY VẤN (DUCKDB VECTORIZED ARROW RESULT)
+                    </div>
+                    <div style={{
+                      backgroundColor: themeStyles.drawerSectionBg,
+                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                    }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f1f5f9', borderBottom: `1px solid ${themeStyles.cardBorder}` }}>
+                            <th style={{ padding: '8px 12px', textAlign: 'left', color: themeStyles.textMuted }}>CATEGORY / RECORD</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'right', color: themeStyles.textMuted }}>PAPERS</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'right', color: themeStyles.textMuted }}>TOTAL FORMULAS</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'right', color: themeStyles.textMuted }}>AVG MATH / PAPER</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {duckResults.map((r, i) => (
+                            <tr key={i} style={{ borderBottom: `1px solid ${themeStyles.cardDivider}` }}>
+                              <td style={{ padding: '8px 12px', fontWeight: 700, color: '#f59e0b' }}>{r.category}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right' }}>{r.papers.toLocaleString()}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', color: '#10b981', fontWeight: 700 }}>{r.formulas.toLocaleString()}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right' }}>{r.avg_math}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
+                      ✓ Vectorized in-process SIMD execution reading directly from MinIO Parquet over S3.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. QDRANT VECTOR SEARCH MODAL */}
+              {activeModal === 'qdrant' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={vectorQuery}
+                      onChange={(e) => setVectorQuery(e.target.value)}
+                      placeholder="Nhập câu truy vấn ngữ nghĩa (ví dụ: diffusion loss, contrastive learning)..."
+                      style={{
+                        flex: 1,
+                        backgroundColor: themeStyles.inputBg,
+                        border: `1px solid ${themeStyles.inputBorder}`,
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        fontSize: '12px',
+                        fontFamily: 'var(--font-mono)',
+                        color: themeStyles.inputText,
+                        outline: 'none',
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleRunVectorSearch()}
+                    />
+                    <button
+                      type="button"
+                      disabled={vectorSearching}
+                      onClick={handleRunVectorSearch}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#2563eb',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        cursor: vectorSearching ? 'wait' : 'pointer',
+                        boxShadow: '0 2px 8px rgba(37, 99, 235, 0.4)',
+                      }}
+                    >
+                      {vectorSearching ? '⏳ ĐANG TÌM...' : '🔍 TÌM KIẾM VECTOR'}
+                    </button>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
+                      KẾT QUẢ TÌM KIẾM THEO COSINE SIMILARITY ({liveVectors.toLocaleString()} vectors trong Qdrant Gold)
+                    </div>
+
+                    {vectorResults.length === 0 ? (
+                      <div style={{
+                        padding: '30px',
+                        textAlign: 'center',
+                        backgroundColor: themeStyles.drawerSectionBg,
+                        borderRadius: '8px',
+                        border: `1px solid ${themeStyles.drawerSectionBorder}`,
+                        color: themeStyles.textMuted,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '11px',
+                      }}>
+                        Nhập từ khoá và bấm [TÌM KIẾM VECTOR] để kiểm tra cosine similarity thực tế trong cơ sở dữ liệu vector.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {vectorResults.map((hit, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              padding: '12px 14px',
+                              borderRadius: '8px',
+                              backgroundColor: themeStyles.drawerSectionBg,
+                              border: `1px solid ${themeStyles.drawerSectionBorder}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '12px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#3b82f6', backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff', padding: '1px 6px', borderRadius: '4px' }}>
+                                  {hit.id}
+                                </span>
+                                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                                  {hit.category}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '12px', fontWeight: 700, color: themeStyles.textPrimary }}>
+                                {hit.title}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 900, fontFamily: 'var(--font-mono)', color: '#10b981' }}>
+                                {(hit.score * 100).toFixed(1)}% match
+                              </span>
+                              <div style={{ width: '80px', height: '4px', backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                                <div style={{ width: `${Math.round(hit.score * 100)}%`, height: '100%', backgroundColor: '#10b981' }} />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 4. SOURCE INGESTION MODAL */}
+              {activeModal === 'harvest' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Harvester Trigger Section */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ padding: '16px', borderRadius: '10px', backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ fontSize: '11.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#7c3aed' }}>
+                        ⚡ KÍCH HOẠT AIRFLOW HARVEST DAG (TIER 2)
+                      </div>
+                      <div style={{ fontSize: '11px', color: themeStyles.textMuted }}>
+                        Gửi lệnh kích hoạt harvest luân phiên CVF và arXiv về Apache Airflow theo batch.
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
+                          Giới hạn bài báo:
                         </span>
-                        <span style={{
-                          fontSize: '10px',
+                        <input
+                          type="number"
+                          value={harvestLimit}
+                          onChange={(e) => setHarvestLimit(Math.max(1, parseInt(e.target.value) || 100))}
+                          style={{
+                            width: '100px',
+                            backgroundColor: themeStyles.inputBg,
+                            border: `1px solid ${themeStyles.inputBorder}`,
+                            borderRadius: '6px',
+                            padding: '6px 10px',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                            color: themeStyles.inputText,
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isHarvesting}
+                        onClick={handleStartHarvest}
+                        style={{
+                          marginTop: '4px',
+                          padding: '8px 14px',
+                          backgroundColor: '#7c3aed',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '11px',
                           fontFamily: 'var(--font-mono)',
                           fontWeight: 800,
-                          backgroundColor: themeStyles.amberGhostBg,
-                          color: themeStyles.amberGhostText,
-                          border: `1px solid ${themeStyles.amberGhostBorder}`,
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                        }}>
-                          ● SIMD Arrow Buffer Online
+                          cursor: isHarvesting ? 'wait' : 'pointer',
+                        }}
+                      >
+                        {isHarvesting ? '⏳ ĐANG KÍCH HOẠT DAG...' : '🚀 BẮT ĐẦU THU THẬP TIER 2'}
+                      </button>
+                    </div>
+
+                    <div style={{ padding: '16px', borderRadius: '10px', backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ fontSize: '11.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#10b981' }}>
+                        🌊 REAL-TIME STREAMING INGESTION
+                      </div>
+                      <div style={{ fontSize: '11px', color: themeStyles.textMuted }}>
+                        Luồng CDC thời gian thực cập nhật liên tục từ RSS feeds vào Lakehouse.
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isStreaming ? '#10b981' : '#64748b' }} />
+                        <span style={{ fontWeight: 800, color: isStreaming ? '#10b981' : themeStyles.textMuted }}>
+                          {isStreaming ? `STREAMING ACTIVE (${streamSpeed.toFixed(1)} docs/s)` : 'STREAMING STANDBY'}
                         </span>
                       </div>
 
-                      {/* SQL Presets Chips */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                          PRESETS:
-                        </span>
-                        {DUCK_SQL_PRESETS.map((preset) => (
+                      {/* Stream Target Selector */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Mục tiêu:</span>
+                        {[50, 100, 200, 500].map((t) => (
                           <button
-                            key={preset.id}
+                            key={t}
                             type="button"
-                            onClick={() => setDuckQueryPreset(preset.sql)}
+                            onClick={() => setStreamTarget(t)}
                             style={{
                               padding: '2px 8px',
                               borderRadius: '4px',
                               fontSize: '10px',
                               fontFamily: 'var(--font-mono)',
-                              fontWeight: 700,
+                              fontWeight: streamTarget === t ? 800 : 600,
+                              backgroundColor: streamTarget === t ? (isDark ? 'rgba(16, 185, 129, 0.25)' : '#d1fae5') : themeStyles.cardBg,
+                              color: streamTarget === t ? '#10b981' : themeStyles.textMuted,
+                              border: `1px solid ${streamTarget === t ? '#10b981' : themeStyles.cardBorder}`,
                               cursor: 'pointer',
-                              backgroundColor: duckQueryPreset === preset.sql ? themeStyles.amberGhostBg : (isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9'),
-                              border: `1px solid ${duckQueryPreset === preset.sql ? themeStyles.amberGhostBorder : themeStyles.cardBorder}`,
-                              color: duckQueryPreset === preset.sql ? themeStyles.amberGhostText : themeStyles.textMuted,
-                              transition: 'all 0.15s ease',
                             }}
                           >
-                            [{preset.label}]
+                            {t}
                           </button>
                         ))}
                       </div>
 
-                      <textarea
-                        value={duckQueryPreset}
-                        onChange={(e) => setDuckQueryPreset(e.target.value)}
-                        rows={3}
-                        style={{
-                          width: '100%',
-                          backgroundColor: themeStyles.codeBoxBg,
-                          color: themeStyles.codeBoxText,
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '11px',
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          border: `1px solid ${themeStyles.codeBoxBorder}`,
-                          outline: 'none',
-                          lineHeight: 1.5,
-                          resize: 'none',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-
                       <button
                         type="button"
-                        onClick={handleRunDuckQuery}
-                        disabled={duckRunning}
+                        onClick={handleToggleStreaming}
                         style={{
-                          width: '100%',
-                          backgroundColor: themeStyles.amberGhostBg,
-                          color: themeStyles.amberGhostText,
-                          border: `1px solid ${isDark ? '#f59e0b' : '#d97706'}`,
-                          borderRadius: '8px',
+                          marginTop: '4px',
                           padding: '8px 14px',
+                          backgroundColor: isStreaming ? '#e11d48' : '#059669',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '6px',
                           fontSize: '11px',
                           fontFamily: 'var(--font-mono)',
                           fontWeight: 800,
-                          cursor: duckRunning ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          boxShadow: isDark ? '0 0 14px rgba(245, 158, 11, 0.20)' : '0 2px 6px rgba(217, 119, 6, 0.12)',
-                          transition: 'all 0.15s ease',
+                          cursor: 'pointer',
                         }}
                       >
-                        {duckRunning ? (
-                          <>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                              <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                            </svg>
-                            <span>ĐANG CHẠY SIMD EXECUTION...</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                            </svg>
-                            <span>THỰC THI TRUY VẤN DUCKDB (0.041s)</span>
-                          </>
-                        )}
+                        {isStreaming ? '⏹ DỪNG STREAMING' : '▶ BẮT ĐẦU STREAMING REAL-TIME'}
                       </button>
                     </div>
+                  </div>
 
-                    {/* Results Table & Micro Distribution Chart */}
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '12px 14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: '10px',
-                    }}>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                            KẾT QUẢ THỰC THI (VECTORIZED ARROW SCHEMA)
-                          </span>
-                          <span style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>
-                            4 rows in 41ms
-                          </span>
-                        </div>
+                  {/* Category Pills Filter */}
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+                      DANH MỤC THU THẬP TỰ ĐỘNG
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {['cs.AI', 'cs.LG', 'cs.CV', 'cs.CL', 'stat.ML', 'math.PR', 'cs.RO', 'stat.TH'].map((cat) => {
+                        const active = harvestCategories.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => handleToggleCategory(cat)}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '5px',
+                              fontSize: '10.5px',
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: active ? 800 : 600,
+                              backgroundColor: active ? (isDark ? 'rgba(124, 58, 237, 0.25)' : '#ede9fe') : themeStyles.cardBg,
+                              color: active ? (isDark ? '#c084fc' : '#7c3aed') : themeStyles.textMuted,
+                              border: `1px solid ${active ? '#7c3aed' : themeStyles.cardBorder}`,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-                          <thead>
-                            <tr style={{ borderBottom: `1px solid ${themeStyles.cardBorder}`, textAlign: 'left', color: themeStyles.textMuted }}>
-                              <th style={{ padding: '4px 0' }}>CATEGORY</th>
-                              <th style={{ padding: '4px 0' }}>PAPERS</th>
-                              <th style={{ padding: '4px 0' }}>FORMULAS</th>
-                              <th style={{ padding: '4px 0', textAlign: 'right' }}>AVG MATH</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {duckResults.map((r, i) => (
-                              <tr key={i} style={{ borderBottom: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : '#e2e8f0'}` }}>
-                                <td style={{ padding: '5px 0', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706' }}>{r.category}</td>
-                                <td style={{ padding: '5px 0', color: themeStyles.textPrimary }}>{r.papers.toLocaleString()}</td>
-                                <td style={{ padding: '5px 0', color: themeStyles.textPrimary }}>{r.formulas.toLocaleString()}</td>
-                                <td style={{ padding: '5px 0', color: isDark ? '#34d399' : '#059669', fontWeight: 700, textAlign: 'right' }}>{r.avg_math}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                  {/* Breakdown of Sources */}
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
+                      TỔNG QUAN NGUỒN DỮ LIỆU ĐÃ THU THẬP ({liveTotalWorks.toLocaleString()} BÀI BÁO)
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                      <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.cardBorder}`, textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>arXiv OpenAccess</div>
+                        <div style={{ fontSize: '16px', fontWeight: 900, color: '#7c3aed', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>{liveArxivCount.toLocaleString()}</div>
                       </div>
-
-                      {/* Micro Distribution Chart (fills the empty space below table) */}
-                      <div style={{
-                        padding: '8px 10px',
-                        backgroundColor: themeStyles.cardBg,
-                        border: `1px solid ${themeStyles.cardBorder}`,
-                        borderRadius: '6px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '6px',
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                            PHÂN BỐ MẬT ĐỘ CÔNG THỨC TOÁN (SIMD DENSITY METRIC)
-                          </span>
-                          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: isDark ? '#fbbf24' : '#d97706', fontWeight: 700 }}>
-                            Total: 2,220,938 formulas
-                          </span>
-                        </div>
-
-                        {/* Stacked Ratio Bar */}
-                        <div style={{ display: 'flex', height: '10px', borderRadius: '4px', overflow: 'hidden', gap: '2px' }}>
-                          <div style={{ width: '41%', backgroundColor: '#8b5cf6' }} title="cs.AI: 41.0% (912,400 formulas)" />
-                          <div style={{ width: '33.7%', backgroundColor: '#3b82f6' }} title="cs.LG: 33.7% (748,920 formulas)" />
-                          <div style={{ width: '16.3%', backgroundColor: '#10b981' }} title="cs.CV: 16.3% (362,118 formulas)" />
-                          <div style={{ width: '9.0%', backgroundColor: '#f59e0b' }} title="stat.ML: 9.0% (200,760 formulas)" />
-                        </div>
-
-                        {/* Legend Chips */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#8b5cf6' }} /> cs.AI 41%
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#3b82f6' }} /> cs.LG 34%
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} /> cs.CV 16%
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#f59e0b' }} /> stat.ML 9%
-                          </span>
-                        </div>
-
-                        {/* Arrow columnar memory status */}
-                        <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#059669', borderTop: `1px solid ${themeStyles.cardBorder}`, paddingTop: '4px', fontWeight: 700 }}>
-                          ✓ In-Memory Arrow Buffer: 4 Partitions · Zero-Copy Columnar Scan · SIMD Active
-                        </div>
+                      <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.cardBorder}`, textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>CVF Conferences</div>
+                        <div style={{ fontSize: '16px', fontWeight: 900, color: '#10b981', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>{liveCvfCount.toLocaleString()}</div>
+                      </div>
+                      <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.cardBorder}`, textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>OpenReview</div>
+                        <div style={{ fontSize: '16px', fontWeight: 900, color: '#f59e0b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>{liveOpenReviewCount.toLocaleString()}</div>
+                      </div>
+                      <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.cardBorder}`, textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)' }}>Zenodo Open-Data</div>
+                        <div style={{ fontSize: '16px', fontWeight: 900, color: '#06b6d4', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>{liveZenodoCount.toLocaleString()}</div>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* 3. Qdrant vector search controls */}
-                {selectedTool.id === 'gold-qdrant' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                        {`TÌM KIẾM SEMANTIC VECTOR ANN (${liveVectors.toLocaleString()} EMBEDDINGS)`}
-                      </span>
-
-                      <input
-                        type="text"
-                        value={vectorQuery}
-                        onChange={(e) => setVectorQuery(e.target.value)}
-                        placeholder="Nhập truy vấn ngữ nghĩa học thuật..."
-                        style={{
-                          width: '100%',
-                          backgroundColor: themeStyles.inputBg,
-                          color: isDark ? '#34d399' : '#059669',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '11px',
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          border: `1px solid ${themeStyles.inputBorder}`,
-                          outline: 'none',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        {/* Tactical Emerald Pill Button */}
-                        <button
-                          type="button"
-                          onClick={handleRunVectorSearch}
-                          disabled={vectorSearching}
-                          style={{
-                            flex: 1,
-                            backgroundColor: themeStyles.emeraldGhostBg,
-                            color: themeStyles.emeraldGhostText,
-                            border: `1px solid ${isDark ? '#10b981' : '#059669'}`,
-                            borderRadius: '8px',
-                            padding: '8px 14px',
-                            fontSize: '11px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            cursor: vectorSearching ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            boxShadow: isDark ? '0 0 14px rgba(16, 185, 129, 0.20)' : '0 2px 6px rgba(5, 150, 105, 0.12)',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {vectorSearching ? (
-                            <span>ĐANG TÍNH TOÁN COSINE ANN...</span>
-                          ) : (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="11" cy="11" r="8" />
-                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                              </svg>
-                              <span>TÌM KIẾM VECTOR ANN (HNSW)</span>
-                            </span>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Qdrant hits */}
-                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '10px 14px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary, marginBottom: '8px' }}>
-                        TOP-3 NEAREST NEIGHBORS (COSINE SIMILARITY)
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {vectorResults.map((hit, i) => (
-                          <div key={i} style={{ padding: '6px 8px', backgroundColor: themeStyles.cardBg, border: `1px solid ${themeStyles.cardBorder}`, borderRadius: '6px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: isDark ? '#34d399' : '#10b981' }}>
-                                {hit.id} &bull; {hit.category}
-                              </span>
-                              <span style={{
-                                fontSize: '10px',
-                                fontFamily: 'var(--font-mono)',
-                                fontWeight: 800,
-                                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5',
-                                color: isDark ? '#34d399' : '#059669',
-                                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent'}`,
-                                padding: '1px 5px',
-                                borderRadius: '4px',
-                              }}>
-                                Sim: {hit.score}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '11px', color: themeStyles.textSecondary, marginTop: '2px', fontWeight: 600 }}>
-                              {hit.title}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Orchestration & messaging: live tables */}
-                {selectedTool.id === 'airflow-orchestrator' && <AirflowPanel live={live} theme={themeStyles} />}
-                {selectedTool.id === 'rabbitmq-broker' && <RabbitPanel live={live} theme={themeStyles} />}
-
-                {/* 4. MinIO controls */}
-                {selectedTool.id === 'bronze-instance' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
+              {/* 5. MINIO STORAGE MODAL */}
+              {activeModal === 'storage' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px' }}>
                     <div>
                       <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
-                        CẤU TRÚC PHÂN VÙNG OBJECT STORAGE (S3 COMPATIBLE)
+                        PHÂN CẤP BUCKET OBJECT STORAGE (S3 COMPATIBLE)
                       </div>
                       <div style={{
                         backgroundColor: themeStyles.codeBoxBg,
@@ -2825,849 +2786,241 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                         fontSize: '11px',
                         lineHeight: 1.6,
                       }}>
-                        <div style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>{`s3://${storageStats?.bucket ?? ''}/`}</div>
+                        <div style={{ color: themeStyles.textPrimary, fontWeight: 700 }}>{`s3://${storageStats?.bucket ?? 'uth-lakehouse'}/`}</div>
                         <div style={{ color: isDark ? '#fb7185' : '#e11d48' }}>
-                          ├── bronze/raw_html/year=2026/ ({liveBronzeCount.toLocaleString()} HTML5 objects · {liveBronzeGb} GB)
-                        </div>
-                        <div style={{ color: isDark ? '#fbbf24' : '#d97706' }}>
-                          ├── bronze/oai_batches/ ({liveBatchesCount} JSON batch records · 26.42 MB)
+                          ├── bronze/raw_html/ ({liveBronzeCount.toLocaleString()} HTML5 files &bull; {liveBronzeGb} GB)
                         </div>
                         <div style={{ color: isDark ? '#34d399' : '#059669' }}>
-                          └── gold/mining/ (FP-growth rules, Louvain graph, K-Means clusters · {(storageStats?.activeLakehouse?.activeVectors ?? 0).toLocaleString()} vectors)
+                          ├── silver/papers/ ({liveSilverPartitions} Parquet partitions &bull; {liveSilverMb.toFixed(0)} MB)
+                        </div>
+                        <div style={{ color: isDark ? '#38bdf8' : '#0284c7' }}>
+                          └── gold/mining/ ({liveVectors.toLocaleString()} vectors &bull; models &bull; Graph cache)
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, borderRadius: '8px', padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: themeStyles.drawerSectionBg, border: `1px solid ${themeStyles.drawerSectionBorder}`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                          STORAGE CAPACITY &amp; HEALTH
+                          DUNG LƯỢNG &amp; HẠN MỨC LƯU TRỮ
                         </div>
-                        <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '4px' }}>
-                          {storageUsedGb.toFixed(3)} GB / {liveQuotaGb.toFixed(2)} GB ({storageUsedPct.toFixed(2)}%)
+                        <div style={{ fontSize: '16px', fontWeight: 900, color: '#e11d48', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+                          {storageUsedGb.toFixed(3)} GB / {liveQuotaGb.toFixed(2)} GB ({storageUsedPct.toFixed(1)}%)
                         </div>
-                        <div style={{ height: '6px', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#e2e8f0', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
+                        <div style={{ height: '6px', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0', borderRadius: '3px', marginTop: '8px', overflow: 'hidden' }}>
                           <div style={{ width: `${Math.min(100, Math.max(0, storageUsedPct))}%`, height: '100%', backgroundColor: storageUsedPct > 80 ? '#e11d48' : '#3b82f6', transition: 'width 0.3s ease' }} />
                         </div>
-                        <div style={{ fontSize: '10px', color: isDark ? '#34d399' : '#059669', fontFamily: 'var(--font-mono)', marginTop: '6px', fontWeight: 700 }}>
-                          ✓ LOCAL MINIO (no egress fees)
+                        <div style={{ fontSize: '10px', color: '#10b981', fontFamily: 'var(--font-mono)', marginTop: '8px', fontWeight: 700 }}>
+                          ✓ LOCAL MINIO S3 (Zero Egress Fees)
                         </div>
                       </div>
 
                       <button
                         type="button"
                         onClick={async () => {
-                          setBottomTab('logs');
-                          const res = await triggerStorageSync();
-                          setLogs((prev) => [
-                            ...prev,
-                            { id: Date.now(), time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: res.status === 'SUCCESS' ? 'SUCCESS' : 'WARN', tag: 'MINIO-SCAN', msg: res.message },
-                          ]);
+                          await triggerStorageSync();
                         }}
                         style={{
+                          marginTop: '12px',
+                          padding: '8px',
                           backgroundColor: themeStyles.roseGhostBg,
                           color: themeStyles.roseGhostText,
                           border: `1px solid ${isDark ? '#e11d48' : '#be123c'}`,
-                          borderRadius: '8px',
-                          padding: '8px 0',
+                          borderRadius: '6px',
                           fontSize: '11px',
                           fontFamily: 'var(--font-mono)',
                           fontWeight: 800,
                           cursor: 'pointer',
-                          transition: 'all 0.15s ease',
                         }}
                       >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                          </svg>
-                          <span>RESCAN MINIO BUCKET &amp; VIEW LOGS</span>
-                        </span>
+                        ⚡ QUÉT LẠI BUCKET MINIO S3
                       </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 5. Grounded RAG Controls & Attribution Dossier */}
-                {selectedTool.id === 'grounded-rag' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary }}>
-                          CỔNG KIỂM THỬ ANTI-HALLUCINATION RAG (STRICT CITATION GATE)
-                        </span>
-                        <span style={{
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 800,
-                          backgroundColor: themeStyles.indigoGhostBg,
-                          color: themeStyles.indigoGhostText,
-                          border: `1px solid ${themeStyles.indigoGhostBorder}`,
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                        }}>
-                          ● Zero Hallucination Gate
-                        </span>
-                      </div>
-
-                      {/* RAG Query Preset Chips */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                          PRESETS:
-                        </span>
-                        {RAG_QUERY_PRESETS.map((preset, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => setRagPrompt(preset.query)}
-                            style={{
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              fontSize: '10px',
-                              fontFamily: 'var(--font-mono)',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              backgroundColor: ragPrompt === preset.query ? themeStyles.indigoGhostBg : (isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9'),
-                              border: `1px solid ${ragPrompt === preset.query ? themeStyles.indigoGhostBorder : themeStyles.cardBorder}`,
-                              color: ragPrompt === preset.query ? themeStyles.indigoGhostText : themeStyles.textMuted,
-                              transition: 'all 0.15s ease',
-                            }}
-                          >
-                            [{preset.label}]
-                          </button>
-                        ))}
-                      </div>
-
-                      <input
-                        type="text"
-                        value={ragPrompt}
-                        onChange={(e) => setRagPrompt(e.target.value)}
-                        placeholder="Nhập câu hỏi nghiên cứu..."
-                        style={{
-                          width: '100%',
-                          backgroundColor: themeStyles.inputBg,
-                          color: themeStyles.inputText,
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '11px',
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          border: `1px solid ${themeStyles.inputBorder}`,
-                          outline: 'none',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                          Ngưỡng Cosine:
-                        </span>
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="0.95"
-                          step="0.05"
-                          value={ragStrictThreshold}
-                          onChange={(e) => setRagStrictThreshold(parseFloat(e.target.value))}
-                          style={{ accentColor: '#6366f1', flex: 1 }}
-                        />
-                        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: isDark ? '#a5b4fc' : '#6366f1' }}>
-                          {ragStrictThreshold}
-                        </span>
-                      </div>
-
-                      {/* Tactical Obsidian Indigo Action Pill */}
-                      <button
-                        type="button"
-                        onClick={handleRunRagPrompt}
-                        disabled={ragGenerating}
-                        style={{
-                          backgroundColor: themeStyles.indigoGhostBg,
-                          color: themeStyles.indigoGhostText,
-                          border: `1px solid ${isDark ? '#6366f1' : '#4f46e5'}`,
-                          borderRadius: '8px',
-                          padding: '8px 14px',
-                          fontSize: '11px',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 800,
-                          cursor: ragGenerating ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          boxShadow: isDark ? '0 0 14px rgba(99, 102, 241, 0.20)' : '0 2px 6px rgba(79, 70, 229, 0.12)',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        {ragGenerating ? (
-                          <>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                              <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                            </svg>
-                            <span>ĐANG SUY LUẬN TRÍCH DẪN...</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                            </svg>
-                            <span>KIỂM TRA PHẢN HỒI RAG CÓ TRÍCH DẪN</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Attribution Dossier Card (fills the 60% empty space with rich scientific proof) */}
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '12px 14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                    }}>
-                      <div>
-                        {/* Header with Grounding Confidence Meter */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                            HỒ SƠ MINH CHỨNG NGUỒN GỐC (ATTRIBUTION DOSSIER)
-                          </span>
-                          <span style={{
-                            fontSize: '10px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            color: isDark ? '#34d399' : '#059669',
-                          }}>
-                            Grounding: 91.4%
-                          </span>
-                        </div>
-
-                        {/* Confidence Progress Gauge */}
-                        <div style={{ height: '6px', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden', marginBottom: '8px' }}>
-                          <div style={{ width: '91.4%', height: '100%', backgroundColor: '#10b981' }} />
-                        </div>
-
-                        {/* Citation Context Text */}
-                        <p style={{ fontSize: '11.5px', color: themeStyles.textSecondary, lineHeight: 1.5, margin: 0 }}>
-                          {ragResponse}
-                        </p>
-
-                        {/* LaTeX Formula Context Proof Container */}
-                        <div style={{
-                          marginTop: '8px',
-                          padding: '8px 10px',
-                          backgroundColor: themeStyles.cardBg,
-                          border: `1px solid ${themeStyles.cardBorder}`,
-                          borderRadius: '6px',
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                            <span style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                              TRÍCH DẪN CÔNG THỨC TOÁN HỌC KHÔNG GIAN VECTOR (LATEX PROOF):
-                            </span>
-                            <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: isDark ? '#a5b4fc' : '#4f46e5' }}>
-                              Section 3.2
-                            </span>
-                          </div>
-                          <div style={{ overflowX: 'auto', padding: '2px 0' }}>
-                            <ScientificMath
-                              math={
-                                RAG_QUERY_PRESETS.find((p) => p.query === ragPrompt)?.formula ||
-                                '\\mathcal{L}_{\\text{diff}} = \\mathbb{E}_{t, x_0, \\epsilon} \\left[ w_t \\cdot \\delta_{\\text{Huber}} ( \\epsilon - \\epsilon_\\theta(x_t, t) ) \\right]'
-                              }
-                              block={true}
-                              theme={theme}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Dossier Footer Verification Tags */}
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <span style={{
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 800,
-                          backgroundColor: isDark ? 'rgba(99, 102, 241, 0.20)' : '#ede9fe',
-                          color: isDark ? '#a5b4fc' : '#6366f1',
-                          border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                        }}>
-                          Verified: arXiv:2602.04128
-                        </span>
-                        <span style={{
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 800,
-                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#ecfdf5',
-                          color: isDark ? '#34d399' : '#059669',
-                          border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.35)' : 'transparent'}`,
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                        }}>
-                          Cosine: 0.914 &gt; {ragStrictThreshold}
-                        </span>
-                        <span style={{
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
-                          color: themeStyles.textMuted,
-                          marginLeft: 'auto',
-                        }}>
-                          Strict Citation Gate: PASSED
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ============================================================== */}
-            {/* TAB 2: THÔNG SỐ KỸ THUẬT & TELEMETRY (SPECS)                  */}
-            {/* ============================================================== */}
-            {bottomTab === 'specs' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {/* Telemetry Metrics 2x2 Bento Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                    }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>PRIMARY VOLUME</div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: themeStyles.textPrimary, marginTop: '3px' }}>
-                        {selectedTool.telemetrySummary.primaryMetric}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                    }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>SCOPE &amp; SPECS</div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: themeStyles.textPrimary, marginTop: '3px' }}>
-                        {selectedTool.telemetrySummary.secondaryMetric}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                    }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>LATENCY BENCHMARK</div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#34d399' : '#059669', marginTop: '3px' }}>
-                        {selectedTool.telemetrySummary.latency}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      backgroundColor: themeStyles.drawerSectionBg,
-                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                    }}>
-                      <div style={{ fontSize: '10px', color: themeStyles.textMuted, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>THROUGHPUT / COST</div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '3px' }}>
-                        {selectedTool.telemetrySummary.throughput}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Capabilities Checklist Chips (replaces raw bullet list from Screenshot 0) */}
-                  <div>
-                    <div style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '8px' }}>
-                      TÍNH NĂNG KIẾN TRÚC CỐT LÕI (CAPABILITY CHECKLIST)
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {(selectedTool.features || []).map((feature: string, idx: number) => (
-                        <div
-                          key={idx}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '6px 10px',
-                            backgroundColor: themeStyles.cardBg,
-                            border: `1px solid ${themeStyles.cardBorder}`,
-                            borderRadius: '6px',
-                            fontSize: '11.5px',
-                            color: themeStyles.textSecondary,
-                            lineHeight: 1.4,
-                          }}
-                        >
-                          <span style={{
-                            width: '16px',
-                            height: '16px',
-                            borderRadius: '50%',
-                            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : '#dcfce7',
-                            color: isDark ? '#34d399' : '#15803d',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '10px',
-                            fontWeight: 800,
-                            flexShrink: 0,
-                          }}>
-                            ✓
-                          </span>
-                          <span>{feature}</span>
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </div>
+              )}
 
-                {/* Right Schema/Code Preview with Sub-tabs & Copy Payload */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {/* Sub-tabs: SPEC | PAYLOAD | CURL */}
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {(['SPEC', 'PAYLOAD', 'CURL'] as const).map((tab) => (
+              {/* 6. AIRFLOW MODAL */}
+              {activeModal === 'airflow' && (
+                <div>
+                  <AirflowPanel live={live} theme={themeStyles} />
+                </div>
+              )}
+
+              {/* 7. RABBITMQ MODAL */}
+              {activeModal === 'rabbitmq' && (
+                <div>
+                  <RabbitPanel live={live} theme={themeStyles} />
+                </div>
+              )}
+
+              {/* 8. GROUNDED RAG MODAL */}
+              {activeModal === 'rag' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Preset Questions */}
+                  <div>
+                    <div style={{ fontSize: '10.5px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textSecondary, marginBottom: '6px' }}>
+                      CÂU HỎI MẪU (RAG PRESET PROMPTS)
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {RAG_QUERY_PRESETS.map((p, idx) => (
                         <button
-                          key={tab}
+                          key={idx}
                           type="button"
-                          onClick={() => setActiveSpecTab(tab)}
+                          onClick={() => setRagPrompt(p.query)}
                           style={{
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            fontSize: '10px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '10.5px',
                             fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
+                            fontWeight: ragPrompt === p.query ? 800 : 600,
+                            backgroundColor: ragPrompt === p.query
+                              ? (isDark ? 'rgba(99, 102, 241, 0.25)' : '#e0e7ff')
+                              : themeStyles.cardBg,
+                            color: ragPrompt === p.query
+                              ? (isDark ? '#c7d2fe' : '#4338ca')
+                              : themeStyles.textMuted,
+                            border: `1px solid ${ragPrompt === p.query ? '#6366f1' : themeStyles.cardBorder}`,
                             cursor: 'pointer',
-                            backgroundColor: activeSpecTab === tab ? (isDark ? 'rgba(56, 189, 248, 0.15)' : '#e0f2fe') : 'transparent',
-                            border: `1px solid ${activeSpecTab === tab ? (isDark ? 'rgba(56, 189, 248, 0.35)' : '#7dd3fc') : themeStyles.cardBorder}`,
-                            color: activeSpecTab === tab ? (isDark ? '#38bdf8' : '#0369a1') : themeStyles.textMuted,
-                            transition: 'all 0.15s ease',
                           }}
                         >
-                          {tab === 'SPEC' ? selectedTool.samplePreviewTitle.toUpperCase() : tab === 'PAYLOAD' ? 'PAYLOAD JSON' : 'CURL COMMAND'}
+                          {p.label}
                         </button>
                       ))}
                     </div>
+                  </div>
 
-                    {/* Copy Payload Button */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={ragPrompt}
+                      onChange={(e) => setRagPrompt(e.target.value)}
+                      placeholder="Nhập câu hỏi khoa học cần trích dẫn chính xác..."
+                      style={{
+                        flex: 1,
+                        backgroundColor: themeStyles.inputBg,
+                        border: `1px solid ${themeStyles.inputBorder}`,
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        fontSize: '12px',
+                        fontFamily: 'var(--font-mono)',
+                        color: themeStyles.inputText,
+                        outline: 'none',
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleRunRagPrompt()}
+                    />
                     <button
                       type="button"
-                      onClick={() => {
-                        const snippet =
-                          activeSpecTab === 'SPEC'
-                            ? selectedTool.sampleCodeOrSchema
-                            : activeSpecTab === 'PAYLOAD'
-                            ? JSON.stringify(
-                                {
-                                  tool_id: selectedTool.id,
-                                  category: selectedTool.category,
-                                  engine: selectedTool.engineVersion,
-                                  status: selectedTool.status,
-                                  telemetry: selectedTool.telemetrySummary,
-                                },
-                                null,
-                                2
-                              )
-                            : `curl -X POST "https://api.uth-lakehouse.internal/v2/tools/${selectedTool.id}/execute" \\\n  -H "Authorization: Bearer uth_token_simd_2026" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action": "telemetry_ping"}'`;
-                        navigator.clipboard.writeText(snippet);
-                        setSpecCopied(true);
-                        setTimeout(() => setSpecCopied(false), 2000);
-                      }}
+                      disabled={ragGenerating}
+                      onClick={handleRunRagPrompt}
                       style={{
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
+                        padding: '10px 18px',
+                        backgroundColor: '#6366f1',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '12px',
                         fontFamily: 'var(--font-mono)',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        backgroundColor: specCopied ? (isDark ? 'rgba(16, 185, 129, 0.20)' : '#dcfce7') : themeStyles.btnInspectBg,
-                        border: `1px solid ${specCopied ? '#10b981' : themeStyles.btnInspectBorder}`,
-                        color: specCopied ? (isDark ? '#34d399' : '#15803d') : themeStyles.btnInspectText,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        transition: 'all 0.15s ease',
+                        fontWeight: 800,
+                        cursor: ragGenerating ? 'wait' : 'pointer',
+                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
                       }}
                     >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        {specCopied ? (
-                          <>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            <span>ĐÃ CHÉP</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
-                            <span>SAO CHÉP</span>
-                          </>
-                        )}
-                      </span>
+                      {ragGenerating ? '⏳ ĐANG TỔNG HỢP...' : '⚡ TỔNG HỢP RAG'}
                     </button>
                   </div>
 
-                  {/* Adaptive Code Box (Replaces hardcoded #0f172a from Screenshot 0) */}
-                  <pre
-                    style={{
-                      backgroundColor: themeStyles.codeBoxBg,
-                      color: themeStyles.codeBoxText,
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '11px',
-                      padding: '12px 14px',
-                      borderRadius: '8px',
-                      overflowX: 'auto',
-                      lineHeight: 1.5,
-                      margin: 0,
-                      border: `1px solid ${themeStyles.codeBoxBorder}`,
-                      maxHeight: drawerExpanded ? '340px' : '190px',
-                      transition: 'max-height 0.25s ease',
-                    }}
-                  >
-                    <code>
-                      {activeSpecTab === 'SPEC'
-                        ? selectedTool.sampleCodeOrSchema
-                        : activeSpecTab === 'PAYLOAD'
-                        ? JSON.stringify(
-                            {
-                              tool_id: selectedTool.id,
-                              category: selectedTool.category,
-                              engine: selectedTool.engineVersion,
-                              status: selectedTool.status,
-                              telemetry: selectedTool.telemetrySummary,
-                            },
-                            null,
-                            2
-                          )
-                        : `curl -X POST "https://api.uth-lakehouse.internal/v2/tools/${selectedTool.id}/execute" \\\n  -H "Authorization: Bearer uth_token_simd_2026" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action": "telemetry_ping"}'`}
-                    </code>
-                  </pre>
-                </div>
-              </div>
-            )}
-
-            {/* ============================================================== */}
-            {/* TAB 3: TERMINAL LOGS (SPLIT TELEMETRY CONSOLE 68% / 32%)      */}
-            {/* ============================================================== */}
-            {bottomTab === 'logs' && (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2.1fr 1fr',
-                  gap: '14px',
-                  height: '100%',
-                  minHeight: drawerExpanded ? '440px' : '290px',
-                }}
-              >
-                {/* Column 1: macOS Unix Terminal Console (68% width) */}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    backgroundColor: '#090d16',
-                    borderRadius: '8px',
-                    border: '1px solid #1e293b',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {/* Terminal Sub-header & Filter Pills */}
-                  <div
-                    style={{
-                      height: '36px',
-                      backgroundColor: '#0f172a',
-                      borderBottom: '1px solid #1e293b',
-                      padding: '0 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexShrink: 0,
-                    }}
-                  >
+                  {/* Strict Threshold Slider */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', backgroundColor: themeStyles.drawerSectionBg, borderRadius: '6px', border: `1px solid ${themeStyles.drawerSectionBorder}` }}>
+                    <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                      Ngưỡng Cosine Tối Thiểu (Cosine Strict Gate):
+                    </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: '#94a3b8', marginLeft: '6px' }}>
-                        bash &bull; uth-lakehouse-pipeline --live (PID: 28419)
-                      </span>
-                    </div>
-
-                    {/* Filter Level Pills & Controls */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {(['ALL', 'SUCCESS', 'EXEC', 'WARN', 'INFO'] as const).map((lvl) => (
-                        <button
-                          key={lvl}
-                          type="button"
-                          onClick={() => setLogFilter(lvl)}
-                          style={{
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '9.5px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            backgroundColor: logFilter === lvl ? '#38bdf8' : 'rgba(255, 255, 255, 0.06)',
-                            color: logFilter === lvl ? '#0f172a' : '#94a3b8',
-                            border: `1px solid ${logFilter === lvl ? '#38bdf8' : 'transparent'}`,
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {lvl}
-                        </button>
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const logText = logs
-                            .filter((l) => logFilter === 'ALL' || l.level === logFilter)
-                            .map((l) => `[${l.time}] [${l.level}] [${l.tag}] ${l.msg}`)
-                            .join('\n');
-                          navigator.clipboard.writeText(logText);
-                          setLogCopied(true);
-                          setTimeout(() => setLogCopied(false), 2000);
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid #334155',
-                          borderRadius: '4px',
-                          color: logCopied ? '#34d399' : '#94a3b8',
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          padding: '2px 6px',
-                          cursor: 'pointer',
-                        }}
-                        title="Sao chép toàn bộ logs"
-                      >
-                        {logCopied ? '✓' : 'CHÉP'}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setAutoScrollLogs((v) => !v)}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid #334155',
-                          borderRadius: '4px',
-                          color: autoScrollLogs ? '#10b981' : '#64748b',
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          padding: '2px 6px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        SCROLL: {autoScrollLogs ? 'ON' : 'OFF'}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setLogs([])}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid #334155',
-                          borderRadius: '4px',
-                          color: '#94a3b8',
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          padding: '2px 6px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        XÓA
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Terminal Log Stream Window */}
-                  <div
-                    style={{
-                      flex: 1,
-                      overflowY: 'auto',
-                      padding: '12px 14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '11px',
-                      maxHeight: drawerExpanded ? '380px' : '230px',
-                    }}
-                  >
-                    {allTerminalLogs
-                      .filter((l) => logFilter === 'ALL' || l.level === logFilter)
-                      .map((log) => {
-                        const levelColor =
-                          log.level === 'SUCCESS'
-                            ? '#34d399'
-                            : log.level === 'EXEC'
-                            ? '#fbbf24'
-                            : log.level === 'WARN'
-                            ? '#f87171'
-                            : '#38bdf8';
-
-                        return (
-                          <div key={log.id} style={{ display: 'flex', gap: '8px', lineHeight: 1.45 }}>
-                            <span style={{ color: '#475569', flexShrink: 0 }}>[{log.time}]</span>
-                            <span style={{ color: levelColor, fontWeight: 800, flexShrink: 0 }}>
-                              [{log.level}]
-                            </span>
-                            <span style={{ color: '#94a3b8', flexShrink: 0 }}>[{log.tag}]</span>
-                            <span style={{ color: '#f8fafc', wordBreak: 'break-word' }}>{log.msg}</span>
-                          </div>
-                        );
-                      })}
-                    <div ref={logsEndRef} />
-                  </div>
-                </div>
-
-                {/* Column 2: Live Telemetry & Health Panel (32% width, eliminates the black void) */}
-                <div
-                  style={{
-                    backgroundColor: themeStyles.drawerSectionBg,
-                    border: `1px solid ${themeStyles.drawerSectionBorder}`,
-                    borderRadius: '8px',
-                    padding: '12px 14px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textPrimary }}>
-                      VIỄN THÁM THỜI GIAN THỰC
-                    </span>
-                    <span style={{
-                      fontSize: '9.5px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#dcfce7',
-                      color: isDark ? '#34d399' : '#15803d',
-                      padding: '1px 6px',
-                      borderRadius: '4px',
-                    }}>
-                      ● LIVE HEALTH
-                    </span>
-                  </div>
-
-                  {/* 4 Real-time Telemetry Metrics Cards */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {/* Metric 1: CDC Ingestion */}
-                    <div style={{
-                      padding: '8px 10px',
-                      backgroundColor: themeStyles.cardBg,
-                      border: `1px solid ${themeStyles.cardBorder}`,
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>CDC INGESTION (ARXIV)</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: isStreaming ? (isDark ? '#34d399' : '#059669') : themeStyles.textPrimary, marginTop: '2px' }}>
-                          {isStreaming ? `${streamSpeed} bài/phút` : 'STANDBY (Ready)'}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                        +{streamSessionCount} bài
-                      </span>
-                    </div>
-
-                    {/* Metric 2: DuckDB SIMD */}
-                    <div style={{
-                      padding: '8px 10px',
-                      backgroundColor: themeStyles.cardBg,
-                      border: `1px solid ${themeStyles.cardBorder}`,
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>DUCKDB SIMD THROUGHPUT</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#fbbf24' : '#d97706', marginTop: '2px' }}>
-                          2.42M rows/s
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                        0.041s Latency
-                      </span>
-                    </div>
-
-                    {/* Metric 3: Qdrant vectors */}
-                    <div style={{
-                      padding: '8px 10px',
-                      backgroundColor: themeStyles.cardBg,
-                      border: `1px solid ${themeStyles.cardBorder}`,
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>QDRANT VECTOR INDEX</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#60a5fa' : '#2563eb', marginTop: '2px' }}>
-                          {(storageStats?.activeLakehouse?.activeVectors ?? 164750).toLocaleString()} embeddings
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                        16.4ms ANN
-                      </span>
-                    </div>
-
-                    {/* Metric 4: MinIO */}
-                    <div style={{
-                      padding: '8px 10px',
-                      backgroundColor: themeStyles.cardBg,
-                      border: `1px solid ${themeStyles.cardBorder}`,
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '9.5px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>MINIO LAKEHOUSE STORAGE</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: isDark ? '#fb7185' : '#e11d48', marginTop: '2px' }}>
-                          {storageUsedGb.toFixed(3)} GB ({storageUsedPct.toFixed(2)}%)
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: isDark ? '#34d399' : '#059669', fontWeight: 700 }}>
-                        no egress fees
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="0.95"
+                        step="0.05"
+                        value={ragStrictThreshold}
+                        onChange={(e) => setRagStrictThreshold(parseFloat(e.target.value))}
+                        style={{ accentColor: '#6366f1', cursor: 'pointer', width: '90px' }}
+                      />
+                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#6366f1' }}>
+                        {ragStrictThreshold.toFixed(2)}
                       </span>
                     </div>
                   </div>
 
-                  {/* Telemetry Status Footer */}
+                  {ragResponse && (
+                    <div style={{
+                      padding: '14px',
+                      borderRadius: '8px',
+                      backgroundColor: themeStyles.drawerSectionBg,
+                      border: `1px solid ${themeStyles.drawerSectionBorder}`,
+                      fontSize: '12.5px',
+                      lineHeight: 1.6,
+                    }}>
+                      <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#6366f1', marginBottom: '6px' }}>
+                        KẾT QUẢ TỔNG HỢP CÓ TRÍCH DẪN (GROUNDED CITATIONS):
+                      </div>
+                      <div style={{ color: themeStyles.textPrimary }}>{ragResponse}</div>
+                    </div>
+                  )}
+
+                  {/* Big CTA to Full RAG Chat Interface */}
                   <div style={{
-                    padding: '6px 8px',
-                    backgroundColor: themeStyles.cardBg,
-                    border: `1px solid ${themeStyles.cardBorder}`,
-                    borderRadius: '4px',
-                    fontSize: '9.5px',
-                    fontFamily: 'var(--font-mono)',
-                    color: themeStyles.textMuted,
-                    textAlign: 'center',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#ede9fe',
+                    border: `1px solid ${isDark ? 'rgba(99, 102, 241, 0.35)' : '#c7d2fe'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
                   }}>
-                    UTH Real-Time Lakehouse Telemetry &bull; Port 8000 &bull; Ready
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: isDark ? '#a5b4fc' : '#4338ca' }}>
+                        Trải nghiệm RAG Trò Chuyện Đầy Đủ
+                      </div>
+                      <div style={{ fontSize: '11px', color: themeStyles.textMuted, marginTop: '2px' }}>
+                        Hỗ trợ trò chuyện đa lượt, render công thức KaTeX và đối chiếu trích dẫn nguồn trực quan.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveModal('none');
+                        onNavigateTab?.('rag');
+                      }}
+                      style={{
+                        padding: '10px 18px',
+                        backgroundColor: '#6366f1',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
+                      }}
+                    >
+                      💬 CHUYỂN SANG TAB CHAT RAG ↗
+                    </button>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </section>
+        </div>
       )}
 
-      {/* Floating Canvas Pan & Zoom Controls */}
+      {/* ============================================================== */}
+      {/* FLOATING CANVAS PAN & ZOOM CONTROLS (STABLE AT BOTTOM RIGHT)   */}
+      {/* ============================================================== */}
       <div
         style={{
           position: 'fixed',
-          bottom: drawerOpen ? (drawerExpanded ? 'calc(100vh - 100px)' : '406px') : '16px',
+          bottom: '24px',
           right: '28px',
           display: 'flex',
           alignItems: 'center',
@@ -3679,9 +3032,9 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
           padding: '4px 10px',
           boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.45)' : '0 4px 16px rgba(0, 0, 0, 0.08)',
           zIndex: 20,
-          transition: 'bottom 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
+
         <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginRight: '4px' }}>
           CANVAS
         </span>
