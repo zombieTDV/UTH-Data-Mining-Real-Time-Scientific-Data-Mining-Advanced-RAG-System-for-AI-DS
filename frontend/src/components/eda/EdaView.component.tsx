@@ -1567,17 +1567,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                                 strokeDasharray="4 3"
                                 strokeOpacity="0.85"
                               />
-                              {/* Anchored Left-Margin Reference Tag (Outside Data Flow) */}
-                              <rect
-                                x="65"
-                                y={cutoffY - 17}
-                                width="0"
-                                height="0"
-                                rx="3"
-                                fill={isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.95)'}
-                                stroke="rgba(16, 185, 129, 0.45)"
-                                strokeWidth="0.8"
-                              />
                               <text
                                 x="70"
                                 y={cutoffY - 6}
@@ -3121,24 +3110,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                   </div>
                 </div>
               </div>
-
-              {/* Card 3: Academic Findings & Data Mining Takeaway */}
-              <div style={{ backgroundColor: themeStyles.cardInner, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '10px' }}>
-                <div style={{ fontSize: '10.5px', fontWeight: 800, color: isDark ? '#38bdf8' : '#0369a1', fontFamily: 'var(--font-mono)', marginBottom: '4px' }}>
-                  💡 KẾT LUẬN KHOA HỌC & Ý NGHĨA KHAI PHÁ DỮ LIỆU
-                </div>
-                <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '10px', color: themeStyles.textSecondary, lineHeight: '1.6' }}>
-                  <li>
-                    <strong>Nghịch lý toán học vs tác giả (r = -0.104, p &lt; 10⁻¹⁰)</strong>: Nghiên cứu toán lý thuyết thường do cá nhân hoặc nhóm nhỏ (1-2 người) phụ trách. Trái lại, các bài báo kỹ thuật hệ thống (LLM, Robotics) có nhóm tác giả đông (5-10 người) nhưng ít công thức lý thuyết thuần túy.
-                  </li>
-                  <li>
-                    <strong>Khoảng cách Pearson vs Spearman (0.228 vs 0.483)</strong>: Phân phối số công thức tuân theo quy luật lũy thừa có đuôi dài cực đoan (Heavy-tailed Power Law), khiến Pearson bị nén. Kiểm định phi tham số Spearman phản ánh trung thực hơn quy luật đồng biến.
-                  </li>
-                  <li>
-                    <strong>Cơ sở cho Qdrant Vector Retrieval</strong>: Sự khác biệt cực kỳ lớn về mật độ toán và cấu trúc giữa các ngành khẳng định vai trò sống còn của việc phân cụm trước khi truy xuất RAG đa phương thức.
-                  </li>
-                </ul>
-              </div>
             </div>
           </div>
         )}
@@ -3444,20 +3415,6 @@ export const EdaView: FC<EdaViewProps> = ({ theme = 'dark', onNavigateToRag, min
                             <div style={{ width: `${item.pct}%`, height: '100%', backgroundColor: item.color, borderRadius: '3px' }} />
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Core Lexical Tokens */}
-                  <div style={{ backgroundColor: themeStyles.cardSubtle, borderRadius: '6px', border: `1px solid ${themeStyles.border}`, padding: '6px 8px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, marginBottom: '4px' }}>
-                      TỪ KHÓA AI HỌC THUẬT XUẤT HIỆN NHIỀU NHẤT (TOP LEXICAL TOKENS)
-                    </div>
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                      {['Transformer', 'Diffusion Models', 'Latent Space', 'Self-Supervised', 'Chain-of-Thought', 'Contrastive Learning', 'Zero-Shot'].map((token) => (
-                        <span key={token} style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, backgroundColor: themeStyles.cardInner, border: `1px solid ${themeStyles.border}`, padding: '2px 6px', borderRadius: '3px', color: themeStyles.textPrimary }}>
-                          #{token}
-                        </span>
                       ))}
                     </div>
                   </div>

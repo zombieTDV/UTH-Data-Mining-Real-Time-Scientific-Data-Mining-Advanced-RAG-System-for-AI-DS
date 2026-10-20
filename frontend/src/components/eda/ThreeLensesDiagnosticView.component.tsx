@@ -348,9 +348,9 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               </span>
               {[
                 { key: 'words_x_math_density', label: isVi ? 'Mật độ Toán × Số từ' : 'Math Density × Words' },
-                { key: 'math_x_authors', label: 'Toán × Tác giả (Nghịch lý tác giả)' },
-                { key: 'words_x_math', label: 'Số từ × Công thức (Đồng biến)' },
-                { key: 'words_x_citations', label: 'Số từ × Trích dẫn (Pareto)' },
+                { key: 'math_x_authors', label: isVi ? 'Toán × Tác giả' : 'Math × Authors' },
+                { key: 'words_x_math', label: isVi ? 'Số từ × Công thức' : 'Words × Math' },
+                { key: 'words_x_citations', label: isVi ? 'Số từ × Trích dẫn' : 'Words × Citations' },
               ].map((p) => {
                 const isSelected = selectedPairKey === p.key;
                 return (
