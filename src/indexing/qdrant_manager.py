@@ -88,6 +88,7 @@ class QdrantManager:
                 # Create payload indexes for fast filtering
                 self._create_payload_index(col, "primary_category", "keyword")
                 self._create_payload_index(col, "paper_id", "keyword")
+                self._create_payload_index(col, "year", "integer")
                 return True
             else:
                 logger.warning("[Qdrant] Failed to create collection '%s': %s", col, create_resp.text)

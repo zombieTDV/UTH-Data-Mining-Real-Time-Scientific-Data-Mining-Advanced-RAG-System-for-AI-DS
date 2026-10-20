@@ -17,6 +17,12 @@ class AcademicChunker:
         self.max_chunk_words = max_chunk_words
         self.overlap_words = overlap_words
 
+    @staticmethod
+    def _parse_year(published_date: Any) -> Optional[int]:
+        """Publication year from a Silver `published_date` string (e.g. "2021-06-17T..."), None when absent."""
+        m = re.search(r"(?:19|20)\d{2}", str(published_date or ""))
+        return int(m.group(0)) if m else None
+
     def chunk_paper(self, paper_record: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Splits an academic paper record into rich multi-section contextual chunks."""
         paper_id = str(paper_record.get("paper_id", "")).strip()
@@ -31,6 +37,7 @@ class AcademicChunker:
             authors = [str(authors)]
             
         primary_category = str(paper_record.get("primary_category", "cs.AI")).strip()
+        year = self._parse_year(paper_record.get("published_date"))
         source = str(paper_record.get("source", "arxiv")).strip()
         tier = str(paper_record.get("tier", "tier2")).strip()
         content_origin = str(paper_record.get("content_origin", "academic")).strip()
@@ -45,6 +52,7 @@ class AcademicChunker:
                 "title": title,
                 "authors": authors,
                 "primary_category": primary_category,
+                "year": year,
                 "section_title": "Abstract",
                 "section_type": "abstract",
                 "text": abstract,
@@ -84,6 +92,7 @@ class AcademicChunker:
                         "title": title,
                         "authors": authors,
                         "primary_category": primary_category,
+                        "year": year,
                         "section_title": sec_title,
                         "section_type": sec_type,
                         "text": sec_content,
@@ -105,6 +114,7 @@ class AcademicChunker:
                             "title": title,
                             "authors": authors,
                             "primary_category": primary_category,
+                            "year": year,
                             "section_title": f"{sec_title} (Part {part})",
                             "section_type": sec_type,
                             "text": sub_text,
@@ -144,6 +154,7 @@ class AcademicChunker:
                             "title": title,
                             "authors": authors,
                             "primary_category": primary_category,
+                            "year": year,
                             "section_title": clean_h_title,
                             "section_type": "section",
                             "text": h_content,
@@ -165,6 +176,7 @@ class AcademicChunker:
                                 "title": title,
                                 "authors": authors,
                                 "primary_category": primary_category,
+                                "year": year,
                                 "section_title": f"{clean_h_title} (Part {part})",
                                 "section_type": "section",
                                 "text": sub_text,
@@ -187,6 +199,7 @@ class AcademicChunker:
                         "title": title,
                         "authors": authors,
                         "primary_category": primary_category,
+                        "year": year,
                         "section_title": f"Main Body (Part {part})",
                         "section_type": "body",
                         "text": sub_text,
@@ -212,6 +225,7 @@ class AcademicChunker:
                 "title": title,
                 "authors": authors,
                 "primary_category": primary_category,
+                "year": year,
                 "section_title": "Abstract: Problem & Context",
                 "section_type": "abstract_problem",
                 "text": p1_text,
@@ -227,6 +241,7 @@ class AcademicChunker:
                 "title": title,
                 "authors": authors,
                 "primary_category": primary_category,
+                "year": year,
                 "section_title": "Abstract: Methodology & Results",
                 "section_type": "abstract_methodology",
                 "text": p2_text,
