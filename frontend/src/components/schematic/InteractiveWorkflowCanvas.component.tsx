@@ -2278,6 +2278,43 @@ export const InteractiveWorkflowCanvas: FC<InteractiveWorkflowCanvasProps> = ({
                           ))}
                         </div>
                       </div>
+
+                      {/* Ingestion Formats (Informative Badges) */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontWeight: 800, color: themeStyles.textSecondary, fontSize: '11px' }}>
+                          {isVi ? 'ĐỊNH DẠNG TỰ ĐỘNG:' : 'INGESTION FORMATS:'}
+                        </span>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : '#f3e8ff',
+                          color: isDark ? '#c084fc' : '#7c3aed',
+                          border: `1px solid ${isDark ? 'rgba(124, 58, 237, 0.3)' : '#e9d5ff'}`,
+                          fontWeight: 700,
+                          fontSize: '10.5px',
+                        }}>
+                          <span style={{ color: isDark ? '#34d399' : '#059669' }}>✓</span>
+                          <span>ar5iv HTML5 Full-Text (Math &amp; Sections)</span>
+                        </div>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                          color: isDark ? '#60a5fa' : '#2563eb',
+                          border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe'}`,
+                          fontWeight: 700,
+                          fontSize: '10.5px',
+                        }}>
+                          <span style={{ color: isDark ? '#34d399' : '#059669' }}>✓</span>
+                          <span>arXiv OAI-PMH XML Metadata</span>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Right Ingestion Action Card */}
