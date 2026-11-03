@@ -108,6 +108,27 @@ def section_facets(client, limit: int = 20) -> List[Dict[str, Any]]:
     return [{"section_type": str(h.value), "chunks": int(h.count)} for h in res.hits]
 
 
+def all_abstract_vectors(client, page: int = 2048):
+    """Every abstract-chunk point (one per paper) with its vector and payload, scrolled page by page."""
+    from qdrant_client import models
+
+    ensure_keyword_index(client, "section_type")
+    flt = models.Filter(must=[models.FieldCondition(key="section_type", match=models.MatchValue(value="abstract"))])
+    offset = None
+    while True:
+        pts, offset = client.scroll(
+            settings.QDRANT_COLLECTION,
+            scroll_filter=flt,
+            limit=page,
+            offset=offset,
+            with_vectors=True,
+            with_payload=True,
+        )
+        yield from pts
+        if offset is None:
+            return
+
+
 def sample_abstract_vectors(client, sample_size: int, seed: int = 42):
     """Random sample of abstract-chunk points (one per paper) with vectors and payload."""
     from qdrant_client import models

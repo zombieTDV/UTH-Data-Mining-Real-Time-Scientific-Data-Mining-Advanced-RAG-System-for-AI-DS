@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#111;--g1:#3a3a3a;--g2:#767676;--g3:#d9d9d9;--g4:#f2f2f2;--uns:#2546c9;--spe:#e8590c;--rag:#2f9e44;--art:#a61e4d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#fff;color:var(--ink);font-family:"Atkinson Hyperlegible",sans-serif}
+.top{display:grid;grid-template-columns:auto 1fr auto;align-items:stretch;border-bottom:4px solid var(--ink);height:84px}
+.top .sec{display:flex;align-items:center;gap:14px;padding:0 28px;background:var(--uns);color:#fff;font-family:Archivo;font-stretch:75%;font-weight:800;font-size:26px;letter-spacing:.02em;text-transform:uppercase}
+.strip{display:flex;align-items:stretch;justify-content:flex-end;gap:0}
+.el{width:64px;border-left:4px solid var(--ink);display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Archivo;font-weight:800;font-size:24px}
+.el small{font-size:11px;font-weight:600}
+.el.on{background:var(--uns);color:#fff}
+.el.s{background:#fde3d2}.el.r{background:#dcf2e0}.el.u{background:#dfe5fb}
+.pg{padding:0 28px;display:flex;align-items:center;font-family:Archivo;font-weight:900;font-size:30px;border-left:4px solid var(--ink)}
+main{display:grid;grid-template-columns:420px 1fr;gap:0;height:calc(900px - 84px)}
+.tile{border-right:4px solid var(--ink);padding:36px 32px;display:flex;flex-direction:column;gap:18px}
+.tile .n{font-family:Archivo;font-weight:700;font-size:22px;color:var(--g2)}
+.tile .sym{font-family:Archivo;font-stretch:62%;font-weight:900;font-size:220px;line-height:.8;color:var(--uns)}
+.tile .val{font-family:Archivo;font-weight:900;font-size:76px;line-height:1}
+.tile .lab{font-size:22px;color:var(--g1)}
+.tile .mark{margin-top:auto;border:4px solid var(--ink);padding:14px 16px;font-size:20px;background:repeating-linear-gradient(135deg,#fff 0 10px,var(--g4) 10px 20px)}
+.body{padding:36px 44px;display:flex;flex-direction:column;gap:26px}
+h1{font-family:Archivo;font-stretch:80%;font-weight:900;font-size:64px;line-height:1.02;letter-spacing:-.01em;max-width:18ch}
+.lede{font-size:24px;line-height:1.4;color:var(--g1);max-width:58ch}
+.rows{display:flex;flex-direction:column;gap:12px}
+.row{display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:center}
+.row b{font-family:Archivo;font-weight:800;font-size:22px}
+.bar{display:flex;height:40px;border:3px solid var(--ink)}
+.bar i{display:block;height:100%}
+.a{background:var(--uns)}.b{background:#7f95e6}.c{background:#c7d1f5}.o{background:#fff}
+</style></head><body>
+<div class="top">
+  <div class="sec">Unsupervised · Clustering</div>
+  <div class="strip"><div class="el u">Fp<small>08</small></div><div class="el on">Km<small>07</small></div><div class="el s">If<small>09</small></div><div class="el s">Tr<small>10</small></div><div class="el s">Pr<small>11</small></div><div class="el r">Rg<small>12</small></div></div>
+  <div class="pg">07</div>
+</div>
+<main>
+  <section class="tile">
+    <div class="n">K-Means · k = 6 · 768 chiều</div>
+    <div class="sym">Km</div>
+    <div class="val">0,047</div>
+    <div class="lab">Silhouette (cosine, 1.500 điểm)</div>
+    <div class="mark"><b>Kết quả yếu:</b> DBSCAN chỉ ra 1 cụm, nhiễu 1,0%</div>
+  </section>
+  <section class="body">
+    <h1>6 cụm chủ đề, nhưng các chủ đề chồng lấn</h1>
+    <p class="lede">Mỗi thanh là một cụm GMM trên mẫu 800 bài; các đoạn là 3 category trội, phần trắng là category khác.</p>
+    <div class="rows">
+      <div class="row"><b>Cụm 0 · Robot</b><div class="bar" style="width:51%"><i class="a" style="flex:77"></i><i class="b" style="flex:15"></i><i class="c" style="flex:4"></i><i class="o" style="flex:6"></i></div></div>
+      <div class="row"><b>Cụm 1 · ML</b><div class="bar" style="width:100%"><i class="a" style="flex:45"></i><i class="b" style="flex:36"></i><i class="c" style="flex:30"></i><i class="o" style="flex:88"></i></div></div>
+      <div class="row"><b>Cụm 2 · Agent</b><div class="bar" style="width:46%"><i class="a" style="flex:28"></i><i class="b" style="flex:22"></i><i class="c" style="flex:10"></i><i class="o" style="flex:32"></i></div></div>
+      <div class="row"><b>Cụm 3 · NLP</b><div class="bar" style="width:72%"><i class="a" style="flex:64"></i><i class="b" style="flex:25"></i><i class="c" style="flex:22"></i><i class="o" style="flex:32"></i></div></div>
+      <div class="row"><b>Cụm 4 · CV</b><div class="bar" style="width:90%"><i class="a" style="flex:104"></i><i class="b" style="flex:46"></i><i class="c" style="flex:4"></i><i class="o" style="flex:25"></i></div></div>
+      <div class="row"><b>Cụm 5 · 3D</b><div class="bar" style="width:43%"><i class="a" style="flex:70"></i><i class="b" style="flex:10"></i><i class="c" style="flex:2"></i><i class="o" style="flex:3"></i></div></div>
+    </div>
+  </section>
+</main>
+</body></html>

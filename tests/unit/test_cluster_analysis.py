@@ -135,3 +135,21 @@ def test_save_clusters(synthetic_cluster_data):
     args, _ = mock_put.call_args
     assert args[0] == "clusters.json"
     assert "validity_metrics" in args[1]
+
+
+@pytest.mark.unit
+def test_full_corpus_clustering_profiles_density_and_display_cap(synthetic_cluster_data):
+    """sample_size=None clusters every paper: profiles and the density grid cover all of them, while the
+    per-point scatter is capped to display_points."""
+    analyzer = SemanticClusterAnalyzer()
+    with patch.object(analyzer, "load_all_vectors", return_value=synthetic_cluster_data), \
+         patch.object(analyzer, "_fill_titles", return_value=None):
+        results = analyzer.run_clustering_benchmarks(sample_size=None, n_clusters=3, display_points=40,
+                                                     silhouette_sample=60, dbscan_sample=50)
+    s = results["summary"]
+    assert s["sample_analyzed"] == 90 and s["display_points"] == 40
+    assert s["silhouette_sample"] == 60 and s["dbscan_sample"] == 50
+    assert sum(p["size"] for p in results["cluster_profiles"]) == 90
+    assert sum(c[2] for c in results["density_2d"]["cells"]) == 90
+    assert len(results["scatter_2d"]) == 40
+    assert s["cross_disciplinary_papers"] == sum(p["cross_disciplinary"] for p in results["cluster_profiles"])
