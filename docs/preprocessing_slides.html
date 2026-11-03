@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tiền xử lý dữ liệu</title>
+<style>
+/* ===========================================
+   VIEWPORT FITTING: MANDATORY BASE STYLES
+   =========================================== */
+html, body { height: 100%; overflow-x: hidden; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+.slide {
+  width: 100vw; height: 100vh; height: 100dvh;
+  overflow: hidden; scroll-snap-align: start;
+  display: flex; flex-direction: column; position: relative;
+}
+.slide-content {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  max-height: 100%; overflow: hidden; padding: var(--slide-padding);
+}
+:root {
+  --title-size: clamp(1.5rem, 4.2vw, 3.6rem);
+  --h2-size: clamp(1.1rem, 2.6vw, 2.7rem);
+  --h3-size: clamp(0.9rem, 1.5vw, 1.5rem);
+  --body-size: clamp(0.72rem, 1.15vw, 1.3rem);
+  --small-size: clamp(0.62rem, 0.9vw, 1.04rem);
+  --code-size: clamp(0.56rem, 0.82vw, 1.04rem);
+  --slide-padding: clamp(1rem, 3.2vw, 3.4rem);
+  --content-gap: clamp(0.5rem, 1.6vw, 1.6rem);
+  --element-gap: clamp(0.25rem, 0.8vw, 0.8rem);
+}
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: clamp(0.5rem, 1.5vw, 1rem); }
+@media (max-height: 700px) {
+  :root { --slide-padding: clamp(0.75rem, 2.4vw, 2rem); --content-gap: clamp(0.4rem, 1.2vw, 1rem);
+          --title-size: clamp(1.25rem, 4vw, 2.5rem); --h2-size: clamp(1rem, 2.4vw, 1.7rem);
+          --body-size: clamp(0.66rem, 1.05vw, 0.92rem); --code-size: clamp(0.52rem, 0.75vw, 0.75rem); }
+}
+@media (max-height: 600px) {
+  :root { --slide-padding: clamp(0.5rem, 2vw, 1.5rem); --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+          --title-size: clamp(1.1rem, 3.6vw, 2rem); --body-size: clamp(0.62rem, 1vw, 0.85rem); }
+  .nav-dots, .keyboard-hint, .decorative { display: none; }
+}
+@media (max-height: 500px) {
+  :root { --slide-padding: clamp(0.4rem, 2vw, 1rem); --title-size: clamp(1rem, 3.5vw, 1.5rem);
+          --h2-size: clamp(0.9rem, 2.5vw, 1.25rem); --body-size: clamp(0.6rem, 1vw, 0.8rem); }
+}
+@media (max-width: 600px) {
+  :root { --title-size: clamp(1.25rem, 7vw, 2.5rem); }
+  .grid, .cols, .cols-3, .cols-wide { grid-template-columns: 1fr !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* === THEME TOKENS === */
+:root {
+  --bg: #f5f3ee;
+  --paper: #ffffff;
+  --ink: #13213f;
+  --ink-2: #3a4560;
+  --muted: #6b7286;
+  --line: #dcd8cd;
+  --soft: #ecE9e1;
+  --code-bg: #111a2e;
+  --code-ink: #dbe3f1;
+  --code-dim: #7d8aa6;
+  --code-key: #8cc8ff;
+  --code-str: #f3c98b;
+  --code-tag: #f59ab0;
+  --ok: #1f7a3a;
+  --bad: #b3261e;
+  --c1: #e2702a;  /* Cleaning */
+  --c2: #1d6a2d;  /* Integration */
+  --c3: #1795cc;  /* Transformation */
+  --c4: #962a8c;  /* Normalization */
+  --c5: #4e9d2b;  /* Encoding */
+  --step: var(--ink);
+  --sans: "Segoe UI", "Helvetica Neue", Helvetica, Arial, "Noto Sans", sans-serif;
+  --serif: Georgia, "Times New Roman", "Noto Serif", serif;
+  --mono: "SF Mono", Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* === BASE === */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: var(--body-size); line-height: 1.45; -webkit-font-smoothing: antialiased; }
+.slide { background: var(--bg); }
+.slide::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: clamp(5px, 0.5vw, 9px); background: var(--step); }
+.s1 { --step: var(--c1); } .s2 { --step: var(--c2); } .s3 { --step: var(--c3); } .s4 { --step: var(--c4); } .s5 { --step: var(--c5); }
+
+h1 { font-family: var(--serif); font-size: var(--title-size); line-height: 1.08; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-family: var(--serif); font-size: var(--h2-size); line-height: 1.15; font-weight: 700; }
+h3 { font-size: var(--h3-size); font-weight: 700; line-height: 1.25; }
+p, li { font-size: var(--body-size); }
+b, strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--soft); padding: 0.05em 0.35em; border-radius: 4px; }
+.muted { color: var(--muted); }
+.small { font-size: var(--small-size); }
+.accent { color: var(--step); }
+
+/* === SLIDE HEADER / FOOTER === */
+.head { display: flex; flex-direction: column; gap: clamp(0.2rem, 0.6vh, 0.5rem); margin-bottom: var(--content-gap); }
+.chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.5em; font-size: var(--small-size); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: var(--step); padding: 0.3em 0.8em; border-radius: 3px; }
+.lede { color: var(--ink-2); max-width: 70ch; }
+.foot { position: absolute; left: var(--slide-padding); right: calc(var(--slide-padding) + 5em); bottom: clamp(0.4rem, 1.4vh, 1rem); display: flex; justify-content: space-between; gap: 1rem; font-size: var(--small-size); color: var(--muted); }
+.foot code { background: transparent; padding: 0; color: var(--ink-2); }
+
+/* === LAYOUT === */
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--content-gap); align-items: start; }
+.cols-wide { display: grid; grid-template-columns: 1.25fr 1fr; gap: var(--content-gap); align-items: start; }
+.cols-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--content-gap); align-items: stretch; }
+.stack { display: flex; flex-direction: column; gap: var(--element-gap); }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: clamp(0.6rem, 1.2vw, 1.1rem); }
+.card.edge { border-top: 4px solid var(--step); }
+.label { font-size: var(--small-size); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35em; }
+.label.before { color: var(--bad); } .label.after { color: var(--ok); }
+
+/* === CODE === */
+pre { font-family: var(--mono); font-size: var(--code-size); line-height: 1.5; background: var(--code-bg); color: var(--code-ink); border-radius: 8px; padding: clamp(0.55rem, 1vw, 1rem); white-space: pre-wrap; word-break: break-word; overflow: hidden; }
+pre .d { color: var(--code-dim); } pre .k { color: var(--code-key); } pre .s { color: var(--code-str); } pre .t { color: var(--code-tag); }
+pre .hl { background: rgba(255, 214, 102, 0.18); outline: 1px solid rgba(255, 214, 102, 0.45); border-radius: 2px; }
+.cleantext { font-family: var(--serif); font-size: var(--body-size); line-height: 1.55; background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 8px; padding: clamp(0.55rem, 1vw, 1rem); }
+.cleantext .m { font-family: var(--mono); font-size: 0.86em; background: #eef6ee; padding: 0 0.25em; border-radius: 3px; }
+
+/* === TABLES === */
+table { width: 100%; border-collapse: collapse; font-size: var(--small-size); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+th { text-align: left; font-weight: 700; color: #fff; background: var(--step); padding: 0.45em 0.7em; }
+td { padding: 0.4em 0.7em; border-top: 1px solid var(--line); vertical-align: top; }
+tr:nth-child(even) td { background: #faf9f5; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td code { font-size: 0.95em; }
+
+/* === METRICS === */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: var(--element-gap); }
+.metric { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: clamp(0.45rem, 0.9vw, 0.9rem); }
+.metric .v { font-family: var(--serif); font-size: clamp(1.1rem, 2.4vw, 2.2rem); font-weight: 700; line-height: 1.05; color: var(--step); font-variant-numeric: tabular-nums; }
+.metric .l { font-size: var(--small-size); color: var(--ink-2); margin-top: 0.2em; }
+
+/* === FLOW / ARROWS === */
+.flow { display: flex; flex-wrap: wrap; gap: 0; }
+.flow .st { position: relative; flex: 1 1 0; min-width: 110px; color: #fff; font-weight: 700; font-size: var(--small-size); letter-spacing: 0.06em; text-transform: uppercase; padding: 0.95em 0.6em 0.95em 1.6em; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-right: -6px; text-align: center; }
+.flow .st:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); padding-left: 0.8em; }
+.flow .st span { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.92; margin-top: 0.15em; }
+.arrow-down { text-align: center; color: var(--muted); font-size: var(--h3-size); line-height: 1; margin: 0.15em 0; }
+.pill { display: inline-block; font-size: var(--small-size); font-weight: 700; padding: 0.15em 0.6em; border-radius: 99px; background: var(--soft); color: var(--ink-2); }
+.pill.up { background: #e3f3e6; color: var(--ok); } .pill.down { background: #fbe6e4; color: var(--bad); }
+.src { display: inline-block; font-size: 0.78em; font-weight: 700; padding: 0.05em 0.45em; border-radius: 3px; margin-left: 0.4em; vertical-align: 1px; }
+.src.cvf { background: #fde8d8; color: #a2470f; } .src.arx { background: #dcefdc; color: #1d5a28; } .src.pipe { background: #e4ecf7; color: #1d4a8a; }
+
+/* === CHUNK BARS === */
+.bars { display: flex; flex-direction: column; gap: clamp(0.25rem, 0.7vh, 0.5rem); }
+.bar { display: grid; grid-template-columns: minmax(7.5em, 10em) 1fr auto; align-items: center; gap: 0.6em; font-size: var(--small-size); }
+.bar .cells { display: flex; gap: 3px; }
+.bar .cell { height: clamp(0.8rem, 2vh, 1.25rem); flex: 0 0 clamp(0.9rem, 1.7vw, 1.6rem); background: var(--c3); border-radius: 2px; opacity: 0.85; }
+.bar .cell.part { opacity: 0.45; }
+
+/* === ONE-HOT === */
+.onehot td { text-align: center; font-family: var(--mono); font-size: var(--code-size); }
+.onehot td.one { background: #e3f3e6 !important; color: var(--ok); font-weight: 700; }
+.onehot th { font-family: var(--mono); font-weight: 400; font-size: calc(var(--code-size) * 0.95); text-align: center; }
+
+/* === TITLE SLIDE === */
+.title-slide { --step: var(--ink); }
+.kicker { font-size: var(--small-size); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.title-slide h1 { max-width: 18ch; margin: 0.35em 0 0.4em; }
+.title-slide .lede { font-size: clamp(0.85rem, 1.45vw, 1.3rem); }
+
+/* === REVEAL ANIMATION === */
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.55s ease, transform 0.55s ease; }
+.slide.visible .reveal { opacity: 1; transform: none; }
+.slide.visible .reveal:nth-child(2) { transition-delay: 0.08s; }
+.slide.visible .reveal:nth-child(3) { transition-delay: 0.16s; }
+.slide.visible .reveal:nth-child(4) { transition-delay: 0.24s; }
+
+/* === CHROME: progress, dots, counter === */
+.progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--ink); z-index: 50; transition: width 0.3s ease; }
+.nav-dots { position: fixed; right: clamp(0.4rem, 1vw, 1rem); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 7px; z-index: 50; }
+.nav-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--muted); background: transparent; cursor: pointer; padding: 0; }
+.nav-dot.active { background: var(--ink); border-color: var(--ink); }
+.counter { position: fixed; right: clamp(0.6rem, 1.4vw, 1.4rem); bottom: clamp(0.4rem, 1.4vh, 1rem); font-size: var(--small-size); color: var(--muted); font-variant-numeric: tabular-nums; z-index: 50; background: var(--bg); padding: 0 0.3em; }
+.keyboard-hint { pointer-events: none; position: fixed; left: 50%; bottom: clamp(0.4rem, 1.4vh, 1rem); transform: translateX(-50%); font-size: var(--small-size); color: var(--muted); z-index: 50; transition: opacity 0.6s; }
+
+/* === PRINT: one slide per page === */
+@media print {
+  @page { size: 16in 9in; margin: 0; }
+  html { scroll-snap-type: none; }
+  .slide { width: 16in; height: 9in; page-break-after: always; break-after: page; }
+  .reveal { opacity: 1 !important; transform: none !important; }
+  .nav-dots, .progress-bar, .counter, .keyboard-hint { display: none !important; }
+  body, .slide { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar"></div>
+<nav class="nav-dots" aria-label="Điều hướng slide"></nav>
+<div class="counter" aria-live="polite"></div>
+<div class="keyboard-hint">← → / Space để chuyển slide</div>
+
+<!-- =========================================================
+     1. TITLE
+     ========================================================= -->
+<section class="slide title-slide">
+  <div class="slide-content">
+    <div class="reveal">
+      <div class="kicker">Data Mining · Chương III · Preprocessing</div>
+      <h1>Tiền xử lý dữ liệu trên một pipeline thật</h1>
+      <p class="lede">Năm bước tiền xử lý, minh hoạ bằng số liệu chạy trực tiếp trên lakehouse của hệ thống <b>Real-Time Scientific Data Mining &amp; Advanced RAG</b>.</p>
+    </div>
+    <div class="flow reveal" style="margin-top: clamp(1rem, 4vh, 2.5rem); max-width: 1100px;">
+      <div class="st" style="background: var(--c1)">1 · Cleaning<span>Làm sạch</span></div>
+      <div class="st" style="background: var(--c2)">2 · Integration<span>Tích hợp</span></div>
+      <div class="st" style="background: var(--c3)">3 · Transformation<span>Chuyển đổi</span></div>
+      <div class="st" style="background: var(--c4)">4 · Normalization<span>Chuẩn hoá</span></div>
+      <div class="st" style="background: var(--c5)">5 · Encoding<span>Mã hoá</span></div>
+    </div>
+    <p class="small muted reveal" style="margin-top: clamp(0.8rem, 3vh, 2rem);">Bronze (HTML/JSON thô) → Silver (Parquet sạch) → Gold (chunk, vector, kết quả mining) · MinIO · Airflow · Qdrant</p>
+  </div>
+</section>
+
+<!-- =========================================================
+     2. RUNNING SAMPLE
+     ========================================================= -->
+<section class="slide">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Mẫu xuyên suốt</div>
+      <h2>Một bài báo, hai nguồn, đi qua cả 5 bước</h2>
+    </div>
+    <div class="cols-wide reveal">
+      <div class="card edge" style="--step: var(--ink)">
+        <div class="label">Bài mẫu</div>
+        <h3 style="font-family: var(--serif); font-size: clamp(1rem, 1.9vw, 1.6rem); margin-bottom: 0.5em;">DTrOCR: Decoder-Only Transformer for Optical Character Recognition</h3>
+        <p class="muted">Masato Fujitake · WACV 2024 · arXiv <code>2308.15996</code></p>
+        <div class="stack" style="margin-top: 0.9em;">
+          <p><span class="src cvf">CVF</span> metadata hội nghị: venue, PDF, tác giả</p>
+          <p><span class="src arx">arXiv</span> full text HTML5 (LaTeXML): 5 section, 58 công thức</p>
+          <p><span class="src pipe">Pipeline</span> gộp thành <b>1 bản ghi Silver</b>, sau đó tạo <b>20 chunk</b> và <b>20 vector</b> 768 chiều</p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="label">Toàn bộ Silver lúc chạy demo</div>
+        <div class="metrics">
+          <div class="metric"><div class="v">60.783</div><div class="l">bài báo = 60.783 <code>paper_id</code> (0 trùng)</div></div>
+          <div class="metric"><div class="v">84,1%</div><div class="l">có full text từ HTML (51.108 bài)</div></div>
+        </div>
+        <table>
+          <tr><th>Nguồn</th><th class="num">Số bài</th></tr>
+          <tr><td>arXiv (OAI-PMH)</td><td class="num">38.871</td></tr>
+          <tr><td>CVF Open Access</td><td class="num">16.159</td></tr>
+          <tr><td>Semantic Scholar</td><td class="num">2.999</td></tr>
+          <tr><td>arXiv RSS (real-time)</td><td class="num">2.754</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Truy vấn DuckDB trên <code>silver/papers/**/*.parquet</code> (MinIO)</span></div>
+</section>
+
+<!-- =========================================================
+     3. CLEANING 1 — HTML
+     ========================================================= -->
+<section class="slide s1">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 1 · Cleaning</div>
+      <h2>Làm sạch HTML học thuật, giữ lại công thức</h2>
+    </div>
+    <div class="cols reveal">
+      <div>
+        <div class="label before">Trước: HTML thô trong Bronze</div>
+<pre><span class="t">&lt;p class="ltx_p" id="S3.SS1.p1.1"&gt;</span>... We employ the patch
+embedding procedure proposed in <span class="t">&lt;cite class="ltx_cite</span>
+<span class="t">ltx_citemacro_cite"&gt;</span>[<span class="t">&lt;a class="ltx_ref"
+href="#bib.bib11"&gt;</span>11<span class="t">&lt;/a&gt;</span>]<span class="t">&lt;/cite&gt;</span>.
+The input image is resized to a fixed-size image
+<span class="t">&lt;math alttext=</span><span class="s">"I\in\mathbb{R}^{W\times H\times C}"</span>
+<span class="t">class="ltx_Math" display="inline"&gt;&lt;semantics&gt;
+&lt;mrow&gt;&lt;mi&gt;</span>I<span class="t">&lt;/mi&gt;&lt;mo&gt;</span>∈<span class="t">&lt;/mo&gt;&lt;msup&gt;&lt;mi&gt;</span>ℝ<span class="t">&lt;/mi&gt;
+&lt;mrow&gt;&lt;mi&gt;</span>W<span class="t">&lt;/mi&gt;&lt;mo lspace="0.222em"</span> ...</pre>
+      </div>
+      <div class="stack">
+        <div class="label after">Sau: văn bản sạch trong Silver</div>
+        <div class="cleantext">... We employ the patch embedding procedure proposed in [11]. The input image is resized to a fixed-size image <span class="m">$I\in\mathbb{R}^{W\times H\times C}$</span> ...</div>
+        <ul class="stack small" style="padding-left: 1.1em; margin-top: 0.3em;">
+          <li>Bỏ thẻ HTML, gộp khoảng trắng thừa (<code>re.sub(r"\s+", " ")</code>)</li>
+          <li>MathML chuyển thành <code>$LaTeX$</code> (ưu tiên annotation <code>x-tex</code>, sau đó tới <code>alttext</code>)</li>
+          <li>Bỏ đoạn rác ngắn hơn 20 ký tự, bỏ tiền tố "Abstract:", bỏ section abstract bị lặp</li>
+        </ul>
+      </div>
+    </div>
+    <div class="metrics reveal" style="margin-top: var(--content-gap);">
+      <div class="metric"><div class="v">198.108</div><div class="l">ký tự HTML thô</div></div>
+      <div class="metric"><div class="v">2.438</div><div class="l">thẻ HTML được bóc bỏ</div></div>
+      <div class="metric"><div class="v">4.487</div><div class="l">từ văn bản sạch</div></div>
+      <div class="metric"><div class="v">58</div><div class="l">công thức giữ dạng LaTeX</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><code>src/transformation/html_parser.py</code> · AcademicHTMLParser</span><span>Bronze: <code>bronze/arxiv/raw_html/2024/2308.15996.html.gz</code></span></div>
+</section>
+
+<!-- =========================================================
+     4. CLEANING 2 — DUPLICATES / MISSING / TYPES
+     ========================================================= -->
+<section class="slide s1">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 1 · Cleaning</div>
+      <h2>Trùng lặp, giá trị thiếu, sai kiểu dữ liệu</h2>
+    </div>
+    <div class="reveal">
+      <table>
+        <tr><th style="width: 17%">Vấn đề</th><th style="width: 45%">Ví dụ thật</th><th>Cách xử lý</th></tr>
+        <tr><td><b>Trùng phiên bản</b></td><td><code>2308.15996v2</code> → <code>2308.15996</code></td><td><code>normalize_id()</code> bỏ hậu tố <code>vN</code>, nên bản sửa đổi khớp với bản gốc</td></tr>
+        <tr><td><b>Trùng nội dung, khác định dạng</b></td><td>Abstract gốc &nbsp;vs&nbsp; <code>&lt;p&gt;TYPICAL TEXT RECOGNITION ... ,&lt;/p&gt;</code><br>→ cùng hash <code>1c765546c8acc56d…</code></td><td>Chuẩn hoá NFKC, chữ thường, bỏ HTML và dấu câu rồi băm SHA-256 (<code>abstract_hash</code>). Bài đã có trong Silver thì bỏ qua, không crawl lại</td></tr>
+        <tr><td><b>Thiếu full text</b></td><td>Không có HTML5 / ar5iv / PDF mở: <b>9.546</b> bài</td><td>Lấy abstract thay thế, gắn nhãn <code>content_origin = abstract_only</code> để truy vết</td></tr>
+        <tr><td><b>Thiếu giá trị số</b></td><td><code>cite_count = null</code></td><td><code>fillna(0).astype("int64")</code>; cột thiếu được điền <code>None</code> theo schema</td></tr>
+        <tr><td><b>Sai / lẫn kiểu</b></td><td><code>authors</code> lúc là chuỗi, lúc là list; số đếm lúc là float</td><td>Ép kiểu theo <code>pa.schema</code> cố định 23 cột: <code>list&lt;string&gt;</code>, <code>int64</code>, <code>string</code></td></tr>
+      </table>
+    </div>
+    <div class="metrics reveal" style="margin-top: var(--content-gap); max-width: 720px;">
+      <div class="metric"><div class="v">60.783</div><div class="l">dòng Silver</div></div>
+      <div class="metric"><div class="v">60.783</div><div class="l"><code>paper_id</code> khác nhau</div></div>
+      <div class="metric"><div class="v">0</div><div class="l">bản ghi trùng</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><code>src/utils/hasher.py</code> · <code>src/storage/known_papers.py</code> · <code>src/transformation/silver_writer.py</code></span></div>
+</section>
+
+<!-- =========================================================
+     5. INTEGRATION 1 — TWO RAW SOURCES
+     ========================================================= -->
+<section class="slide s2">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 2 · Integration</div>
+      <h2>Cùng một bài, hai nguồn, hai định dạng metadata</h2>
+    </div>
+    <div class="cols reveal">
+      <div>
+        <div class="label"><span class="src cvf" style="margin-left:0">CVF</span> &nbsp;HTML listing WACV2024</div>
+<pre><span class="t">&lt;dt class="ptitle"&gt;&lt;a href=</span><span class="s">"/content/WACV2024/html/
+  Fujitake_DTrOCR_..._paper.html"</span><span class="t">&gt;</span>
+  DTrOCR: <span class="hl">Decoder-Only</span> Transformer for
+  Optical Character Recognition<span class="t">&lt;/a&gt;&lt;/dt&gt;</span>
+<span class="t">&lt;input name="query_author"</span> <span class="k">value</span>=<span class="s hl">"Masato Fujitake"</span><span class="t">&gt;</span>
+[<span class="t">&lt;a href=</span><span class="s">".../Fujitake_DTrOCR_..._paper.pdf"</span><span class="t">&gt;</span>pdf<span class="t">&lt;/a&gt;</span>]
+[<span class="t">&lt;a href=</span><span class="s hl">"http://arxiv.org/abs/2308.15996"</span><span class="t">&gt;</span>arXiv<span class="t">&lt;/a&gt;</span>]
+<span class="d">@InProceedings{Fujitake_2024_WACV,</span>
+<span class="d">  booktitle = {... (WACV)}, month = {January},</span>
+<span class="d">  </span><span class="hl">year = {2024}</span><span class="d">, pages = {8025-8035} }</span></pre>
+      </div>
+      <div>
+        <div class="label"><span class="src arx" style="margin-left:0">arXiv</span> &nbsp;XML OAI-PMH</div>
+<pre><span class="t">&lt;id&gt;</span><span class="hl">2308.15996</span><span class="t">&lt;/id&gt;</span>
+<span class="t">&lt;created&gt;</span><span class="hl">2023-08-30</span><span class="t">&lt;/created&gt;</span>
+<span class="t">&lt;updated&gt;</span>2023-08-31<span class="t">&lt;/updated&gt;</span>
+<span class="t">&lt;authors&gt;&lt;author&gt;</span>
+  <span class="t">&lt;keyname&gt;</span><span class="hl">Fujitake</span><span class="t">&lt;/keyname&gt;</span>
+  <span class="t">&lt;forenames&gt;</span><span class="hl">Masato</span><span class="t">&lt;/forenames&gt;</span>
+<span class="t">&lt;/author&gt;&lt;/authors&gt;</span>
+<span class="t">&lt;title&gt;</span>DTrOCR: <span class="hl">Decoder-only</span> Transformer for
+  Optical Character Recognition<span class="t">&lt;/title&gt;</span>
+<span class="t">&lt;categories&gt;</span>cs.CV<span class="t">&lt;/categories&gt;</span>
+<span class="t">&lt;comments&gt;</span><span class="hl">Accepted to WACV2024</span><span class="t">&lt;/comments&gt;</span>
+<span class="t">&lt;abstract&gt;</span>Typical text recognition methods ...<span class="t">&lt;/abstract&gt;</span></pre>
+      </div>
+    </div>
+    <p class="small muted reveal" style="margin-top: var(--element-gap);">Các phần tô vàng là chỗ hai nguồn khác nhau: khoá định danh, chữ hoa/thường của tiêu đề, cấu trúc tên tác giả, ngày tháng, và cách ghi venue.</p>
+  </div>
+  <div class="foot"><span>Nguồn: <code>openaccess.thecvf.com/WACV2024</code> · <code>oaipmh.arxiv.org</code> GetRecord</span></div>
+</section>
+
+<!-- =========================================================
+     6. INTEGRATION 2 — DIFFERENCES → HANDLING
+     ========================================================= -->
+<section class="slide s2">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 2 · Integration</div>
+      <h2>Khác biệt giữa hai nguồn và cách pipeline xử lý</h2>
+    </div>
+    <div class="reveal">
+      <table>
+        <tr><th style="width: 12%">Thuộc tính</th><th style="width: 21%">CVF</th><th style="width: 21%">arXiv</th><th>Cách xử lý</th></tr>
+        <tr><td><b>Khoá</b></td><td>Slug <code>Fujitake_DTrOCR_…</code></td><td><code>2308.15996</code></td><td>Lấy link <code>arxiv.org/abs/…</code> trong block CVF làm khoá chung <code>paper_id</code>; bài không có arXiv thì dùng <code>cvf_&lt;slug&gt;</code></td></tr>
+        <tr><td><b>Tiêu đề</b></td><td>Decoder-<b>O</b>nly</td><td>Decoder-<b>o</b>nly</td><td>Không so khớp theo tiêu đề; khoá chung và <code>abstract_hash</code> mới là căn cứ</td></tr>
+        <tr><td><b>Tác giả</b></td><td>Chuỗi "Masato Fujitake"</td><td><code>keyname</code> + <code>forenames</code></td><td>Ghép thành <code>"forenames keyname"</code>, đưa về <code>list&lt;string&gt;</code></td></tr>
+        <tr><td><b>Ngày</b></td><td>Năm hội nghị <code>2024</code></td><td><code>2023-08-30</code> (preprint)</td><td>Bài từ CVF dùng năm hội nghị; bài từ arXiv dùng <code>created</code> nếu khớp với tháng trong ID</td></tr>
+        <tr><td><b>Venue</b></td><td>Có trong URL: <code>WACV2024</code></td><td>Chỉ có trong <code>comments</code> (text tự do)</td><td>Lấy từ CVF đưa vào <code>journal_ref</code></td></tr>
+        <tr><td><b>Category</b></td><td>Không có</td><td><code>cs.CV</code></td><td>Bổ sung <code>["cs.CV"]</code> cho bài từ CVF</td></tr>
+        <tr><td><b>Abstract</b></td><td>Phải tải trang riêng của từng bài</td><td>Có sẵn trong XML</td><td>Giống nhau 843/843 ký tự, nên cùng hash <code>1c765546…</code></td></tr>
+        <tr><td><b>Full text</b></td><td>Chỉ có PDF</td><td>Có HTML5</td><td>Lấy <code>html_url = arxiv.org/html/{id}</code> để có văn bản có cấu trúc</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="foot"><span><code>dags/dag_tier2_near_past_harvest.py</code> · <code>_cvf_entries</code>, <code>_cvf_stream</code>, <code>_arxiv_day</code></span></div>
+</section>
+
+<!-- =========================================================
+     7. INTEGRATION 3 — MERGED RECORD
+     ========================================================= -->
+<section class="slide s2">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 2 · Integration</div>
+      <h2>Kết quả: một bản ghi Silver thống nhất</h2>
+    </div>
+    <div class="cols-wide reveal">
+<pre><span class="k">paper_id</span>       : <span class="s">2308.15996</span>          <span class="d">← khoá chung (arXiv)</span>
+<span class="k">title</span>          : <span class="s">DTrOCR: Decoder-Only Transformer ...</span>
+<span class="k">authors</span>        : [<span class="s">'Masato Fujitake'</span>]
+<span class="k">categories</span>     : [<span class="s">'cs.CV'</span>]             <span class="d">← bổ sung cho CVF</span>
+<span class="k">journal_ref</span>    : <span class="s">WACV2024</span>              <span class="d">← CVF</span>
+<span class="k">published_date</span> : <span class="s">2024</span>                  <span class="d">← CVF</span>
+<span class="k">pdf_url</span>        : <span class="s">openaccess.thecvf.com/...pdf</span> <span class="d">← CVF</span>
+<span class="k">html_url</span>       : <span class="s">arxiv.org/html/2308.15996</span> <span class="d">← arXiv</span>
+<span class="k">content_origin</span> : <span class="s">arxiv_html5</span>           <span class="d">← arXiv</span>
+<span class="k">total_words</span>    : <span class="s">4487</span>  <span class="k">total_sections</span>: <span class="s">5</span>
+<span class="k">total_math_count</span>: <span class="s">58</span>
+<span class="k">source</span>         : <span class="s">cvf</span>   <span class="k">tier</span>: <span class="s">tier2</span>
+<span class="k">abstract_hash</span>  : <span class="s">1c765546c8acc56d…</span></pre>
+      <div class="stack">
+        <div class="card edge">
+          <h3>Quy trình gộp</h3>
+          <ol class="stack small" style="padding-left: 1.2em; margin-top: 0.4em;">
+            <li>Tìm khoá chung: link arXiv trong listing CVF</li>
+            <li>Kiểm tra id / hash đã có trong Silver chưa; có rồi thì bỏ qua</li>
+            <li>Chuẩn hoá từng trường (tên, ngày, category)</li>
+            <li>Lấy mỗi trường từ nguồn tốt nhất: venue và PDF từ CVF, full text từ arXiv</li>
+            <li>Ghi theo schema Silver 23 cột, có <code>source</code> và <code>content_origin</code> để truy vết</li>
+          </ol>
+        </div>
+        <div class="card" style="border-left: 4px solid var(--c1);">
+          <div class="label">Giới hạn hiện tại</div>
+          <p class="small">Bài harvest trước được giữ, không gộp từng trường. Nếu arXiv vào trước, bản ghi sẽ không có <code>journal_ref</code>. Ngày của bài CVF lệch khoảng 1 năm so với ngày preprint.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><code>src/transformation/silver_writer.py</code> · <code>SilverLakehouseWriter.prepare_record</code></span></div>
+</section>
+
+<!-- =========================================================
+     8. TRANSFORMATION 1 — CHUNKING
+     ========================================================= -->
+<section class="slide s3">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 3 · Transformation</div>
+      <h2>Văn bản dài thành 20 chunk theo ranh giới section</h2>
+      <p class="lede">Mỗi chunk tối đa 300 từ, overlap 50 từ, không cắt ngang qua hai section. Loại section được tự động nhận diện từ tiêu đề.</p>
+    </div>
+    <div class="cols reveal">
+      <div class="card">
+        <div class="label">1 bài, 4.487 từ, 20 chunk</div>
+        <div class="bars">
+          <div class="bar"><span>Abstract <span class="muted">· 124 từ</span></span><div class="cells"><i class="cell"></i></div><b>1</b></div>
+          <div class="bar"><span>1 Introduction <span class="muted">· 626</span></span><div class="cells"><i class="cell"></i><i class="cell"></i><i class="cell part"></i></div><b>3</b></div>
+          <div class="bar"><span>2 Related Works <span class="muted">· 728</span></span><div class="cells"><i class="cell"></i><i class="cell"></i><i class="cell part"></i></div><b>3</b></div>
+          <div class="bar"><span>3 Method <span class="muted">· 658</span></span><div class="cells"><i class="cell"></i><i class="cell"></i><i class="cell part"></i></div><b>3</b></div>
+          <div class="bar"><span>4 Experiments <span class="muted">· 2.243</span></span><div class="cells"><i class="cell"></i><i class="cell"></i><i class="cell"></i><i class="cell"></i><i class="cell"></i><i class="cell"></i><i class="cell"></i><i class="cell"></i><i class="cell part"></i></div><b>9</b></div>
+          <div class="bar"><span>5 Conclusion <span class="muted">· 108</span></span><div class="cells"><i class="cell"></i></div><b>1</b></div>
+        </div>
+        <p class="small muted" style="margin-top: 0.7em;">Ô đậm: chunk đủ 300 từ · Ô nhạt: phần còn lại của section</p>
+      </div>
+      <div class="stack">
+        <div class="label">Mỗi chunk được gắn ngữ cảnh ở đầu</div>
+<pre><span class="k">chunk_id</span>     : <span class="s">2308.15996_sec0_p1</span>
+<span class="k">section_type</span> : <span class="s">introduction</span>
+<span class="k">word_count</span>   : <span class="s">300</span>
+<span class="k">context_text</span> :
+<span class="hl">Paper: "DTrOCR: Decoder-Only Transformer for
+Optical Character Recognition" | Section:
+1 Introduction (Part 1)</span>
+
+The aim of text recognition, also known as
+optical character recognition (OCR), is to
+convert the text in images into digital text...</pre>
+        <p class="small muted">Nhờ phần ngữ cảnh này, một chunk lấy ra riêng lẻ vẫn biết nó thuộc bài nào, section nào. Điều này giúp truy hồi trong RAG chính xác hơn.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><code>src/indexing/chunker.py</code> · AcademicChunker(max_chunk_words=300, overlap_words=50)</span></div>
+</section>
+
+<!-- =========================================================
+     9. TRANSFORMATION 2 — LOG1P
+     ========================================================= -->
+<section class="slide s3">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 3 · Transformation</div>
+      <h2>Log-transform các đặc trưng lệch phải trước khi tìm bất thường</h2>
+      <p class="lede">Công thức <code>x' = log(1 + x)</code>, áp dụng cho 5 đặc trưng cấu trúc trước khi đưa vào Isolation Forest (Pillar 4).</p>
+    </div>
+    <div class="cols-wide reveal">
+      <table>
+        <tr><th>Đặc trưng (bài DTrOCR)</th><th class="num">Giá trị gốc</th><th class="num">log1p</th></tr>
+        <tr><td><code>total_words</code></td><td class="num">4.487</td><td class="num">8,41</td></tr>
+        <tr><td><code>total_math_count</code></td><td class="num">58</td><td class="num">4,08</td></tr>
+        <tr><td><code>total_sections</code></td><td class="num">5</td><td class="num">1,79</td></tr>
+        <tr><td><code>author_count</code></td><td class="num">1</td><td class="num">0,69</td></tr>
+        <tr><td><code>category_count</code></td><td class="num">1</td><td class="num">0,69</td></tr>
+      </table>
+      <div class="stack">
+        <div class="metrics">
+          <div class="metric"><div class="v">897×</div><div class="l">chênh lệch words / sections trước biến đổi</div></div>
+          <div class="metric"><div class="v">4,7×</div><div class="l">chênh lệch sau log1p</div></div>
+        </div>
+        <div class="card">
+          <p class="small">Nếu không biến đổi, <code>total_words</code> sẽ lấn át các đặc trưng còn lại và mô hình gần như chỉ còn phát hiện bài dài hoặc ngắn bất thường.</p>
+          <p class="small" style="margin-top: 0.5em;">Ở lần chạy mining gần nhất, Isolation Forest gắn cờ <b>1.155 / 57.743</b> bài (contamination 2%). Các bài này được <b>giữ lại</b> để phân tích, không bị xoá khỏi dữ liệu.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><code>src/mining/trend_anomaly_mining.py</code> · <code>np.log1p(X_raw)</code></span><span>Gold: <code>gold/mining/trends_anomalies.json</code></span></div>
+</section>
+
+<!-- =========================================================
+     10. NORMALIZATION 1 — TEXT + L2
+     ========================================================= -->
+<section class="slide s4">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 4 · Normalization</div>
+      <h2>Đưa về cùng một dạng chuẩn để so sánh được</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="card edge">
+        <div class="label">a · Chuẩn hoá văn bản (trước khi băm / so khớp)</div>
+<pre><span class="d"># CVF</span>
+DTrOCR: Decoder-<span class="hl">O</span>nly Transformer for Optical ...
+<span class="d"># arXiv</span>
+DTrOCR: Decoder-<span class="hl">o</span>nly Transformer for Optical ...
+
+<span class="d"># NFKC → lower() → bỏ thẻ HTML → bỏ dấu câu → gộp khoảng trắng</span>
+<span class="s">dtrocr decoderonly transformer for optical
+character recognition</span>   <span class="d">← giống hệt nhau</span></pre>
+        <p class="small" style="margin-top: 0.5em;">Mã định danh cũng được chuẩn hoá: <code>2308.15996v2</code> → <code>2308.15996</code></p>
+      </div>
+      <div class="card edge">
+        <div class="label">b · Chuẩn hoá L2 vector embedding</div>
+        <table style="margin-top: 0.3em;">
+          <tr><th></th><th class="num">Trước</th><th class="num">Sau</th></tr>
+          <tr><td>‖v‖ (độ dài vector)</td><td class="num">19,78</td><td class="num"><b>1,00</b></td></tr>
+          <tr><td>v[0]</td><td class="num">−0,3991</td><td class="num">−0,0202</td></tr>
+          <tr><td>v[1]</td><td class="num">0,2086</td><td class="num">0,0105</td></tr>
+          <tr><td>v[2]</td><td class="num">−3,1004</td><td class="num">−0,1568</td></tr>
+        </table>
+        <p class="small" style="margin-top: 0.6em;"><code>v' = v / ‖v‖</code>. Khi ‖v‖ = 1, tích vô hướng chính là cosine similarity. Ví dụ hai chunk Abstract và Introduction: tích vô hướng thô = 359,67, sau chuẩn hoá cos = <b>0,9414</b>. Clustering (Pillar 2) và tìm kiếm trên Qdrant đều dùng vector đã chuẩn hoá.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><code>src/utils/hasher.py</code> · <code>src/indexing/embedder.py</code> (F.normalize p=2) · <code>src/mining/cluster_analysis.py</code></span></div>
+</section>
+
+<!-- =========================================================
+     11. NORMALIZATION 2 — SHARE-NORMALIZED TREND
+     ========================================================= -->
+<section class="slide s4">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 4 · Normalization</div>
+      <h2>Chuẩn hoá theo tỷ trọng: số tuyệt đối có thể đánh lừa</h2>
+      <p class="lede">Crawler thu thập quý gần nhất nhiều hơn hẳn quý trước (<b>7.367</b> so với <b>1.989</b> bài). Nếu so số bài tuyệt đối, gần như category nào cũng có vẻ "tăng".</p>
+    </div>
+    <div class="cols-wide reveal">
+      <table>
+        <tr><th>Category</th><th class="num">Quý trước</th><th class="num">Quý gần nhất</th><th class="num">Số tuyệt đối</th><th class="num">Theo tỷ trọng</th></tr>
+        <tr><td><b>cs.CL</b></td><td class="num">323</td><td class="num">827</td><td class="num"><span class="pill up">+156%</span></td><td class="num"><span class="pill down">−30,9% · DECLINING</span></td></tr>
+        <tr><td>cs.CV</td><td class="num">143</td><td class="num">1.317</td><td class="num"><span class="pill up">+821%</span></td><td class="num"><span class="pill up">+148,7% · SURGING</span></td></tr>
+        <tr><td>cs.LG</td><td class="num">275</td><td class="num">2.074</td><td class="num"><span class="pill up">+654%</span></td><td class="num"><span class="pill up">+103,6% · SURGING</span></td></tr>
+        <tr><td>cs.RO</td><td class="num">233</td><td class="num">219</td><td class="num"><span class="pill down">−6%</span></td><td class="num"><span class="pill down">−74,6% · DECLINING</span></td></tr>
+      </table>
+      <div class="card edge">
+        <h3>Ví dụ cs.CL</h3>
+        <p class="small" style="margin-top: 0.4em;">share<sub>trước</sub> = 323 / 1.989 = <b>16,24%</b></p>
+        <p class="small">share<sub>nay</sub> = 827 / 7.367 = <b>11,23%</b></p>
+        <p class="small" style="margin-top: 0.4em;">growth = (11,23 − 16,24) / 16,24 = <b>−30,9%</b></p>
+        <p class="small muted" style="margin-top: 0.6em;">Số bài tuyệt đối tăng 2,6 lần, nhưng tỷ trọng của cs.CL trong toàn bộ dữ liệu lại giảm. Chuẩn hoá theo tỷ trọng loại bỏ ảnh hưởng của tốc độ crawl.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><code>src/mining/trend_anomaly_mining.py</code> · share-normalized momentum</span><span>Gold: <code>gold/mining/trends_anomalies.json</code></span></div>
+</section>
+
+<!-- =========================================================
+     12. ENCODING
+     ========================================================= -->
+<section class="slide s5">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Bước 5 · Encoding</div>
+      <h2>Văn bản và nhãn thành vector số</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="stack">
+        <div class="label">a · Contextual embedding (Nomic-embed-text-v1.5)</div>
+<pre><span class="d"># 1. Tokenize chunk Abstract → 198 token</span>
+[<span class="s">'[CLS]'</span>, <span class="s">'search'</span>, <span class="s">'_'</span>, <span class="s">'document'</span>, <span class="s">':'</span>,
+ <span class="s">'paper'</span>, <span class="s">':'</span>, <span class="s">'"'</span>, ...]
+<span class="d"># 2. Transformer encoder → mean pooling</span>
+<span class="d"># 3. Chuẩn hoá L2 → vector 768 chiều</span>
+[<span class="k">-0.0202</span>, <span class="k">0.0105</span>, <span class="k">-0.1568</span>, <span class="k">-0.0703</span>,
+  <span class="k">0.0465</span>, ... ]   <span class="d">← 768 dims, ‖v‖ = 1.0</span></pre>
+        <p class="small muted">Tương ứng với mục "Contextual Embedding (BERT)" trong slide lý thuyết. 20 chunk của bài sinh ra 20 vector, lưu vào Qdrant cho RAG và clustering.</p>
+      </div>
+      <div class="stack">
+        <div class="label">b · One-hot cho luật kết hợp (FP-Growth)</div>
+<pre><span class="d"># basket trích từ categories + từ khoá trong title/abstract</span>
+{<span class="s">cat:cs.CV</span>, <span class="s">tag:large-language-models</span>, <span class="s">tag:transformer</span>}</pre>
+        <div class="arrow-down">↓ <span class="small">TransactionEncoder</span></div>
+        <table class="onehot">
+          <tr><th>cat:<br>cs.CV</th><th>tag:large-<br>language-models</th><th>tag:<br>transformer</th><th>tag:<br>reinforcement-learning</th><th>tag:<br>federated-learning</th><th>…</th></tr>
+          <tr><td class="one">1</td><td class="one">1</td><td class="one">1</td><td>0</td><td>0</td><td>…</td></tr>
+        </table>
+        <p class="small muted">Mỗi bài thành một hàng nhị phân trên toàn bộ từ vựng item. Ma trận này là đầu vào cho FP-Growth (Pillar 1).</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><code>src/indexing/embedder.py</code> · <code>src/mining/association_rules.py</code></span></div>
+</section>
+
+<!-- =========================================================
+     13. SUMMARY
+     ========================================================= -->
+<section class="slide">
+  <div class="slide-content">
+    <div class="head reveal">
+      <div class="chip">Tổng kết</div>
+      <h2>Năm bước tiền xử lý trong pipeline</h2>
+    </div>
+    <div class="reveal">
+      <table>
+        <tr><th style="width: 15%">Bước</th><th style="width: 38%">Kỹ thuật đã áp dụng</th><th style="width: 22%">Module</th><th>Số liệu minh hoạ</th></tr>
+        <tr><td><b style="color: var(--c1)">1 · Cleaning</b></td><td>Bóc HTML, MathML → LaTeX, dedup bằng id và hash, xử lý giá trị thiếu, ép kiểu</td><td><code>html_parser</code>, <code>hasher</code></td><td>198.108 ký tự → 4.487 từ; 0 bản ghi trùng</td></tr>
+        <tr><td><b style="color: var(--c2)">2 · Integration</b></td><td>Khoá chung arXiv id, lấy mỗi trường từ nguồn tốt nhất, schema Silver 23 cột</td><td><code>dag_tier2</code>, <code>silver_writer</code></td><td>4 nguồn → 60.783 bài</td></tr>
+        <tr><td><b style="color: var(--c3)">3 · Transformation</b></td><td>Chunk theo section kèm ngữ cảnh; log1p cho đặc trưng lệch</td><td><code>chunker</code>, <code>trend_anomaly</code></td><td>1 bài → 20 chunk; chênh lệch 897× → 4,7×</td></tr>
+        <tr><td><b style="color: var(--c4)">4 · Normalization</b></td><td>Chuẩn hoá văn bản và ID; L2 cho vector; chuẩn hoá theo tỷ trọng cho trend</td><td><code>hasher</code>, <code>embedder</code></td><td>‖v‖ 19,78 → 1; cs.CL +156% → −30,9%</td></tr>
+        <tr><td><b style="color: var(--c5)">5 · Encoding</b></td><td>Contextual embedding; one-hot transaction</td><td><code>embedder</code>, <code>association_rules</code></td><td>768 chiều / chunk</td></tr>
+      </table>
+    </div>
+    <div class="card reveal" style="margin-top: var(--content-gap); border-left: 4px solid var(--muted);">
+      <div class="label">Lựa chọn có chủ đích</div>
+      <p class="small">Pipeline không dùng stemming, lemmatization hay bỏ stopword, vì embedding theo ngữ cảnh cần câu nguyên vẹn. Outlier chỉ được phát hiện chứ không bị xoá, vì tìm bài bất thường chính là mục tiêu của Pillar 4. Pipeline chưa có Min-Max hay Z-score cho đặc trưng dạng bảng.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* === SLIDE CONTROLLER === */
+class SlidePresentation {
+  constructor() {
+    this.slides = document.querySelectorAll('.slide');
+    this.currentSlide = 0;
+    this.isScrolling = false;
+    this.progressBar = document.querySelector('.progress-bar');
+    this.counter = document.querySelector('.counter');
+    this.hint = document.querySelector('.keyboard-hint');
+    this.setupNavDots();
+    this.setupIntersectionObserver();
+    this.setupKeyboardNav();
+    this.setupTouchNav();
+    this.setupWheelNav();
+    this.update();
+    if (this.hint) setTimeout(() => { this.hint.style.opacity = '0'; }, 4000);
+  }
+
+  setupIntersectionObserver() {
+    if (!('IntersectionObserver' in window)) { this.slides.forEach(s => s.classList.add('visible')); return; }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          const idx = Array.prototype.indexOf.call(this.slides, entry.target);
+          if (idx !== -1) this.currentSlide = idx;
+          this.update();
+        }
+      });
+    }, { threshold: 0.5 });
+    this.slides.forEach(slide => observer.observe(slide));
+  }
+
+  setupKeyboardNav() {
+    document.addEventListener('keydown', (e) => {
+      if (['ArrowDown', 'ArrowRight', ' ', 'PageDown', 'Enter'].includes(e.key)) {
+        e.preventDefault(); this.goToSlide(this.currentSlide + 1);
+      } else if (['ArrowUp', 'ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) {
+        e.preventDefault(); this.goToSlide(this.currentSlide - 1);
+      } else if (e.key === 'Home') {
+        e.preventDefault(); this.goToSlide(0);
+      } else if (e.key === 'End') {
+        e.preventDefault(); this.goToSlide(this.slides.length - 1);
+      } else if (e.key === 'f' || e.key === 'F') {
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+        else if (document.exitFullscreen) document.exitFullscreen();
+      }
+    });
+  }
+
+  setupTouchNav() {
+    let startY = 0, startX = 0;
+    document.addEventListener('touchstart', e => { startY = e.touches[0].clientY; startX = e.touches[0].clientX; }, { passive: true });
+    document.addEventListener('touchend', e => {
+      const dy = startY - e.changedTouches[0].clientY;
+      const dx = startX - e.changedTouches[0].clientX;
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) this.goToSlide(this.currentSlide + (dy > 0 ? 1 : -1));
+      else if (Math.abs(dx) > 50) this.goToSlide(this.currentSlide + (dx > 0 ? 1 : -1));
+    }, { passive: true });
+  }
+
+  setupWheelNav() {
+    document.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (this.isScrolling || Math.abs(e.deltaY) < 8) return;
+      this.isScrolling = true;
+      this.goToSlide(this.currentSlide + (e.deltaY > 0 ? 1 : -1));
+      setTimeout(() => { this.isScrolling = false; }, 800);
+    }, { passive: false });
+  }
+
+  setupNavDots() {
+    this.navDotsContainer = document.querySelector('.nav-dots');
+    if (!this.navDotsContainer) return;
+    this.navDotsContainer.innerHTML = '';
+    this.slides.forEach((_, i) => {
+      const dot = document.createElement('button');
+      dot.className = 'nav-dot';
+      dot.setAttribute('aria-label', 'Slide ' + (i + 1));
+      dot.addEventListener('click', () => this.goToSlide(i));
+      this.navDotsContainer.appendChild(dot);
+    });
+  }
+
+  goToSlide(index) {
+    if (index < 0 || index >= this.slides.length) return;
+    this.currentSlide = index;
+    this.slides[index].scrollIntoView({ behavior: 'smooth' });
+    this.update();
+    if (this.hint) this.hint.style.opacity = '0';
+  }
+
+  update() {
+    const n = this.slides.length;
+    if (this.progressBar) this.progressBar.style.width = ((this.currentSlide + 1) / n * 100) + '%';
+    if (this.counter) this.counter.textContent = (this.currentSlide + 1) + ' / ' + n;
+    if (this.navDotsContainer) {
+      this.navDotsContainer.querySelectorAll('.nav-dot').forEach((dot, i) => dot.classList.toggle('active', i === this.currentSlide));
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
+</script>
+</body>
+</html>

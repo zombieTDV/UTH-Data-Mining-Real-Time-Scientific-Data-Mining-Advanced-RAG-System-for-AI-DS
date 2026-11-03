@@ -48,7 +48,7 @@ def test_complete_lakehouse_pipeline_flow(tmp_path: Path, synthetic_html_paper, 
         "primary_category": "cs.AI",
         "sections_json": parsed["sections"],
     }
-    chunker = AcademicChunker(max_chunk_words=500, overlap_words=50)
+    chunker = AcademicChunker(max_chunk_words=500)
     all_chunks = chunker.chunk_paper(paper_record)
 
     assert len(all_chunks) >= 2

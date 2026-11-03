@@ -203,13 +203,13 @@ def _tree_response(inv: Dict[str, Any]) -> ExplorerTreeResponse:
 
 
 @router.get("/tree", response_model=ExplorerTreeResponse)
-async def get_explorer_tree() -> ExplorerTreeResponse:
+def get_explorer_tree() -> ExplorerTreeResponse:
     """Medallion asset hierarchy from a live (briefly cached) MinIO listing."""
     return _tree_response(build_inventory())
 
 
 @router.post("/sync", response_model=ExplorerTreeResponse)
-async def trigger_manual_sync() -> ExplorerTreeResponse:
+def trigger_manual_sync() -> ExplorerTreeResponse:
     """Force a fresh MinIO listing."""
     try:
         return _tree_response(build_inventory(force=True))
@@ -229,7 +229,7 @@ def _clean_value(v: Any) -> Any:
 
 
 @router.get("/preview", response_model=FilePreviewResponse)
-async def get_file_preview(key: str = Query(..., description="S3 key of the object to preview")) -> FilePreviewResponse:
+def get_file_preview(key: str = Query(..., description="S3 key of the object to preview")) -> FilePreviewResponse:
     """Schema + 50 sample rows for Parquet, parsed content for JSON, metadata for anything else."""
     key_clean = key.strip().lstrip("/")
     if ".." in key_clean.split("/"):

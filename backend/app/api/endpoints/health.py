@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=HealthResponse, tags=["Health"])
-async def health_check():
+def health_check():
     is_ready = retrieval_service.is_ready()
     return HealthResponse(
         status="ok" if is_ready else "degraded",

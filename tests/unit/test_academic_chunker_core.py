@@ -5,7 +5,7 @@ from src.indexing.chunker import AcademicChunker
 
 @pytest.fixture
 def chunker():
-    return AcademicChunker(max_chunk_words=100, overlap_words=20)
+    return AcademicChunker(max_chunk_words=100)
 
 
 def test_chunk_paper_abstract_only(chunker):

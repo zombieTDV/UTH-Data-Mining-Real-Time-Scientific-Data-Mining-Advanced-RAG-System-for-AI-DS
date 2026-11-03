@@ -85,7 +85,7 @@ class QueueConsumer:
         self.silver_writer = SilverLakehouseWriter(storage_client=self.storage)
         self.last_ingested: List[Dict[str, Any]] = []
         self.resolver = UnifiedContentResolver(storage_client=self.storage)
-        self.chunker = AcademicChunker(max_chunk_words=450, overlap_words=50)
+        self.chunker = AcademicChunker(max_chunk_words=450)
         self.chunk_store = ChunkStore(storage=self.storage)
 
     @property

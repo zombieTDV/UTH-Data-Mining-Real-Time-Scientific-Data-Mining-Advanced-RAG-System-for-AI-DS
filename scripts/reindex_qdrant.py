@@ -41,7 +41,7 @@ def main() -> None:
     silver = pd.concat([io.read_parquet(k) for k in keys], ignore_index=True)
     # A paper re-indexed with better content can have two rows until compaction: keep its richest one
     silver = silver.sort_values("total_words").drop_duplicates("paper_id", keep="last")
-    chunker = AcademicChunker(max_chunk_words=450, overlap_words=50)  # same settings as the queue consumer
+    chunker = AcademicChunker(max_chunk_words=450)  # same settings as the queue consumer
     logger.info("Silver: %d papers from %d files", len(silver), len(keys))
 
     embedder = NomicEmbedder()
