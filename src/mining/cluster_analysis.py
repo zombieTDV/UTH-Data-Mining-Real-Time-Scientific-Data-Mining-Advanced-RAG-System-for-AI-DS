@@ -56,23 +56,28 @@ class SemanticClusterAnalyzer:
         logger.info("[PILLAR 2] Extracted %d distinct paper vectors.", len(picked))
         vectors = np.vstack([np.asarray(pt.vector, dtype=np.float32) for pt in picked])
 
-        # Category lookup from Silver (MinIO) for payloads without primary_category
+        # Title / category from Silver (MinIO): the Qdrant payload only carries chunk identity + filter fields
         cat_lookup: Dict[str, str] = {}
+        title_lookup: Dict[str, str] = {}
         try:
             con = duck_connect()
+            con.execute("CREATE TEMP TABLE picked(paper_id VARCHAR)")
+            con.executemany("INSERT INTO picked VALUES (?)", [[str((pt.payload or {}).get("paper_id", ""))] for pt in picked])
             rows = con.execute(
-                f"SELECT paper_id, primary_category FROM read_parquet('{s3_uri(self.silver_key)}') WHERE primary_category IS NOT NULL"
+                f"SELECT s.paper_id, s.primary_category, s.title FROM read_parquet('{s3_uri(self.silver_key)}', union_by_name=true) s "
+                "JOIN picked USING (paper_id)"
             ).fetchall()
-            cat_lookup = {str(r[0]): str(r[1]) for r in rows}
+            cat_lookup = {str(r[0]): str(r[1]) for r in rows if r[1]}
+            title_lookup = {str(r[0]): str(r[2]) for r in rows if r[2]}
         except Exception as e:
-            logger.warning("[PILLAR 2] Category lookup from Silver unavailable: %s", e)
+            logger.warning("[PILLAR 2] Title/category lookup from Silver unavailable: %s", e)
 
         invalid_headers = {"abstract", "synopsis", "introduction", "background", "conclusion", "references"}
         metadata = []
         for pt in picked:
             payload = pt.payload or {}
             pid = str(payload.get("paper_id", ""))
-            raw_title = str(payload.get("title", "")).strip()
+            raw_title = str(payload.get("title") or title_lookup.get(pid, "")).strip()
             if raw_title.lower() in invalid_headers or len(raw_title) < 5:
                 raw_title = f"Paper {pid}"
             cat = str(payload.get("primary_category") or "")

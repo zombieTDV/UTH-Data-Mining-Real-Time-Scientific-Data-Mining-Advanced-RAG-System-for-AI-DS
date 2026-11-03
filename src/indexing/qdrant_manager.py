@@ -1,7 +1,8 @@
 """Qdrant Vector Database Manager for Gold Layer.
 
-Stores contextual chunks and 768-dimensional dense vectors (Nomic v1.5)
-in Qdrant with HNSW indexing, cosine similarity, and payload keyword filtering.
+Stores 768-dimensional dense vectors (Nomic v1.5) in Qdrant with HNSW indexing and cosine similarity.
+The payload only carries chunk identity and filter fields (chunk_id, paper_id, year, primary_category,
+section_type); search results are hydrated with the chunk text/metadata from the Silver chunk table.
 Exposes a vector_search/insert_chunks interface.
 """
 
@@ -12,6 +13,7 @@ import pandas as pd
 import requests
 
 from src.config.settings import settings
+from src.storage.chunk_store import QDRANT_PAYLOAD_FIELDS
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +40,28 @@ class QdrantManager:
         if self.api_key:
             self._session.headers.update({"api-key": self.api_key})
         self._client = None
+        self._chunk_store = None
         self._init_client()
+
+    @property
+    def chunk_store(self):
+        if self._chunk_store is None:
+            from src.storage.chunk_store import default_chunk_store
+
+            self._chunk_store = default_chunk_store()
+        return self._chunk_store
+
+    def _hydrate(self, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Fill chunk text/metadata from silver/chunks/ for payloads that no longer carry it."""
+        need = [r for r in rows if "text" not in r and r.get("chunk_id")]
+        if not need:
+            return rows
+        try:
+            full = {r["chunk_id"]: r for r in self.chunk_store.hydrate(need)}
+        except Exception as e:
+            logger.error("[Qdrant] chunk hydration from Silver failed: %s", e)
+            return rows
+        return [full.get(r.get("chunk_id"), r) if "text" not in r else r for r in rows]
 
     @property
     def _headers(self) -> Dict[str, str]:
@@ -89,6 +112,7 @@ class QdrantManager:
                 self._create_payload_index(col, "primary_category", "keyword")
                 self._create_payload_index(col, "paper_id", "keyword")
                 self._create_payload_index(col, "year", "integer")
+                self._create_payload_index(col, "section_type", "keyword")
                 return True
             else:
                 logger.warning("[Qdrant] Failed to create collection '%s': %s", col, create_resp.text)
@@ -155,10 +179,9 @@ class QdrantManager:
             if hasattr(vec, "tolist"):
                 vec = vec.tolist()
 
-            # Payload = chunk fields minus the vector and context_text (that is `text` with a title/section prefix,
-            # only needed to compute the embedding; storing it would add ~30% to the collection's disk size)
-            payload = {k: v for k, v in c.items() if k not in ("vector", "context_text")}
-            # Ensure chunk_id is explicitly recorded in payload
+            # Qdrant is only the vector index: the payload keeps identity + filter fields; the chunk text and the rest
+            # of its metadata live in the Silver chunk table (silver/chunks/) and are hydrated by chunk_id on read
+            payload = {k: c.get(k) for k in QDRANT_PAYLOAD_FIELDS if c.get(k) is not None}
             payload["chunk_id"] = raw_id
 
             points.append({
@@ -273,7 +296,7 @@ class QdrantManager:
                 payload["id"] = p.get("id")
                 rows.append(payload)
 
-            return pd.DataFrame(rows)
+            return pd.DataFrame(self._hydrate(rows))
         except Exception as e:
             logger.error("[Qdrant] vector_search error: %s", e)
             return pd.DataFrame()
@@ -298,7 +321,7 @@ class QdrantManager:
             if resp.status_code == 200:
                 pts = resp.json().get("result", {}).get("points", [])
                 rows = [p.get("payload", {}) for p in pts]
-                return pd.DataFrame(rows)
+                return pd.DataFrame(self._hydrate(rows))
         except Exception as e:
             logger.error("[Qdrant] get_paper_chunks error: %s", e)
         return pd.DataFrame()

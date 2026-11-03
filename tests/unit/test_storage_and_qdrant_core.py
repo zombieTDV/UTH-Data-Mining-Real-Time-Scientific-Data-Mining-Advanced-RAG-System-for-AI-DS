@@ -121,6 +121,6 @@ def test_qdrant_insert_chunks_structure():
         assert len(points) == 1
         point = points[0]
         assert point["id"] == str(uuid.uuid5(POINT_UUID_NAMESPACE, "c1"))
-        assert point["payload"]["title"] == "Title 1"
-        assert point["payload"]["chunk_id"] == "c1"
+        # Qdrant keeps only identity + filter fields; text/title/authors live in silver/chunks/
+        assert point["payload"] == {"chunk_id": "c1", "paper_id": "p1", "year": 2024, "primary_category": "cs.AI"}
 

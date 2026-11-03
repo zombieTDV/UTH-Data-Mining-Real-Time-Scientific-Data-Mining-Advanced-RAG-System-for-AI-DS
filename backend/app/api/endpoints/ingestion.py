@@ -69,14 +69,21 @@ _compact_lock = threading.Lock()
 
 @router.post("/compact-silver")
 async def compact_silver_parts() -> Dict[str, Any]:
-    """Folds the streaming Silver parts (silver/papers/year=*/parts/) into each year's papers.parquet in MinIO.
+    """Folds the streaming Silver parts into per-year files in MinIO: silver/papers/year=*/parts/ into papers.parquet
+    and silver/chunks/year=*/parts/ into chunks.parquet.
 
-    Runs synchronously and returns what was merged. One compaction at a time."""
+    Runs synchronously and returns what was merged (paper keys at the top level, chunk results under "chunks").
+    One compaction at a time."""
     if not _compact_lock.acquire(blocking=False):
         raise HTTPException(status_code=409, detail="A Silver compaction is already running.")
     try:
+        from src.storage.chunk_store import default_chunk_store
         from src.transformation.silver_writer import SilverLakehouseWriter
 
-        return await run_in_threadpool(lambda: SilverLakehouseWriter().compact_all())
+        def run() -> Dict[str, Any]:
+            papers = SilverLakehouseWriter().compact_all()
+            return {**papers, "chunks": default_chunk_store().compact_all()}
+
+        return await run_in_threadpool(run)
     finally:
         _compact_lock.release()
