@@ -5,9 +5,9 @@ from src.indexing.chunker import AcademicChunker
 
 @pytest.mark.unit
 def test_chunker_initialization():
-    chunker = AcademicChunker(max_chunk_words=300, overlap_words=50)
+    chunker = AcademicChunker(max_chunk_words=300, overlap_ratio=0.15)
     assert chunker.max_chunk_words == 300
-    assert chunker.overlap_words == 50
+    assert chunker.overlap_ratio == 0.15
 
 
 @pytest.mark.unit
@@ -55,7 +55,7 @@ def test_chunk_paper_with_sections():
         ],
     }
 
-    chunker = AcademicChunker(max_chunk_words=200, overlap_words=50)
+    chunker = AcademicChunker(max_chunk_words=200)
     chunks = chunker.chunk_paper(paper)
 
     # Should have 1 abstract chunk + 1 intro chunk (related work is skipped because < 25 words)

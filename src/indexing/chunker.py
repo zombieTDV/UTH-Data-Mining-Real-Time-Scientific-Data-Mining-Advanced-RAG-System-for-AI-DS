@@ -6,16 +6,104 @@ Supports multi-granular sectioning across Abstract, Methodology, Experiments, an
 """
 
 import json
+import math
 import re
 from typing import Any, Dict, List, Optional
+
+_SENT_END = re.compile(r"[.!?][\"')\]]*$")
+_NOT_SENT_END = {"e.g.", "i.e.", "al.", "etc.", "vs.", "cf.", "fig.", "figs.", "eq.", "eqs.", "sec.", "no.", "dr.", "mr.", "ms."}
 
 
 class AcademicChunker:
     """Chunks academic papers respecting section boundaries with contextual enrichment."""
 
-    def __init__(self, max_chunk_words: int = 300, overlap_words: int = 50):
+    def __init__(
+        self,
+        max_chunk_words: int = 300,
+        overlap_ratio: float = 0.15,
+        min_overlap_words: int = 20,
+        max_overlap_words: int = 80,
+        min_tail_ratio: float = 0.4,
+    ):
         self.max_chunk_words = max_chunk_words
-        self.overlap_words = overlap_words
+        self.overlap_ratio = overlap_ratio
+        self.min_overlap_words = min_overlap_words
+        self.max_overlap_words = max_overlap_words
+        self.min_tail_ratio = min_tail_ratio
+
+    def _overlap_for(self, chunk_len: float) -> int:
+        """Overlap = overlap_ratio of the actual chunk length, clamped to [min_overlap_words, max_overlap_words]."""
+        return int(min(self.max_overlap_words, max(self.min_overlap_words, round(self.overlap_ratio * chunk_len))))
+
+    @staticmethod
+    def _sentence_starts(words: List[str]) -> List[int]:
+        """Word indices that begin a sentence (the previous token ends with . ! or ?, not an abbreviation)."""
+        starts = []
+        for i in range(1, len(words)):
+            prev = words[i - 1]
+            if (_SENT_END.search(prev) and prev.lower() not in _NOT_SENT_END
+                    and not re.fullmatch(r"[A-Z]\.|\d{1,2}\.", prev)):
+                starts.append(i)
+        return starts
+
+    @staticmethod
+    def _snap(target: int, lo: int, hi: int, bounds: List[int]) -> int:
+        """Nearest sentence boundary to target inside [lo, hi]; target clipped to [lo, hi] when there is none."""
+        best = None
+        for b in bounds:
+            if lo <= b <= hi and (best is None or abs(b - target) < abs(best - target)):
+                best = b
+        return best if best is not None else min(hi, max(lo, target))
+
+    def split_words(self, words: List[str]) -> List[List[str]]:
+        """Split a long section into balanced, overlapping windows cut at sentence boundaries.
+
+        1. Balanced: pick the smallest n windows that cover the section, then space them evenly so every
+           window has about the same length (no near-duplicate tail window).
+        2. Overlap is overlap_ratio of that window length (clamped), not a fixed word count.
+        3. Window starts and ends snap to the nearest sentence boundary within a tolerance.
+        4. A last window shorter than min_tail_ratio * max_chunk_words is merged into the previous one
+           when the result still fits in max_chunk_words.
+        """
+        L, S = len(words), self.max_chunk_words
+        if L <= S:
+            return [words]
+
+        n = max(2, math.ceil((L - self.overlap_ratio * S) / (S - self.overlap_ratio * S)))
+        while True:
+            c0 = L / (n - self.overlap_ratio * (n - 1))
+            o = self._overlap_for(c0)
+            c = math.ceil((L + (n - 1) * o) / n)
+            if c <= S:
+                break
+            n += 1
+
+        bounds = self._sentence_starts(words)
+        tol = max(5, o // 2)
+        stride = (L - c) / (n - 1)
+        spans = []
+        s_prev, e_prev = None, None
+        for k in range(n):
+            s_ideal = round(k * stride)
+            e_ideal = L if k == n - 1 else s_ideal + c
+            if k == 0:
+                s = 0
+            else:
+                lo = max(s_prev + 1, s_ideal - tol, L - S if k == n - 1 else 0)
+                hi = min(s_ideal + tol, e_prev - self.min_overlap_words)
+                s = self._snap(s_ideal, lo, max(lo, hi), bounds)
+            if k == n - 1:
+                e = L
+            else:
+                e = self._snap(e_ideal, max(s + 1, e_ideal - tol), min(e_ideal + tol, s + S, L), bounds)
+            spans.append((s, e))
+            s_prev, e_prev = s, e
+
+        if len(spans) > 1:
+            (ps, _), (ls, le) = spans[-2], spans[-1]
+            if le - ls < self.min_tail_ratio * S and le - ps <= S:
+                spans[-2:] = [(ps, le)]
+        return [words[s:e] for s, e in spans]
 
     @staticmethod
     def _parse_year(published_date: Any) -> Optional[int]:
@@ -103,11 +191,8 @@ class AcademicChunker:
                         "content_origin": content_origin,
                     })
                 else:
-                    step = max(self.max_chunk_words - self.overlap_words, 100)
-                    for w_idx in range(0, len(words), step):
-                        sub_words = words[w_idx:w_idx + self.max_chunk_words]
+                    for part, sub_words in enumerate(self.split_words(words), start=1):
                         sub_text = " ".join(sub_words)
-                        part = w_idx // step + 1
                         chunks.append({
                             "chunk_id": f"{paper_id}_sec{s_idx}_p{part}",
                             "paper_id": paper_id,
@@ -165,10 +250,7 @@ class AcademicChunker:
                             "content_origin": content_origin,
                         })
                     else:
-                        step = max(self.max_chunk_words - self.overlap_words, 100)
-                        for w_idx in range(0, len(h_words), step):
-                            sub_words = h_words[w_idx:w_idx + self.max_chunk_words]
-                            part = w_idx // step + 1
+                        for part, sub_words in enumerate(self.split_words(h_words), start=1):
                             sub_text = " ".join(sub_words)
                             chunks.append({
                                 "chunk_id": f"{paper_id}_{h_name.lower()[:6]}_p{part}_{len(chunks)}",
@@ -188,10 +270,7 @@ class AcademicChunker:
                             })
             else:
                 # Sliding-window paragraph chunks for papers without distinct heading strings
-                step = max(self.max_chunk_words - self.overlap_words, 100)
-                for w_idx in range(0, len(body_words), step):
-                    sub_words = body_words[w_idx:w_idx + self.max_chunk_words]
-                    part = w_idx // step + 1
+                for part, sub_words in enumerate(self.split_words(body_words), start=1):
                     sub_text = " ".join(sub_words)
                     chunks.append({
                         "chunk_id": f"{paper_id}_body_p{part}",
