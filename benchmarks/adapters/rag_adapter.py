@@ -38,6 +38,7 @@ def run_rag_test_case(
         use_pagerank=use_pagerank,
         use_reranker=use_reranker,
         retrieval_mode=retrieval_mode,
+        paper_ids=golden_item.get("relevant_paper_ids"),
     )
 
     try:
@@ -95,6 +96,7 @@ def build_test_cases_from_goldens(
             use_pagerank=use_pagerank,
             use_reranker=use_reranker,
             retrieval_mode=retrieval_mode,
+        paper_ids=golden_item.get("relevant_paper_ids"),
         )
         test_cases.append(tc)
     return test_cases

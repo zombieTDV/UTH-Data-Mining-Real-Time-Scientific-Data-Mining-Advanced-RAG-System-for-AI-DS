@@ -34,6 +34,7 @@ class RagService:
             category=req.category,
             mode=retrieval_mode,
             use_pagerank=use_pr,
+            paper_ids=req.paper_ids,
         )
         candidates = retrieval_service.search(search_req)
 

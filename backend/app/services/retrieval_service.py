@@ -261,8 +261,8 @@ class RetrievalService:
 
     def search(self, req: SearchRequest) -> List[ChunkDto]:
         if not self.is_ready():
-            logger.warning("[RETRIEVAL] Qdrant collection not ready. Returning empty list.")
-            return []
+            logger.warning("[RETRIEVAL] Qdrant collection not ready. Falling back to local Silver chunk store.")
+            return self._fallback_local_search(req)
 
         try:
             k = req.top_k or 5
@@ -500,11 +500,75 @@ class RetrievalService:
                     fused_boosted = scaled_rrf * (1.0 + 0.25 * norm_pr) if (use_pr and norm_pr > 0) else scaled_rrf
                     c.score = min(0.9999, round(fused_boosted, 4))
 
+            if not candidates:
+                logger.info("[RETRIEVAL] Vector search returned 0 candidates. Falling back to local Silver chunk store.")
+                return self._fallback_local_search(req)
+
             # Re-rank candidates by final score and slice to top-k
             candidates.sort(key=lambda c: c.score or 0.0, reverse=True)
             return candidates[:k]
         except Exception as e:
-            logger.error("[RETRIEVAL] Search execution failed: %s", str(e))
+            logger.error("[RETRIEVAL] Search execution failed: %s. Falling back to local Silver chunk store.", str(e))
+            return self._fallback_local_search(req)
+
+
+    def _fallback_local_search(self, req: SearchRequest) -> List[ChunkDto]:
+        """Graceful local silver fallback when vector store is unavailable or returns 0 chunks."""
+        try:
+            k = req.top_k or 5
+            use_pr = getattr(req, "use_pagerank", True)
+            if use_pr is None:
+                use_pr = True
+            rule_expansions = self._expand_rules(req.query, req.category)
+            from src.storage.chunk_store import default_chunk_store
+            cs = default_chunk_store()
+
+            pids_to_try: List[str] = []
+            if hasattr(req, "paper_ids") and req.paper_ids:
+                pids_to_try.extend(req.paper_ids)
+            detected_pid = self._extract_paper_id_from_query(req.query)
+            if detected_pid and detected_pid not in pids_to_try:
+                pids_to_try.append(detected_pid)
+
+            cleaned_title = self._clean_query_for_title_matching(req.query)
+            if cleaned_title and len(pids_to_try) < k:
+                try:
+                    for tm in lake.search_titles(cleaned_title):
+                        pid_m = tm.get("paper_id")
+                        if pid_m and pid_m not in pids_to_try:
+                            pids_to_try.append(pid_m)
+                except Exception:
+                    pass
+
+            candidates: List[ChunkDto] = []
+            for pid in pids_to_try:
+                info = cs._lookup_local_silver(pid, None)
+                if info and info.get("text"):
+                    norm_pr, auth_author = self._match_authority(info.get("authors", []))
+                    candidates.append(
+                        ChunkDto(
+                            chunk_id=info.get("chunk_id", f"{pid}_abs"),
+                            paper_id=pid,
+                            title=info.get("title", f"Paper {pid}"),
+                            text=info.get("text", ""),
+                            abstract=info.get("abstract"),
+                            authors=info.get("authors", []),
+                            year=2024,
+                            primary_category=req.category or "cs.LG",
+                            section_title="Abstract",
+                            score=0.92,
+                            source="silver://chunks",
+                            authority_score=round(norm_pr, 4) if (use_pr and norm_pr > 0) else None,
+                            authority_author=auth_author if use_pr else None,
+                            rule_expansions=rule_expansions if rule_expansions else None,
+                        )
+                    )
+                if len(candidates) >= k:
+                    break
+            logger.info("[RETRIEVAL] Fallback local search recovered %d chunks", len(candidates))
+            return candidates[:k]
+        except Exception as e:
+            logger.error("[RETRIEVAL] Fallback search error: %s", e)
             return []
 
     def get_paper(self, paper_id: str) -> List[ChunkDto]:

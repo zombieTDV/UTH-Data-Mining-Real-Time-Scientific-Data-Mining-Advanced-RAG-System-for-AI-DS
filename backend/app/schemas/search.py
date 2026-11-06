@@ -9,6 +9,7 @@ class SearchRequest(BaseModel):
     mode: Optional[str] = Field("hybrid", examples=["hybrid"])  # "fts", "vector", "hybrid"
     no_cache: Optional[bool] = Field(False)
     use_pagerank: Optional[bool] = Field(True, description="Enable graph PageRank authority score boosting")
+    paper_ids: Optional[List[str]] = Field(None, description="Optional explicit paper IDs for targeted retrieval or fallback")
 
 
 class ChunkDto(BaseModel):

@@ -10,6 +10,7 @@ class ChatRequest(BaseModel):
     use_pagerank: Optional[bool] = Field(True, description="Enable PageRank authority boost in retrieval and prompt")
     use_reranker: Optional[bool] = Field(None, description="Explicitly enable/disable cross-encoder reranker")
     retrieval_mode: Optional[str] = Field("hybrid", description="Retrieval mode: vector, fts, or hybrid")
+    paper_ids: Optional[List[str]] = Field(None, description="Optional explicit paper IDs for targeted retrieval or fallback")
 
 
 class ChatResponse(BaseModel):
