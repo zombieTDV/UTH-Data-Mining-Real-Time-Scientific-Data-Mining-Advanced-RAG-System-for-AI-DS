@@ -1,4 +1,5 @@
 # Python & Caches
+.coverage
 __pycache__/
 *.py[cod]
 *.so
@@ -12,6 +13,7 @@ build/
 .ipynb_checkpoints/
 
 # Virtual Environments
+.venv
 .venv/
 venv/
 env/

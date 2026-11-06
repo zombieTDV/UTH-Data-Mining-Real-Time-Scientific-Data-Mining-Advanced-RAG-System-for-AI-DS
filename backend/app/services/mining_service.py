@@ -80,7 +80,7 @@ class MiningService:
         """Asynchronously streams telemetry heartbeats via Server-Sent Events (SSE)."""
         import datetime
         while True:
-            manifest = self.get_manifest()
+            manifest = await asyncio.to_thread(self.get_manifest)  # MinIO read, keep it off the event loop
             payload = {
                 "timestamp": datetime.datetime.now().isoformat(),
                 "status": manifest.get("status", "READY"),

@@ -18,7 +18,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -45,9 +45,19 @@ def parse_args():
         choices=["local", "deepseek", "groq", "openai"],
         help="LLM-as-a-Judge provider (default: local)",
     )
+    parser.add_argument("--dataset", type=str, default="benchmarks/datasets/rag_goldens_100.json", help="Path to golden dataset")
     parser.add_argument("--category", type=str, default=None, help="Filter goldens by category (e.g. cs.AI, cs.LG)")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of evaluation test cases")
     parser.add_argument("--temperature", type=float, default=0.2, help="Decoding temperature for RAG synthesis")
+    parser.add_argument(
+        "--scenario",
+        type=str,
+        default="pagerank",
+        choices=["vector", "reranker", "pagerank", "all"],
+        help="Retrieval evaluation scenario: 'vector' (Dense alone), 'reranker' (Cross-Encoder alone), 'pagerank' (Reranker + PageRank boost), or 'all' (compare all 3)",
+    )
+    parser.add_argument("--pagerank", action=argparse.BooleanOptionalAction, default=None, help="Explicitly enable/disable graph PageRank authority boost")
+    parser.add_argument("--reranker", action=argparse.BooleanOptionalAction, default=None, help="Explicitly enable/disable cross-encoder reranker")
     parser.add_argument("--sweep", action="store_true", help="Run hyperparameter sweep over multiple top_k values (3, 5, 8)")
     parser.add_argument("--output-dir", type=str, default="logs/benchmarks", help="Output directory for reports")
     return parser.parse_args()
@@ -102,9 +112,15 @@ def format_markdown_report(
     md.append("")
     md.append("## 3. Detailed Test Case Evaluations")
 
-    for idx, (tr, golden) in enumerate(zip(test_results, goldens), start=1):
-        md.append(f"### Test Case {idx}: `{golden.get('id', f'case-{idx}')}` ({golden.get('category', 'general')})")
-        md.append(f"- **Query:** {golden['query']}")
+    golden_map = {g.get("query", "").strip(): g for g in goldens}
+
+    for idx, tr in enumerate(test_results, start=1):
+        tr_input = getattr(tr, "input", "") or ""
+        golden = golden_map.get(tr_input.strip(), {})
+        golden_id = golden.get("id", f"case-{idx}")
+        golden_cat = golden.get("category", "general")
+        md.append(f"### Test Case {idx}: `{golden_id}` ({golden_cat})")
+        md.append(f"- **Query:** {tr_input or golden.get('query', 'N/A')}")
         actual_output = getattr(tr, "actual_output", "") or ""
         md.append(f"- **Actual Output:**\n> {actual_output.replace(chr(10), ' ')}")
         md.append("")
@@ -131,25 +147,52 @@ def run_single_benchmark_suite(
     judge_mode: str,
     goldens: List[Dict[str, Any]],
     temperature: float = 0.2,
+    scenario: str = "pagerank",
+    use_pagerank: Optional[bool] = None,
+    use_reranker: Optional[bool] = None,
     output_dir: str = "logs/benchmarks",
 ) -> Dict[str, Any]:
     """Executes benchmark on a dataset and persists JSON & Markdown reports."""
     t0 = time.time()
     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-    logger.info("Executing benchmark for %d goldens (top_k=%d, judge=%s)...", len(goldens), top_k, judge_mode)
+
+    # Determine scenario parameters
+    if scenario == "vector":
+        effective_reranker = False if use_reranker is None else use_reranker
+        effective_pagerank = False if use_pagerank is None else use_pagerank
+        retrieval_mode = "vector"
+    elif scenario == "reranker":
+        effective_reranker = True if use_reranker is None else use_reranker
+        effective_pagerank = False if use_pagerank is None else use_pagerank
+        retrieval_mode = "hybrid"
+    else:  # "pagerank" (default)
+        effective_reranker = True if use_reranker is None else use_reranker
+        effective_pagerank = True if use_pagerank is None else use_pagerank
+        retrieval_mode = "hybrid"
+
+    logger.info(
+        "Executing benchmark for %d goldens (top_k=%d, judge=%s, scenario=%s [rerank=%s, pr=%s, mode=%s])...",
+        len(goldens),
+        top_k,
+        judge_mode,
+        scenario,
+        effective_reranker,
+        effective_pagerank,
+        retrieval_mode,
+    )
 
     os.environ["DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE"] = "600"
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Master test cases cache keyed by query
+    # 1. Test cases cache keyed by query & scenario
     from deepeval.test_case import LLMTestCase
     from benchmarks.adapters.rag_adapter import run_rag_test_case
 
-    master_cache_file = out_dir / f"cached_test_cases_k{top_k}_master.json"
+    master_cache_file = out_dir / f"cached_test_cases_k{top_k}_{scenario}.json"
     cached_map: Dict[str, Dict[str, Any]] = {}
 
-    # Seed master cache if it exists, or check other cached files
+    # Seed cache if it exists, or bootstrap pagerank scenario from legacy master cache
     if master_cache_file.exists():
         try:
             with open(master_cache_file, "r", encoding="utf-8") as f:
@@ -157,13 +200,14 @@ def run_single_benchmark_suite(
                     cached_map[item["input"].strip()] = item
         except Exception as e:
             logger.warning("Could not read %s: %s", master_cache_file, str(e))
-    else:
-        # Check if k5_10 or other cache files exist to bootstrap
-        for seed_path in out_dir.glob(f"cached_test_cases_k{top_k}_*.json"):
+    elif scenario == "pagerank":
+        legacy_cache = out_dir / f"cached_test_cases_k{top_k}_master.json"
+        if legacy_cache.exists():
             try:
-                with open(seed_path, "r", encoding="utf-8") as f:
+                with open(legacy_cache, "r", encoding="utf-8") as f:
                     for item in json.load(f):
                         cached_map[item["input"].strip()] = item
+                logger.info("[CACHE BOOTSTRAP] Bootstrapped %d test cases from legacy master cache.", len(cached_map))
             except Exception:
                 pass
 
@@ -190,6 +234,9 @@ def run_single_benchmark_suite(
                 top_k=top_k,
                 category=None,
                 temperature=temperature,
+                use_pagerank=effective_pagerank,
+                use_reranker=effective_reranker,
+                retrieval_mode=retrieval_mode,
             )
             test_cases.append(tc)
             cached_map[q] = {
@@ -205,27 +252,107 @@ def run_single_benchmark_suite(
 
     logger.info("Total test cases ready: %d (Cached: %d, Newly generated: %d)", len(test_cases), len(test_cases) - newly_generated, newly_generated)
 
-    # 2. Build DeepEval metrics with the configured judge
-    is_local = (judge_mode == "local")
-    metrics = build_rag_benchmark_metrics(judge_mode=judge_mode, async_mode=(not is_local))
+    # 2. Check persistent Evaluation Master Cache (skip re-evaluating completed queries)
+    from types import SimpleNamespace
 
-    # 3. Configure evaluation runners (synchronous for local GPU to avoid queue starvation)
-    async_config = AsyncConfig(run_async=(not is_local), max_concurrent=(2 if is_local else 10))
-    error_config = ErrorConfig(ignore_errors=True)
+    eval_master_file = out_dir / f"cached_eval_master_k{top_k}_{scenario}_{judge_mode}.json"
+    eval_master_map: Dict[str, Dict[str, Any]] = {}
+    if eval_master_file.exists():
+        try:
+            with open(eval_master_file, "r", encoding="utf-8") as f:
+                eval_master_map = json.load(f)
+            logger.info("[EVAL CACHE] Loaded %d existing evaluation results from %s", len(eval_master_map), eval_master_file.name)
+        except Exception as e:
+            logger.warning("[EVAL CACHE] Failed to load %s: %s", eval_master_file, str(e))
+    elif scenario == "pagerank":
+        legacy_eval = out_dir / f"cached_eval_master_k{top_k}_{judge_mode}.json"
+        if legacy_eval.exists():
+            try:
+                with open(legacy_eval, "r", encoding="utf-8") as f:
+                    eval_master_map = json.load(f)
+                logger.info("[EVAL CACHE BOOTSTRAP] Bootstrapped %d evaluation results from legacy %s", len(eval_master_map), legacy_eval.name)
+            except Exception:
+                pass
 
-    # 4. Execute DeepEval evaluation
-    logger.info("Running DeepEval metrics evaluation (run_async=%s)...", not is_local)
-    try:
-        eval_result = evaluate(
-            test_cases=test_cases,
-            metrics=metrics,
-            async_config=async_config,
-            error_config=error_config,
-        )
-    except KeyboardInterrupt:
-        print("\n[INTERRUPT] Benchmark interrupted by user. Recovering completed test cases...")
-        from benchmarks.export_cached_report import export_cached_report
-        return export_cached_report(output_dir=output_dir)
+    class CachedTestResult:
+        def __init__(self, data: Dict[str, Any]):
+            self.input = data.get("input", "")
+            self.actual_output = data.get("actual_output", "")
+            self.expected_output = data.get("expected_output", "")
+            self.retrieval_context = data.get("retrieval_context", [])
+            self.success = data.get("success", False)
+            self.metrics_data = [
+                SimpleNamespace(
+                    name=m.get("name", ""),
+                    score=m.get("score"),
+                    threshold=m.get("threshold"),
+                    success=m.get("success", False),
+                    reason=m.get("reason"),
+                )
+                for m in data.get("metrics", [])
+            ]
+
+    cached_eval_results: List[Any] = []
+    pending_test_cases: List[LLMTestCase] = []
+
+    for tc in test_cases:
+        tc_key = tc.input.strip()
+        if tc_key in eval_master_map:
+            cached_eval_results.append(CachedTestResult(eval_master_map[tc_key]))
+        else:
+            pending_test_cases.append(tc)
+
+    logger.info(
+        "Evaluation partition: %d cached in master (SKIP), %d pending evaluation",
+        len(cached_eval_results),
+        len(pending_test_cases),
+    )
+
+    new_test_results: List[Any] = []
+    if pending_test_cases:
+        is_local = (judge_mode == "local")
+        metrics = build_rag_benchmark_metrics(judge_mode=judge_mode, async_mode=(not is_local))
+        async_config = AsyncConfig(run_async=(not is_local), max_concurrent=(2 if is_local else 10))
+        error_config = ErrorConfig(ignore_errors=True)
+
+        logger.info("Evaluating %d test cases with %s...", len(pending_test_cases), judge_mode)
+        try:
+            eval_result = evaluate(
+                test_cases=pending_test_cases,
+                metrics=metrics,
+                async_config=async_config,
+                error_config=error_config,
+            )
+            new_test_results = getattr(eval_result, "test_results", []) or []
+        except KeyboardInterrupt:
+            print("\n[INTERRUPT] Benchmark interrupted by user. Recovering completed test cases...")
+            from benchmarks.export_cached_report import export_cached_report
+            return export_cached_report(output_dir=output_dir)
+
+        # Incrementally persist each newly evaluated result to eval_master_file
+        for tr in new_test_results:
+            tr_key = getattr(tr, "input", "").strip()
+            if tr_key:
+                eval_master_map[tr_key] = {
+                    "input": getattr(tr, "input", ""),
+                    "actual_output": getattr(tr, "actual_output", ""),
+                    "expected_output": getattr(tr, "expected_output", ""),
+                    "retrieval_context": getattr(tr, "retrieval_context", []),
+                    "success": getattr(tr, "success", False),
+                    "metrics": [
+                        {
+                            "name": getattr(m, "name", ""),
+                            "score": getattr(m, "score", None),
+                            "threshold": getattr(m, "threshold", None),
+                            "success": getattr(m, "success", False),
+                            "reason": getattr(m, "reason", None),
+                        }
+                        for m in (getattr(tr, "metrics_data", []) or [])
+                    ],
+                }
+        with open(eval_master_file, "w", encoding="utf-8") as f:
+            json.dump(eval_master_map, f, indent=2, ensure_ascii=False)
+        logger.info("[EVAL CACHE] Persisted %d total evaluated test cases to %s", len(eval_master_map), eval_master_file.name)
 
     duration = round(time.time() - t0, 2)
     logger.info("Evaluation completed in %.2fs", duration)
@@ -238,7 +365,7 @@ def run_single_benchmark_suite(
         "duration_seconds": duration,
     }
 
-    test_results = getattr(eval_result, "test_results", []) or []
+    test_results = cached_eval_results + new_test_results
 
     # 5. Generate & Save Markdown Report
     out_dir = Path(output_dir)
@@ -293,32 +420,26 @@ def main():
     args = parse_args()
 
     # Load benchmark goldens
-    goldens = load_goldens(category=args.category, limit=args.limit)
+    dataset_path = Path(args.dataset) if args.dataset else None
+    goldens = load_goldens(category=args.category, limit=args.limit, filepath=dataset_path)
     if not goldens:
-        print("[ERROR] No golden questions found with the specified filters.")
+        print(f"[ERROR] No golden questions found from {dataset_path or 'default'}.")
         sys.exit(1)
 
-    print(f"\n[INIT] Loaded {len(goldens)} benchmark goldens.")
+    print(f"\n[INIT] Loaded {len(goldens)} benchmark goldens from {dataset_path or 'default'}.")
 
-    if args.sweep:
-        print("[SWEEP] Starting hyperparameter sweep across top_k in (3, 5, 8)...")
-        sweep_results = []
-        for k in [3, 5, 8]:
-            res = run_single_benchmark_suite(
-                top_k=k,
-                judge_mode=args.judge,
-                goldens=goldens,
-                temperature=args.temperature,
-                output_dir=args.output_dir,
-            )
-            sweep_results.append(res)
-        print(f"\n[SWEEP COMPLETED] Finished {len(sweep_results)} configurations.")
-    else:
+    scenarios = ["vector", "reranker", "pagerank"] if args.scenario == "all" else [args.scenario]
+
+    for sc in scenarios:
+        print(f"\n{'='*35} SCENARIO: {sc.upper()} {'='*35}")
         run_single_benchmark_suite(
             top_k=args.top_k,
             judge_mode=args.judge,
             goldens=goldens,
             temperature=args.temperature,
+            scenario=sc,
+            use_pagerank=args.pagerank,
+            use_reranker=args.reranker,
             output_dir=args.output_dir,
         )
 

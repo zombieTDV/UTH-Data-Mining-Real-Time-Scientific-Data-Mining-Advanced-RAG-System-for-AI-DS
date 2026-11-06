@@ -1,9 +1,9 @@
 import type { FC } from 'react';
 import { InteractiveWorkflowCanvas } from '../components/schematic';
 import { MetricsBento } from '../components/common';
-import { GeometricTelemetryGauges } from '../components/charts';
 import { StorageInspector } from '../components/schematic';
 import { useLakehouseStreamStore } from '../store';
+import { useTranslation } from '../hooks';
 import type { AppTab, AppTheme, PipelineStatus, SchematicViewMode } from '../types';
 
 export interface SchematicScreenProps {
@@ -23,6 +23,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
   onNavigateTab,
   onTriggerPipeline,
 }) => {
+  const { language } = useTranslation();
   const { isSyncingStorage, lastSyncedStorage, triggerStorageSync } = useLakehouseStreamStore();
 
   return (
@@ -32,7 +33,11 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           type="button"
           onClick={() => triggerStorageSync()}
           disabled={isSyncingStorage}
-          title={lastSyncedStorage ? `Scan the live MinIO bucket (Last synced: ${lastSyncedStorage})` : 'Scan the live MinIO bucket'}
+          title={
+            language === 'vi'
+              ? `Quét hồ lưu trữ MinIO S3 thời gian thực (Đồng bộ: ${lastSyncedStorage || 'Mới đây'})`
+              : `Scan the live MinIO bucket (Last synced: ${lastSyncedStorage || 'Just now'})`
+          }
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -54,7 +59,11 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
           <span style={{ display: 'inline-block', animation: isSyncingStorage ? 'spin 1s linear infinite' : 'none' }}>
             🔄
           </span>
-          <span>{isSyncingStorage ? 'SCANNING MINIO...' : 'SCAN MINIO LIVE'}</span>
+          <span>
+            {isSyncingStorage
+              ? language === 'vi' ? 'ĐANG QUÉT MINIO...' : 'SCANNING MINIO...'
+              : language === 'vi' ? 'QUÉT MINIO TRỰC TIẾP' : 'SCAN MINIO LIVE'}
+          </span>
           {lastSyncedStorage && !isSyncingStorage && (
             <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 500 }}>
               ({lastSyncedStorage.includes(' ') ? lastSyncedStorage.split(' ')[1] : lastSyncedStorage})
@@ -90,7 +99,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               boxShadow: viewMode === 'canvas' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
             }}
           >
-            FLOW CANVAS
+            {language === 'vi' ? 'SƠ ĐỒ LUỒNG (CANVAS)' : 'FLOW CANVAS'}
           </button>
           <button
             type="button"
@@ -108,7 +117,7 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
               boxShadow: viewMode === 'storage' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
             }}
           >
-            BENTO &amp; STORAGE INSPECTOR
+            {language === 'vi' ? 'BENTO & QUẢN TRỊ LƯU TRỮ' : 'BENTO & STORAGE INSPECTOR'}
           </button>
         </div>
       </div>
@@ -126,7 +135,6 @@ export const SchematicScreen: FC<SchematicScreenProps> = ({
         <div style={{ flex: 1, width: '100%', overflowY: 'auto', padding: '54px 20px 30px' }}>
           <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <MetricsBento />
-            <GeometricTelemetryGauges />
             <StorageInspector />
           </div>
         </div>

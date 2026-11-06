@@ -6,7 +6,8 @@ the embedding model never wait on each other:
   --stage fetch   ingest queue (harvested metadata)
                   -> dedup (paper_id or abstract hash already in Silver) -> full text -> Bronze -> Silver part
                   -> embed queue (one Silver record per message). Pauses while the embed queue holds EMBED_QUEUE_MAX.
-  --stage embed   embed queue -> chunk + embed (one model call per micro-batch) -> Gold (Qdrant)
+  --stage embed   embed queue -> chunk + embed (one model call per micro-batch) -> Silver chunk part
+                  (silver/chunks/, the chunk text + metadata) -> Gold (Qdrant: vector + filter fields only)
   --stage all     both in one process, as before (default; used by tests and scripts)
 
 Run one fetch worker (it is the only Silver writer, so its in-memory dedup set stays exact) and one embed worker
@@ -31,6 +32,7 @@ from src.config.settings import settings
 from src.indexing.chunker import AcademicChunker
 from src.indexing.embedder import NomicEmbedder
 from src.indexing.qdrant_manager import QdrantManager
+from src.storage.chunk_store import ChunkStore
 from src.storage.minio_client import StorageClient
 from src.transformation.html_parser import AcademicHTMLParser
 from src.storage.known_papers import is_known, load_known_paper_ids, remember
@@ -83,7 +85,8 @@ class QueueConsumer:
         self.silver_writer = SilverLakehouseWriter(storage_client=self.storage)
         self.last_ingested: List[Dict[str, Any]] = []
         self.resolver = UnifiedContentResolver(storage_client=self.storage)
-        self.chunker = AcademicChunker(max_chunk_words=450, overlap_words=50)
+        self.chunker = AcademicChunker(max_chunk_words=450)
+        self.chunk_store = ChunkStore(storage=self.storage)
 
     @property
     def embedder(self) -> NomicEmbedder:
@@ -256,11 +259,31 @@ class QueueConsumer:
             logger.error("[Worker][Gold] Batch embedding failed, retrying paper by paper: %s", e)
             vectors = None
 
+        # Silver chunk table first (the chunk text lives only there): one part per year in this batch.
+        # A paper whose part cannot be written is not upserted to Qdrant, so every vector can be hydrated.
+        chunk_failed_years = set()
+        by_year: Dict[str, List[Dict[str, Any]]] = {}
+        for _, rec, chunks in chunked:
+            by_year.setdefault(_year_of(rec), []).extend(chunks)
+        for year, year_chunks in by_year.items():
+            try:
+                part = self.chunk_store.append_part(year_chunks, year=year)
+                if part.get("key"):
+                    self._emit_log("SUCCESS", "SILVER-CHUNKS", f"+{part['count']} chunk(s) -> {part['key']} ({part['size_bytes'] // 1024} KB)",
+                                   tier=tier_of(chunked[0][1]))
+            except Exception as e:
+                chunk_failed_years.add(year)
+                logger.error("[Worker][Chunks] Failed writing year=%s chunk part: %s", year, e)
+
         landed: List[Dict[str, Any]] = []
         chunk_counts: Dict[str, int] = {}
         offset = 0
         for msg, rec, chunks in chunked:
             pid = str(rec["paper_id"])
+            if _year_of(rec) in chunk_failed_years:
+                offset += len(chunks)
+                failed.append((msg, "silver chunk write failed"))
+                continue
             try:
                 if vectors is None and chunks:  # isolate the paper that broke the batch call
                     vecs = self.embedder.embed_documents([c.get("context_text") or c.get("text", "") for c in chunks])

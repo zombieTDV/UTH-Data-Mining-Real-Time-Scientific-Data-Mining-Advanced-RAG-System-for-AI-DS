@@ -1,5 +1,6 @@
 import type { FC } from 'react';
 import { CostShieldBadge } from './ExplorerGlyphs.component';
+import { useTranslation } from '../../hooks';
 
 export interface ExplorerStorageHudProps {
   bucketName: string;
@@ -34,6 +35,8 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
   overageGb = 0.0,
   estimatedOverageCostUsd = 0.0,
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const isOverage = totalSizeGb > freeTierQuotaGb;
   const meterColor = isOverage ? '#f59e0b' : usedPercentage > 85 ? '#ef4444' : '#06b6d4';
 
@@ -109,7 +112,7 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
                 border: '1px solid rgba(16, 185, 129, 0.3)',
               }}
             >
-              PUBLIC ACCESS: {publicAccess.toUpperCase()}
+              {isVi ? 'TRUY CẬP CÔNG KHAI' : 'PUBLIC ACCESS'}: {publicAccess.toUpperCase()}
             </span>
             <span
               style={{
@@ -122,14 +125,14 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
                 color: 'var(--text-secondary, #94a3b8)',
               }}
             >
-              REGION: AUTO (APAC)
+              {isVi ? 'KHU VỰC: TỰ ĐỘNG (APAC)' : 'REGION: AUTO (APAC)'}
             </span>
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
             <CostShieldBadge active={true} />
             <span
-              title="Write operations (not metered on a local MinIO)"
+              title={isVi ? 'Thao tác ghi (không tính phí trên MinIO nội bộ)' : 'Write operations (not metered on a local MinIO)'}
               style={{
                 fontSize: '10.5px',
                 fontFamily: 'var(--font-mono)',
@@ -144,7 +147,7 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
               Class A: {classAOperations} / 1M Free
             </span>
             <span
-              title="Read operations (not metered on a local MinIO)"
+              title={isVi ? 'Thao tác đọc (không tính phí trên MinIO nội bộ)' : 'Read operations (not metered on a local MinIO)'}
               style={{
                 fontSize: '10.5px',
                 fontFamily: 'var(--font-mono)',
@@ -159,7 +162,7 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
               Class B: {classBOperations} / 10M Free
             </span>
             <span style={{ fontSize: '11px', color: 'var(--text-secondary, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
-              • {totalObjects.toLocaleString()} objects indexed
+              • {totalObjects.toLocaleString()} {isVi ? 'đối tượng đã lập chỉ mục' : 'objects indexed'}
             </span>
           </div>
         </div>
@@ -169,7 +172,7 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
       <div style={{ flex: '1 1 290px', maxWidth: '380px', minWidth: '250px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary, #94a3b8)', fontFamily: 'var(--font-mono)' }}>
-            STORAGE USAGE ({freeTierQuotaGb} GB BUDGET)
+            {isVi ? `DUNG LƯỢNG LƯU TRỮ (NGÂN SÁCH ${freeTierQuotaGb} GB)` : `STORAGE USAGE (${freeTierQuotaGb} GB BUDGET)`}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12px', fontWeight: 800, color: meterColor, fontFamily: 'var(--font-mono)' }}>
@@ -177,7 +180,7 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
             </span>
             {isOverage ? (
               <span
-                title={`Capacity budget ${freeTierQuotaGb} GB. Over budget: ${overageGb.toFixed(2)} GB (reference cost ~$${estimatedOverageCostUsd.toFixed(3)}/mo at $0.015/GB)`}
+                title={isVi ? `Ngân sách ${freeTierQuotaGb} GB. Vượt hạn: ${overageGb.toFixed(2)} GB` : `Capacity budget ${freeTierQuotaGb} GB. Over budget: ${overageGb.toFixed(2)} GB`}
                 style={{
                   fontSize: '9.5px',
                   fontWeight: 700,
@@ -189,11 +192,11 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
                   borderRadius: '3px',
                 }}
               >
-                +{overageGb.toFixed(2)} GB OVERAGE (~${estimatedOverageCostUsd.toFixed(3)}/MO)
+                +{overageGb.toFixed(2)} GB {isVi ? 'VƯỢT HẠN' : 'OVERAGE'} (~${estimatedOverageCostUsd.toFixed(3)}/MO)
               </span>
             ) : (
               <span
-                title={`Storage is within the ${freeTierQuotaGb} GB capacity budget`}
+                title={isVi ? `Dung lượng nằm trong hạn mức ${freeTierQuotaGb} GB` : `Storage is within the ${freeTierQuotaGb} GB capacity budget`}
                 style={{
                   fontSize: '9.5px',
                   fontWeight: 700,
@@ -205,7 +208,7 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
                   borderRadius: '3px',
                 }}
               >
-                WITHIN BUDGET
+                {isVi ? 'TRONG ĐỊNH MỨC' : 'WITHIN BUDGET'}
               </span>
             )}
           </div>
@@ -244,7 +247,7 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
           <span style={{ fontSize: '10px', color: 'var(--text-muted, #64748b)', fontFamily: 'var(--font-mono)' }}>0 GB</span>
-          <span style={{ fontSize: '10px', color: '#10b981', fontFamily: 'var(--font-mono)' }}>{freeTierQuotaGb} GB (budget)</span>
+          <span style={{ fontSize: '10px', color: '#10b981', fontFamily: 'var(--font-mono)' }}>{freeTierQuotaGb} GB ({isVi ? 'ngân sách' : 'budget'})</span>
           <span style={{ fontSize: '10px', color: 'var(--text-muted, #64748b)', fontFamily: 'var(--font-mono)' }}>13 GB</span>
         </div>
       </div>
@@ -255,7 +258,7 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
           type="button"
           onClick={onSync}
           disabled={isSyncing}
-          title="Scans the MinIO bucket again to refresh the asset inventory"
+          title={isVi ? 'Quét lại bucket MinIO để làm mới danh mục tệp' : 'Scans the MinIO bucket again to refresh the asset inventory'}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -288,11 +291,11 @@ export const ExplorerStorageHud: FC<ExplorerStorageHudProps> = ({
           >
             <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
           </svg>
-          <span>{isSyncing ? 'SCANNING MINIO...' : 'SCAN BUCKET'}</span>
+          <span>{isSyncing ? (isVi ? 'ĐANG QUÉT MINIO...' : 'SCANNING MINIO...') : (isVi ? 'QUÉT BUCKET' : 'SCAN BUCKET')}</span>
         </button>
 
         <span style={{ fontSize: '10.5px', color: 'var(--text-muted, #64748b)', fontFamily: 'var(--font-mono)' }}>
-          Last Synced: <strong style={{ color: 'var(--text-secondary, #94a3b8)' }}>{lastSynced}</strong>
+          {isVi ? 'Đồng bộ gần nhất: ' : 'Last Synced: '}<strong style={{ color: 'var(--text-secondary, #94a3b8)' }}>{lastSynced}</strong>
         </span>
       </div>
 

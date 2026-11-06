@@ -7,7 +7,7 @@ router = APIRouter()
 
 
 @router.get("/papers/{paper_id}", response_model=List[ChunkDto], tags=["Papers"])
-async def get_paper(paper_id: str):
+def get_paper(paper_id: str):
     chunks = retrieval_service.get_paper(paper_id)
     if not chunks:
         raise HTTPException(status_code=404, detail=f"Paper with id '{paper_id}' not found.")

@@ -6,7 +6,7 @@ router = APIRouter()
 
 
 @router.post("/search", response_model=SearchResponse, tags=["Retrieval & Search"])
-async def search_lakehouse(req: SearchRequest):
+def search_lakehouse(req: SearchRequest):
     chunks = retrieval_service.search(req)
     return SearchResponse(
         query=req.query,

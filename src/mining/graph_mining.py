@@ -138,7 +138,7 @@ class ScientificGraphMiner:
         # Community detection on undirected projection of largest connected component
         logger.info("[PILLAR 3] Detecting research front communities (Louvain modularity)...")
         G_undirected = G.to_undirected()
-        communities_raw = list(louvain_communities(G_undirected, seed=42))
+        communities_raw = sorted(louvain_communities(G_undirected, seed=42), key=len, reverse=True)  # id 0 = largest community
         community_mapping = {}
         for comm_id, members in enumerate(communities_raw):
             for member in members:
@@ -245,7 +245,7 @@ class ScientificGraphMiner:
             return {"network_summary": {}, "top_influencers": [], "communities": [], "graph_export": {}}
 
         pagerank_scores = nx.pagerank(G, weight="weight", alpha=0.85)
-        communities_raw = list(louvain_communities(G, weight="weight", seed=42))
+        communities_raw = sorted(louvain_communities(G, weight="weight", seed=42), key=len, reverse=True)  # id 0 = largest community
         community_mapping = {}
         for comm_id, members in enumerate(communities_raw):
             for member in members:

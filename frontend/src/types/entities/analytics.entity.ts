@@ -208,18 +208,36 @@ export interface AssociationRulesResponse {
   rules: AssociationRuleItem[];
 }
 
+export interface ClusterEllipse {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  theta_deg: number;
+  weight: number;
+}
+
 export interface ClusterProfileItem {
   cluster_id: number;
   size: number;
   percentage: number;
+  weight?: number;
   dominant_categories: Array<{ category: string; count: number }>;
   sample_titles: string[];
+  topic_label?: string;
+  topic_subtitle?: string;
+  ellipse?: ClusterEllipse;
 }
 
 export interface ScatterPointItem {
   x: number;
   y: number;
   cluster: number;
+  max_probability?: number;
+  secondary_cluster?: number;
+  secondary_probability?: number;
+  is_cross_disciplinary?: boolean;
+  cluster_probabilities?: number[];
   category: string;
   title: string;
   paper_id: string;
@@ -229,14 +247,20 @@ export interface ClusterValidityMetrics {
   silhouette_score: number;
   davies_bouldin_index: number;
   calinski_harabasz_index: number;
+  bic?: number;
+  aic?: number;
+  log_likelihood?: number;
 }
 
 export interface ClustersSummary {
+  algorithm?: string;
   sample_analyzed: number;
   vector_dimensions: number;
   optimal_k: number;
   dbscan_clusters_found: number;
   dbscan_noise_ratio: number;
+  cross_disciplinary_papers?: number;
+  cross_disciplinary_ratio?: number;
 }
 
 export interface ClustersResponse {

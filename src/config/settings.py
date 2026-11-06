@@ -48,10 +48,10 @@ class Settings:
 
     # Object Storage (MinIO S3) - the only place pipelines persist data
     STORAGE_PROVIDER: str = _env("STORAGE_PROVIDER", "minio").lower()
-    MINIO_ENDPOINT_URL: str = _env("MINIO_ENDPOINT_URL")
-    MINIO_ACCESS_KEY_ID: str = _env("MINIO_ACCESS_KEY_ID")
-    MINIO_SECRET_ACCESS_KEY: str = _env("MINIO_SECRET_ACCESS_KEY")
-    MINIO_BUCKET_NAME: str = _env("MINIO_BUCKET_NAME")
+    MINIO_ENDPOINT_URL: str = _env("MINIO_ENDPOINT_URL") or _env("R2_ENDPOINT_URL")
+    MINIO_ACCESS_KEY_ID: str = _env("MINIO_ACCESS_KEY_ID") or _env("R2_ACCESS_KEY_ID")
+    MINIO_SECRET_ACCESS_KEY: str = _env("MINIO_SECRET_ACCESS_KEY") or _env("R2_SECRET_ACCESS_KEY")
+    MINIO_BUCKET_NAME: str = _env("MINIO_BUCKET_NAME") or _env("R2_BUCKET_NAME")
 
     # S3 generic aliases
     S3_ENDPOINT_URL: str = MINIO_ENDPOINT_URL
@@ -61,9 +61,9 @@ class Settings:
 
     # Vector Database (Qdrant)
     VECTOR_STORE_PROVIDER: str = _env("VECTOR_STORE_PROVIDER", "qdrant").lower()
-    QDRANT_URL: str = _env("QDRANT_URL")
+    QDRANT_URL: str = _env("QDRANT_URL", "https://qdrant.minio-quangmanh.io.vn")
     QDRANT_COLLECTION: str = _env("QDRANT_COLLECTION", "scientific_papers_gold")
-    QDRANT_API_KEY: str = _env("QDRANT_API_KEY", "")
+    QDRANT_API_KEY: str = _env("QDRANT_API_KEY", "uth_guest_readonly_key_4b71a8e9d2c")
 
     # RabbitMQ
     RABBITMQ_URL: str = _build_amqp_url() if (_env("RABBITMQ_URL") or _env("RABBITMQ_USER")) else ""

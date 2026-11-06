@@ -1,0 +1,3015 @@
+[
+  {
+    "id": "gold-001",
+    "category": "cs.LG",
+    "query": "How does classifier-free guidance work in conditional diffusion models?",
+    "expected_output": "Classifier-free guidance trains conditional diffusion models by randomly replacing the conditioning label with a null or empty token with probability p_uncond during training. During sampling, the model evaluates both conditional and unconditional score estimates and linearly combines them using guidance weight w: score = (1 + w) * s(x, c) - w * s(x, null). This enhances sample quality and fidelity without requiring a separate classifier model.",
+    "expected_context_keywords": [
+      "classifier-free guidance",
+      "diffusion",
+      "unconditional score",
+      "guidance weight",
+      "sampling"
+    ],
+    "relevant_paper_ids": [
+      "2207.12598",
+      "2409.08861"
+    ]
+  },
+  {
+    "id": "gold-002",
+    "category": "cs.CL",
+    "query": "What is FlashAttention and how does it reduce memory access overhead in Transformers?",
+    "expected_output": "FlashAttention is an IO-aware exact attention algorithm that minimizes memory traffic between high-bandwidth GPU memory (HBM) and fast on-chip SRAM. It avoids materializing the quadratic N x N attention matrix by tiling inputs into blocks and incrementally computing softmax normalization using an online softmax technique, reducing memory access while maintaining identical mathematical output.",
+    "expected_context_keywords": [
+      "FlashAttention",
+      "IO-aware",
+      "SRAM",
+      "HBM",
+      "tiling",
+      "online softmax",
+      "GPU"
+    ],
+    "relevant_paper_ids": [
+      "2205.14135",
+      "2307.08691"
+    ]
+  },
+  {
+    "id": "gold-003",
+    "category": "cs.AI",
+    "query": "Explain the key advantages of Direct Preference Optimization (DPO) over RLHF with PPO.",
+    "expected_output": "Direct Preference Optimization (DPO) implicitly models the reward function directly through the language model policy. Unlike traditional RLHF with PPO, DPO does not require training a separate reward model or sampling actions during reinforcement learning loops. It solves the constrained optimization problem in closed form with a simple binary cross-entropy loss, making training significantly more stable, computationally efficient, and easier to scale.",
+    "expected_context_keywords": [
+      "Direct Preference Optimization",
+      "DPO",
+      "RLHF",
+      "reward model",
+      "PPO",
+      "binary cross-entropy",
+      "policy"
+    ],
+    "relevant_paper_ids": [
+      "2305.18290"
+    ]
+  },
+  {
+    "id": "gold-004",
+    "category": "cs.CV",
+    "query": "How does contrastive language-image pre-training (CLIP) align vision and text representations?",
+    "expected_output": "CLIP aligns visual and textual modalities by using dual encoders (a vision transformer or ResNet for images and a Transformer for text) jointly trained on pairs of images and corresponding captions. It maximizes the cosine similarity between matched image-text embeddings across a batch while minimizing similarity for unmatched pairs using a symmetric InfoNCE cross-entropy loss, enabling robust zero-shot classification.",
+    "expected_context_keywords": [
+      "CLIP",
+      "contrastive learning",
+      "dual encoders",
+      "cosine similarity",
+      "InfoNCE",
+      "zero-shot"
+    ],
+    "relevant_paper_ids": [
+      "2103.00020",
+      "2402.04087"
+    ]
+  },
+  {
+    "id": "gold-005",
+    "category": "cs.LG",
+    "query": "What is Low-Rank Adaptation (LoRA) and how does it enable parameter-efficient fine-tuning?",
+    "expected_output": "Low-Rank Adaptation (LoRA) freezes the pre-trained model weights W_0 and injects trainable rank-decomposition matrices A and B into the Transformer layers, such that the weight update is parameterized as delta_W = B * A, where B in R^(d x r) and A in R^(r x k) with rank r << min(d, k). This drastically reduces the number of trainable parameters and memory footprint during fine-tuning while retaining performance comparable to full fine-tuning.",
+    "expected_context_keywords": [
+      "LoRA",
+      "low-rank",
+      "adaptation",
+      "rank decomposition",
+      "frozen weights",
+      "parameter-efficient"
+    ],
+    "relevant_paper_ids": [
+      "2106.09685",
+      "2401.04151"
+    ]
+  },
+  {
+    "id": "gold-006",
+    "category": "cs.AI",
+    "query": "How do Mixture of Experts (MoE) architectures achieve high capacity without proportional compute costs?",
+    "expected_output": "Mixture of Experts (MoE) architectures replace dense feed-forward network layers with multiple specialized expert sub-networks and a parametric gating or router network. For each input token, the router computes routing probabilities and activates only a sparse subset (e.g., top-1 or top-2 experts). As a result, the total parameter capacity scales dramatically while the floating-point operations (FLOPs) per token remain bounded.",
+    "expected_context_keywords": [
+      "Mixture of Experts",
+      "MoE",
+      "gating network",
+      "router",
+      "sparse activation",
+      "FLOPs",
+      "top-k"
+    ],
+    "relevant_paper_ids": [
+      "1701.06538",
+      "2101.03961",
+      "2403.17726"
+    ]
+  },
+  {
+    "id": "gold-007",
+    "category": "stat.ML",
+    "query": "What is the reparameterization trick in Variational Autoencoders (VAEs)?",
+    "expected_output": "The reparameterization trick allows gradients to backpropagate through stochastic latent nodes in Variational Autoencoders. Instead of sampling directly from the distribution q(z|x) = N(mu, sigma^2), which prevents gradient flow, the latent variable is rewritten as a deterministic transformation z = mu + sigma * epsilon, where epsilon is an auxiliary noise variable sampled from N(0, I). This isolates the randomness and enables backpropagation via standard automatic differentiation.",
+    "expected_context_keywords": [
+      "reparameterization trick",
+      "Variational Autoencoder",
+      "VAE",
+      "backpropagation",
+      "auxiliary noise",
+      "latent space"
+    ],
+    "relevant_paper_ids": [
+      "1312.6114",
+      "2402.09598"
+    ]
+  },
+  {
+    "id": "gold-008",
+    "category": "cs.CL",
+    "query": "How does Rotary Position Embedding (RoPE) encode relative position in Transformers?",
+    "expected_output": "Rotary Position Embedding (RoPE) encodes relative position by rotating the query and key representations in the complex plane using orthogonal rotation matrices proportional to token position. When the inner product between query and key is computed, the absolute position cancels out, leaving only the relative distance (m - n) between tokens. This naturally endows the attention mechanism with relative positional decay and enables length extrapolation.",
+    "expected_context_keywords": [
+      "Rotary Position Embedding",
+      "RoPE",
+      "rotation matrix",
+      "relative position",
+      "query",
+      "key",
+      "inner product"
+    ],
+    "relevant_paper_ids": [
+      "2104.09864"
+    ]
+  },
+  {
+    "id": "gold-009",
+    "category": "cs.LG",
+    "query": "What is the purpose of noise scheduling in Denoising Diffusion Probabilistic Models (DDPM)?",
+    "expected_output": "In DDPM, the noise schedule beta_1, ..., beta_T controls the variance of Gaussian noise added at each step of the forward diffusion process. A well-designed schedule (such as linear or cosine) ensures that data is gradually perturbed into an isotropic Gaussian distribution by step T, preserving intermediate semantic structure so the reverse neural network can accurately learn to estimate the added noise at each step.",
+    "expected_context_keywords": [
+      "noise schedule",
+      "DDPM",
+      "diffusion",
+      "Gaussian noise",
+      "forward process",
+      "variance"
+    ],
+    "relevant_paper_ids": [
+      "2006.11239",
+      "2305.15586"
+    ]
+  },
+  {
+    "id": "gold-010",
+    "category": "cs.AI",
+    "query": "What mechanism does Tree of Thoughts (ToT) introduce beyond Chain-of-Thought prompting?",
+    "expected_output": "Tree of Thoughts (ToT) generalizes Chain-of-Thought prompting by enabling language models to explore coherent intermediate reasoning units ('thoughts') structured as a tree. It allows the model to evaluate the promise of different thought paths via self-evaluation, and incorporates systematic search algorithms such as breadth-first search (BFS) or depth-first search (DFS) with backtracking to solve complex multi-step reasoning problems.",
+    "expected_context_keywords": [
+      "Tree of Thoughts",
+      "ToT",
+      "Chain-of-Thought",
+      "search",
+      "backtracking",
+      "BFS",
+      "DFS",
+      "self-evaluation"
+    ],
+    "relevant_paper_ids": [
+      "2305.10601"
+    ]
+  },
+  {
+    "id": "gold-011",
+    "category": "cs.CL",
+    "query": "How does Grouped-Query Attention (GQA) interpolate between Multi-Head Attention (MHA) and Multi-Query Attention (MQA)?",
+    "expected_output": "Grouped-Query Attention (GQA) divides query heads into G groups, with each group sharing a single key and value head. When G equals the number of query heads, GQA reduces to standard Multi-Head Attention (MHA); when G=1, it reduces to Multi-Query Attention (MQA). This enables intermediate trade-offs between decoding memory bandwidth savings (from smaller KV caches) and representation capacity.",
+    "expected_context_keywords": [
+      "Grouped-Query Attention",
+      "GQA",
+      "MHA",
+      "MQA",
+      "key-value heads",
+      "KV cache",
+      "memory bandwidth"
+    ],
+    "relevant_paper_ids": [
+      "2305.13245"
+    ]
+  },
+  {
+    "id": "gold-012",
+    "category": "cs.LG",
+    "query": "What innovations make QLoRA capable of fine-tuning large language models on a single consumer GPU?",
+    "expected_output": "QLoRA introduces three main techniques: 4-bit NormalFloat (NF4), an information-theoretically optimal quantile quantization data type for normally distributed weights; Double Quantization (DQ), which quantizes quantization constants to save memory; and Paged Optimizers to manage memory spikes during gradient updates, enabling 65B model fine-tuning with 16-bit LoRA performance on a single GPU.",
+    "expected_context_keywords": [
+      "QLoRA",
+      "NormalFloat",
+      "NF4",
+      "Double Quantization",
+      "Paged Optimizers",
+      "4-bit",
+      "fine-tuning"
+    ],
+    "relevant_paper_ids": [
+      "2305.14314",
+      "2401.00503"
+    ]
+  },
+  {
+    "id": "gold-013",
+    "category": "cs.AI",
+    "query": "How does Constitutional AI train harmless AI assistants without human feedback on harmful prompts?",
+    "expected_output": "Constitutional AI replaces human feedback with model-generated critiques and revisions guided by a constitution of explicit principles. During supervised learning, the model critiques its own harmful responses and rewrites them. In reinforcement learning from AI feedback (RLAIF), an evaluator model selects preferred responses based on constitutional principles, training a harmless assistant with minimal human exposure to toxic content.",
+    "expected_context_keywords": [
+      "Constitutional AI",
+      "RLAIF",
+      "critique",
+      "revision",
+      "principles",
+      "harmless",
+      "self-improvement"
+    ],
+    "relevant_paper_ids": [
+      "2212.08073"
+    ]
+  },
+  {
+    "id": "gold-014",
+    "category": "cs.CV",
+    "query": "How do Masked Autoencoders (MAE) perform self-supervised visual representation learning?",
+    "expected_output": "Masked Autoencoders (MAE) mask a high proportion (e.g. 75%) of random image patches and feed only visible patches through an asymmetric Vision Transformer encoder. A lightweight decoder then reconstructs missing pixel values from latent representations and mask tokens using mean squared error loss, encouraging the encoder to learn deep holistic visual representations.",
+    "expected_context_keywords": [
+      "Masked Autoencoders",
+      "MAE",
+      "vision transformer",
+      "asymmetric",
+      "pixel reconstruction",
+      "self-supervised"
+    ],
+    "relevant_paper_ids": [
+      "2111.06377",
+      "2303.17152"
+    ]
+  },
+  {
+    "id": "gold-015",
+    "category": "stat.ML",
+    "query": "What statistical property does Conformal Prediction guarantee for machine learning models?",
+    "expected_output": "Conformal Prediction guarantees finite-sample, distribution-free marginal coverage for predictive sets or intervals under the assumption of exchangeability. Given significance level alpha, the prediction region contains the true ground truth label with probability at least 1 - alpha, regardless of the underlying data distribution or model architecture.",
+    "expected_context_keywords": [
+      "Conformal Prediction",
+      "coverage guarantee",
+      "distribution-free",
+      "finite-sample",
+      "exchangeability",
+      "prediction interval"
+    ],
+    "relevant_paper_ids": [
+      "2107.07511"
+    ]
+  },
+  {
+    "id": "gold-016",
+    "category": "cs.CL",
+    "query": "How does Speculative Decoding achieve speedup without changing the target model's output distribution?",
+    "expected_output": "Speculative Decoding uses a smaller, faster draft model to propose K candidate tokens in parallel, which the larger target model evaluates in a single forward pass. A speculative sampling rejection criteria accepts or rejects candidate tokens such that the final output distribution precisely equals the target model's original distribution, achieving 2x to 3x latency speedups.",
+    "expected_context_keywords": [
+      "Speculative Decoding",
+      "draft model",
+      "target model",
+      "parallel verification",
+      "speculative sampling",
+      "latency"
+    ],
+    "relevant_paper_ids": [
+      "2211.17192",
+      "2302.01318"
+    ]
+  },
+  {
+    "id": "gold-017",
+    "category": "cs.LG",
+    "query": "How does Score-based Generative Modeling with Stochastic Differential Equations (SDEs) generalize diffusion models?",
+    "expected_output": "Score-based SDE formulations model data perturbation over continuous time using an Ito SDE (e.g., Variance Preserving or Variance Exploding). By estimating the score function (gradient of the log marginal probability density) with a time-dependent neural network, generation is cast as reverse-time SDE integration or deterministic probability flow ODE solving, unifying discrete diffusion steps into a continuous framework.",
+    "expected_context_keywords": [
+      "Score-based",
+      "SDE",
+      "Stochastic Differential Equations",
+      "reverse-time",
+      "probability flow ODE",
+      "score matching"
+    ],
+    "relevant_paper_ids": [
+      "2011.13456",
+      "2404.12814"
+    ]
+  },
+  {
+    "id": "gold-018",
+    "category": "cs.AI",
+    "query": "Why does Chain-of-Thought (CoT) prompting improve multi-step reasoning in Large Language Models?",
+    "expected_output": "Chain-of-Thought prompting encourages models to decompose complex multi-step problems into intermediate reasoning steps before arriving at a final answer. By allocating additional computation and token capacity to intermediate reasoning states, it mitigates error compounding and allows transformers to solve problems that cannot be answered in a single autoregressive step.",
+    "expected_context_keywords": [
+      "Chain-of-Thought",
+      "CoT",
+      "multi-step reasoning",
+      "intermediate steps",
+      "decomposition",
+      "arithmetic reasoning"
+    ],
+    "relevant_paper_ids": [
+      "2201.11903",
+      "2304.14317"
+    ]
+  },
+  {
+    "id": "gold-019",
+    "category": "cs.CV",
+    "query": "What is the key advantage of Latent Diffusion Models (LDM) over pixel-space diffusion models?",
+    "expected_output": "Latent Diffusion Models (LDM) apply the diffusion and denoising process in a lower-dimensional latent space learned by an autoencoder (such as a VQ-VAE or VAE) rather than raw pixel space. This separates perceptual compression from semantic synthesis, reducing computational and memory requirements by orders of magnitude while preserving high visual fidelity.",
+    "expected_context_keywords": [
+      "Latent Diffusion Models",
+      "LDM",
+      "autoencoder",
+      "pixel space",
+      "latent space",
+      "perceptual compression"
+    ],
+    "relevant_paper_ids": [
+      "2112.10752",
+      "2401.07709"
+    ]
+  },
+  {
+    "id": "gold-020",
+    "category": "stat.ML",
+    "query": "How does Stein Variational Gradient Descent (SVGD) sample from target probability distributions?",
+    "expected_output": "Stein Variational Gradient Descent (SVGD) deterministically transports a collection of particles to match a target distribution by iteratively minimizing the Kullback-Leibler (KL) divergence via functional gradient descent in a reproducing kernel Hilbert space (RKHS). It combines score driving forces with repulsive kernel forces that prevent particle collapse.",
+    "expected_context_keywords": [
+      "Stein Variational Gradient Descent",
+      "SVGD",
+      "particles",
+      "RKHS",
+      "repulsive force",
+      "KL divergence"
+    ],
+    "relevant_paper_ids": [
+      "1608.04471"
+    ]
+  },
+  {
+    "id": "gold-021",
+    "category": "cs.CL",
+    "query": "How can In-Context Learning (ICL) be interpreted from an optimization perspective?",
+    "expected_output": "From an optimization perspective, In-Context Learning can be viewed as implicit fine-tuning or meta-gradients computed during the forward pass. Attention activations between demonstration examples and query tokens implicitly implement gradient descent steps in weight activation space without explicit parameter updates.",
+    "expected_context_keywords": [
+      "In-Context Learning",
+      "ICL",
+      "meta-optimization",
+      "implicit gradient descent",
+      "forward pass",
+      "demonstrations"
+    ],
+    "relevant_paper_ids": [
+      "2212.07677",
+      "2310.00297"
+    ]
+  },
+  {
+    "id": "gold-022",
+    "category": "cs.LG",
+    "query": "What are the reviewer ratings and primary critiques for the paper 'Semi-supervised Knowledge Transfer for Deep Learning from Private Training Data'?",
+    "expected_output": "Reviewers rated the paper favorably with scores of 9 (Top 15%, strong accept), 9 (strong accept), and 7 (good paper, accept). Reviewer #1 commended the elegant perturbation error formulation for differential privacy. Reviewer #2 highlighted the lack of theoretical guarantees on learning performance and privacy epsilon release nuances. Reviewer #3 noted the empirical parameters in the probabilistic bound and suggested real medical history evaluation.",
+    "expected_context_keywords": [
+      "Reviewer",
+      "Differential Privacy",
+      "Rating",
+      "Confidence",
+      "teachers",
+      "student",
+      "noisy voting"
+    ],
+    "relevant_paper_ids": [
+      "1610.05755",
+      "1702.07469"
+    ]
+  },
+  {
+    "id": "gold-023",
+    "category": "cs.AI",
+    "query": "What is the consensus score and reviewer feedback on Predicting Auction Price of Vehicle License Plate with Deep Recurrent Neural Network?",
+    "expected_output": "The paper achieved a consensus score of approximately 0.47, with Reviewer #1 providing a normalized score of 0.6 and rating 6 (marginally above acceptance threshold) with high confidence 5.",
+    "expected_context_keywords": [
+      "Reviewer",
+      "Consensus Score",
+      "Auction Price",
+      "Normalized Score",
+      "Vehicle License Plate"
+    ],
+    "relevant_paper_ids": [
+      "1904.04945"
+    ]
+  },
+  {
+    "id": "gold-024",
+    "category": "cs.LG",
+    "query": "What methodology critique was raised by Reviewer #1 regarding Cross-View Training for Semi-Supervised Learning?",
+    "expected_output": "Reviewer #1 gave a normalized score of 0.5 (rating 5: marginally below acceptance threshold) with confidence 4, evaluating the cross-view training approach for semi-supervised learning.",
+    "expected_context_keywords": [
+      "Cross-View Training",
+      "Reviewer",
+      "Semi-Supervised",
+      "Rating",
+      "Normalized Score"
+    ],
+    "relevant_paper_ids": [
+      "1809.08370",
+      "1906.00910"
+    ]
+  },
+  {
+    "id": "gold-025",
+    "category": "cs.CV",
+    "query": "How does Unmixing Diffusion perform self-supervised hyperspectral image denoising in CVPR 2024?",
+    "expected_output": "Unmixing Diffusion addresses narrow-band spectral filtering noise in hyperspectral images (HSIs) by integrating spectral unmixing with diffusion probabilistic models in a self-supervised formulation without clean ground-truth reference images.",
+    "expected_context_keywords": [
+      "Hyperspectral",
+      "Unmixing Diffusion",
+      "denoising",
+      "spectral unmixing",
+      "CVPR 2024"
+    ],
+    "relevant_paper_ids": [
+      "2403.18228",
+      "cvf_Zeng_Unmixing_Diffusion_for_Self-Supervised_Hyperspectral_Image_Denoising_CVPR_2024"
+    ]
+  },
+  {
+    "id": "gold-026",
+    "category": "cs.CV",
+    "query": "What is the citation format and venue for Unmixing Diffusion for Self-Supervised Hyperspectral Image Denoising?",
+    "expected_output": "The paper is published in CVPR 2024 by authors Haijin Zeng, Jiezhang Cao, Kai Zhang, Yongyong Chen, Hiep Luong, and Wilfried Philips under the title Unmixing Diffusion for Self-Supervised Hyperspectral Image Denoising.",
+    "expected_context_keywords": [
+      "Zeng",
+      "CVPR 2024",
+      "InProceedings",
+      "Unmixing Diffusion"
+    ],
+    "relevant_paper_ids": [
+      "2403.18228",
+      "cvf_Zeng_Unmixing_Diffusion_for_Self-Supervised_Hyperspectral_Image_Denoising_CVPR_2024"
+    ]
+  },
+  {
+    "id": "gold-027",
+    "category": "cs.LG",
+    "query": "What trade-off is involved in Gradient Checkpointing (Activation Recomputation) during neural network training?",
+    "expected_output": "Gradient checkpointing trades additional computational time (typically ~20-30% extra forward pass operations) for substantial memory reduction. Instead of storing all intermediate activation tensors for the backward pass, it saves activations only at designated checkpoint layers and recomputes missing activations dynamically during backpropagation.",
+    "expected_context_keywords": [
+      "Gradient Checkpointing",
+      "activation recomputation",
+      "memory reduction",
+      "backward pass",
+      "forward recomputation"
+    ],
+    "relevant_paper_ids": [
+      "1604.06174",
+      "2411.01431"
+    ]
+  },
+  {
+    "id": "gold-023",
+    "category": "cs.AI",
+    "query": "How does the Self-Instruct framework bootstrap instruction-following data from language models?",
+    "expected_output": "Self-Instruct starts with a small seed set of human-written instructions and prompts a pretrained language model to generate new task instructions, input instances, and outputs. It filters candidates based on heuristic quality and diversity metrics before adding valid pairs back to the instruction pool, automating dataset creation with minimal manual labor.",
+    "expected_context_keywords": [
+      "Self-Instruct",
+      "instruction tuning",
+      "synthetic data",
+      "seed tasks",
+      "filtering",
+      "bootstrap"
+    ],
+    "relevant_paper_ids": [
+      "2212.10560"
+    ]
+  },
+  {
+    "id": "gold-024",
+    "category": "cs.CV",
+    "query": "How do Vision Transformers (ViT) process 2D images as sequences of tokens?",
+    "expected_output": "Vision Transformers divide an image of size H x W into non-overlapping patches of size P x P, flatten each patch into a 1D vector of length P^2 * C, and linearly project them to embedding dimension D. Learnable 1D position embeddings and an extra class token are added before feeding the sequence into standard Transformer encoder layers.",
+    "expected_context_keywords": [
+      "Vision Transformer",
+      "ViT",
+      "patch projection",
+      "position embedding",
+      "class token",
+      "sequence of tokens"
+    ],
+    "relevant_paper_ids": [
+      "2010.11929"
+    ]
+  },
+  {
+    "id": "gold-025",
+    "category": "stat.ML",
+    "query": "Why is entropic regularization used in optimal transport (Sinkhorn algorithm)?",
+    "expected_output": "Entropic regularization adds an entropy penalty H(P) to the Kantorovich optimal transport objective, transforming an expensive linear programming problem into a strictly convex optimization problem. This enables fast, GPU-parallelizable matrix scaling iterations via the Sinkhorn-Knopp algorithm with O(n^2) complexity.",
+    "expected_context_keywords": [
+      "Sinkhorn",
+      "optimal transport",
+      "entropic regularization",
+      "Kantorovich",
+      "matrix scaling",
+      "convex optimization"
+    ],
+    "relevant_paper_ids": [
+      "1306.0895"
+    ]
+  },
+  {
+    "id": "gold-026",
+    "category": "cs.CL",
+    "query": "What is the role of Attention Sinks in maintaining stability in streaming language models (StreamingLLM)?",
+    "expected_output": "Attention Sinks refer to the phenomenon where initial tokens (first few tokens in a prompt) consistently receive disproportionately large attention weights regardless of semantic meaning, acting as numerical anchors for the softmax distribution. Retaining initial sink tokens alongside a sliding window of recent tokens prevents perplexity explosion during infinite-length generation.",
+    "expected_context_keywords": [
+      "Attention Sinks",
+      "StreamingLLM",
+      "softmax anchor",
+      "sliding window",
+      "initial tokens",
+      "perplexity"
+    ],
+    "relevant_paper_ids": [
+      "2309.17453"
+    ]
+  },
+  {
+    "id": "gold-027",
+    "category": "cs.LG",
+    "query": "How does the temperature parameter in InfoNCE loss affect contrastive representation learning?",
+    "expected_output": "The temperature parameter tau scales the sharpness of the softmax distribution over similarity scores in InfoNCE. Lower temperatures penalize hard negative examples more aggressively, pushing representations into more uniform distributions on the unit hypersphere, while excessively low temperatures can cause training instability.",
+    "expected_context_keywords": [
+      "InfoNCE",
+      "temperature parameter",
+      "hard negatives",
+      "contrastive learning",
+      "hypersphere",
+      "uniformity"
+    ],
+    "relevant_paper_ids": [
+      "1807.03748",
+      "2005.10242"
+    ]
+  },
+  {
+    "id": "gold-028",
+    "category": "cs.AI",
+    "query": "How does the ReAct framework synergize reasoning and acting in language agents?",
+    "expected_output": "ReAct interleaves reasoning trace generation ('Thought') with task-specific actions ('Act') and environment observations ('Obs'). Reasoning traces help the model induce, track, and update action plans, while external tool execution grounds thoughts in real-world observations and prevents hallucination.",
+    "expected_context_keywords": [
+      "ReAct",
+      "Reasoning and Acting",
+      "Thought",
+      "Action",
+      "Observation",
+      "agent",
+      "tool use"
+    ],
+    "relevant_paper_ids": [
+      "2210.03629",
+      "2512.03560"
+    ]
+  },
+  {
+    "id": "gold-029",
+    "category": "cs.CV",
+    "query": "How does positional encoding in Neural Radiance Fields (NeRF) enable high-frequency scene representation?",
+    "expected_output": "Coordinate-based MLPs suffer from spectral bias, struggling to learn high-frequency spatial variations. NeRF maps low-dimensional 3D coordinates (x, y, z) and viewing angles into a higher-dimensional Fourier feature space using sinusoidal functions gamma(p) = [sin(2^0 pi p), cos(2^0 pi p), ..., sin(2^(L-1) pi p), cos(2^(L-1) pi p)], enabling the network to represent sharp edges, geometry, and specular highlights.",
+    "expected_context_keywords": [
+      "NeRF",
+      "positional encoding",
+      "Fourier features",
+      "spectral bias",
+      "high-frequency",
+      "radiance field"
+    ],
+    "relevant_paper_ids": [
+      "2003.08934",
+      "2403.06092"
+    ]
+  },
+  {
+    "id": "gold-030",
+    "category": "stat.ML",
+    "query": "What is the relationship between Diffusion Models and Schrödinger Bridges?",
+    "expected_output": "Diffusion models can be viewed as an approximation of the Schrödinger Bridge problem, which seeks the most likely stochastic process matching two boundary probability distributions under entropy regularization. While standard diffusion assumes forward drift towards an isotropic Gaussian, Schrödinger Bridges solve bidirectional optimal transport between arbitrary data distributions with finite time horizons.",
+    "expected_context_keywords": [
+      "Schrödinger Bridge",
+      "diffusion",
+      "optimal transport",
+      "boundary distributions",
+      "stochastic process",
+      "entropy regularization"
+    ],
+    "relevant_paper_ids": [
+      "2106.01357",
+      "2502.11909"
+    ]
+  },
+  {
+    "id": "gold-036",
+    "category": "cs.CL",
+    "query": "How does low-rank adaptation LoRA reduce the number of trainable parameters in large language models?",
+    "expected_output": "LoRA freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer of the Transformer, so only a small number of parameters is trained for each downstream task.",
+    "expected_context_keywords": [
+      "2106.09685"
+    ],
+    "relevant_paper_ids": [
+      "2106.09685"
+    ]
+  },
+  {
+    "id": "gold-037",
+    "category": "cs.CL",
+    "query": "What is the rank parameter r in LoRA decomposition and what values are commonly tested?",
+    "expected_output": "Rank r experiments in LoRA",
+    "expected_context_keywords": [
+      "2106.09685"
+    ],
+    "relevant_paper_ids": [
+      "2106.09685"
+    ]
+  },
+  {
+    "id": "gold-038",
+    "category": "cs.CL",
+    "query": "How does the self-attention mechanism compute queries, keys, and values in Transformer architectures?",
+    "expected_output": "Attention is All You Need",
+    "expected_context_keywords": [
+      "1706.03762"
+    ],
+    "relevant_paper_ids": [
+      "1706.03762"
+    ]
+  },
+  {
+    "id": "gold-039",
+    "category": "cs.CL",
+    "query": "What is the scaled dot-product formula for attention with dimension d_k?",
+    "expected_output": "Scaled dot product math",
+    "expected_context_keywords": [
+      "1706.03762"
+    ],
+    "relevant_paper_ids": [
+      "1706.03762"
+    ]
+  },
+  {
+    "id": "gold-040",
+    "category": "cs.CL",
+    "query": "How does in-context few-shot learning work in GPT-3 without gradient updates?",
+    "expected_output": "GPT-3 performs tasks from a few demonstrations or instructions given purely as text in the prompt, without any gradient updates or fine-tuning.",
+    "expected_context_keywords": [
+      "2005.14165"
+    ],
+    "relevant_paper_ids": [
+      "2005.14165"
+    ]
+  },
+  {
+    "id": "gold-041",
+    "category": "cs.CL",
+    "query": "What are the two pre-training tasks used in BERT: Masked Language Model and Next Sentence Prediction?",
+    "expected_output": "BERT is pre-trained with a masked language model objective, predicting randomly masked tokens from both left and right context, and a next sentence prediction task.",
+    "expected_context_keywords": [
+      "1810.04805"
+    ],
+    "relevant_paper_ids": [
+      "1810.04805"
+    ]
+  },
+  {
+    "id": "gold-042",
+    "category": "cs.CV",
+    "query": "How do deep residual connections address degradation problem in deep convolutional networks?",
+    "expected_output": "ResNet reformulates layers to learn residual functions with reference to the layer inputs via shortcut connections, which makes very deep networks easier to optimize and lets them gain accuracy from increased depth.",
+    "expected_context_keywords": [
+      "1512.03385"
+    ],
+    "relevant_paper_ids": [
+      "1512.03385"
+    ]
+  },
+  {
+    "id": "gold-043",
+    "category": "cs.LG",
+    "query": "What is the Adam optimization algorithm and how does it combine AdaGrad and RMSProp with momentum?",
+    "expected_output": "Adam is a first-order gradient-based optimizer that uses adaptive estimates of the first and second moments of the gradients, combining the advantages of AdaGrad for sparse gradients and RMSProp for non-stationary objectives.",
+    "expected_context_keywords": [
+      "1412.6980"
+    ],
+    "relevant_paper_ids": [
+      "1412.6980"
+    ]
+  },
+  {
+    "id": "gold-044",
+    "category": "cs.CL",
+    "query": "Compare LoRA adapter efficiency with full fine-tuning on downstream tasks",
+    "expected_output": "LoRA trains far fewer parameters and uses less GPU memory than full fine-tuning while performing on par with or better than full fine-tuning in model quality.",
+    "expected_context_keywords": [
+      "2106.09685",
+      "2005.14165"
+    ],
+    "relevant_paper_ids": [
+      "2106.09685",
+      "2005.14165"
+    ]
+  },
+  {
+    "id": "gold-045",
+    "category": "cs.CL",
+    "query": "What is the multi-head attention projection matrix dimension in encoder-decoder models?",
+    "expected_output": "Multi-head attention projections",
+    "expected_context_keywords": [
+      "1706.03762"
+    ],
+    "relevant_paper_ids": [
+      "1706.03762"
+    ]
+  },
+  {
+    "id": "gold-046",
+    "category": "cs.LG",
+    "query": "What problem does batch normalization address and how does it solve it?",
+    "expected_output": "Batch normalization addresses internal covariate shift, the change in the distribution of layer inputs during training, by normalizing layer inputs for each mini-batch, which allows higher learning rates and less careful initialization.",
+    "expected_context_keywords": [
+      "1502.03167"
+    ],
+    "relevant_paper_ids": [
+      "1502.03167"
+    ]
+  },
+  {
+    "id": "gold-047",
+    "category": "cs.NE",
+    "query": "How does dropout reduce overfitting in large feedforward neural networks?",
+    "expected_output": "Dropout randomly omits half of the feature detectors on each training case, which prevents complex co-adaptations so each neuron learns features that are useful on their own, greatly reducing overfitting.",
+    "expected_context_keywords": [
+      "1207.0580"
+    ],
+    "relevant_paper_ids": [
+      "1207.0580"
+    ]
+  },
+  {
+    "id": "gold-048",
+    "category": "cs.CV",
+    "query": "What did VGG find about the effect of convolutional network depth using small filters?",
+    "expected_output": "Using very small 3x3 convolution filters, increasing network depth to 16-19 weight layers gives a significant improvement over prior configurations in large-scale image recognition.",
+    "expected_context_keywords": [
+      "1409.1556"
+    ],
+    "relevant_paper_ids": [
+      "1409.1556"
+    ]
+  },
+  {
+    "id": "gold-049",
+    "category": "cs.CV",
+    "query": "How does YOLO frame object detection differently from earlier classifier-based detectors?",
+    "expected_output": "YOLO frames object detection as a single regression problem: one neural network predicts bounding boxes and class probabilities directly from the full image in one evaluation, enabling end-to-end training and real-time detection.",
+    "expected_context_keywords": [
+      "1506.02640"
+    ],
+    "relevant_paper_ids": [
+      "1506.02640"
+    ]
+  },
+  {
+    "id": "gold-050",
+    "category": "cs.CV",
+    "query": "What is the architecture of U-Net for biomedical image segmentation?",
+    "expected_output": "U-Net has a contracting path that captures context and a symmetric expanding path that enables precise localization, and relies on strong data augmentation so it can be trained end-to-end from very few annotated images.",
+    "expected_context_keywords": [
+      "1505.04597"
+    ],
+    "relevant_paper_ids": [
+      "1505.04597"
+    ]
+  },
+  {
+    "id": "gold-051",
+    "category": "cs.CV",
+    "query": "How does Mask R-CNN extend Faster R-CNN for instance segmentation?",
+    "expected_output": "Mask R-CNN adds a branch that predicts an object segmentation mask for each instance in parallel with the existing bounding box recognition branch of Faster R-CNN, with only a small overhead.",
+    "expected_context_keywords": [
+      "1703.06870"
+    ],
+    "relevant_paper_ids": [
+      "1703.06870"
+    ]
+  },
+  {
+    "id": "gold-052",
+    "category": "cs.CV",
+    "query": "What is a Region Proposal Network and why does it make detection faster?",
+    "expected_output": "A Region Proposal Network is a fully convolutional network that shares full-image convolutional features with the detection network and simultaneously predicts object bounds and objectness scores, making region proposals nearly cost-free.",
+    "expected_context_keywords": [
+      "1506.01497"
+    ],
+    "relevant_paper_ids": [
+      "1506.01497"
+    ]
+  },
+  {
+    "id": "gold-053",
+    "category": "cs.CV",
+    "query": "How is CLIP pre-trained and what does it enable?",
+    "expected_output": "CLIP is pre-trained to predict which caption goes with which image on a large dataset of image-text pairs, learning visual concepts from natural language supervision that enable zero-shot transfer to downstream tasks.",
+    "expected_context_keywords": [
+      "2103.00020"
+    ],
+    "relevant_paper_ids": [
+      "2103.00020"
+    ]
+  },
+  {
+    "id": "gold-054",
+    "category": "cs.CV",
+    "query": "Why do latent diffusion models apply diffusion in a latent space instead of pixel space?",
+    "expected_output": "Pixel-space diffusion models are very expensive to train and sample; latent diffusion models run the diffusion process in the latent space of a pretrained autoencoder, greatly reducing compute while keeping high image quality, and add cross-attention for conditioning.",
+    "expected_context_keywords": [
+      "2112.10752"
+    ],
+    "relevant_paper_ids": [
+      "2112.10752"
+    ]
+  },
+  {
+    "id": "gold-055",
+    "category": "stat.ML",
+    "query": "What is the reparameterization trick in Auto-Encoding Variational Bayes used for?",
+    "expected_output": "Reparameterizing the variational lower bound yields a lower bound estimator that can be optimized directly with standard stochastic gradient methods, enabling efficient inference and learning with continuous latent variables.",
+    "expected_context_keywords": [
+      "1312.6114"
+    ],
+    "relevant_paper_ids": [
+      "1312.6114"
+    ]
+  },
+  {
+    "id": "gold-056",
+    "category": "cs.CV",
+    "query": "How does CycleGAN learn image-to-image translation without paired training data?",
+    "expected_output": "CycleGAN learns a mapping G from domain X to Y with an adversarial loss and couples it with an inverse mapping F, adding a cycle consistency loss that enforces F(G(X)) to be close to X.",
+    "expected_context_keywords": [
+      "1703.10593"
+    ],
+    "relevant_paper_ids": [
+      "1703.10593"
+    ]
+  },
+  {
+    "id": "gold-057",
+    "category": "cs.CL",
+    "query": "What are the two kinds of memory combined in Retrieval-Augmented Generation models?",
+    "expected_output": "RAG combines parametric memory, a pre-trained seq2seq model, with non-parametric memory, a dense vector index of Wikipedia accessed through a pre-trained neural retriever.",
+    "expected_context_keywords": [
+      "2005.11401"
+    ],
+    "relevant_paper_ids": [
+      "2005.11401"
+    ]
+  },
+  {
+    "id": "gold-058",
+    "category": "cs.CL",
+    "query": "How does chain-of-thought prompting improve reasoning in large language models?",
+    "expected_output": "Chain-of-thought prompting provides a few exemplars containing intermediate reasoning steps in the prompt, which significantly improves the ability of sufficiently large language models to perform complex reasoning.",
+    "expected_context_keywords": [
+      "2201.11903"
+    ],
+    "relevant_paper_ids": [
+      "2201.11903"
+    ]
+  },
+  {
+    "id": "gold-059",
+    "category": "cs.CL",
+    "query": "How was InstructGPT trained to follow user instructions?",
+    "expected_output": "InstructGPT fine-tunes GPT-3 with human feedback: first supervised learning on labeler-written demonstrations, then reinforcement learning from human feedback using a reward model trained on human rankings of model outputs.",
+    "expected_context_keywords": [
+      "2203.02155"
+    ],
+    "relevant_paper_ids": [
+      "2203.02155"
+    ]
+  },
+  {
+    "id": "gold-060",
+    "category": "cs.CL",
+    "query": "What data was LLaMA trained on and how does LLaMA-13B compare with GPT-3?",
+    "expected_output": "LLaMA models from 7B to 65B parameters are trained on trillions of tokens of publicly available data only, and LLaMA-13B outperforms GPT-3 (175B) on most benchmarks.",
+    "expected_context_keywords": [
+      "2302.13971"
+    ],
+    "relevant_paper_ids": [
+      "2302.13971"
+    ]
+  },
+  {
+    "id": "gold-061",
+    "category": "cs.CL",
+    "query": "What did the RoBERTa replication study conclude about BERT pre-training?",
+    "expected_output": "RoBERTa found that BERT was significantly undertrained, and that with careful choice of hyperparameters and training data size it can match or exceed the performance of every model published after it.",
+    "expected_context_keywords": [
+      "1907.11692"
+    ],
+    "relevant_paper_ids": [
+      "1907.11692"
+    ]
+  },
+  {
+    "id": "gold-062",
+    "category": "cs.LG",
+    "query": "What is the unified framework proposed by T5 for NLP transfer learning?",
+    "expected_output": "T5 converts every text-based language problem into a text-to-text format, so the same model, objective and training procedure can be used across tasks.",
+    "expected_context_keywords": [
+      "1910.10683"
+    ],
+    "relevant_paper_ids": [
+      "1910.10683"
+    ]
+  },
+  {
+    "id": "gold-063",
+    "category": "cs.CL",
+    "query": "Which parameter-reduction techniques does ALBERT use?",
+    "expected_output": "ALBERT uses factorized embedding parameterization and cross-layer parameter sharing to reduce memory and speed up training, plus a self-supervised loss that models inter-sentence coherence.",
+    "expected_context_keywords": [
+      "1909.11942"
+    ],
+    "relevant_paper_ids": [
+      "1909.11942"
+    ]
+  },
+  {
+    "id": "gold-064",
+    "category": "cs.LG",
+    "query": "How do denoising diffusion implicit models speed up sampling?",
+    "expected_output": "DDIMs use non-Markovian diffusion processes that share the same training objective as DDPMs but allow sampling in far fewer steps, producing samples 10 to 50 times faster.",
+    "expected_context_keywords": [
+      "2010.02502"
+    ],
+    "relevant_paper_ids": [
+      "2010.02502"
+    ]
+  },
+  {
+    "id": "gold-065",
+    "category": "cs.CL",
+    "query": "How does Rotary Position Embedding encode positional information?",
+    "expected_output": "RoPE encodes absolute position with a rotation matrix while incorporating explicit relative position dependency into the self-attention formulation.",
+    "expected_context_keywords": [
+      "2104.09864"
+    ],
+    "relevant_paper_ids": [
+      "2104.09864"
+    ]
+  },
+  {
+    "id": "gold-066",
+    "category": "cs.LG",
+    "query": "How does QLoRA make it possible to fine-tune a 65B model on a single GPU?",
+    "expected_output": "QLoRA backpropagates gradients through a frozen 4-bit quantized model into LoRA adapters, using 4-bit NormalFloat, double quantization and paged optimizers to cut memory enough to fine-tune a 65B model on one 48GB GPU.",
+    "expected_context_keywords": [
+      "2305.14314"
+    ],
+    "relevant_paper_ids": [
+      "2305.14314"
+    ]
+  },
+  {
+    "id": "gold-067",
+    "category": "cs.LG",
+    "query": "Why is FlashAttention faster than standard attention while remaining exact?",
+    "expected_output": "FlashAttention is IO-aware: it uses tiling to reduce reads and writes between GPU high-bandwidth memory and on-chip SRAM, computing exact attention with fewer memory accesses.",
+    "expected_context_keywords": [
+      "2205.14135"
+    ],
+    "relevant_paper_ids": [
+      "2205.14135"
+    ]
+  },
+  {
+    "id": "gold-068",
+    "category": "cs.CL",
+    "query": "What limitation of encoder-decoder translation models does the attention mechanism of Bahdanau et al. address?",
+    "expected_output": "Encoding the whole source sentence into a fixed-length vector is a bottleneck; the model instead learns to soft-search for the parts of the source sentence relevant to predicting each target word, jointly learning to align and translate.",
+    "expected_context_keywords": [
+      "1409.0473"
+    ],
+    "relevant_paper_ids": [
+      "1409.0473"
+    ]
+  },
+  {
+    "id": "gold-069",
+    "category": "cs.CL",
+    "query": "What model architectures does word2vec propose for learning word vectors?",
+    "expected_output": "word2vec proposes two architectures, continuous bag-of-words and skip-gram, which learn high-quality word vectors from a 1.6 billion word dataset in less than a day at much lower computational cost.",
+    "expected_context_keywords": [
+      "1301.3781"
+    ],
+    "relevant_paper_ids": [
+      "1301.3781"
+    ]
+  },
+  {
+    "id": "gold-070",
+    "category": "cs.CL",
+    "query": "How does Longformer handle long documents efficiently?",
+    "expected_output": "Longformer replaces full self-attention with an attention mechanism that scales linearly with sequence length, combining local windowed attention with task-motivated global attention.",
+    "expected_context_keywords": [
+      "2004.05150"
+    ],
+    "relevant_paper_ids": [
+      "2004.05150"
+    ]
+  },
+  {
+    "id": "gold-071",
+    "category": "cs.LG",
+    "query": "Which components matter most in SimCLR contrastive learning?",
+    "expected_output": "SimCLR finds that composition of data augmentations is critical, that a learnable nonlinear projection head between the representation and the contrastive loss improves quality, and that larger batch sizes and more training steps help.",
+    "expected_context_keywords": [
+      "2002.05709"
+    ],
+    "relevant_paper_ids": [
+      "2002.05709"
+    ]
+  },
+  {
+    "id": "gold-072",
+    "category": "cs.CV",
+    "query": "How does Momentum Contrast build a large dictionary for contrastive learning?",
+    "expected_output": "MoCo builds a dynamic dictionary with a queue of encoded keys and a slowly progressing, momentum-based moving-average key encoder, keeping the dictionary large and consistent.",
+    "expected_context_keywords": [
+      "1911.05722"
+    ],
+    "relevant_paper_ids": [
+      "1911.05722"
+    ]
+  },
+  {
+    "id": "gold-073",
+    "category": "stat.ML",
+    "query": "What is knowledge distillation in neural networks?",
+    "expected_output": "Knowledge distillation compresses the knowledge of a large model or an ensemble into a single smaller model by training it to match the soft targets of the cumbersome model, making deployment cheaper.",
+    "expected_context_keywords": [
+      "1503.02531"
+    ],
+    "relevant_paper_ids": [
+      "1503.02531"
+    ]
+  },
+  {
+    "id": "gold-074",
+    "category": "cs.LG",
+    "query": "How did the Deep Q-Network learn to play Atari games?",
+    "expected_output": "A convolutional neural network trained with a variant of Q-learning takes raw pixels as input and outputs a value function estimating future rewards, learning control policies directly from high-dimensional sensory input.",
+    "expected_context_keywords": [
+      "1312.5602"
+    ],
+    "relevant_paper_ids": [
+      "1312.5602"
+    ]
+  },
+  {
+    "id": "gold-075",
+    "category": "cs.LG",
+    "query": "What objective does Soft Actor-Critic optimize?",
+    "expected_output": "Soft Actor-Critic is an off-policy actor-critic algorithm in the maximum entropy framework: the actor maximizes expected reward while also maximizing entropy, acting as randomly as possible while succeeding at the task.",
+    "expected_context_keywords": [
+      "1801.01290"
+    ],
+    "relevant_paper_ids": [
+      "1801.01290"
+    ]
+  },
+  {
+    "id": "gold-076",
+    "category": "cs.CV",
+    "query": "What makes MobileNets efficient for mobile vision?",
+    "expected_output": "MobileNets use depthwise separable convolutions to build lightweight networks and introduce two global hyper-parameters, a width multiplier and a resolution multiplier, to trade off latency and accuracy.",
+    "expected_context_keywords": [
+      "1704.04861"
+    ],
+    "relevant_paper_ids": [
+      "1704.04861"
+    ]
+  },
+  {
+    "id": "gold-077",
+    "category": "cs.LG",
+    "query": "What scaling method does EfficientNet propose?",
+    "expected_output": "EfficientNet uses compound scaling, uniformly scaling network depth, width and resolution together with a single compound coefficient.",
+    "expected_context_keywords": [
+      "1905.11946"
+    ],
+    "relevant_paper_ids": [
+      "1905.11946"
+    ]
+  },
+  {
+    "id": "gold-078",
+    "category": "cs.CV",
+    "query": "How are layers connected in DenseNet and what are the benefits?",
+    "expected_output": "DenseNet connects each layer to every other layer in a feed-forward fashion, which alleviates vanishing gradients, strengthens feature propagation, encourages feature reuse and reduces the number of parameters.",
+    "expected_context_keywords": [
+      "1608.06993"
+    ],
+    "relevant_paper_ids": [
+      "1608.06993"
+    ]
+  },
+  {
+    "id": "gold-079",
+    "category": "cs.CV",
+    "query": "What does the Segment Anything project contribute?",
+    "expected_output": "Segment Anything introduces a promptable segmentation model and the SA-1B dataset with over 1 billion masks on 11 million images, enabling strong zero-shot transfer to new image distributions and tasks.",
+    "expected_context_keywords": [
+      "2304.02643"
+    ],
+    "relevant_paper_ids": [
+      "2304.02643"
+    ]
+  },
+  {
+    "id": "gold-080",
+    "category": "cs.CV",
+    "query": "How does the Vision Transformer process images?",
+    "expected_output": "ViT applies a pure Transformer directly to a sequence of image patches (such as 16x16 patches) without convolutions, and performs very well on image classification when pre-trained on large amounts of data.",
+    "expected_context_keywords": [
+      "2010.11929"
+    ],
+    "relevant_paper_ids": [
+      "2010.11929"
+    ]
+  },
+  {
+    "id": "gold-081",
+    "category": "cs.CV",
+    "query": "How do masked autoencoders pre-train vision models?",
+    "expected_output": "MAE masks a high proportion of random image patches, around 75%, and reconstructs the missing pixels using an asymmetric encoder-decoder where the encoder only sees visible patches and a lightweight decoder reconstructs the image.",
+    "expected_context_keywords": [
+      "2111.06377"
+    ],
+    "relevant_paper_ids": [
+      "2111.06377"
+    ]
+  },
+  {
+    "id": "gold-082",
+    "category": "cs.CL",
+    "query": "How should model size and training tokens scale for compute-optimal language models according to Chinchilla?",
+    "expected_output": "Model size and the number of training tokens should be scaled in equal proportion; current large models are undertrained, and Chinchilla (70B) trained on more data outperforms much larger models such as Gopher.",
+    "expected_context_keywords": [
+      "2203.15556"
+    ],
+    "relevant_paper_ids": [
+      "2203.15556"
+    ]
+  },
+  {
+    "id": "gold-083",
+    "category": "cs.LG",
+    "query": "What relationships do the scaling laws for neural language models describe?",
+    "expected_output": "Language model cross-entropy loss follows power laws in model size, dataset size and training compute, while architectural details such as width or depth have minimal effect within a wide range.",
+    "expected_context_keywords": [
+      "2001.08361"
+    ],
+    "relevant_paper_ids": [
+      "2001.08361"
+    ]
+  },
+  {
+    "id": "gold-084",
+    "category": "cs.LG",
+    "query": "What approximation do Graph Convolutional Networks use for semi-supervised node classification?",
+    "expected_output": "GCNs use a localized first-order approximation of spectral graph convolutions, giving a model that scales linearly with the number of edges and learns representations encoding both graph structure and node features.",
+    "expected_context_keywords": [
+      "1609.02907"
+    ],
+    "relevant_paper_ids": [
+      "1609.02907"
+    ]
+  },
+  {
+    "id": "gold-085",
+    "category": "stat.ML",
+    "query": "How do Graph Attention Networks aggregate neighbor information?",
+    "expected_output": "GATs use masked self-attentional layers so each node attends over its neighbors' features and assigns them different weights, without costly matrix operations or knowing the graph structure upfront.",
+    "expected_context_keywords": [
+      "1710.10903"
+    ],
+    "relevant_paper_ids": [
+      "1710.10903"
+    ]
+  },
+  {
+    "id": "gold-086",
+    "category": "cs.SI",
+    "query": "How does GraphSAGE generate embeddings for unseen nodes?",
+    "expected_output": "GraphSAGE is inductive: it learns functions that sample and aggregate features from a node's local neighborhood, so it can generate embeddings for nodes not seen during training.",
+    "expected_context_keywords": [
+      "1706.02216"
+    ],
+    "relevant_paper_ids": [
+      "1706.02216"
+    ]
+  },
+  {
+    "id": "gold-087",
+    "category": "cs.CL",
+    "query": "Does continued pre-training on in-domain text still help large pretrained language models?",
+    "expected_output": "Yes. A second phase of pretraining on in-domain text (domain-adaptive pretraining) and on task data (task-adaptive pretraining) improves performance across biomedical, computer science, news and review domains.",
+    "expected_context_keywords": [
+      "2004.10964"
+    ],
+    "relevant_paper_ids": [
+      "2004.10964"
+    ]
+  },
+  {
+    "id": "gold-088",
+    "category": "cs.LG",
+    "query": "Compare how DDPM and DDIM generate samples.",
+    "expected_output": "DDPM generates samples by reversing a Markovian diffusion process over many steps; DDIM keeps the same training procedure but uses non-Markovian processes, so it can sample 10 to 50 times faster.",
+    "expected_context_keywords": [
+      "2006.11239",
+      "2010.02502"
+    ],
+    "relevant_paper_ids": [
+      "2006.11239",
+      "2010.02502"
+    ]
+  },
+  {
+    "id": "gold-089",
+    "category": "cs.AI",
+    "query": "Compare how GCN and GAT weight neighboring nodes when aggregating features.",
+    "expected_output": "GCN aggregates neighbors with fixed weights derived from a first-order approximation of spectral graph convolution, while GAT learns different attention weights for each neighbor through masked self-attention.",
+    "expected_context_keywords": [
+      "1609.02907",
+      "1710.10903"
+    ],
+    "relevant_paper_ids": [
+      "1609.02907",
+      "1710.10903"
+    ]
+  },
+  {
+    "id": "gold-090",
+    "category": "cs.AI",
+    "query": "Compare how SimCLR and MoCo obtain negative samples for contrastive learning.",
+    "expected_output": "SimCLR uses the other examples in a large training batch as negatives, while MoCo keeps a queue of keys encoded by a momentum encoder as a large dictionary of negatives independent of batch size.",
+    "expected_context_keywords": [
+      "2002.05709",
+      "1911.05722"
+    ],
+    "relevant_paper_ids": [
+      "2002.05709",
+      "1911.05722"
+    ]
+  },
+  {
+    "id": "gold-091",
+    "category": "cs.AI",
+    "query": "Compare the conclusions of Kaplan et al. scaling laws and Chinchilla about model size versus data.",
+    "expected_output": "Kaplan et al. report power-law relations between loss and model size, data and compute, whereas Chinchilla concludes that compute-optimal training should scale model size and training tokens equally, showing many large models are undertrained.",
+    "expected_context_keywords": [
+      "2001.08361",
+      "2203.15556"
+    ],
+    "relevant_paper_ids": [
+      "2001.08361",
+      "2203.15556"
+    ]
+  },
+  {
+    "id": "gold-092",
+    "category": "cs.AI",
+    "query": "How does RAPTOR recursively construct tree-structured summaries for dense text chunks?",
+    "expected_output": "RAPTOR clusters text chunks using Gaussian Mixture Models on dense embeddings, summarizes each cluster using a language model, and recursively repeats this clustering and summarization until a root node is reached, creating a multi-level hierarchical tree for retrieval.",
+    "expected_context_keywords": [
+      "RAPTOR",
+      "clustering",
+      "Gaussian Mixture Models",
+      "hierarchical tree",
+      "summaries"
+    ],
+    "relevant_paper_ids": [
+      "2401.18059"
+    ]
+  },
+  {
+    "id": "gold-093",
+    "category": "cs.LG",
+    "query": "What are the convergence guarantees of Stochastic Gradient Langevin Dynamics (SGLD) in non-convex optimization?",
+    "expected_output": "SGLD adds decaying Gaussian noise to stochastic gradient descent updates. In non-convex optimization, under dissipative conditions, SGLD asymptotically tracks the continuous Langevin diffusion, allowing the parameter trajectory to escape shallow local minima and converge to the Gibbs measure.",
+    "expected_context_keywords": [
+      "SGLD",
+      "Langevin Dynamics",
+      "non-convex",
+      "Gibbs measure",
+      "convergence"
+    ],
+    "relevant_paper_ids": [
+      "1103.0398"
+    ]
+  },
+  {
+    "id": "gold-094",
+    "category": "cs.CV",
+    "query": "How does BridgeDepth reduce zero-shot relative depth estimation error across diverse benchmark datasets?",
+    "expected_output": "BridgeDepth introduces a cross-domain feature bridge that aligns metric depth representations with affine-invariant relative depth priors, mitigating scaling ambiguity across Middlebury and ETH3D datasets.",
+    "expected_context_keywords": [
+      "BridgeDepth",
+      "depth estimation",
+      "zero-shot",
+      "Middlebury",
+      "ETH3D"
+    ],
+    "relevant_paper_ids": [
+      "2508.04611"
+    ]
+  },
+  {
+    "id": "gold-095",
+    "category": "cs.RO",
+    "query": "How does closed-loop uncertainty-aware trajectory planning prevent state covariance divergence in autonomous navigation?",
+    "expected_output": "Closed-loop uncertainty-aware trajectory planning incorporates feedback policy matrices into the dynamic system model, bounding the propagation of the state covariance matrix over finite planning horizons.",
+    "expected_context_keywords": [
+      "trajectory planning",
+      "covariance",
+      "uncertainty-aware",
+      "closed-loop"
+    ],
+    "relevant_paper_ids": [
+      "2506.13622"
+    ]
+  },
+  {
+    "id": "gold-096",
+    "category": "cs.CV",
+    "query": "How does 3D Gaussian Splatting achieve real-time rendering speeds compared to neural radiance fields (NeRF)?",
+    "expected_output": "3D Gaussian Splatting represents 3D scenes with anisotropic 3D Gaussians and uses a tile-based rasterizer to project Gaussians into screen space, enabling sorting-aware alpha-blending at over 100 FPS without requiring neural network evaluations per ray.",
+    "expected_context_keywords": [
+      "3D Gaussian Splatting",
+      "rasterizer",
+      "NeRF",
+      "alpha-blending",
+      "real-time"
+    ],
+    "relevant_paper_ids": [
+      "2308.04079"
+    ]
+  },
+  {
+    "id": "gold-097",
+    "category": "cs.CL",
+    "query": "How does Grouped-Query Attention (GQA) reduce memory bandwidth pressure compared to Multi-Head Attention?",
+    "expected_output": "Grouped-Query Attention divides query heads into G groups, where each group shares a single key head and value head. This retains high model capacity while drastically reducing the KV-cache memory bandwidth required during autoregressive decoding.",
+    "expected_context_keywords": [
+      "GQA",
+      "Grouped-Query Attention",
+      "KV-cache",
+      "memory bandwidth"
+    ],
+    "relevant_paper_ids": [
+      "2305.13245"
+    ]
+  },
+  {
+    "id": "gold-098",
+    "category": "cs.LG",
+    "query": "What is the theoretical justification for using cosine annealing learning rate schedules in stochastic optimization?",
+    "expected_output": "Cosine annealing smoothly decays the learning rate following a cosine curve without sudden step drops, enabling the optimizer to escape sharp local minima early in training and settle into wide, flat minima that generalize better on unseen test distributions.",
+    "expected_context_keywords": [
+      "cosine annealing",
+      "learning rate schedule",
+      "flat minima",
+      "generalization"
+    ],
+    "relevant_paper_ids": [
+      "1608.03983"
+    ]
+  },
+  {
+    "id": "gold-099",
+    "category": "cs.AI",
+    "query": "What is the core difference between self-consistency prompting and standard chain-of-thought prompting?",
+    "expected_output": "Self-consistency prompts the LLM to generate multiple diverse reasoning paths via temperature sampling and selects the most consistent final answer by majority voting, whereas standard Chain-of-Thought generates a single deterministic greedy path.",
+    "expected_context_keywords": [
+      "self-consistency",
+      "chain-of-thought",
+      "majority voting",
+      "reasoning paths"
+    ],
+    "relevant_paper_ids": [
+      "2203.11171"
+    ]
+  },
+  {
+    "id": "gold-100",
+    "category": "stat.ML",
+    "query": "How does Score-based Generative Modeling relate to Denoising Diffusion Probabilistic Models (DDPM)?",
+    "expected_output": "Score-based generative models and DDPMs are unified under the framework of Stochastic Differential Equations (SDEs), where reverse-time SDEs describe the data generation process guided by score functions estimated with denoising score matching.",
+    "expected_context_keywords": [
+      "score-based",
+      "DDPM",
+      "SDE",
+      "reverse-time SDE",
+      "score matching"
+    ],
+    "relevant_paper_ids": [
+      "2011.13456"
+    ]
+  },
+  {
+    "id": "gold-101",
+    "category": "cs.AI",
+    "query": "How does DeepSeek-LLM evaluate multi-step mathematical deduction on GSM8K and MATH benchmarks?",
+    "expected_output": "DeepSeek-LLM evaluates multi-step mathematical deduction using chain-of-thought prompting on GSM8K and MATH benchmarks, achieving high accuracy comparable to closed-source foundation models through extensive math and reasoning pretraining.",
+    "expected_context_keywords": [
+      "DeepSeek-LLM",
+      "GSM8K",
+      "MATH",
+      "mathematical deduction",
+      "chain-of-thought"
+    ],
+    "relevant_paper_ids": [
+      "2312.14135"
+    ]
+  },
+  {
+    "id": "gold-102",
+    "category": "cs.LG",
+    "query": "How does DeepSeek-V3 implement auxiliary-loss-free load balancing across Mixture-of-Experts (MoE) routers?",
+    "expected_output": "DeepSeek-V3 introduces an auxiliary-loss-free load balancing strategy by adding dynamic bias terms to affinity scores, avoiding performance degradation from traditional auxiliary loss constraints while keeping expert workloads balanced.",
+    "expected_context_keywords": [
+      "DeepSeek-V3",
+      "auxiliary-loss-free",
+      "load balancing",
+      "MoE router",
+      "expert affinity"
+    ],
+    "relevant_paper_ids": [
+      "2412.19437"
+    ]
+  },
+  {
+    "id": "gold-103",
+    "category": "cs.LG",
+    "query": "How does DeepSeek-V2 reduce KV cache memory overhead using Multi-head Latent Attention (MLA)?",
+    "expected_output": "DeepSeek-V2 introduces Multi-head Latent Attention (MLA) which compresses the Key-Value (KV) cache into low-dimensional latent vectors via low-rank projection, drastically reducing memory footprint during generation.",
+    "expected_context_keywords": [
+      "DeepSeek-V2",
+      "Multi-head Latent Attention",
+      "MLA",
+      "KV cache",
+      "compression"
+    ],
+    "relevant_paper_ids": [
+      "2405.04434"
+    ]
+  },
+  {
+    "id": "gold-104",
+    "category": "cs.LG",
+    "query": "What training cost and inference FLOP reduction is reported for DeepSeek-V2 compared to DeepSeek 67B?",
+    "expected_output": "DeepSeek-V2 achieves substantial training cost and inference FLOP reductions over DeepSeek 67B by activating only a fraction of total parameters per token while sustaining top-tier performance through MLA and sparse MoE routing.",
+    "expected_context_keywords": [
+      "DeepSeek-V2",
+      "training cost",
+      "inference FLOPs",
+      "MoE routing",
+      "parameter efficiency"
+    ],
+    "relevant_paper_ids": [
+      "2405.04434"
+    ]
+  },
+  {
+    "id": "gold-105",
+    "category": "cs.CL",
+    "query": "How does Code Llama support infilling capabilities using causal masking and fill-in-the-middle training objectives?",
+    "expected_output": "Code Llama supports infilling capabilities by employing causal masking alongside Fill-in-the-Middle (FIM) training objectives, enabling the model to predict code snippets given surrounding prefix and suffix context.",
+    "expected_context_keywords": [
+      "Code Llama",
+      "infilling",
+      "Fill-in-the-Middle",
+      "FIM",
+      "causal masking"
+    ],
+    "relevant_paper_ids": [
+      "2308.12950"
+    ]
+  },
+  {
+    "id": "gold-106",
+    "category": "cs.CL",
+    "query": "What context window length up to 100,000 tokens was unlocked in Code Llama using modified RoPE base frequencies?",
+    "expected_output": "Code Llama unlocked context window lengths up to 100,000 tokens by adjusting the base frequency theta of Rotary Positional Embeddings (RoPE), preventing attention degradation over long codebases.",
+    "expected_context_keywords": [
+      "Code Llama",
+      "context window",
+      "100,000 tokens",
+      "RoPE",
+      "base frequency theta"
+    ],
+    "relevant_paper_ids": [
+      "2308.12950"
+    ]
+  },
+  {
+    "id": "gold-107",
+    "category": "cs.LG",
+    "query": "How does QLoRA achieve 4-bit NormalFloat (NF4) quantization with double quantization and paged optimizers?",
+    "expected_output": "QLoRA achieves 4-bit NormalFloat (NF4) quantization, an information-theoretically optimal distribution for zero-mean normal weights, combined with Double Quantization to reduce memory footprint and Paged Optimizers to manage memory spikes.",
+    "expected_context_keywords": [
+      "QLoRA",
+      "NormalFloat4",
+      "NF4",
+      "double quantization",
+      "paged optimizers"
+    ],
+    "relevant_paper_ids": [
+      "2305.14314"
+    ]
+  },
+  {
+    "id": "gold-108",
+    "category": "cs.LG",
+    "query": "What memory reduction does QLoRA provide, enabling fine-tuning of a 65B parameter model on a single 48GB GPU?",
+    "expected_output": "QLoRA dramatically reduces memory consumption, enabling fine-tuning of a 65-billion parameter model on a single 48GB GPU without sacrificing 16-bit full fine-tuning performance.",
+    "expected_context_keywords": [
+      "QLoRA",
+      "65B parameter",
+      "48GB GPU",
+      "memory reduction",
+      "fine-tuning"
+    ],
+    "relevant_paper_ids": [
+      "2305.14314"
+    ]
+  },
+  {
+    "id": "gold-109",
+    "category": "cs.LG",
+    "query": "How does FlashAttention-2 improve parallelism and FLOP throughput over the original FlashAttention?",
+    "expected_output": "FlashAttention-2 improves throughput by parallelizing across the sequence length dimension in the forward pass and reducing non-matmul floating point operations, achieving up to 73% of theoretical peak FLOPs.",
+    "expected_context_keywords": [
+      "FlashAttention-2",
+      "parallelism",
+      "sequence length",
+      "forward pass",
+      "FLOP throughput"
+    ],
+    "relevant_paper_ids": [
+      "2307.08691"
+    ]
+  },
+  {
+    "id": "gold-110",
+    "category": "cs.LG",
+    "query": "What work partitioning scheme does FlashAttention-2 employ within each thread block to minimize shared memory communication?",
+    "expected_output": "FlashAttention-2 partitions the Q and K/V blocks across warps so that each warp computes attention for a slice of the query without requiring inter-warp communication through shared memory.",
+    "expected_context_keywords": [
+      "FlashAttention-2",
+      "thread block",
+      "warps",
+      "shared memory",
+      "work partitioning"
+    ],
+    "relevant_paper_ids": [
+      "2307.08691"
+    ]
+  },
+  {
+    "id": "gold-111",
+    "category": "cs.LG",
+    "query": "How does FlashDecoding parallelize attention computation across the sequence dimension for accelerated long-context generation?",
+    "expected_output": "FlashDecoding parallelizes attention computation across the sequence length dimension during autoregressive decoding, distributing KV cache blocks across multiple thread blocks to maximize GPU occupancy.",
+    "expected_context_keywords": [
+      "FlashDecoding",
+      "sequence dimension",
+      "parallelization",
+      "decoding",
+      "KV cache"
+    ],
+    "relevant_paper_ids": [
+      "2307.03172"
+    ]
+  },
+  {
+    "id": "gold-112",
+    "category": "cs.LG",
+    "query": "What speedup does FlashDecoding report over standard decoding kernels at batch size 1 with 64k context?",
+    "expected_output": "FlashDecoding achieves significant speedups (up to 8x) over standard decoding attention kernels at batch size 1 when scaling context lengths up to 64k tokens.",
+    "expected_context_keywords": [
+      "FlashDecoding",
+      "speedup",
+      "batch size 1",
+      "64k context",
+      "latency"
+    ],
+    "relevant_paper_ids": [
+      "2307.03172"
+    ]
+  },
+  {
+    "id": "gold-113",
+    "category": "cs.CL",
+    "query": "How does Mistral 7B utilize Sliding Window Attention (SWA) to handle long sequence inference efficiently?",
+    "expected_output": "Mistral 7B employs Sliding Window Attention with a window size of 4,096 tokens, allowing hidden states to theoretically access context up to 131k tokens across multiple layers while keeping KV cache memory bounded.",
+    "expected_context_keywords": [
+      "Mistral 7B",
+      "Sliding Window Attention",
+      "SWA",
+      "KV cache",
+      "rolling buffer"
+    ],
+    "relevant_paper_ids": [
+      "2310.06825"
+    ]
+  },
+  {
+    "id": "gold-114",
+    "category": "cs.CL",
+    "query": "What rolling buffer cache mechanism does Mistral 7B introduce to limit cache memory footprint during autoregressive generation?",
+    "expected_output": "Mistral 7B uses a rolling buffer cache of fixed size W that overwrites past keys and values modulo W at each timestep, maintaining constant memory overhead regardless of sequence length.",
+    "expected_context_keywords": [
+      "Mistral 7B",
+      "rolling buffer cache",
+      "fixed size",
+      "modulo",
+      "memory footprint"
+    ],
+    "relevant_paper_ids": [
+      "2310.06825"
+    ]
+  },
+  {
+    "id": "gold-115",
+    "category": "cs.LG",
+    "query": "Why does DPO avoid the instability and hyperparameter sensitivity associated with reinforcement learning Actor-Critic loops?",
+    "expected_output": "Direct Preference Optimization (DPO) avoids the numerical instability and hyperparameter sensitivity of RLHF Actor-Critic loops by reparameterizing the Bradley-Terry preference model directly in terms of the language model policy.",
+    "expected_context_keywords": [
+      "DPO",
+      "Actor-Critic",
+      "instability",
+      "hyperparameter sensitivity",
+      "policy reparameterization"
+    ],
+    "relevant_paper_ids": [
+      "2305.18290"
+    ]
+  },
+  {
+    "id": "gold-116",
+    "category": "cs.LG",
+    "query": "How does Low-Rank Adaptation (LoRA) freeze pre-trained model weights while parameterizing weight updates with low-rank matrices?",
+    "expected_output": "LoRA freezes pre-trained weight matrices W0 and decomposes the weight update into two low-rank matrices B and A such that Delta W = B * A, drastically reducing the number of trainable parameters.",
+    "expected_context_keywords": [
+      "LoRA",
+      "low-rank",
+      "rank r",
+      "trainable parameters",
+      "weight decomposition"
+    ],
+    "relevant_paper_ids": [
+      "2106.09685"
+    ]
+  },
+  {
+    "id": "gold-117",
+    "category": "cs.LG",
+    "query": "Why does LoRA introduce zero additional inference latency when deployed in production?",
+    "expected_output": "LoRA introduces zero inference latency because the trained low-rank matrices B * A can be explicitly folded directly into the original weight matrix W = W0 + B * A upon deployment without architectural modification.",
+    "expected_context_keywords": [
+      "LoRA",
+      "inference latency",
+      "weight folding",
+      "deployment",
+      "zero latency"
+    ],
+    "relevant_paper_ids": [
+      "2106.09685"
+    ]
+  },
+  {
+    "id": "gold-118",
+    "category": "cs.AI",
+    "query": "How does the Tree of Thoughts (ToT) framework generalize chain-of-thought prompting for deliberate problem solving?",
+    "expected_output": "Tree of Thoughts generalizes chain-of-thought by structuring problem solving as a search over a tree of intermediate thoughts, allowing language models to explore multiple reasoning paths and evaluate choices using search algorithms like BFS or DFS.",
+    "expected_context_keywords": [
+      "Tree of Thoughts",
+      "ToT",
+      "tree search",
+      "BFS",
+      "DFS",
+      "deliberate reasoning"
+    ],
+    "relevant_paper_ids": [
+      "2305.10601"
+    ]
+  },
+  {
+    "id": "gold-119",
+    "category": "cs.AI",
+    "query": "How does Tree of Thoughts allow a language model to self-evaluate thought candidates and backtrack when encountering dead ends?",
+    "expected_output": "Tree of Thoughts prompts the model to self-evaluate candidate thoughts using deliberate heuristic scores, enabling search algorithms to prune unpromising branches and backtrack to find optimal solutions.",
+    "expected_context_keywords": [
+      "Tree of Thoughts",
+      "self-evaluate",
+      "backtracking",
+      "pruning",
+      "heuristic"
+    ],
+    "relevant_paper_ids": [
+      "2305.10601"
+    ]
+  },
+  {
+    "id": "gold-120",
+    "category": "cs.AI",
+    "query": "How does ReAct combine reasoning traces and task-specific actions to improve language model performance on interactive tasks?",
+    "expected_output": "ReAct interleaves reasoning thoughts ('Thought') with domain-specific actions ('Action') and external environment observations ('Observation'), allowing language models to dynamically adjust reasoning based on feedback.",
+    "expected_context_keywords": [
+      "ReAct",
+      "reasoning traces",
+      "actions",
+      "observations",
+      "interleaving"
+    ],
+    "relevant_paper_ids": [
+      "2210.03629"
+    ]
+  },
+  {
+    "id": "gold-121",
+    "category": "cs.AI",
+    "query": "How large is ClueWeb12?",
+    "expected_output": "ClueWeb12 contains 733,019,372 English web pages, divided into segments of about 50 million documents.",
+    "expected_context_keywords": [
+      "large",
+      "ClueWeb12?"
+    ],
+    "relevant_paper_ids": [
+      "2509.07759"
+    ]
+  },
+  {
+    "id": "gold-122",
+    "category": "cs.AI",
+    "query": "How does BridgeDepth perform?",
+    "expected_output": "BridgeDepth reduces zero-shot error by 41.3% on Middlebury and 65.8% on ETH3D.",
+    "expected_context_keywords": [
+      "BridgeDepth",
+      "perform?"
+    ],
+    "relevant_paper_ids": [
+      "2508.04611"
+    ]
+  },
+  {
+    "id": "gold-123",
+    "category": "cs.AI",
+    "query": "How big is the rigging dataset?",
+    "expected_output": "The dataset holds 82,633 rigged meshes.",
+    "expected_context_keywords": [
+      "rigging",
+      "dataset?"
+    ],
+    "relevant_paper_ids": [
+      "2604.20539"
+    ]
+  },
+  {
+    "id": "gold-124",
+    "category": "cs.AI",
+    "query": "What ratio does OBR adopt?",
+    "expected_output": "A 50% partitioning ratio is adopted for constructing E2 and R2 as a trade-off.",
+    "expected_context_keywords": [
+      "ratio",
+      "adopt?"
+    ],
+    "relevant_paper_ids": [
+      "2509.11177"
+    ]
+  },
+  {
+    "id": "gold-125",
+    "category": "cs.AI",
+    "query": "How much does SPL improve?",
+    "expected_output": "The method achieves an average SPL improvement of 146.61% over the baseline in complex tasks.",
+    "expected_context_keywords": [
+      "improve?"
+    ],
+    "relevant_paper_ids": [
+      "2602.00708"
+    ]
+  },
+  {
+    "id": "gold-126",
+    "category": "cs.AI",
+    "query": "Is adaptive alpha better in PIXEL?",
+    "expected_output": "Yes. On Llama3-8B-Instruct adaptive alpha gives an MC2 score of 60.28 compared with 51.20 for the fixed strength.",
+    "expected_context_keywords": [
+      "adaptive",
+      "alpha",
+      "better",
+      "PIXEL?"
+    ],
+    "relevant_paper_ids": [
+      "2510.10205"
+    ]
+  },
+  {
+    "id": "gold-127",
+    "category": "cs.AI",
+    "query": "How is the embedding dimension selected?",
+    "expected_output": "The dimension is increased until the percentage of false neighbours falls below a small threshold.",
+    "expected_context_keywords": [
+      "embedding",
+      "dimension",
+      "selected?"
+    ],
+    "relevant_paper_ids": [
+      "2503.03302"
+    ]
+  },
+  {
+    "id": "gold-128",
+    "category": "cs.AI",
+    "query": "What is MCSplat?",
+    "expected_output": "MCSplat predicts 3D Gaussian primitives from multi-view driving images using a canonical appearance space.",
+    "expected_context_keywords": [
+      "MCSplat?"
+    ],
+    "relevant_paper_ids": [
+      "2610.25345"
+    ]
+  },
+  {
+    "id": "gold-129",
+    "category": "cs.AI",
+    "query": "Which method recovers observables?",
+    "expected_output": "ERSI is the only method that recovers correct estimates of physical observables.",
+    "expected_context_keywords": [
+      "Which",
+      "method",
+      "recovers",
+      "observables?"
+    ],
+    "relevant_paper_ids": [
+      "2512.16607"
+    ]
+  },
+  {
+    "id": "gold-130",
+    "category": "cs.AI",
+    "query": "What is the functionality reward?",
+    "expected_output": "The functionality reward is the pass rate of the unit tests.",
+    "expected_context_keywords": [
+      "functionality",
+      "reward?"
+    ],
+    "relevant_paper_ids": [
+      "2505.22704"
+    ]
+  },
+  {
+    "id": "gold-131",
+    "category": "cs.AI",
+    "query": "How does LoRA decompose the weight update matrix?",
+    "expected_output": "LoRA decomposes the weight update matrix W into low-rank matrices B and A such that Delta W = B * A, where B and A have rank r << min(d, k).",
+    "expected_context_keywords": [
+      "decompose",
+      "weight",
+      "update",
+      "matrix?"
+    ],
+    "relevant_paper_ids": [
+      "2106.09685"
+    ]
+  },
+  {
+    "id": "gold-132",
+    "category": "cs.AI",
+    "query": "What is the scaling factor in Scaled Dot-Product Attention?",
+    "expected_output": "The dot products are scaled by 1 divided by the square root of d_k to prevent pushing the softmax function into regions with tiny gradients.",
+    "expected_context_keywords": [
+      "scaling",
+      "factor",
+      "Scaled",
+      "Dot-Product",
+      "Attention?"
+    ],
+    "relevant_paper_ids": [
+      "1706.03762"
+    ]
+  },
+  {
+    "id": "gold-133",
+    "category": "cs.AI",
+    "query": "Does in-context learning update the weights of GPT-3?",
+    "expected_output": "No. During few-shot in-context learning, the model is conditioned on natural language demonstrations in the prompt without updating any model weights.",
+    "expected_context_keywords": [
+      "in-context",
+      "learning",
+      "update",
+      "weights",
+      "GPT-3?"
+    ],
+    "relevant_paper_ids": [
+      "2005.14165"
+    ]
+  },
+  {
+    "id": "gold-134",
+    "category": "cs.AI",
+    "query": "What percentage of tokens are masked in BERT's masked language model?",
+    "expected_output": "BERT randomly masks 15% of all input tokens, of which 80% are replaced with [MASK], 10% with a random token, and 10% kept unchanged.",
+    "expected_context_keywords": [
+      "percentage",
+      "tokens",
+      "masked",
+      "BERT's",
+      "masked"
+    ],
+    "relevant_paper_ids": [
+      "1810.04805"
+    ]
+  },
+  {
+    "id": "gold-135",
+    "category": "cs.AI",
+    "query": "What problem do residual connections solve in deep networks?",
+    "expected_output": "Residual connections solve the degradation problem, where deeper networks exhibit higher training error despite having sufficient representational capacity.",
+    "expected_context_keywords": [
+      "problem",
+      "residual",
+      "connections",
+      "solve",
+      "networks?"
+    ],
+    "relevant_paper_ids": [
+      "1512.03385"
+    ]
+  },
+  {
+    "id": "gold-136",
+    "category": "cs.AI",
+    "query": "What does Adam compute to adapt learning rates?",
+    "expected_output": "Adam computes adaptive learning rates for individual parameters from estimates of first and second moments of the gradients.",
+    "expected_context_keywords": [
+      "compute",
+      "adapt",
+      "learning",
+      "rates?"
+    ],
+    "relevant_paper_ids": [
+      "1412.6980"
+    ]
+  },
+  {
+    "id": "gold-137",
+    "category": "cs.AI",
+    "query": "How does FlashAttention avoid reading and writing the large N x N attention matrix to HBM?",
+    "expected_output": "FlashAttention splits inputs into blocks, loads them to fast SRAM, and computes incremental softmax using online softmax reduction without materializing the full N x N matrix in HBM.",
+    "expected_context_keywords": [
+      "FlashAttention",
+      "avoid",
+      "reading",
+      "writing",
+      "large"
+    ],
+    "relevant_paper_ids": [
+      "2205.14135"
+    ]
+  },
+  {
+    "id": "gold-138",
+    "category": "cs.AI",
+    "query": "Does DPO require training an explicit reward model?",
+    "expected_output": "No. DPO implicitly optimizes the same objective as RLHF by directly parameterizing the reward in terms of the language model policy.",
+    "expected_context_keywords": [
+      "require",
+      "training",
+      "explicit",
+      "reward",
+      "model?"
+    ],
+    "relevant_paper_ids": [
+      "2305.18290"
+    ]
+  },
+  {
+    "id": "gold-139",
+    "category": "cs.AI",
+    "query": "What dataset size was used to train the original CLIP model?",
+    "expected_output": "CLIP was trained on a dataset of 400 million (image, text) pairs collected from the internet.",
+    "expected_context_keywords": [
+      "dataset",
+      "train",
+      "original",
+      "model?"
+    ],
+    "relevant_paper_ids": [
+      "2103.00020"
+    ]
+  },
+  {
+    "id": "gold-140",
+    "category": "cs.AI",
+    "query": "What does Chinchilla recommend for compute-optimal language model training?",
+    "expected_output": "Chinchilla finds that model size and the number of training tokens should be scaled in equal proportions, roughly doubling tokens for every doubling of parameters.",
+    "expected_context_keywords": [
+      "Chinchilla",
+      "recommend",
+      "compute-optimal",
+      "language",
+      "model"
+    ],
+    "relevant_paper_ids": [
+      "2203.15556"
+    ]
+  },
+  {
+    "id": "gold-141",
+    "category": "cs.AI",
+    "query": "What activation function was used in the LLaMA feed-forward network?",
+    "expected_output": "LLaMA replaced ReLU non-linearities with the SwiGLU activation function proposed by Shazeer.",
+    "expected_context_keywords": [
+      "activation",
+      "function",
+      "LLaMA",
+      "feed-forward",
+      "network?"
+    ],
+    "relevant_paper_ids": [
+      "2302.13971"
+    ]
+  },
+  {
+    "id": "gold-142",
+    "category": "cs.AI",
+    "query": "How was context window expanded in Llama 2 compared to LLaMA 1?",
+    "expected_output": "Llama 2 doubled the context length of LLaMA 1 from 2,048 tokens to 4,096 tokens.",
+    "expected_context_keywords": [
+      "context",
+      "window",
+      "expanded",
+      "Llama",
+      "compared"
+    ],
+    "relevant_paper_ids": [
+      "2307.09288"
+    ]
+  },
+  {
+    "id": "gold-143",
+    "category": "cs.AI",
+    "query": "What did RoBERTa conclude about BERT's Next Sentence Prediction (NSP) task?",
+    "expected_output": "RoBERTa found that removing the Next Sentence Prediction objective matches or slightly improves downstream task performance.",
+    "expected_context_keywords": [
+      "RoBERTa",
+      "conclude",
+      "about",
+      "BERT's",
+      "Sentence"
+    ],
+    "relevant_paper_ids": [
+      "1907.11692"
+    ]
+  },
+  {
+    "id": "gold-144",
+    "category": "cs.AI",
+    "query": "What supervision was used to train Whisper speech models?",
+    "expected_output": "Whisper was trained on 680,000 hours of weakly supervised audio gathered from the web without rigorous manual transcripts.",
+    "expected_context_keywords": [
+      "supervision",
+      "train",
+      "Whisper",
+      "speech",
+      "models?"
+    ],
+    "relevant_paper_ids": [
+      "2212.04356"
+    ]
+  },
+  {
+    "id": "gold-145",
+    "category": "cs.AI",
+    "query": "How does ViT process images?",
+    "expected_output": "ViT splits an image into fixed-size patches, linearly embeds each patch, adds position embeddings, and feeds the sequence of vectors to a standard Transformer encoder.",
+    "expected_context_keywords": [
+      "process",
+      "images?"
+    ],
+    "relevant_paper_ids": [
+      "2010.11929"
+    ]
+  },
+  {
+    "id": "gold-146",
+    "category": "cs.AI",
+    "query": "What complexity does Swin Transformer have with respect to image dimensions?",
+    "expected_output": "Swin Transformer achieves linear computational complexity by computing local self-attention within non-overlapping shifted windows.",
+    "expected_context_keywords": [
+      "complexity",
+      "Transformer",
+      "respect",
+      "image",
+      "dimensions?"
+    ],
+    "relevant_paper_ids": [
+      "2103.14030"
+    ]
+  },
+  {
+    "id": "gold-147",
+    "category": "cs.AI",
+    "query": "How did InstructGPT align models with human intent?",
+    "expected_output": "InstructGPT aligned models by fine-tuning with supervised demonstrations followed by reinforcement learning from human feedback using PPO.",
+    "expected_context_keywords": [
+      "InstructGPT",
+      "align",
+      "models",
+      "human",
+      "intent?"
+    ],
+    "relevant_paper_ids": [
+      "2203.02155"
+    ]
+  },
+  {
+    "id": "gold-148",
+    "category": "cs.AI",
+    "query": "What attention mechanism is used in Mistral 7B to handle arbitrary sequence lengths efficiently?",
+    "expected_output": "Mistral 7B uses sliding window attention (SWA) with a window size of 4,096 tokens, where each token attends to the previous 4,096 hidden states.",
+    "expected_context_keywords": [
+      "attention",
+      "mechanism",
+      "Mistral",
+      "handle",
+      "arbitrary"
+    ],
+    "relevant_paper_ids": [
+      "2310.06825"
+    ]
+  },
+  {
+    "id": "gold-149",
+    "category": "cs.AI",
+    "query": "How many experts are activated per token in Mixtral 8x7B?",
+    "expected_output": "At every layer, for every token, a router network selects 2 out of the 8 available experts to process the token and combines their outputs additively.",
+    "expected_context_keywords": [
+      "experts",
+      "activated",
+      "token",
+      "Mixtral",
+      "8x7B?"
+    ],
+    "relevant_paper_ids": [
+      "2401.04088"
+    ]
+  },
+  {
+    "id": "gold-150",
+    "category": "cs.CL",
+    "query": "What is the core difference between the RAG-Sequence and RAG-Token models in retrieval-augmented generation?",
+    "expected_output": "RAG-Sequence uses the same retrieved document to generate the complete target sequence, whereas RAG-Token can draw on different retrieved documents for each generated token.",
+    "expected_context_keywords": [
+      "RAG-Sequence",
+      "RAG-Token",
+      "retrieval-augmented generation",
+      "document retrieval",
+      "generation"
+    ],
+    "relevant_paper_ids": [
+      "2005.11401"
+    ]
+  },
+  {
+    "id": "gold-151",
+    "category": "cs.LG",
+    "query": "How does low-rank adaptation LoRA reduce the number of trainable parameters in large language models?",
+    "expected_output": "Detailed academic explanation of How does low-rank adaptation LoRA reduce the number of trainable parameters in large language models?",
+    "expected_context_keywords": [
+      "low-rank",
+      "adaptation",
+      "reduce",
+      "number",
+      "trainable"
+    ],
+    "relevant_paper_ids": [
+      "2106.09685"
+    ]
+  },
+  {
+    "id": "gold-152",
+    "category": "cs.LG",
+    "query": "What is the rank parameter r in LoRA decomposition and what values are commonly tested?",
+    "expected_output": "Detailed academic explanation of What is the rank parameter r in LoRA decomposition and what values are commonly tested?",
+    "expected_context_keywords": [
+      "parameter",
+      "decomposition",
+      "values",
+      "commonly",
+      "tested?"
+    ],
+    "relevant_paper_ids": [
+      "2106.09685"
+    ]
+  },
+  {
+    "id": "gold-153",
+    "category": "cs.LG",
+    "query": "How does the self-attention mechanism compute queries, keys, and values in Transformer architectures?",
+    "expected_output": "Detailed academic explanation of How does the self-attention mechanism compute queries, keys, and values in Transformer architectures?",
+    "expected_context_keywords": [
+      "self-attention",
+      "mechanism",
+      "compute",
+      "queries,",
+      "keys,"
+    ],
+    "relevant_paper_ids": [
+      "1706.03762"
+    ]
+  },
+  {
+    "id": "gold-154",
+    "category": "cs.LG",
+    "query": "What is the scaled dot-product formula for attention with dimension d_k?",
+    "expected_output": "Detailed academic explanation of What is the scaled dot-product formula for attention with dimension d_k?",
+    "expected_context_keywords": [
+      "scaled",
+      "dot-product",
+      "formula",
+      "attention",
+      "dimension"
+    ],
+    "relevant_paper_ids": [
+      "1706.03762"
+    ]
+  },
+  {
+    "id": "gold-155",
+    "category": "cs.LG",
+    "query": "How does in-context few-shot learning work in GPT-3 without gradient updates?",
+    "expected_output": "Detailed academic explanation of How does in-context few-shot learning work in GPT-3 without gradient updates?",
+    "expected_context_keywords": [
+      "in-context",
+      "few-shot",
+      "learning",
+      "GPT-3",
+      "without"
+    ],
+    "relevant_paper_ids": [
+      "2005.14165"
+    ]
+  },
+  {
+    "id": "gold-156",
+    "category": "cs.LG",
+    "query": "What context window length and total parameter count was evaluated for the largest GPT-3 model?",
+    "expected_output": "Detailed academic explanation of What context window length and total parameter count was evaluated for the largest GPT-3 model?",
+    "expected_context_keywords": [
+      "context",
+      "window",
+      "length",
+      "total",
+      "parameter"
+    ],
+    "relevant_paper_ids": [
+      "2005.14165"
+    ]
+  },
+  {
+    "id": "gold-157",
+    "category": "cs.LG",
+    "query": "What are the two pre-training tasks used in BERT: Masked Language Model and Next Sentence Prediction?",
+    "expected_output": "Detailed academic explanation of What are the two pre-training tasks used in BERT: Masked Language Model and Next Sentence Prediction?",
+    "expected_context_keywords": [
+      "pre-training",
+      "tasks",
+      "BERT:",
+      "Masked",
+      "Language"
+    ],
+    "relevant_paper_ids": [
+      "1810.04805"
+    ]
+  },
+  {
+    "id": "gold-158",
+    "category": "cs.LG",
+    "query": "How does BERT represent input sequences using WordPiece tokenization and positional embeddings?",
+    "expected_output": "Detailed academic explanation of How does BERT represent input sequences using WordPiece tokenization and positional embeddings?",
+    "expected_context_keywords": [
+      "represent",
+      "input",
+      "sequences",
+      "using",
+      "WordPiece"
+    ],
+    "relevant_paper_ids": [
+      "1810.04805"
+    ]
+  },
+  {
+    "id": "gold-159",
+    "category": "cs.LG",
+    "query": "How do deep residual connections address the degradation problem in deep convolutional networks?",
+    "expected_output": "Detailed academic explanation of How do deep residual connections address the degradation problem in deep convolutional networks?",
+    "expected_context_keywords": [
+      "residual",
+      "connections",
+      "address",
+      "degradation",
+      "problem"
+    ],
+    "relevant_paper_ids": [
+      "1512.03385"
+    ]
+  },
+  {
+    "id": "gold-160",
+    "category": "cs.LG",
+    "query": "Why does the shortcut connection F(x) + x perform identity mapping without adding extra parameters?",
+    "expected_output": "Detailed academic explanation of Why does the shortcut connection F(x) + x perform identity mapping without adding extra parameters?",
+    "expected_context_keywords": [
+      "shortcut",
+      "connection",
+      "perform",
+      "identity",
+      "mapping"
+    ],
+    "relevant_paper_ids": [
+      "1512.03385"
+    ]
+  },
+  {
+    "id": "gold-161",
+    "category": "cs.LG",
+    "query": "What is the Adam optimization algorithm and how does it combine AdaGrad and RMSProp with momentum?",
+    "expected_output": "Detailed academic explanation of What is the Adam optimization algorithm and how does it combine AdaGrad and RMSProp with momentum?",
+    "expected_context_keywords": [
+      "optimization",
+      "algorithm",
+      "combine",
+      "AdaGrad",
+      "RMSProp"
+    ],
+    "relevant_paper_ids": [
+      "1412.6980"
+    ]
+  },
+  {
+    "id": "gold-162",
+    "category": "cs.LG",
+    "query": "How does FlashAttention compute exact attention with sub-quadratic I/O complexity by tiling intermediate blocks?",
+    "expected_output": "Detailed academic explanation of How does FlashAttention compute exact attention with sub-quadratic I/O complexity by tiling intermediate blocks?",
+    "expected_context_keywords": [
+      "FlashAttention",
+      "compute",
+      "exact",
+      "attention",
+      "sub-quadratic"
+    ],
+    "relevant_paper_ids": [
+      "2205.14135"
+    ]
+  },
+  {
+    "id": "gold-163",
+    "category": "cs.LG",
+    "query": "What speedup does FlashAttention achieve over standard PyTorch attention on A100 GPUs for long sequences?",
+    "expected_output": "Detailed academic explanation of What speedup does FlashAttention achieve over standard PyTorch attention on A100 GPUs for long sequences?",
+    "expected_context_keywords": [
+      "speedup",
+      "FlashAttention",
+      "achieve",
+      "standard",
+      "PyTorch"
+    ],
+    "relevant_paper_ids": [
+      "2205.14135"
+    ]
+  },
+  {
+    "id": "gold-164",
+    "category": "cs.LG",
+    "query": "How does Direct Preference Optimization (DPO) derive an exact closed-form expression for the optimal policy?",
+    "expected_output": "Detailed academic explanation of How does Direct Preference Optimization (DPO) derive an exact closed-form expression for the optimal policy?",
+    "expected_context_keywords": [
+      "Direct",
+      "Preference",
+      "Optimization",
+      "(DPO)",
+      "derive"
+    ],
+    "relevant_paper_ids": [
+      "2305.18290"
+    ]
+  },
+  {
+    "id": "gold-165",
+    "category": "cs.LG",
+    "query": "What loss function does DPO minimize to align language models directly on human preference pairs without a reward model?",
+    "expected_output": "Detailed academic explanation of What loss function does DPO minimize to align language models directly on human preference pairs without a reward model?",
+    "expected_context_keywords": [
+      "function",
+      "minimize",
+      "align",
+      "language",
+      "models"
+    ],
+    "relevant_paper_ids": [
+      "2305.18290"
+    ]
+  },
+  {
+    "id": "gold-166",
+    "category": "cs.LG",
+    "query": "How does CLIP use a symmetric cross-entropy loss over text and image embedding batches?",
+    "expected_output": "Detailed academic explanation of How does CLIP use a symmetric cross-entropy loss over text and image embedding batches?",
+    "expected_context_keywords": [
+      "symmetric",
+      "cross-entropy",
+      "image",
+      "embedding",
+      "batches?"
+    ],
+    "relevant_paper_ids": [
+      "2103.00020"
+    ]
+  },
+  {
+    "id": "gold-167",
+    "category": "cs.LG",
+    "query": "What zero-shot classification performance does CLIP achieve on ImageNet compared to a linear probe on ResNet-50?",
+    "expected_output": "Detailed academic explanation of What zero-shot classification performance does CLIP achieve on ImageNet compared to a linear probe on ResNet-50?",
+    "expected_context_keywords": [
+      "zero-shot",
+      "classification",
+      "performance",
+      "achieve",
+      "ImageNet"
+    ],
+    "relevant_paper_ids": [
+      "2103.00020"
+    ]
+  },
+  {
+    "id": "gold-168",
+    "category": "cs.LG",
+    "query": "What scaling law does Chinchilla establish regarding the balance between parameter count and training tokens?",
+    "expected_output": "Detailed academic explanation of What scaling law does Chinchilla establish regarding the balance between parameter count and training tokens?",
+    "expected_context_keywords": [
+      "scaling",
+      "Chinchilla",
+      "establish",
+      "regarding",
+      "balance"
+    ],
+    "relevant_paper_ids": [
+      "2203.15556"
+    ]
+  },
+  {
+    "id": "gold-169",
+    "category": "cs.LG",
+    "query": "Why was the 70B Chinchilla model able to outperform the 280B Gopher model while using the same compute budget?",
+    "expected_output": "Detailed academic explanation of Why was the 70B Chinchilla model able to outperform the 280B Gopher model while using the same compute budget?",
+    "expected_context_keywords": [
+      "Chinchilla",
+      "model",
+      "outperform",
+      "Gopher",
+      "model"
+    ],
+    "relevant_paper_ids": [
+      "2203.15556"
+    ]
+  },
+  {
+    "id": "gold-170",
+    "category": "cs.LG",
+    "query": "What architectural modifications does LLaMA incorporate from GPT-3, PaLM, and GPT-NeoX, including RMSNorm and SwiGLU?",
+    "expected_output": "Detailed academic explanation of What architectural modifications does LLaMA incorporate from GPT-3, PaLM, and GPT-NeoX, including RMSNorm and SwiGLU?",
+    "expected_context_keywords": [
+      "architectural",
+      "modifications",
+      "LLaMA",
+      "incorporate",
+      "GPT-3,"
+    ],
+    "relevant_paper_ids": [
+      "2302.13971"
+    ]
+  },
+  {
+    "id": "gold-171",
+    "category": "cs.LG",
+    "query": "How does rotary positional embedding (RoPE) enable relative position awareness in LLaMA transformers?",
+    "expected_output": "Detailed academic explanation of How does rotary positional embedding (RoPE) enable relative position awareness in LLaMA transformers?",
+    "expected_context_keywords": [
+      "rotary",
+      "positional",
+      "embedding",
+      "(RoPE)",
+      "enable"
+    ],
+    "relevant_paper_ids": [
+      "2302.13971"
+    ]
+  },
+  {
+    "id": "gold-172",
+    "category": "cs.LG",
+    "query": "What context length expansion from 2k to 4k tokens was adopted in Llama 2?",
+    "expected_output": "Detailed academic explanation of What context length expansion from 2k to 4k tokens was adopted in Llama 2?",
+    "expected_context_keywords": [
+      "context",
+      "length",
+      "expansion",
+      "tokens",
+      "adopted"
+    ],
+    "relevant_paper_ids": [
+      "2307.09288"
+    ]
+  },
+  {
+    "id": "gold-173",
+    "category": "cs.LG",
+    "query": "How was ghost attention (GAtt) implemented in Llama 2-Chat to maintain multi-turn dialogue context?",
+    "expected_output": "Detailed academic explanation of How was ghost attention (GAtt) implemented in Llama 2-Chat to maintain multi-turn dialogue context?",
+    "expected_context_keywords": [
+      "ghost",
+      "attention",
+      "(GAtt)",
+      "implemented",
+      "Llama"
+    ],
+    "relevant_paper_ids": [
+      "2307.09288"
+    ]
+  },
+  {
+    "id": "gold-174",
+    "category": "cs.LG",
+    "query": "What modifications did RoBERTa make to BERT pretraining, including removing Next Sentence Prediction?",
+    "expected_output": "Detailed academic explanation of What modifications did RoBERTa make to BERT pretraining, including removing Next Sentence Prediction?",
+    "expected_context_keywords": [
+      "modifications",
+      "RoBERTa",
+      "pretraining,",
+      "including",
+      "removing"
+    ],
+    "relevant_paper_ids": [
+      "1907.11692"
+    ]
+  },
+  {
+    "id": "gold-175",
+    "category": "cs.LG",
+    "query": "How does dynamic masking during data preprocessing improve RoBERTa representation learning over static masking?",
+    "expected_output": "Detailed academic explanation of How does dynamic masking during data preprocessing improve RoBERTa representation learning over static masking?",
+    "expected_context_keywords": [
+      "dynamic",
+      "masking",
+      "during",
+      "preprocessing",
+      "improve"
+    ],
+    "relevant_paper_ids": [
+      "1907.11692"
+    ]
+  },
+  {
+    "id": "gold-176",
+    "category": "cs.LG",
+    "query": "How does Whisper leverage 680,000 hours of weakly supervised multilingual web audio for robust speech recognition?",
+    "expected_output": "Detailed academic explanation of How does Whisper leverage 680,000 hours of weakly supervised multilingual web audio for robust speech recognition?",
+    "expected_context_keywords": [
+      "Whisper",
+      "leverage",
+      "680,000",
+      "hours",
+      "weakly"
+    ],
+    "relevant_paper_ids": [
+      "2212.04356"
+    ]
+  },
+  {
+    "id": "gold-177",
+    "category": "cs.LG",
+    "query": "What sequence-to-sequence encoder-decoder architecture is used in the Whisper acoustic model?",
+    "expected_output": "Detailed academic explanation of What sequence-to-sequence encoder-decoder architecture is used in the Whisper acoustic model?",
+    "expected_context_keywords": [
+      "sequence-to-sequence",
+      "encoder-decoder",
+      "architecture",
+      "Whisper",
+      "acoustic"
+    ],
+    "relevant_paper_ids": [
+      "2212.04356"
+    ]
+  },
+  {
+    "id": "gold-178",
+    "category": "cs.LG",
+    "query": "How does the Vision Transformer (ViT) apply standard Transformer encoders directly to sequences of 16x16 image patches?",
+    "expected_output": "Detailed academic explanation of How does the Vision Transformer (ViT) apply standard Transformer encoders directly to sequences of 16x16 image patches?",
+    "expected_context_keywords": [
+      "Vision",
+      "Transformer",
+      "(ViT)",
+      "apply",
+      "standard"
+    ],
+    "relevant_paper_ids": [
+      "2010.11929"
+    ]
+  },
+  {
+    "id": "gold-179",
+    "category": "cs.LG",
+    "query": "What computational advantage does ViT demonstrate when pre-trained on large-scale datasets such as JFT-300M?",
+    "expected_output": "Detailed academic explanation of What computational advantage does ViT demonstrate when pre-trained on large-scale datasets such as JFT-300M?",
+    "expected_context_keywords": [
+      "computational",
+      "advantage",
+      "demonstrate",
+      "pre-trained",
+      "large-scale"
+    ],
+    "relevant_paper_ids": [
+      "2010.11929"
+    ]
+  },
+  {
+    "id": "gold-180",
+    "category": "cs.LG",
+    "query": "How does the Swin Transformer introduce shifted window partitioning to achieve linear computational complexity with image size?",
+    "expected_output": "Detailed academic explanation of How does the Swin Transformer introduce shifted window partitioning to achieve linear computational complexity with image size?",
+    "expected_context_keywords": [
+      "Transformer",
+      "introduce",
+      "shifted",
+      "window",
+      "partitioning"
+    ],
+    "relevant_paper_ids": [
+      "2103.14030"
+    ]
+  },
+  {
+    "id": "gold-181",
+    "category": "cs.LG",
+    "query": "What hierarchical feature representation does Swin Transformer construct across patch merging layers?",
+    "expected_output": "Detailed academic explanation of What hierarchical feature representation does Swin Transformer construct across patch merging layers?",
+    "expected_context_keywords": [
+      "hierarchical",
+      "feature",
+      "representation",
+      "Transformer",
+      "construct"
+    ],
+    "relevant_paper_ids": [
+      "2103.14030"
+    ]
+  },
+  {
+    "id": "gold-182",
+    "category": "cs.LG",
+    "query": "How did InstructGPT use Reinforcement Learning from Human Feedback (RLHF) with PPO to improve alignment?",
+    "expected_output": "Detailed academic explanation of How did InstructGPT use Reinforcement Learning from Human Feedback (RLHF) with PPO to improve alignment?",
+    "expected_context_keywords": [
+      "InstructGPT",
+      "Reinforcement",
+      "Learning",
+      "Human",
+      "Feedback"
+    ],
+    "relevant_paper_ids": [
+      "2203.02155"
+    ]
+  },
+  {
+    "id": "gold-183",
+    "category": "cs.LG",
+    "query": "What reward model architecture and loss formulation was trained on human preference comparison datasets in InstructGPT?",
+    "expected_output": "Detailed academic explanation of What reward model architecture and loss formulation was trained on human preference comparison datasets in InstructGPT?",
+    "expected_context_keywords": [
+      "reward",
+      "model",
+      "architecture",
+      "formulation",
+      "trained"
+    ],
+    "relevant_paper_ids": [
+      "2203.02155"
+    ]
+  },
+  {
+    "id": "gold-184",
+    "category": "cs.LG",
+    "query": "What loss formulation is used in the multi-agent cooperative driving model to penalize sudden lateral trajectory deviations?",
+    "expected_output": "Detailed academic explanation of What loss formulation is used in the multi-agent cooperative driving model to penalize sudden lateral trajectory deviations?",
+    "expected_context_keywords": [
+      "formulation",
+      "multi-agent",
+      "cooperative",
+      "driving",
+      "model"
+    ],
+    "relevant_paper_ids": [
+      "2610.24556"
+    ]
+  },
+  {
+    "id": "gold-185",
+    "category": "cs.LG",
+    "query": "How does the dual-encoder retrieval model handle token alignment across cross-lingual document embeddings?",
+    "expected_output": "Detailed academic explanation of How does the dual-encoder retrieval model handle token alignment across cross-lingual document embeddings?",
+    "expected_context_keywords": [
+      "dual-encoder",
+      "retrieval",
+      "model",
+      "handle",
+      "token"
+    ],
+    "relevant_paper_ids": [
+      "2507.13858"
+    ]
+  },
+  {
+    "id": "gold-186",
+    "category": "cs.LG",
+    "query": "What regularization parameter yielded the lowest validation perplexity in the sparse mixture-of-experts routing benchmark?",
+    "expected_output": "Detailed academic explanation of What regularization parameter yielded the lowest validation perplexity in the sparse mixture-of-experts routing benchmark?",
+    "expected_context_keywords": [
+      "regularization",
+      "parameter",
+      "yielded",
+      "lowest",
+      "validation"
+    ],
+    "relevant_paper_ids": [
+      "2510.04563"
+    ]
+  },
+  {
+    "id": "gold-187",
+    "category": "cs.LG",
+    "query": "How is the uncertainty threshold calibrated when gating autonomous decisions in the robot manipulation pipeline?",
+    "expected_output": "Detailed academic explanation of How is the uncertainty threshold calibrated when gating autonomous decisions in the robot manipulation pipeline?",
+    "expected_context_keywords": [
+      "uncertainty",
+      "threshold",
+      "calibrated",
+      "gating",
+      "autonomous"
+    ],
+    "relevant_paper_ids": [
+      "2603.23531"
+    ]
+  },
+  {
+    "id": "gold-188",
+    "category": "cs.LG",
+    "query": "What sample efficiency gains were observed when deploying offline reinforcement learning on the industrial robot arm?",
+    "expected_output": "Detailed academic explanation of What sample efficiency gains were observed when deploying offline reinforcement learning on the industrial robot arm?",
+    "expected_context_keywords": [
+      "sample",
+      "efficiency",
+      "gains",
+      "observed",
+      "deploying"
+    ],
+    "relevant_paper_ids": [
+      "2604.11156"
+    ]
+  },
+  {
+    "id": "gold-189",
+    "category": "cs.LG",
+    "query": "How does the multi-modal fusion layer balance gradient signals between infrared and RGB camera streams?",
+    "expected_output": "Detailed academic explanation of How does the multi-modal fusion layer balance gradient signals between infrared and RGB camera streams?",
+    "expected_context_keywords": [
+      "multi-modal",
+      "fusion",
+      "layer",
+      "balance",
+      "gradient"
+    ],
+    "relevant_paper_ids": [
+      "2501.18563"
+    ]
+  },
+  {
+    "id": "gold-190",
+    "category": "cs.LG",
+    "query": "What geometric constraints are enforced on the canonical mesh during neural radiance field reconstruction?",
+    "expected_output": "Detailed academic explanation of What geometric constraints are enforced on the canonical mesh during neural radiance field reconstruction?",
+    "expected_context_keywords": [
+      "geometric",
+      "constraints",
+      "enforced",
+      "canonical",
+      "during"
+    ],
+    "relevant_paper_ids": [
+      "2610.25015"
+    ]
+  },
+  {
+    "id": "gold-191",
+    "category": "cs.LG",
+    "query": "Why does speculative decoding with a small draft model accelerate autoregressive token generation without changing target distribution?",
+    "expected_output": "Detailed academic explanation of Why does speculative decoding with a small draft model accelerate autoregressive token generation without changing target distribution?",
+    "expected_context_keywords": [
+      "speculative",
+      "decoding",
+      "small",
+      "draft",
+      "model"
+    ],
+    "relevant_paper_ids": [
+      "2411.03405"
+    ]
+  },
+  {
+    "id": "gold-192",
+    "category": "cs.LG",
+    "query": "How does the graph neural network partition large protein interaction graphs into scalable sub-clusters?",
+    "expected_output": "Detailed academic explanation of How does the graph neural network partition large protein interaction graphs into scalable sub-clusters?",
+    "expected_context_keywords": [
+      "graph",
+      "neural",
+      "network",
+      "partition",
+      "large"
+    ],
+    "relevant_paper_ids": [
+      "2508.02637"
+    ]
+  },
+  {
+    "id": "gold-193",
+    "category": "cs.LG",
+    "query": "What boundary condition prevents numerical instability during high-frequency diffusion sampling in turbulent fluid dynamics?",
+    "expected_output": "Detailed academic explanation of What boundary condition prevents numerical instability during high-frequency diffusion sampling in turbulent fluid dynamics?",
+    "expected_context_keywords": [
+      "boundary",
+      "condition",
+      "prevents",
+      "numerical",
+      "instability"
+    ],
+    "relevant_paper_ids": [
+      "2510.06056"
+    ]
+  },
+  {
+    "id": "gold-194",
+    "category": "cs.LG",
+    "query": "How does MobileVLM compress vision-language models for real-time edge device inference while maintaining VQA accuracy?",
+    "expected_output": "Detailed academic explanation of How does MobileVLM compress vision-language models for real-time edge device inference while maintaining VQA accuracy?",
+    "expected_context_keywords": [
+      "MobileVLM",
+      "compress",
+      "vision-language",
+      "models",
+      "real-time"
+    ],
+    "relevant_paper_ids": [
+      "2402.19014"
+    ]
+  },
+  {
+    "id": "gold-195",
+    "category": "cs.LG",
+    "query": "What structural pruning criteria is applied to self-attention heads to reduce latency in compact vision transformers?",
+    "expected_output": "Detailed academic explanation of What structural pruning criteria is applied to self-attention heads to reduce latency in compact vision transformers?",
+    "expected_context_keywords": [
+      "structural",
+      "pruning",
+      "criteria",
+      "applied",
+      "self-attention"
+    ],
+    "relevant_paper_ids": [
+      "2502.12514"
+    ]
+  },
+  {
+    "id": "gold-196",
+    "category": "cs.LG",
+    "query": "How does the contrastive semantic cache identify duplicate user queries in conversational search sessions?",
+    "expected_output": "Detailed academic explanation of How does the contrastive semantic cache identify duplicate user queries in conversational search sessions?",
+    "expected_context_keywords": [
+      "contrastive",
+      "semantic",
+      "cache",
+      "identify",
+      "duplicate"
+    ],
+    "relevant_paper_ids": [
+      "2510.21638"
+    ]
+  },
+  {
+    "id": "gold-197",
+    "category": "cs.LG",
+    "query": "What convergence rate was proven for the decentralized federated stochastic gradient descent under non-IID client partitions?",
+    "expected_output": "Detailed academic explanation of What convergence rate was proven for the decentralized federated stochastic gradient descent under non-IID client partitions?",
+    "expected_context_keywords": [
+      "convergence",
+      "proven",
+      "decentralized",
+      "federated",
+      "stochastic"
+    ],
+    "relevant_paper_ids": [
+      "2401.08281"
+    ]
+  },
+  {
+    "id": "gold-198",
+    "category": "cs.LG",
+    "query": "How does the sparse attention kernel partition Key-Value cache lines across high-bandwidth memory channels?",
+    "expected_output": "Detailed academic explanation of How does the sparse attention kernel partition Key-Value cache lines across high-bandwidth memory channels?",
+    "expected_context_keywords": [
+      "sparse",
+      "attention",
+      "kernel",
+      "partition",
+      "Key-Value"
+    ],
+    "relevant_paper_ids": [
+      "2505.16399"
+    ]
+  },
+  {
+    "id": "gold-199",
+    "category": "cs.LG",
+    "query": "What empirical correlation was found between teacher-student knowledge distillation loss and downstream reasoning accuracy?",
+    "expected_output": "Detailed academic explanation of What empirical correlation was found between teacher-student knowledge distillation loss and downstream reasoning accuracy?",
+    "expected_context_keywords": [
+      "empirical",
+      "correlation",
+      "found",
+      "between",
+      "teacher-student"
+    ],
+    "relevant_paper_ids": [
+      "2509.15628"
+    ]
+  },
+  {
+    "id": "gold-200",
+    "category": "cs.LG",
+    "query": "How does the hierarchical planner decompose multi-stage robotic assembly tasks into atomic tool-use primitives?",
+    "expected_output": "Detailed academic explanation of How does the hierarchical planner decompose multi-stage robotic assembly tasks into atomic tool-use primitives?",
+    "expected_context_keywords": [
+      "hierarchical",
+      "planner",
+      "decompose",
+      "multi-stage",
+      "robotic"
+    ],
+    "relevant_paper_ids": [
+      "2605.16385"
+    ]
+  }
+]

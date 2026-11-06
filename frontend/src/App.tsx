@@ -10,9 +10,11 @@ import {
   fetchEdaSummary,
 } from './services';
 import { useThemeStore, useLakehouseStreamStore } from './store';
+import { useTranslation } from './hooks';
 import type { AppTab, PipelineStatus, BackendStatus, SchematicViewMode, MiningRunStatus } from './types';
 
 export default function App() {
+  const { language } = useTranslation();
   const { theme, toggleTheme } = useThemeStore();
   const {
     live,
@@ -132,7 +134,11 @@ export default function App() {
 
   const handleNavigateToRag = (title?: string) => {
     if (title) {
-      setRagInitialQuery(`What are the core findings, methodology, and empirical results of paper "${title}"?`);
+      setRagInitialQuery(
+        language === 'vi'
+          ? `Những phát hiện cốt lõi, phương pháp luận và kết quả thực nghiệm của bài báo "${title}" là gì?`
+          : `What are the core findings, methodology, and empirical results of paper "${title}"?`
+      );
     }
     setActiveTab('rag');
   };

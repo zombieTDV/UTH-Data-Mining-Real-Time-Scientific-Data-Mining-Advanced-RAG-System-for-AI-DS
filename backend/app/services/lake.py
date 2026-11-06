@@ -71,12 +71,16 @@ class Lake:
 
     def exists(self, key: str) -> bool:
         """An object, or for a key ending in '/' a prefix holding at least one Parquet file."""
-        if key.endswith("/"):
-            from pyarrow import fs as pafs
+        try:
+            if key.endswith("/"):
+                from pyarrow import fs as pafs
 
-            infos = self.fs.get_file_info(pafs.FileSelector(f"{self.bucket}/{key}", recursive=True, allow_not_found=True))
-            return any(i.type == pafs.FileType.File and i.path.endswith(".parquet") for i in infos)
-        return self.head(key) is not None
+                infos = self.fs.get_file_info(pafs.FileSelector(f"{self.bucket}/{key}", recursive=True, allow_not_found=True))
+                return any(i.type == pafs.FileType.File and i.path.endswith(".parquet") for i in infos)
+            return self.head(key) is not None
+        except Exception as e:
+            logger.debug("[Lake] exists check failed for %s: %s", key, e)
+            return False
 
     def get_json(self, key: str, ttl: float = 30.0, default: Any = None) -> Any:
         """JSON object from MinIO with a short in-process cache (validated by TTL)."""
@@ -90,7 +94,10 @@ class Lake:
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") in _MISSING:
                 return default
-            raise
+            return default
+        except Exception as e:
+            logger.debug("[Lake] get_json failed for key %s: %s", key, e)
+            return default
         with self._lock:
             self._json_cache[key] = (now, data)
         return data

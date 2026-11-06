@@ -1,5 +1,6 @@
 import type { FC } from 'react';
 import type { BackendStatus } from '../../types';
+import { useTranslation } from '../../hooks';
 
 export interface StatusPillProps {
   backendStatus: BackendStatus;
@@ -7,7 +8,13 @@ export interface StatusPillProps {
 }
 
 export const StatusPill: FC<StatusPillProps> = ({ backendStatus, lastTelemetryTick }) => {
+  const { language } = useTranslation();
   const isOnline = backendStatus === 'ONLINE';
+
+  const statusText = isOnline
+    ? language === 'vi' ? 'TRỰC TUYẾN' : 'ONLINE'
+    : language === 'vi' ? 'NGOẠI TUYẾN' : 'OFFLINE';
+
   return (
     <span
       style={{
@@ -33,7 +40,7 @@ export const StatusPill: FC<StatusPillProps> = ({ backendStatus, lastTelemetryTi
           boxShadow: isOnline ? '0 0 6px var(--accent-emerald)' : 'none',
         }}
       />
-      FASTAPI {backendStatus} {lastTelemetryTick ? `[${lastTelemetryTick}]` : ''}
+      FASTAPI {statusText} {lastTelemetryTick ? `[${lastTelemetryTick}]` : ''}
     </span>
   );
 };

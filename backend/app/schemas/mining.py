@@ -73,16 +73,23 @@ class ClusterProfileItem(BaseModel):
     cluster_id: int
     size: int
     percentage: float
+    weight: Optional[float] = None
     dominant_categories: List[Dict[str, Any]]
     sample_titles: List[str]
     topic_label: Optional[str] = None
     topic_subtitle: Optional[str] = None
+    ellipse: Optional[Dict[str, float]] = None
 
 
 class ScatterPointItem(BaseModel):
     x: float
     y: float
     cluster: int
+    max_probability: Optional[float] = None
+    secondary_cluster: Optional[int] = None
+    secondary_probability: Optional[float] = None
+    is_cross_disciplinary: Optional[bool] = None
+    cluster_probabilities: Optional[List[float]] = None
     category: str
     title: str
     paper_id: str

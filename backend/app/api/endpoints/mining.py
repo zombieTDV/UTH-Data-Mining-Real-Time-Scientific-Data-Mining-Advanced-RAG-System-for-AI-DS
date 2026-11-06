@@ -20,7 +20,7 @@ router = APIRouter(prefix="/mining", tags=["Data Mining & Modeling"])
 
 
 @router.get("/eda", response_model=EdaResponse)
-async def get_eda_summary():
+def get_eda_summary():
     """Returns exploratory data analysis metrics, category distribution, top authors, and math density."""
     try:
         return mining_service.get_eda()
@@ -29,7 +29,7 @@ async def get_eda_summary():
 
 
 @router.get("/pillars/association-rules", response_model=AssociationRulesResponse)
-async def get_association_rules():
+def get_association_rules():
     """Pillar 1: Frequent itemsets and high-lift association rules (FP-Growth)."""
     try:
         return mining_service.get_association_rules()
@@ -38,7 +38,7 @@ async def get_association_rules():
 
 
 @router.get("/pillars/clusters", response_model=ClustersResponse)
-async def get_semantic_clusters():
+def get_semantic_clusters():
     """Pillar 2: Semantic Topic Clustering (K-Means & DBSCAN) with 2D projections and validity metrics."""
     try:
         return mining_service.get_clusters()
@@ -47,7 +47,7 @@ async def get_semantic_clusters():
 
 
 @router.get("/pillars/graph", response_model=GraphResponse)
-async def get_coauthorship_graph():
+def get_coauthorship_graph():
     """Pillar 3: Scientific Co-authorship Network Analysis, PageRank, and Louvain communities."""
     try:
         return mining_service.get_graph()
@@ -56,7 +56,7 @@ async def get_coauthorship_graph():
 
 
 @router.get("/pillars/trends", response_model=TrendsResponse)
-async def get_trends_and_anomalies():
+def get_trends_and_anomalies():
     """Pillar 4: Structural novelty outliers (Isolation Forest) and category trend velocities."""
     try:
         return mining_service.get_trends()
@@ -65,7 +65,7 @@ async def get_trends_and_anomalies():
 
 
 @router.get("/manifest")
-async def get_mining_manifest() -> Dict[str, Any]:
+def get_mining_manifest() -> Dict[str, Any]:
     """Returns timing benchmarks and metadata of the most recent mining pipeline run."""
     return mining_service.get_manifest()
 
@@ -111,7 +111,7 @@ async def trigger_mining_execution(background_tasks: BackgroundTasks) -> Dict[st
 
 
 @router.get("/status")
-async def get_mining_run_status() -> Dict[str, Any]:
+def get_mining_run_status() -> Dict[str, Any]:
     """Whether a mining run is in progress, plus the timestamp and paper count of the artifacts currently served."""
     manifest = mining_service.get_manifest()
     return {

@@ -105,7 +105,7 @@ class MiningEngine:
         t0 = time.time()
         logger.info("[CHECKPOINT 3/5] Executing Pillar 2: Semantic Topic Clustering...")
         cluster_analyzer = SemanticClusterAnalyzer()
-        cluster_results = cluster_analyzer.run_clustering_benchmarks(sample_size=3000, n_clusters=6)
+        cluster_results = cluster_analyzer.run_clustering_benchmarks(sample_size=None, n_clusters=6)
         clusters_file = put_artifact("clusters.json", cluster_results)
         manifest["modules"]["clusters"] = {
             "elapsed_seconds": round(time.time() - t0, 2),
@@ -120,7 +120,7 @@ class MiningEngine:
         t0 = time.time()
         logger.info("[CHECKPOINT 4/5] Executing Pillar 3: Scientific Network & Citation Graph Mining...")
         graph_miner = ScientificGraphMiner(self.parquet_path)
-        graph_results = graph_miner.analyze_network(top_hubs_limit=40)
+        graph_results = graph_miner.analyze_network(top_hubs_limit=100)
         graph_file = put_artifact("graph_coauthorship.json", graph_results)
         manifest["modules"]["graph"] = {
             "elapsed_seconds": round(time.time() - t0, 2),

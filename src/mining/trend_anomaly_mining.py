@@ -29,7 +29,7 @@ class TrendAnomalyMiner:
     def __init__(self, parquet_path: str):
         self.parquet_path = parquet_path
 
-    def run_mining(self, contamination: float = 0.02) -> Dict[str, Any]:
+    def run_mining(self, contamination: float = 0.02, top_anomalies: int = 1000) -> Dict[str, Any]:
         """Runs structural anomaly detection and share-normalized trend velocity modeling."""
         logger.info("[PILLAR 4] Loading paper features from: %s...", self.parquet_path)
         con = duck_connect()
@@ -84,7 +84,7 @@ class TrendAnomalyMiner:
         df["is_anomaly"] = preds == -1
         df["anomaly_score"] = np.round(anomaly_scores, 4)
 
-        anomalies_df = df[df["is_anomaly"]].sort_values(by="anomaly_score").head(30)
+        anomalies_df = df[df["is_anomaly"]].sort_values(by="anomaly_score").head(top_anomalies)
 
         anomaly_records = []
         for _, row in anomalies_df.iterrows():

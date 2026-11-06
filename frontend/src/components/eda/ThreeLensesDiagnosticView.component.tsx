@@ -1,8 +1,8 @@
-import { useState, useMemo, useRef, type FC, type MouseEvent } from 'react';
+import { useState, useMemo, type FC, type MouseEvent } from 'react';
 import type { Diagnostic3Lenses } from '../../types';
 import { ChartToolbar } from '../charts/ChartToolbar.component';
 import { AxisTitle, ChartLegend } from '../charts/ChartAxes.component';
-import { useSvgPanZoom } from '../../hooks';
+import { useSvgPanZoom, useTranslation } from '../../hooks';
 import { ScientificMath } from '../common/ScientificMath.component';
 
 export interface ScatterPaperPoint {
@@ -25,6 +25,7 @@ interface ThreeLensesDiagnosticViewProps {
   onSelectPaper: (paper: ScatterPaperPoint) => void;
   selectedPaperId?: string;
   onShowToast: (msg: string) => void;
+  selectedCategory?: string;
 }
 
 export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
@@ -36,11 +37,14 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   onSelectPaper,
   selectedPaperId,
   onShowToast,
+  selectedCategory = 'ALL',
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const isDark = theme === 'dark';
 
-  // Sub-tab switcher across the Three Lenses (§6.1 - §6.4)
-  const [activeTab, setActiveTab] = useState<'lens3_bivariate' | 'lens2_univariate' | 'governance'>('lens3_bivariate');
+  // Sub-tab switcher across the Statistical Lenses
+  const [activeTab, setActiveTab] = useState<'lens3_bivariate' | 'lens2_univariate'>('lens3_bivariate');
 
   // Pair selection in Lens 3 (default: words_x_math_density from lecture case study)
   const [selectedPairKey, setSelectedPairKey] = useState<string>('words_x_math_density');
@@ -50,9 +54,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
 
   // Quadrant filter in 2D scatter
   const [selectedQuadrant, setSelectedQuadrant] = useState<'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4'>('ALL');
-
-  // Category filter in 2D scatter
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   // Hover states
   const [hoveredPoint, setHoveredPoint] = useState<{
@@ -71,12 +72,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
   // Magnifier Lens tool
   const [isLensActive, setIsLensActive] = useState<boolean>(false);
   const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
-
-  // SVG Refs
-  // SVG Refs
-  const scatterSvgRef = useRef<SVGSVGElement | null>(null);
-  const histSvgRef = useRef<SVGSVGElement | null>(null);
-  const qqSvgRef = useRef<SVGSVGElement | null>(null);
 
   // Pan Zoom hook for bivariate scatter
   const scatterPanZoom = useSvgPanZoom({
@@ -194,21 +189,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          <span
-            style={{
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              padding: '2px 6px',
-              borderRadius: '4px',
-              background: 'var(--badge-bg, rgba(245, 158, 11, 0.15))',
-              border: '1px solid var(--badge-border, rgba(245, 158, 11, 0.3))',
-              color: 'var(--accent-bronze, #f59e0b)',
-              flexShrink: 0,
-            }}
-          >
-            [EDA-03]
-          </span>
           <h3
             style={{
               fontSize: '13px',
@@ -220,7 +200,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            CHẨN ĐOÁN 3 THẤU KÍNH &amp; TƯƠNG TÁC ĐA BIẾN (3-LENS DIAGNOSTIC SUITE)
+            {isVi ? 'CHẨN ĐOÁN PHÂN PHỐI & TƯƠNG TÁC ĐA BIẾN' : 'DISTRIBUTION & MULTIVARIATE INTERACTION DIAGNOSTICS'}
           </h3>
           <span
             style={{
@@ -234,16 +214,23 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
             }}
           >
-            LECTURE §6.1-§6.4
+            {isVi ? 'LĂNG KÍNH CHẨN ĐOÁN THỐNG KÊ' : 'STATISTICAL DIAGNOSTIC LENSES'}
           </span>
         </div>
 
-        {/* 3-Lens Pill Switcher Tabs */}
+        {/* Statistical Lens Pill Switcher Tabs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
           {[
-            { id: 'lens3_bivariate' as const, label: 'LENS 1 & 3: TƯƠNG TÁC ĐA BIẾN & MI', icon: '☍' },
-            { id: 'lens2_univariate' as const, label: 'LENS 2: ĐƠN BIẾN & Q-Q NORMALITY', icon: '◬' },
-            { id: 'governance' as const, label: '§6.4 ĐIỀU HƯỚNG PIPELINE', icon: '⚙' },
+            {
+              id: 'lens3_bivariate' as const,
+              label: isVi ? 'LĂNG KÍNH ĐA BIẾN: TƯƠNG TÁC & MUTUAL INFO' : 'BIVARIATE LENS: INTERACTION & MUTUAL INFO',
+              icon: '☍',
+            },
+            {
+              id: 'lens2_univariate' as const,
+              label: isVi ? 'LĂNG KÍNH ĐƠN BIẾN: PHÂN PHỐI & Q-Q NORMALITY' : 'UNIVARIATE LENS: DISTRIBUTION & Q-Q NORMALITY',
+              icon: '◬',
+            },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -302,13 +289,13 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             }}
             title="Phóng đại toàn màn hình 100% (Theater Mode)"
           >
-            <span>{isTheaterMode ? 'Thu Nhỏ' : 'Rạp Hát'}</span>
+            <span>{isTheaterMode ? (isVi ? 'Thu Nhỏ' : 'Collapse') : (isVi ? 'Rạp Hát' : 'Theater')}</span>
           </button>
         </div>
       </div>
 
       {/* ---------------------------------------------------------------- */}
-      {/* TAB 1: BIVARIATE INTERACTIONS & MUTUAL INFORMATION (LENS 1 & 3)   */}
+      {/* TAB 1: BIVARIATE INTERACTIONS & MUTUAL INFORMATION               */}
       {/* ---------------------------------------------------------------- */}
       {activeTab === 'lens3_bivariate' && activePair && (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '6px' }}>
@@ -330,13 +317,13 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             {/* Pair Switcher Chips */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-                Cặp biến tương tác:
+                {isVi ? 'Cặp biến tương tác:' : 'Interaction Pair:'}
               </span>
               {[
-                { key: 'words_x_math_density', label: 'Mật độ Toán × Số từ (§6.3 Case Study)' },
-                { key: 'math_x_authors', label: 'Toán × Tác giả (Nghịch lý tác giả)' },
-                { key: 'words_x_math', label: 'Số từ × Công thức (Đồng biến)' },
-                { key: 'words_x_citations', label: 'Số từ × Trích dẫn (Pareto)' },
+                { key: 'words_x_math_density', label: isVi ? 'Mật độ Toán × Số từ' : 'Math Density × Words' },
+                { key: 'math_x_authors', label: isVi ? 'Toán × Tác giả' : 'Math × Authors' },
+                { key: 'words_x_math', label: isVi ? 'Số từ × Công thức' : 'Words × Math' },
+                { key: 'words_x_citations', label: isVi ? 'Số từ × Trích dẫn' : 'Words × Citations' },
               ].map((p) => {
                 const isSelected = selectedPairKey === p.key;
                 return (
@@ -412,42 +399,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             </div>
           </div>
 
-          {/* Lecture §6.3 Crucial Warning Banner */}
-          {activePair.warning && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                padding: '6px 10px',
-                borderRadius: '5px',
-                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.10)' : '#fefce8',
-                border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.35)' : '#fde047'}`,
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 800,
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                  backgroundColor: '#f59e0b',
-                  color: '#000000',
-                  flexShrink: 0,
-                  marginTop: '1px',
-                }}
-              >
-                {activePair.warning.badge}
-              </span>
-              <div style={{ fontSize: '11px', color: themeStyles.textPrimary, lineHeight: 1.35 }}>
-                <strong style={{ color: '#d97706' }}>{activePair.warning.title}: </strong>
-                <span>{activePair.warning.text}</span>
-              </div>
-            </div>
-          )}
-
           {/* Row: Quadrant Filters, Category Slicers & ChartToolbar */}
           <div
             style={{
@@ -464,13 +415,15 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Phân vị:</span>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
+                {isVi ? 'Phân vị:' : 'Quadrant:'}
+              </span>
               {[
-                { id: 'ALL' as const, label: 'Tất cả' },
-                { id: 'Q1' as const, label: 'Q1 Lý thuyết' },
-                { id: 'Q2' as const, label: 'Q2 Chuyên khảo' },
-                { id: 'Q3' as const, label: 'Q3 Bài ngắn' },
-                { id: 'Q4' as const, label: 'Q4 LLMs' },
+                { id: 'ALL' as const, label: isVi ? 'Tất cả' : 'All' },
+                { id: 'Q1' as const, label: isVi ? 'Q1 Lý thuyết' : 'Q1 Theory' },
+                { id: 'Q2' as const, label: isVi ? 'Q2 Chuyên khảo' : 'Q2 Monograph' },
+                { id: 'Q3' as const, label: isVi ? 'Q3 Bài ngắn' : 'Q3 Short' },
+                { id: 'Q4' as const, label: isVi ? 'Q4 LLMs' : 'Q4 LLMs' },
               ].map((q) => {
                 const isQActive = selectedQuadrant === q.id;
                 return (
@@ -494,40 +447,11 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   </button>
                 );
               })}
-
-              <div style={{ width: '1px', height: '14px', backgroundColor: themeStyles.border, margin: '0 4px' }} />
-
-              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>Chủ đề:</span>
-              {['ALL', 'cs.LG', 'stat.ML', 'cs.CV', 'cs.AI', 'cs.CL', 'cs.RO'].map((cat) => {
-                const isCatActive = selectedCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat)}
-                    style={{
-                      padding: '1px 6px',
-                      borderRadius: '3px',
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: isCatActive ? 800 : 500,
-                      backgroundColor: isCatActive ? (categoryColors[cat] || '#3b82f6') : 'transparent',
-                      color: isCatActive ? '#ffffff' : themeStyles.textSecondary,
-                      border: `1px solid ${isCatActive ? (categoryColors[cat] || '#3b82f6') : themeStyles.border}`,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ChartToolbar
                 theme={theme}
-                svgRef={scatterSvgRef}
-                filename={`eda-3lens-${selectedPairKey}`}
                 zoomLevel={scatterPanZoom.zoom}
                 hasPannedOrZoomed={scatterPanZoom.hasPannedOrZoomed}
                 onZoomIn={() => scatterPanZoom.zoomIn(0.25)}
@@ -535,16 +459,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 onResetZoom={scatterPanZoom.resetView}
                 isLensActive={isLensActive}
                 onToggleLens={() => setIsLensActive((v) => !v)}
-                isTheater={isTheaterMode}
-                onToggleTheater={onToggleTheater}
-                csvData={displayPoints.map((p) => ({
-                  id: p.id,
-                  title: p.title,
-                  category: p.category,
-                  x: p.x,
-                  y: p.y,
-                  author: p.author,
-                }))}
                 onShowToast={onShowToast}
               />
             </div>
@@ -552,15 +466,15 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
 
           <div style={{ padding: '0 2px 6px' }}>
             <ChartLegend
-              title="Màu chấm = chuyên mục:"
+              title={isVi ? 'Màu chấm = chuyên mục:' : 'Point color = category:'}
               items={[
                 ...Object.entries(categoryColors).map(([cat, color]) => ({ label: cat, color, mark: 'dot' as const })),
-                { label: 'Khác', color: isDark ? '#94a3b8' : '#64748b', mark: 'dot' },
-                { label: `Hồi quy tuyến tính (r = ${activePair.pearson_r})`, color: '#3b82f6', mark: 'dashed' },
-                { label: 'Xu hướng phi tuyến (spline)', color: '#ea580c', mark: 'line' },
-                { label: 'Nền 4 góc = nhóm Q1-Q4 (bấm để lọc)', color: '#94a3b8', mark: 'area' },
+                { label: isVi ? 'Khác' : 'Other', color: isDark ? '#94a3b8' : '#64748b', mark: 'dot' },
+                { label: isVi ? `Hồi quy tuyến tính (r = ${activePair.pearson_r})` : `Linear fit (r = ${activePair.pearson_r})`, color: '#3b82f6', mark: 'dashed' },
+                { label: isVi ? 'Xu hướng phi tuyến (spline)' : 'Non-linear trend (spline)', color: '#ea580c', mark: 'line' },
+                { label: isVi ? 'Nền 4 góc = nhóm Q1-Q4 (bấm để lọc)' : '4 Quadrants = Q1-Q4 (click to filter)', color: '#94a3b8', mark: 'area' },
               ]}
-              note="Mỗi chấm = 1 bài báo"
+              note={isVi ? 'Mỗi chấm = 1 bài báo' : 'Each point = 1 paper'}
             />
           </div>
 
@@ -579,7 +493,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             }}
           >
             <svg
-              ref={scatterSvgRef}
               viewBox={scatterPanZoom.viewBox}
               preserveAspectRatio="xMidYMid meet"
               style={{
@@ -616,8 +529,19 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 style={{ cursor: 'pointer' }}
                 onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q1' ? 'ALL' : 'Q1')}
               />
-              <text x="75" y="55" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#f59e0b' : '#d97706'} opacity="0.12" style={{ pointerEvents: 'none' }}>
-                Q1: LÝ THUYẾT NẶNG TOÁN
+              <text
+                x="272"
+                y="46"
+                textAnchor="middle"
+                fontSize="13"
+                fontFamily="var(--font-mono)"
+                fontWeight="800"
+                letterSpacing="1px"
+                fill={isDark ? '#f59e0b' : '#d97706'}
+                opacity={selectedQuadrant === 'Q1' ? (isDark ? 0.8 : 0.9) : (isDark ? 0.22 : 0.3)}
+                style={{ pointerEvents: 'none' }}
+              >
+                {isVi ? 'Q1 · LÝ THUYẾT (NẶNG TOÁN)' : 'Q1 · THEORY (MATH-HEAVY)'}
               </text>
 
               {/* Q2: Top-Right (High Y, High X) */}
@@ -632,8 +556,19 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 style={{ cursor: 'pointer' }}
                 onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q2' ? 'ALL' : 'Q2')}
               />
-              <text x="880" y="55" textAnchor="end" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#60a5fa' : '#2563eb'} opacity="0.12" style={{ pointerEvents: 'none' }}>
-                Q2: CHUYÊN KHẢO TOÀN DIỆN
+              <text
+                x="697"
+                y="46"
+                textAnchor="middle"
+                fontSize="13"
+                fontFamily="var(--font-mono)"
+                fontWeight="800"
+                letterSpacing="1px"
+                fill={isDark ? '#60a5fa' : '#2563eb'}
+                opacity={selectedQuadrant === 'Q2' ? (isDark ? 0.8 : 0.9) : (isDark ? 0.22 : 0.3)}
+                style={{ pointerEvents: 'none' }}
+              >
+                {isVi ? 'Q2 · CHUYÊN KHẢO TOÀN DIỆN' : 'Q2 · COMPREHENSIVE MONOGRAPHS'}
               </text>
 
               {/* Q3: Bottom-Left (Low Y, Low X) */}
@@ -648,8 +583,19 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 style={{ cursor: 'pointer' }}
                 onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q3' ? 'ALL' : 'Q3')}
               />
-              <text x="75" y="275" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#94a3b8' : '#64748b'} opacity="0.12" style={{ pointerEvents: 'none' }}>
-                Q3: BÀI NGẮN / WORKSHOP
+              <text
+                x="272"
+                y="278"
+                textAnchor="middle"
+                fontSize="13"
+                fontFamily="var(--font-mono)"
+                fontWeight="800"
+                letterSpacing="1px"
+                fill={isDark ? '#94a3b8' : '#64748b'}
+                opacity={selectedQuadrant === 'Q3' ? (isDark ? 0.8 : 0.9) : (isDark ? 0.22 : 0.3)}
+                style={{ pointerEvents: 'none' }}
+              >
+                {isVi ? 'Q3 · BÀI BÁO NGẮN & WORKSHOP' : 'Q3 · SHORT PAPERS & WORKSHOPS'}
               </text>
 
               {/* Q4: Bottom-Right (Low Y, High X) */}
@@ -664,8 +610,19 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 style={{ cursor: 'pointer' }}
                 onClick={() => setSelectedQuadrant(selectedQuadrant === 'Q4' ? 'ALL' : 'Q4')}
               />
-              <text x="880" y="275" textAnchor="end" fontSize="28" fontFamily="var(--font-mono)" fontWeight="900" fill={isDark ? '#34d399' : '#059669'} opacity="0.12" style={{ pointerEvents: 'none' }}>
-                Q4: HỆ THỐNG THỰC NGHIỆM / LLMS
+              <text
+                x="697"
+                y="278"
+                textAnchor="middle"
+                fontSize="13"
+                fontFamily="var(--font-mono)"
+                fontWeight="800"
+                letterSpacing="1px"
+                fill={isDark ? '#34d399' : '#059669'}
+                opacity={selectedQuadrant === 'Q4' ? (isDark ? 0.8 : 0.9) : (isDark ? 0.22 : 0.3)}
+                style={{ pointerEvents: 'none' }}
+              >
+                {isVi ? 'Q4 · HỆ THỐNG THỰC NGHIỆM & LLMs' : 'Q4 · EMPIRICAL SYSTEMS & LLMs'}
               </text>
 
               {/* Axis Grid Lines */}
@@ -724,14 +681,15 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       strokeDasharray="6 4"
                     />
                     <text
-                      x="780"
-                      y={Math.max(35, py1 - 8)}
+                      x="890"
+                      y={Math.min(275, Math.max(35, py1 - 8))}
+                      textAnchor="end"
                       fill="#3b82f6"
                       fontSize="9"
                       fontFamily="var(--font-mono)"
                       fontWeight="700"
                     >
-                      Hồi quy tuyến tính (r={activePair.pearson_r})
+                      {isVi ? `Hồi quy tuyến tính (r=${activePair.pearson_r})` : `Linear fit (r=${activePair.pearson_r})`}
                     </text>
                   </g>
                 );
@@ -755,16 +713,6 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       strokeWidth="3.2"
                       strokeLinecap="round"
                     />
-                    <text
-                      x="240"
-                      y="40"
-                      fill="#ea580c"
-                      fontSize="9"
-                      fontFamily="var(--font-mono)"
-                      fontWeight="800"
-                    >
-                      ★ Xu hướng phi tuyến thực nghiệm (MI={activePair.mutual_information})
-                    </text>
                   </g>
                 );
               })()}
@@ -777,17 +725,27 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                 const isHovered = hoveredPoint?.id === pt.id;
                 const col = getCatColor(pt.category);
 
+                // Determine if point falls into the selected quadrant
+                const isLeft = cx < 485;
+                const isTop = cy <= 160;
+                const inQuadrant =
+                  selectedQuadrant === 'ALL' ||
+                  (selectedQuadrant === 'Q1' && isLeft && isTop) ||
+                  (selectedQuadrant === 'Q2' && !isLeft && isTop) ||
+                  (selectedQuadrant === 'Q3' && isLeft && !isTop) ||
+                  (selectedQuadrant === 'Q4' && !isLeft && !isTop);
+
                 return (
                   <circle
                     key={pt.id}
                     cx={cx}
                     cy={cy}
-                    r={isSelected ? '8' : isHovered ? '7' : '4.5'}
+                    r={isSelected ? '8' : isHovered ? '7' : inQuadrant ? (selectedQuadrant !== 'ALL' ? '5.5' : '4.5') : '3'}
                     fill={col}
-                    stroke={isSelected ? '#f59e0b' : isDark ? '#0f172a' : '#ffffff'}
-                    strokeWidth={isSelected ? '2.5' : isHovered ? '2' : '1'}
-                    opacity={isSelected || isHovered ? 1 : 0.85}
-                    style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
+                    stroke={isSelected ? '#f59e0b' : (selectedQuadrant !== 'ALL' && inQuadrant ? '#ffffff' : (isDark ? '#0f172a' : '#ffffff'))}
+                    strokeWidth={isSelected ? '2.5' : isHovered ? '2' : (selectedQuadrant !== 'ALL' && inQuadrant ? '1.5' : '1')}
+                    opacity={isSelected || isHovered ? 1 : inQuadrant ? (selectedQuadrant !== 'ALL' ? 1 : 0.85) : 0.12}
+                    style={{ cursor: 'pointer', transition: 'r 0.15s ease, opacity 0.2s ease' }}
                     onClick={() => onSelectPaper({
                       id: pt.id,
                       title: pt.title,
@@ -937,7 +895,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
           {/* Feature Selector Tabs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flexShrink: 0 }}>
             <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted, fontWeight: 700 }}>
-              Biến kiểm định:
+              {isVi ? 'Biến kiểm định:' : 'Test Feature:'}
             </span>
             {diagnosticData?.lens2_univariate &&
               Object.values(diagnosticData.lens2_univariate).map((feat) => {
@@ -983,7 +941,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-                  HỆ SỐ LỆCH (SKEWNESS S)
+                  {isVi ? 'HỆ SỐ LỆCH (SKEWNESS S)' : 'SKEWNESS (S)'}
                 </span>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#ea580c' }}>
                   {activeUnivariate.skew_category}
@@ -1009,7 +967,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-                  ĐỘ NHỌN (KURTOSIS K)
+                  {isVi ? 'ĐỘ NHỌN (KURTOSIS K)' : 'KURTOSIS (K)'}
                 </span>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#7c3aed' }}>
                   {activeUnivariate.kurtosis_category}
@@ -1060,7 +1018,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
               }}
             >
               <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: themeStyles.textMuted }}>
-                VỊ TRÍ &amp; PHÂN VỊ (CENTROID &amp; QUANTILES)
+                {isVi ? 'VỊ TRÍ & PHÂN VỊ (CENTROID & QUANTILES)' : 'CENTROID & QUANTILES'}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginTop: '4px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                 <div>
@@ -1090,23 +1048,22 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                  BIỂU ĐỒ TẦN SUẤT &amp; ĐƯỜNG MẬT ĐỘ GAUSSIAN KDE
+                  {isVi ? 'BIỂU ĐỒ TẦN SUẤT & ĐƯỜNG MẬT ĐỘ GAUSSIAN KDE' : 'FREQUENCY HISTOGRAM & GAUSSIAN KDE'}
                 </span>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: themeStyles.textMuted }}>
-                  25 bins &bull; Mean vs Median divergence
+                  {isVi ? '25 khoảng · Phân kỳ Mean vs Median' : '25 bins · Mean vs Median divergence'}
                 </span>
               </div>
               <ChartLegend
                 items={[
-                  { label: 'Số bài trong mỗi khoảng (25 khoảng)', color: '#3b82f6', mark: 'bar' },
-                  { label: 'Mật độ KDE (chuẩn hóa theo đỉnh)', color: '#06b6d4', mark: 'line' },
-                  { label: 'Trung bình (mean)', color: '#2563eb', mark: 'dashed' },
-                  { label: 'Trung vị (median)', color: '#ea580c', mark: 'dashed' },
+                  { label: isVi ? 'Số bài trong mỗi khoảng (25 khoảng)' : 'Paper count per bin (25 bins)', color: '#3b82f6', mark: 'bar' },
+                  { label: isVi ? 'Mật độ KDE (chuẩn hóa theo đỉnh)' : 'KDE density (normalized)', color: '#06b6d4', mark: 'line' },
+                  { label: isVi ? 'Trung bình (mean)' : 'Mean', color: '#2563eb', mark: 'dashed' },
+                  { label: isVi ? 'Trung vị (median)' : 'Median', color: '#ea580c', mark: 'dashed' },
                 ]}
               />
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
                 <svg
-                  ref={histSvgRef}
                   viewBox="0 0 500 240"
                   preserveAspectRatio="xMidYMid meet"
                   style={{ width: '100%', height: '100%' }}
@@ -1135,7 +1092,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       </g>
                     );
                   })()}
-                  <AxisTitle axis="y" x={12} y={120} text="Số bài báo" fontSize={10} />
+                  <AxisTitle axis="y" x={12} y={120} text={isVi ? 'Số bài báo' : 'Paper count'} fontSize={10} />
                   <AxisTitle axis="x" x={260} y={232} text={`${activeUnivariate.label} (${activeUnivariate.unit})`} fontSize={10} />
 
                   {/* Histogram Bars */}
@@ -1223,18 +1180,17 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   Q-Q PLOT (NORMAL QUANTILE-QUANTILE)
                 </span>
                 <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#dc2626' }}>
-                  Độ lệch khỏi đường chéo 45°
+                  {isVi ? 'Độ lệch khỏi đường chéo 45°' : 'Deviation from 45° reference line'}
                 </span>
               </div>
               <ChartLegend
                 items={[
-                  { label: 'Phân vị của dữ liệu', color: '#3b82f6', mark: 'dot' },
-                  { label: 'Đường y = x (nếu là phân phối chuẩn)', color: '#dc2626', mark: 'dashed' },
+                  { label: isVi ? 'Phân vị của dữ liệu' : 'Sample quantiles', color: '#3b82f6', mark: 'dot' },
+                  { label: isVi ? 'Đường y = x (nếu là phân phối chuẩn)' : 'y = x line (Normal distribution)', color: '#dc2626', mark: 'dashed' },
                 ]}
               />
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
                 <svg
-                  ref={qqSvgRef}
                   viewBox="0 0 400 240"
                   preserveAspectRatio="xMidYMid meet"
                   style={{ width: '100%', height: '100%' }}
@@ -1252,7 +1208,7 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                   {[-2, 0, 2, 4].map((z) => (
                     <text key={`qy${z}`} x="36" y={180 - ((z + 2.5) / 7) * 160 + 3} textAnchor="end" fontSize="9" fontFamily="var(--font-mono)" fill={themeStyles.textMuted}>{z}</text>
                   ))}
-                  <AxisTitle axis="y" x={14} y={110} text="Phân vị thực nghiệm (z)" fontSize={10} />
+                  <AxisTitle axis="y" x={14} y={110} text={isVi ? 'Phân vị thực nghiệm (z)' : 'Sample quantiles (z)'} fontSize={10} />
 
                   {/* Q-Q Points */}
                   {activeUnivariate.qq_points &&
@@ -1274,104 +1230,10 @@ export const ThreeLensesDiagnosticView: FC<ThreeLensesDiagnosticViewProps> = ({
                       );
                     })}
 
-                  <AxisTitle axis="x" x={210} y={232} text="Phân vị lý thuyết của phân phối chuẩn (z)" fontSize={10} />
+                  <AxisTitle axis="x" x={210} y={232} text={isVi ? 'Phân vị lý thuyết của phân phối chuẩn (z)' : 'Theoretical quantiles (z)'} fontSize={10} />
                 </svg>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------------------------------------------------------- */}
-      {/* TAB 3: DOWNSTREAM PIPELINE GOVERNANCE (§6.4)                      */}
-      {/* ---------------------------------------------------------------- */}
-      {activeTab === 'governance' && (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '8px', overflowY: 'auto' }}>
-          <div
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              backgroundColor: isDark ? 'rgba(56, 189, 248, 0.1)' : '#f0f9ff',
-              border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : '#bae6fd'}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ fontSize: '11px', color: themeStyles.textPrimary }}>
-              <strong style={{ color: '#0284c7' }}>BÀI GIẢNG §6.4: </strong>
-              <span>Hình học dữ liệu thực nghiệm quyết định cấu trúc bắt buộc của các bước tiền xử lý &amp; học máy.</span>
-            </div>
-            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#0284c7' }}>
-              4 QUY TẮC ĐÃ ÁP DỤNG TRÊN LAKEHOUSE
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', flex: 1 }}>
-            {diagnosticData?.downstream_governance?.map((gov) => (
-              <div
-                key={gov.rule_id}
-                style={{
-                  backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.02)',
-                  borderRadius: '6px',
-                  border: `1px solid ${themeStyles.border}`,
-                  borderTop: `3px solid ${gov.badge_color}`,
-                  padding: '10px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      padding: '1px 5px',
-                      borderRadius: '3px',
-                      backgroundColor: `${gov.badge_color}22`,
-                      color: gov.badge_color,
-                      border: `1px solid ${gov.badge_color}55`,
-                    }}
-                  >
-                    {gov.tag}
-                  </span>
-                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: '#10b981', fontWeight: 800 }}>
-                    ✓ PRODUCTION VALIDATED
-                  </span>
-                </div>
-
-                <div style={{ fontSize: '12px', fontWeight: 800, color: themeStyles.textPrimary }}>
-                  {gov.observed_geometry}
-                </div>
-
-                <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: gov.badge_color }}>
-                  Bằng chứng: <strong>{gov.empirical_evidence}</strong>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: themeStyles.textSecondary,
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc',
-                    padding: '6px 8px',
-                    borderRadius: '4px',
-                    borderLeft: `2px solid ${gov.badge_color}`,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  <strong style={{ color: themeStyles.textPrimary }}>Yêu cầu kiến trúc (§6.4): </strong>
-                  {gov.pipeline_requirement}
-                </div>
-
-                <div style={{ fontSize: '10px', color: themeStyles.textMuted, marginTop: 'auto', paddingTop: '4px' }}>
-                  <strong>Thực thi trong Lakehouse: </strong>
-                  {gov.applied_in_lakehouse}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}
