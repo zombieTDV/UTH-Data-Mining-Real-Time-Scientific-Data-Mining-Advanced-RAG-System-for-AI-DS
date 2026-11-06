@@ -6,7 +6,7 @@
 - **Detailed Plan**: §1 System Architecture; §2 5-Scenario Retrieval Ranking Benchmark (Hydrated); §3 DeepEval Generation Benchmark (Full System Scenario, Valid Full-Text Contexts); §4 Key Takeaways.
 - **References**: [rag_goldens_200.json](../../benchmarks/datasets/rag_goldens_200.json), [batch_101_120_5_scenarios.json](../../logs/benchmarks/batch_101_120_5_scenarios.json), [cached_eval_master_k5_pagerank_local.json](../../logs/benchmarks/cached_eval_master_k5_pagerank_local.json).
 - **Created**: 2026-11-06T18:50:00+07:00
-- **Last Updated**: 2026-11-06T20:19:00+07:00
+- **Last Updated**: 2026-11-06T23:00:00+07:00
 
 [STATUS: ACTIVE]
 
@@ -57,24 +57,24 @@ xychart-beta
 > [!IMPORTANT]
 > **Active Evaluation Scenario**: **`Vector + Laya (RRF) + Graph PageRank (Full System)`**
 > - **Top-K Retrieval Context**: `5` | **Judge Model**: Local `Qwen 2.5-7B Instruct (CUDA)` | **API Cost**: **`$0.00`**
-> - Unhydrated empty-context entries (`text: ""` from post-`D-058` Qdrant schema change) have been purged from the benchmark cache and `RetrievalService` now automatically hydrates missing `text`, `title`, and `authors` from `ChunkStore`.
+> - Unhydrated empty-context entries (`text: ""` from post-`D-058` Qdrant schema change) were purged from the benchmark cache, `ChunkStore` was extended with OpenReview peer reviews (`clean_full_text`, `consensus_score`), CVPR 2024 metadata, and on-demand 2025 arXiv fetching, and all `gold-001`..`gold-100` (`N=105` samples) were re-evaluated with 100% full-text hydration.
 
-| DeepEval Metric | Gold 20 Subset (`gold-001`..`020`) | All 86 Valid Full-Text Samples | Threshold |
-| :--- | :---: | :---: | :---: |
-| **Contextual Recall** | **`0.947`** (94.7%) | `0.381` | >= 0.70 |
-| **Contextual Precision** | **`0.860`** (86.0%) | `0.389` | >= 0.70 |
-| **Answer Relevancy** | **`0.769`** (76.9%) | **`0.548`** | >= 0.75 |
-| **Academic Citation Grounding [GEval]** | **`0.747`** (74.7%) | **`0.675`** | >= 0.70 |
-| **Faithfulness** | **`0.660`** (66.0%) | **`0.505`** | >= 0.70 |
-| **Contextual Relevancy** | **`0.534`** (53.4%) | `0.320` | >= 0.60 |
+| DeepEval Metric | Gold 20 Subset (`gold-001`..`020`) | Hydrated `gold-001`..`100` (`N=105`) | All 169 Valid Full-Text Samples | Threshold |
+| :--- | :---: | :---: | :---: | :---: |
+| **Contextual Recall** | **`0.947`** (94.7%) | **`0.900`** (`89.3%` pass, 92/103) | **`0.637`** (`63.3%` pass, 105/166) | >= 0.70 |
+| **Contextual Precision** | **`0.860`** (86.0%) | **`0.852`** (`83.5%` pass, 86/103) | **`0.618`** (`60.8%` pass, 101/166) | >= 0.70 |
+| **Academic Citation Grounding [GEval]** | **`0.747`** (74.7%) | **`0.762`** (`90.4%` pass, 94/104) | **`0.719`** (`86.2%` pass, 144/167) | >= 0.70 |
+| **Faithfulness** | **`0.660`** (66.0%) | **`0.667`** (`57.3%` pass, 55/96) | **`0.592`** (`46.8%` pass, 73/156) | >= 0.70 |
+| **Answer Relevancy** | **`0.769`** (76.9%) | **`0.667`** (`51.0%` pass, 50/98) | **`0.594`** (`40.6%` pass, 65/160) | >= 0.75 |
+| **Contextual Relevancy** | **`0.534`** (53.4%) | **`0.520`** (`45.2%` pass, 42/93) | **`0.444`** (`36.6%` pass, 45/123) | >= 0.60 |
 
 ```mermaid
 xychart-beta
-    title "DeepEval Metrics: Gold 1-20 (100% Qdrant Text) vs Valid Full-Text (N=86)"
-    x-axis ["Context Recall", "Context Precision", "Answer Relevancy", "Academic Citations", "Faithfulness", "Context Relevancy"]
+    title "DeepEval Metrics: Hydrated Gold 1-100 (N=105) vs All Valid Full-Text (N=169)"
+    x-axis ["Context Recall", "Context Precision", "Academic Citations", "Faithfulness", "Answer Relevancy", "Context Relevancy"]
     y-axis "Average Score" 0.0 --> 1.0
-    bar [0.947, 0.860, 0.769, 0.747, 0.660, 0.534]
-    line [0.381, 0.389, 0.548, 0.675, 0.505, 0.320]
+    bar [0.900, 0.852, 0.762, 0.667, 0.667, 0.520]
+    line [0.637, 0.618, 0.719, 0.592, 0.594, 0.444]
 ```
 
 ---
