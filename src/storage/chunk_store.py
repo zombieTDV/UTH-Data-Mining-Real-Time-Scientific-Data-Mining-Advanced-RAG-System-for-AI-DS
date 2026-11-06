@@ -710,7 +710,7 @@ class ChunkStore:
 
         # Do not query external arXiv API for future synthetic or unpublished years (>= 2504 or 26xx)
 
-        if clean_id.startswith('26') or (clean_id.startswith('25') and clean_id > '2504'):
+        if clean_id.startswith('261') or clean_id.startswith('2609'):
 
             if ChunkStore._local_silver_cache is not None:
 
