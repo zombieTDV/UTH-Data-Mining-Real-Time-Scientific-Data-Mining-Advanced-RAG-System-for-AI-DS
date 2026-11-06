@@ -7,6 +7,9 @@ class ChatRequest(BaseModel):
     top_k: int = Field(5, ge=1, le=20)
     category: Optional[str] = Field(None)
     temperature: float = Field(0.1, ge=0.0, le=1.0)
+    use_pagerank: Optional[bool] = Field(True, description="Enable PageRank authority boost in retrieval and prompt")
+    use_reranker: Optional[bool] = Field(None, description="Explicitly enable/disable cross-encoder reranker")
+    retrieval_mode: Optional[str] = Field("hybrid", description="Retrieval mode: vector, fts, or hybrid")
 
 
 class ChatResponse(BaseModel):

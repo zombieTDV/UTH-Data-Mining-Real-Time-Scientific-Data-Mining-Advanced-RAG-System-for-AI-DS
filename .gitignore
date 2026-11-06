@@ -1,4 +1,5 @@
 # Python & Caches
+.coverage
 __pycache__/
 *.py[cod]
 *.so

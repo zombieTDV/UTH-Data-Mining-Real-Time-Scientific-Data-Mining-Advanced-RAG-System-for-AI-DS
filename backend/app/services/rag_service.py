@@ -22,18 +22,23 @@ logger = logging.getLogger("rag_service")
 class RagService:
     def _build_prompt_and_context(self, req: ChatRequest) -> Tuple[List[dict], List[ChunkDto], List[str]]:
         """Retrieves candidates from Qdrant, reranks with cross-encoder, and constructs strictly grounded academic prompts."""
-        # 1. Retrieve wider candidate pool from Qdrant (Hybrid mode)
-        candidate_k = settings.RERANKER_CANDIDATE_K if settings.RERANKER_ENABLED else max(req.top_k or 5, 15)
+        use_rerank = req.use_reranker if req.use_reranker is not None else settings.RERANKER_ENABLED
+        use_pr = req.use_pagerank if req.use_pagerank is not None else True
+        retrieval_mode = req.retrieval_mode or ("hybrid" if use_rerank else "vector")
+
+        # 1. Retrieve candidate pool from Qdrant
+        candidate_k = settings.RERANKER_CANDIDATE_K if use_rerank else (req.top_k or 5)
         search_req = SearchRequest(
             query=req.query,
             top_k=candidate_k,
             category=req.category,
-            mode="hybrid",
+            mode=retrieval_mode,
+            use_pagerank=use_pr,
         )
         candidates = retrieval_service.search(search_req)
 
         # 2. Cross-Encoder reranking (bge-reranker-base)
-        if settings.RERANKER_ENABLED and candidates:
+        if use_rerank and candidates:
             final_k = req.top_k or settings.RERANKER_TOP_K
             chunks = reranker_service.rerank(req.query, candidates, top_k=final_k)
         else:
@@ -59,7 +64,7 @@ class RagService:
             )
 
         # 4. Check for graph authority nodes and rule expansions
-        top_auth_chunk = next((c for c in chunks if c.authority_score and c.authority_author), None)
+        top_auth_chunk = next((c for c in chunks if c.authority_score and c.authority_author), None) if use_pr else None
         authority_note = ""
         if top_auth_chunk:
             authority_note = (

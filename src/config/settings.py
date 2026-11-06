@@ -48,10 +48,10 @@ class Settings:
 
     # Object Storage (MinIO S3) - the only place pipelines persist data
     STORAGE_PROVIDER: str = _env("STORAGE_PROVIDER", "minio").lower()
-    MINIO_ENDPOINT_URL: str = _env("MINIO_ENDPOINT_URL")
-    MINIO_ACCESS_KEY_ID: str = _env("MINIO_ACCESS_KEY_ID")
-    MINIO_SECRET_ACCESS_KEY: str = _env("MINIO_SECRET_ACCESS_KEY")
-    MINIO_BUCKET_NAME: str = _env("MINIO_BUCKET_NAME")
+    MINIO_ENDPOINT_URL: str = _env("MINIO_ENDPOINT_URL") or _env("R2_ENDPOINT_URL")
+    MINIO_ACCESS_KEY_ID: str = _env("MINIO_ACCESS_KEY_ID") or _env("R2_ACCESS_KEY_ID")
+    MINIO_SECRET_ACCESS_KEY: str = _env("MINIO_SECRET_ACCESS_KEY") or _env("R2_SECRET_ACCESS_KEY")
+    MINIO_BUCKET_NAME: str = _env("MINIO_BUCKET_NAME") or _env("R2_BUCKET_NAME")
 
     # S3 generic aliases
     S3_ENDPOINT_URL: str = MINIO_ENDPOINT_URL

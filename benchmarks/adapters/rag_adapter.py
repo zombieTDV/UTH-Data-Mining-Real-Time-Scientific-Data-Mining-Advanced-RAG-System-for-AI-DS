@@ -21,6 +21,9 @@ def run_rag_test_case(
     top_k: int = 5,
     category: Optional[str] = None,
     temperature: float = 0.2,
+    use_pagerank: Optional[bool] = True,
+    use_reranker: Optional[bool] = None,
+    retrieval_mode: Optional[str] = "hybrid",
 ) -> LLMTestCase:
     """Executes a single RAG query against the live service and constructs an LLMTestCase."""
     query = golden_item["query"]
@@ -32,6 +35,9 @@ def run_rag_test_case(
         top_k=top_k,
         category=selected_category,
         temperature=temperature,
+        use_pagerank=use_pagerank,
+        use_reranker=use_reranker,
+        retrieval_mode=retrieval_mode,
     )
 
     try:
@@ -73,6 +79,9 @@ def build_test_cases_from_goldens(
     top_k: int = 5,
     category: Optional[str] = None,
     temperature: float = 0.2,
+    use_pagerank: Optional[bool] = True,
+    use_reranker: Optional[bool] = None,
+    retrieval_mode: Optional[str] = "hybrid",
 ) -> List[LLMTestCase]:
     """Iterates through a list of golden questions and generates LLMTestCase instances."""
     test_cases: List[LLMTestCase] = []
@@ -83,6 +92,9 @@ def build_test_cases_from_goldens(
             top_k=top_k,
             category=category,
             temperature=temperature,
+            use_pagerank=use_pagerank,
+            use_reranker=use_reranker,
+            retrieval_mode=retrieval_mode,
         )
         test_cases.append(tc)
     return test_cases

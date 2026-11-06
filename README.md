@@ -171,6 +171,7 @@ Copy-Item .env_example .env
 
 > [!NOTE]
 > Hệ thống Backend và Pipeline sử dụng kiến trúc **Medallion Lakehouse** trên MinIO S3, Qdrant và RabbitMQ. Tập tin `.env` cần tối thiểu các biến sau để Backend không gặp lỗi `ValidationError`:
+>
 > - `STORAGE_PROVIDER=minio`
 > - `MINIO_ENDPOINT_URL=http://localhost:9000` (hoặc endpoint Cloudflare Tunnel)
 > - `MINIO_ACCESS_KEY_ID` & `MINIO_SECRET_ACCESS_KEY`
@@ -184,6 +185,7 @@ Copy-Item .env_example .env
 ### Bước 3: Cài đặt Môi trường Python
 
 **Trên Linux / macOS (Bash / Zsh):**
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -193,6 +195,7 @@ pip install -e .
 ```
 
 **Trên Windows (PowerShell):**
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -208,16 +211,18 @@ pip install -e .
 Bạn có thể chạy toàn bộ hệ thống bằng kịch bản tự động hoặc mở từng terminal để kiểm soát độc lập từng phân hệ:
 
 #### 1. Khởi chạy LLM Service (Bộ Não Suy Luận RAG)
+
 Hệ thống hỗ trợ 4 chế độ LLM với cơ chế tự động chuyển đổi dự phòng (Automatic Fallback):
 
 - **Cách 1: Sử dụng Ollama (Khuyến nghị cho phát triển cục bộ)**:
+
   ```bash
   # Tải và chạy mô hình Qwen2.5-7B Instruct
   ollama run qwen2.5:7b-instruct
   # Ollama sẽ lắng nghe mặc định tại: http://localhost:11434 (Backend tự động phát hiện)
   ```
-
 - **Cách 2: Sử dụng llama-server (llama.cpp) với tập tin GGUF**:
+
   - *Linux / macOS:*
     ```bash
     ./llama-server \
@@ -234,14 +239,14 @@ Hệ thống hỗ trợ 4 chế độ LLM với cơ chế tự động chuyển 
       --ctx-size 16384 `
       --n-gpu-layers -1
     ```
-
 - **Cách 3: Chạy Node-Llama-CPP Microservice**:
+
   ```bash
   node dist/apps/llm-service/apps/llm-service/src/main.js
   # Lắng nghe tại: http://localhost:9001 (OpenAI-compatible /v1/chat/completions)
   ```
-
 - **Cách 4: Sử dụng Cloud API (Groq Cloud - Tốc độ cực cao)**:
+
   ```bash
   # Cấu hình API key trong file .env
   GROQ_API_KEY=gsk_your_groq_api_key_here
@@ -260,11 +265,13 @@ Hệ thống hỗ trợ 4 chế độ LLM với cơ chế tự động chuyển 
   .\.venv\Scripts\Activate.ps1
   python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
   ```
+
   *(Swagger API Documentation: `http://localhost:8000/docs`)*
 
 #### 3. Khởi chạy RabbitMQ Ingestion Workers (Background Consumers)
 
 Mở 2 terminal riêng biệt:
+
 - **Terminal 1 - Stage 1 (Fetch HTML & ghi Silver Parquet):**
   ```bash
   python -m src.ingestion.queue_consumer --stage fetch
@@ -282,6 +289,7 @@ Mở 2 terminal riêng biệt:
   npm install    # Chạy lần đầu
   npm run dev
   ```
+
   *(Dashboard UI: `http://localhost:5173`)*
 
 ---

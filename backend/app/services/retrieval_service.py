@@ -34,7 +34,7 @@ class RetrievalService:
 
     def _ensure_graph_and_rules(self):
         """Loads citation network influencers and frequent association rules from MinIO/R2 on first access."""
-        if self._graph_loaded:
+        if getattr(self, "_graph_loaded", False):
             return
         self._graph_loaded = True
         try:
@@ -267,6 +267,9 @@ class RetrievalService:
         try:
             k = req.top_k or 5
             mode = (req.mode or "vector").lower()
+            use_pr = getattr(req, "use_pagerank", True)
+            if use_pr is None:
+                use_pr = True
             rule_expansions = self._expand_rules(req.query, req.category)
 
             # Check for direct paper ID in query
@@ -361,8 +364,8 @@ class RetrievalService:
                                     doi=str(th.get("doi")) if th.get("doi") else (str(tr.get("doi")) if tr.get("doi") else None),
                                     score=0.96,
                                     source=f"qdrant://{getattr(self, 'table_name', settings.QDRANT_COLLECTION)}",
-                                    authority_score=round(norm_pr, 4) if norm_pr > 0 else None,
-                                    authority_author=auth_author,
+                                    authority_score=round(norm_pr, 4) if (use_pr and norm_pr > 0) else None,
+                                    authority_author=auth_author if use_pr else None,
                                     rule_expansions=rule_expansions if rule_expansions else None,
                                 )
                             )
@@ -446,7 +449,7 @@ class RetrievalService:
                         pass
 
                 # Boost score by up to 25% based on normalized PageRank and clamp to 0.9999
-                boosted_score = base_score * (1.0 + 0.25 * norm_pr) if norm_pr > 0 else base_score
+                boosted_score = base_score * (1.0 + 0.25 * norm_pr) if (use_pr and norm_pr > 0) else base_score
                 clamped_score = min(0.9999, round(boosted_score, 4))
 
                 candidates.append(
@@ -462,8 +465,8 @@ class RetrievalService:
                         section_title=str(r.get("section_title", "")) if r.get("section_title") else None,
                         score=clamped_score,
                         source=f"qdrant://{getattr(self, 'table_name', settings.QDRANT_COLLECTION)}",
-                        authority_score=round(norm_pr, 4) if norm_pr > 0 else None,
-                        authority_author=auth_author,
+                        authority_score=round(norm_pr, 4) if (use_pr and norm_pr > 0) else None,
+                        authority_author=auth_author if use_pr else None,
                         rule_expansions=rule_expansions if rule_expansions else None,
                     )
                 )
@@ -493,8 +496,8 @@ class RetrievalService:
                     scaled_rrf = 0.70 + (rrf_score / max_rrf) * 0.25
 
                     # Re-apply normalized PageRank boost and strictly clamp to <= 0.9999
-                    norm_pr = c.authority_score or 0.0
-                    fused_boosted = scaled_rrf * (1.0 + 0.25 * norm_pr) if norm_pr > 0 else scaled_rrf
+                    norm_pr = (c.authority_score or 0.0) if use_pr else 0.0
+                    fused_boosted = scaled_rrf * (1.0 + 0.25 * norm_pr) if (use_pr and norm_pr > 0) else scaled_rrf
                     c.score = min(0.9999, round(fused_boosted, 4))
 
             # Re-rank candidates by final score and slice to top-k

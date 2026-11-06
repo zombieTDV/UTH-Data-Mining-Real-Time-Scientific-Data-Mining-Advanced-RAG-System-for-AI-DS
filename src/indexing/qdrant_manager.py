@@ -384,7 +384,8 @@ class QdrantQueryBuilder:
             table_name=self.collection,
         )
         if not df.empty and self._select_cols:
-            avail = [c for c in self._select_cols if c in df.columns]
+            keep_cols = set(self._select_cols) | {'score', '_distance', 'id', '_score'}
+            avail = [c for c in df.columns if c in keep_cols]
             df = df[avail]
         return df
 

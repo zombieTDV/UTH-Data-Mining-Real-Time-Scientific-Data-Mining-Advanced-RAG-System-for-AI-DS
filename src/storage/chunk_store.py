@@ -279,6 +279,219 @@ class ChunkStore:
                     found[r["chunk_id"]] = r
         return found
 
+    _local_silver_cache: Optional[Dict[str, Dict[str, Any]]] = None
+    _chunks_parquet_cache: Optional[Dict[str, Dict[str, Any]]] = None
+    _local_silver_lock = threading.Lock()
+
+    def _ensure_local_silver(self):
+        if ChunkStore._local_silver_cache is not None:
+            return
+        with ChunkStore._local_silver_lock:
+            if ChunkStore._local_silver_cache is not None:
+                return
+            import json, os, re
+            from pathlib import Path
+            cache: Dict[str, Dict[str, Any]] = {}
+            chunks_cache: Dict[str, Dict[str, Any]] = {}
+
+            # 1. Load persistent arXiv metadata cache from disk
+            arxiv_cache_file = Path('data/silver/arxiv_metadata_cache.json')
+            if arxiv_cache_file.exists():
+                try:
+                    disk_arxiv = json.loads(arxiv_cache_file.read_text(encoding='utf-8'))
+                    for k, v in disk_arxiv.items():
+                        cache[k] = v
+                except Exception as e:
+                    logger.debug('Error loading arxiv_metadata_cache.json: %s', e)
+
+            # 2. Local chunks.parquet is read on demand via pyarrow.dataset (sub-second)
+            ChunkStore._chunks_ds = None
+            cp = Path('data/silver/chunks.parquet')
+            if cp.exists():
+                try:
+                    import pyarrow.dataset as ds
+                    ChunkStore._chunks_ds = ds.dataset(str(cp), format='parquet')
+                except Exception as err:
+                    logger.debug('Failed opening chunks.parquet dataset: %s', err)
+
+            # 3. Load local silver paper tables
+            tables = [
+                Path('data/silver/year=2026/papers.parquet'),
+                Path('data/silver/tier1/landmark_papers.parquet'),
+                Path('data/silver/tier1/landmark_html_papers.parquet'),
+                Path('data/silver/tier2/fulltext_papers.parquet'),
+                Path('data/silver/tier2/near_past_papers.parquet'),
+                Path('data/silver/arxiv/arxiv_near_past.parquet'),
+                Path('data/silver/cvf/cvpr2024.parquet'),
+                Path('data/silver/papers.parquet'),
+            ]
+            for p in tables:
+                if p.exists():
+                    try:
+                        schema = pq.read_schema(p)
+                        cols = [c for c in ['paper_id', 'title', 'authors', 'abstract', 'doi', 'clean_full_text'] if c in schema.names]
+                        t = pq.read_table(p, columns=cols)
+                        pids = t['paper_id'].to_pylist() if 'paper_id' in cols else []
+                        titles = t['title'].to_pylist() if 'title' in cols else []
+                        authors_col = t['authors'].to_pylist() if 'authors' in cols else []
+                        abstracts = t['abstract'].to_pylist() if 'abstract' in cols else []
+                        dois = t['doi'].to_pylist() if 'doi' in cols else []
+
+                        for idx in range(t.num_rows):
+                            pid = pids[idx] if idx < len(pids) else None
+                            title = titles[idx] if idx < len(titles) else ''
+                            raw_authors = authors_col[idx] if idx < len(authors_col) else []
+                            authors = [str(a) for a in (raw_authors or [])]
+                            abstract = abstracts[idx] if idx < len(abstracts) else ''
+                            doi = dois[idx] if idx < len(dois) else None
+
+                            info = {
+                                'title': title or '',
+                                'authors': authors,
+                                'abstract': abstract or '',
+                                'text': abstract or title or '',
+                            }
+                            if pid and pid not in cache:
+                                cache[pid] = info
+                            if doi and 'arxiv.' in str(doi).lower():
+                                m = re.search(r'arxiv\.(\d{4}\.\d{4,5})', str(doi), re.IGNORECASE)
+                                if m and m.group(1) not in cache:
+                                    cache[m.group(1)] = info
+                    except Exception as err:
+                        logger.debug('Failed loading %s into local silver cache: %s', p, err)
+
+            ChunkStore._local_silver_cache = cache
+            ChunkStore._chunks_parquet_cache = chunks_cache
+            logger.info('[ChunkStore] Initialized local fallback: %d papers, %d chunks', len(cache), len(chunks_cache))
+
+    def _fetch_arxiv_on_demand(self, arxiv_id: str) -> Optional[Dict[str, Any]]:
+        import json, re, urllib.request, xmltodict
+        from pathlib import Path
+        clean_id = re.sub(r'v\d+$', '', arxiv_id.strip())
+        if ChunkStore._local_silver_cache is not None and clean_id in ChunkStore._local_silver_cache:
+            res = ChunkStore._local_silver_cache[clean_id]
+            return res if res else None
+
+        # Do not query external arXiv API for future synthetic or unpublished years (>= 2504 or 26xx)
+        if clean_id.startswith('26') or (clean_id.startswith('25') and clean_id > '2504'):
+            if ChunkStore._local_silver_cache is not None:
+                ChunkStore._local_silver_cache[clean_id] = {}
+            return None
+        try:
+            url = f'http://export.arxiv.org/api/query?id_list={clean_id}'
+            req = urllib.request.Request(url, headers={'User-Agent': 'UTH-Scientific-Harvester/2.0'})
+            with urllib.request.urlopen(req, timeout=3) as r:
+                data = xmltodict.parse(r.read())
+                entry = data['feed'].get('entry')
+                if not entry:
+                    if ChunkStore._local_silver_cache is not None:
+                        ChunkStore._local_silver_cache[clean_id] = {}
+                    return None
+                if isinstance(entry, list):
+                    entry = entry[0]
+                title = ' '.join(entry.get('title', '').split())
+                summary = ' '.join(entry.get('summary', '').split())
+                raw_authors = entry.get('author', [])
+                if isinstance(raw_authors, dict):
+                    raw_authors = [raw_authors]
+                authors = [a.get('name', '') for a in raw_authors if a.get('name')]
+                info = {
+                    'title': title,
+                    'authors': authors,
+                    'abstract': summary,
+                    'text': summary,
+                }
+                if ChunkStore._local_silver_cache is not None:
+                    ChunkStore._local_silver_cache[clean_id] = info
+                    ChunkStore._local_silver_cache[arxiv_id] = info
+                # Persist to disk
+                cache_file = Path('data/silver/arxiv_metadata_cache.json')
+                cache_data = {}
+                if cache_file.exists():
+                    try:
+                        cache_data = json.loads(cache_file.read_text(encoding='utf-8'))
+                    except Exception:
+                        pass
+                cache_data[clean_id] = info
+                cache_file.write_text(json.dumps(cache_data, indent=2, ensure_ascii=False), encoding='utf-8')
+                logger.info('[ChunkStore] Fetched and cached arXiv paper %s: %s', clean_id, title[:50])
+                return info
+        except Exception as e:
+            if ChunkStore._local_silver_cache is not None:
+                ChunkStore._local_silver_cache[clean_id] = {}
+            logger.debug('[ChunkStore] Failed on-demand arXiv fetch for %s: %s', clean_id, e)
+            return None
+
+    def _lookup_local_silver(self, paper_id, chunk_id):
+        self._ensure_local_silver()
+        # 1. Exact chunk match from chunks.parquet on demand
+        if chunk_id and getattr(ChunkStore, '_chunks_ds', None) is not None:
+            try:
+                import pyarrow.dataset as ds
+                t = ChunkStore._chunks_ds.scanner(
+                    columns=['chunk_id', 'paper_id', 'title', 'text', 'full_chunk_text'],
+                    filter=ds.field('chunk_id') == chunk_id
+                ).to_table()
+                if t.num_rows > 0:
+                    r = t.slice(0, 1).to_pylist()[0]
+                    pid = r.get('paper_id') or paper_id or ''
+                    p_info = ChunkStore._local_silver_cache.get(pid, {}) if ChunkStore._local_silver_cache else {}
+                    return {
+                        'chunk_id': chunk_id,
+                        'paper_id': pid,
+                        'title': r.get('title') or p_info.get('title', ''),
+                        'authors': p_info.get('authors', []),
+                        'text': r.get('full_chunk_text') or r.get('text') or r.get('title', ''),
+                        'abstract': p_info.get('abstract', ''),
+                    }
+            except Exception as e:
+                logger.debug('chunks_ds lookup failed for %s: %s', chunk_id, e)
+
+        if not paper_id and chunk_id:
+            import re
+            m = re.match(r'^(.*?)_(abs|sec\d+)', chunk_id)
+            if m:
+                paper_id = m.group(1)
+            elif '_' in chunk_id:
+                paper_id = chunk_id.rsplit('_', 1)[0]
+        if not paper_id:
+            return None
+
+        # 2. Check local paper cache
+        info = None
+        if ChunkStore._local_silver_cache:
+            for k in (paper_id, paper_id.replace('openalex:', ''), paper_id.replace('arXiv:', ''), paper_id.replace('oa_', '')):
+                if k in ChunkStore._local_silver_cache:
+                    info = ChunkStore._local_silver_cache[k]
+                    break
+
+        # 3. If missing and is an arXiv ID, fetch on demand
+        if not info:
+            import re
+            m = re.search(r'(\d{4}\.\d{4,5})', paper_id)
+            if m:
+                info = self._fetch_arxiv_on_demand(m.group(1))
+
+        if info:
+            title = str(info.get('title', '') or '').strip()
+            if title.lower() == 'nan': title = ''
+            abstract = str(info.get('abstract', '') or '').strip()
+            if abstract.lower() == 'nan': abstract = ''
+            txt = str(info.get('text', '') or '').strip()
+            if txt.lower() == 'nan': txt = ''
+            final_text = txt or abstract or title
+            authors = info.get('authors', [])
+            if not isinstance(authors, list): authors = []
+            return {
+                'chunk_id': chunk_id or f'{paper_id}_abs',
+                'paper_id': paper_id,
+                'title': title,
+                'authors': [str(a) for a in authors if str(a).lower() != 'nan'],
+                'text': final_text,
+                'abstract': abstract,
+            }
+        return None
+
     def hydrate(self, payloads: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Merge each Qdrant payload with its chunk row (payload keys such as score/id are kept)."""
         rows = self.get(p.get("chunk_id") for p in payloads)
@@ -286,8 +499,12 @@ class ChunkStore:
         for p in payloads:
             row = rows.get(str(p.get("chunk_id")))
             if row is None:
-                logger.warning("[ChunkStore] chunk %s missing from %s", p.get("chunk_id"), CHUNKS_PREFIX)
-                merged.append(dict(p))
+                local_info = self._lookup_local_silver(p.get("paper_id"), p.get("chunk_id"))
+                if local_info:
+                    merged.append({**local_info, **{k: v for k, v in p.items() if v is not None}})
+                else:
+                    logger.warning("[ChunkStore] chunk %s missing from %s", p.get("chunk_id"), CHUNKS_PREFIX)
+                    merged.append(dict(p))
             else:
                 merged.append({**row, **{k: v for k, v in p.items() if v is not None}})
         return merged

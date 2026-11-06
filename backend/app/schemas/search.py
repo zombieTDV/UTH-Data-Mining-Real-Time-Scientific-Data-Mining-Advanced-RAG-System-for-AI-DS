@@ -8,6 +8,7 @@ class SearchRequest(BaseModel):
     category: Optional[str] = Field(None, examples=["cs.AI"])
     mode: Optional[str] = Field("hybrid", examples=["hybrid"])  # "fts", "vector", "hybrid"
     no_cache: Optional[bool] = Field(False)
+    use_pagerank: Optional[bool] = Field(True, description="Enable graph PageRank authority score boosting")
 
 
 class ChunkDto(BaseModel):

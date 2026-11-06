@@ -20,7 +20,7 @@ logger = logging.getLogger("deepeval_judge")
 
 
 def _sanitize_output(text: str) -> str:
-    """Repairs unescaped backslashes in JSON strings resulting from LaTeX formulas.
+    r"""Repairs unescaped backslashes in JSON strings resulting from LaTeX formulas.
     
     When scientific text contains symbols like \epsilon, \theta, \sigma, local LLMs
     sometimes omit double backslashes in JSON output strings, causing JSONDecodeError.
@@ -81,6 +81,37 @@ class CustomDeepEvalJudge(DeepEvalBaseLLM):
         """Returns the active OpenAI-compatible client instance."""
         return self.client
 
+    def _log_usage(self, resp):
+        usage = getattr(resp, "usage", None)
+        if usage:
+            hit = getattr(usage, "prompt_cache_hit_tokens", None)
+            if hit is None:
+                details = getattr(usage, "prompt_tokens_details", None)
+                hit = getattr(details, "cached_tokens", 0) if details else 0
+            miss = getattr(usage, "prompt_cache_miss_tokens", None)
+            if miss is None:
+                hit_val = hit or 0
+                miss = max(0, getattr(usage, "prompt_tokens", 0) - hit_val)
+            comp = getattr(usage, "completion_tokens", 0)
+
+            if self.mode == "deepseek":
+                cost_usd = ((hit or 0) * 0.07 + (miss or 0) * 0.27 + comp * 1.10) / 1_000_000
+                logger.info(
+                    "[DEEPSEEK USAGE] Cache Hit: %d | Cache Miss: %d | Comp: %d | Cost: $%.5f",
+                    hit or 0,
+                    miss or 0,
+                    comp,
+                    cost_usd,
+                )
+            elif self.mode == "local":
+                logger.info(
+                    "[LOCAL QWEN USAGE] Tokens: %d | Comp: %d | Cost: $0.00 (Local CUDA)",
+                    (hit or 0) + (miss or 0),
+                    comp,
+                )
+            else:
+                logger.info("[%s USAGE] Comp: %d", self.mode.upper(), comp)
+
     def generate(self, prompt: str) -> str:
         """Executes synchronous completion for DeepEval evaluation prompts."""
         try:
@@ -90,6 +121,7 @@ class CustomDeepEvalJudge(DeepEvalBaseLLM):
                 temperature=0.0,
                 max_tokens=2048,
             )
+            self._log_usage(resp)
             raw = resp.choices[0].message.content or ""
             return _sanitize_output(raw)
         except Exception as e:
@@ -105,6 +137,7 @@ class CustomDeepEvalJudge(DeepEvalBaseLLM):
                 temperature=0.0,
                 max_tokens=2048,
             )
+            self._log_usage(resp)
             raw = resp.choices[0].message.content or ""
             return _sanitize_output(raw)
         except Exception as e:

@@ -22,6 +22,7 @@ def retrieval_svc():
         svc.influencers = []
         svc.max_pagerank = 0.012632
         svc.rules = []
+        svc._graph_loaded = True
         svc.table_name = "gold_chunks"
         svc.vector_dim = 768
         return svc
