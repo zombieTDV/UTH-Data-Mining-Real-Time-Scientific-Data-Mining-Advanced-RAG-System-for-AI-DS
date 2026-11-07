@@ -31,24 +31,34 @@ flowchart LR
 
 ## 2. 5-Scenario Retrieval Ranking Benchmark (Hydrated Passages)
 
-Evaluated across recent LLM architecture questions (Batch 101–120) with full passage text and author hydration:
+### 2.1. Cumulative 120-Sample Benchmark (`N=120` — Full Text + 29,523-Author PageRank)
 
-| # | Retrieval Scenario | MRR | Hit@1 (%) | Hit@5 (%) | Delta vs Vector Baseline |
+| # | Retrieval Scenario | MRR (`N=120`) | Hit@1 (%) | Hit@5 (%) | Delta vs Vector Baseline |
 | :-: | :--- | :---: | :---: | :---: | :--- |
-| **1** | **Vector (Dense Vector baseline)** | `0.6500` | 60.0% (12/20) | 70.0% (14/20) | Baseline (Nomic Embed v1.5 cosine) |
-| **2** | **Laya Alone (Cross-Attention)** | **`0.6821`** | **65.0% (13/20)** | 70.0% (14/20) | **Highest Top-1 Precision (+5.0% Hit@1)** |
-| **3** | **Vector + Laya (RRF k=60)** | `0.6500` | 60.0% (12/20) | **75.0% (15/20)** | **Highest Top-5 Recall (+5.0% Hit@5)** |
-| **4** | **Vector + PageRank Authority Boost** | `0.6167` | 55.0% (11/20) | 70.0% (14/20) | Prioritizes seminal papers |
-| **5** | **Vector + Laya (RRF) + PageRank (Full)** | `0.6475` | 60.0% (12/20) | **75.0% (15/20)** | Optimal balance: 75% Recall + Authority |
+| **1** | **Vector (Dense Vector baseline)** | `0.5725` | 49.2% (59/120) | 67.5% (81/120) | Baseline (`Nomic Embed v1.5` cosine) |
+| **2** | **Laya Alone (Cross-Attention)** | `0.5822` | 51.7% (62/120) | 66.7% (80/120) | **+1.7% MRR / +2.5% Hit@1** |
+| **3** | **Vector + Laya (RRF k=60)** | `0.5810` | 50.8% (61/120) | 67.5% (81/120) | **+1.5% MRR / +1.6% Hit@1** |
+| **4** | **Vector + PageRank Authority Boost** | `0.5741` | 49.2% (59/120) | 68.3% (82/120) | **+0.8% Hit@5** (`citation_metrics.parquet`) |
+| **5** | **Vector + Laya (RRF) + PageRank (Full)** | **`0.6076`** | **55.0% (66/120)** | **69.2% (83/120)** | **+6.1% MRR / +5.8% Hit@1 / +1.7% Hit@5** |
 
 ```mermaid
 xychart-beta
-    title "Batch 101-120 (Hydrated): Hit@1 vs Hit@5 Comparison"
+    title "Cumulative 120 Samples (Hydrated): MRR vs Hit@1 Across 5 Scenarios"
     x-axis ["Vector", "Laya Alone", "Vector+Laya RRF", "Vector+PageRank", "Full System"]
-    y-axis "Percentage" 0.50 --> 0.80
-    bar [0.70, 0.70, 0.75, 0.70, 0.75]
-    line [0.60, 0.65, 0.60, 0.55, 0.60]
+    y-axis "Score" 0.45 --> 0.72
+    bar [0.5725, 0.5822, 0.5810, 0.5741, 0.6076]
+    line [0.492, 0.517, 0.508, 0.492, 0.550]
 ```
+
+### 2.2. Batch 101–120 (20 LLM Architecture Queries — Hydrated)
+
+| # | Retrieval Scenario | MRR (`N=20`) | Hit@1 (%) | Hit@5 (%) | Delta vs Vector Baseline |
+| :-: | :--- | :---: | :---: | :---: | :--- |
+| **1** | **Vector (Dense Vector baseline)** | `0.6500` | 60.0% (12/20) | 70.0% (14/20) | Baseline (`Nomic Embed v1.5` cosine) |
+| **2** | **Laya Alone (Cross-Attention)** | **`0.6821`** | **65.0% (13/20)** | 70.0% (14/20) | **Highest Top-1 Precision (+5.0% Hit@1)** |
+| **3** | **Vector + Laya (RRF k=60)** | `0.6500` | 60.0% (12/20) | **75.0% (15/20)** | **Highest Top-5 Recall (+5.0% Hit@5)** |
+| **4** | **Vector + PageRank Authority Boost** | `0.6500` | 60.0% (12/20) | 70.0% (14/20) | Preserves Top-1 seminal papers |
+| **5** | **Vector + Laya (RRF) + PageRank (Full)** | **`0.6517`** | 60.0% (12/20) | **75.0% (15/20)** | **Highest Fused MRR (`0.6517`) + 75% Recall** |
 
 ---
 

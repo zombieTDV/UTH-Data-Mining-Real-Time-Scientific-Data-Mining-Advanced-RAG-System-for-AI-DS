@@ -3,11 +3,13 @@ backend/app/services/reranker_service.py
 ----------------------------------------
 Cross-Encoder Reranking Service for deep semantic relevance scoring.
 Reranks initial candidate chunks using full transformer cross-attention
-(cross-encoder/ms-marco-MiniLM-L-6-v2 or BAAI/bge-reranker-base).
+(cross-encoder/ms-marco-MiniLM-L-6-v2 or BAAI/bge-reranker-base)
+with primary-paper title grounding.
 """
 
-import math
 import logging
+import math
+import re
 from typing import List, Optional
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -16,6 +18,11 @@ from backend.app.core.config import settings
 from backend.app.schemas.search import ChunkDto
 
 logger = logging.getLogger("reranker_service")
+
+_STOPWORDS = {
+    "what", "is", "the", "of", "in", "and", "for", "to", "a", "an",
+    "how", "does", "by", "with", "on", "from", "which", "were", "was", "are",
+}
 
 
 class RerankerService:
@@ -82,13 +89,11 @@ class RerankerService:
 
         k = top_k or settings.RERANKER_TOP_K
 
-        # If reranker is disabled via config, just slice and return
         if not getattr(settings, "RERANKER_ENABLED", True):
             return chunks[:k]
 
         self._lazy_init()
 
-        # If model failed to load, fall back gracefully to input chunk ranking
         if not self.is_ready():
             logger.warning("[RERANKER] Model offline, returning original chunk ranking.")
             return chunks[:k]
@@ -122,18 +127,37 @@ class RerankerService:
             if isinstance(raw_scores, float):
                 raw_scores = [raw_scores]
 
-            for chunk, score in zip(chunks, raw_scores):
+            q_words = [
+                w for w in re.findall(r"\b[A-Za-z0-9_-]{2,}\b", query)
+                if w.lower() not in _STOPWORDS
+            ]
+
+            scored_items = []
+            for idx_c, (chunk, score) in enumerate(zip(chunks, raw_scores)):
                 s = float(score)
-                # Numerical stability for sigmoid
+                title_lower = (chunk.title or "").lower()
+                if title_lower and q_words:
+                    title_hits = sum(1 for w in q_words if w.lower() in title_lower)
+                    acronym_hits = sum(
+                        1
+                        for w in q_words
+                        if (w.isupper() or any(ch.isupper() for ch in w[1:]))
+                        and len(w) >= 2
+                        and w.lower() in title_lower
+                    )
+                    title_ratio = title_hits / len(q_words)
+                    s = s + (3.0 * title_ratio) + (2.0 * acronym_hits)
+
                 if s >= 0:
                     norm = 1.0 / (1.0 + math.exp(-s))
                 else:
                     exp_s = math.exp(s)
                     norm = exp_s / (1.0 + exp_s)
                 chunk.score = round(norm, 4)
+                scored_items.append((s, -idx_c, chunk))
 
-            # Sort descending by reranked score and slice to top_k
-            ranked_chunks = sorted(chunks, key=lambda c: c.score or 0.0, reverse=True)
+            scored_items.sort(key=lambda x: (x[0], x[1]), reverse=True)
+            ranked_chunks = [item[2] for item in scored_items]
             logger.info(
                 "[RERANKER] Reranked %d candidates -> retained top %d (Top score: %.4f, Model: %s)",
                 len(chunks),

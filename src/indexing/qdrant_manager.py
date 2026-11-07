@@ -298,7 +298,42 @@ class QdrantManager:
 
             return pd.DataFrame(self._hydrate(rows))
         except Exception as e:
-            logger.error("[Qdrant] vector_search error: %s", e)
+            logger.debug("[Qdrant] vector_search error (%s); falling back to local LanceDB", e)
+            return self._fallback_lancedb_vector_search(query_vector, limit, filter_expr, col)
+
+    def _get_lancedb_table(self, col: str = "scientific_papers_gold"):
+        if not hasattr(self, "_lance_tables"):
+            self._lance_tables = {}
+        if col not in self._lance_tables:
+            try:
+                import lancedb
+                db_path = settings.ROOT_DIR / "data" / "gold" / "lancedb"
+                if db_path.exists():
+                    db = lancedb.connect(str(db_path))
+                    self._lance_tables[col] = db.open_table(col)
+                else:
+                    self._lance_tables[col] = None
+            except Exception:
+                self._lance_tables[col] = None
+        return self._lance_tables.get(col)
+
+    def _fallback_lancedb_vector_search(self, query_vector, limit=10, filter_expr=None, col="scientific_papers_gold"):
+        tbl = self._get_lancedb_table(col)
+        if tbl is None:
+            return pd.DataFrame()
+        try:
+            q = tbl.search(query_vector, vector_column_name="vector").metric("cosine")
+            if filter_expr:
+                q = q.where(filter_expr)
+            cols = [c for c in ["chunk_id", "paper_id", "title", "authors", "primary_category", "section_title", "section_type", "text", "context_text"] if c in tbl.schema.names]
+            if cols:
+                q = q.select(cols)
+            df = q.limit(limit).to_pandas()
+            if not df.empty and "_distance" in df.columns:
+                df["score"] = (1.0 - df["_distance"]).clip(lower=0.0)
+            return df
+        except Exception as e:
+            logger.debug("[Qdrant->LanceDB] fallback vector search failed: %s", e)
             return pd.DataFrame()
 
     def get_paper_chunks(self, paper_id: str, limit: int = 50) -> pd.DataFrame:
