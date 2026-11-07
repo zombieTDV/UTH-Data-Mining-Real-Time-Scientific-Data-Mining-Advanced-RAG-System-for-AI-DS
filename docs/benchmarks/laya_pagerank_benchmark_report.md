@@ -31,27 +31,27 @@ flowchart LR
 
 ## 2. 5-Scenario Retrieval Ranking Benchmark (`N=120` — Full Text + 29,523-Author PageRank)
 
-| # | Retrieval Scenario | MRR (`N=120`) | Hit@1 (%) | Hit@5 (%) | Recall@5 (%) | Hit@10 (%) | Delta vs Vector Baseline |
-| :-: | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **1** | **Vector (Dense Vector baseline)** | `0.5725` | 49.2% (59/120) | 67.5% (81/120) | 60.8% | 75.0% (90/120) | Baseline (`Nomic Embed v1.5` cosine) |
-| **2** | **Laya Alone (Cross-Attention)** | `0.5822` | 51.7% (62/120) | 66.7% (80/120) | 60.0% | 75.0% (90/120) | **+1.7% MRR / +2.5% Hit@1** |
-| **3** | **Vector + Laya (RRF k=60)** | `0.5810` | 50.8% (61/120) | 67.5% (81/120) | 60.4% | 75.0% (90/120) | **+1.5% MRR / +1.6% Hit@1** |
-| **4** | **Vector + PageRank Authority Boost** | `0.5741` | 49.2% (59/120) | 68.3% (82/120) | 61.7% | 75.0% (90/120) | **+0.8% Hit@5 / +0.9% Recall@5** |
-| **5** | **Vector + Laya (RRF) + PageRank (Full)** | **`0.6076`** | **55.0% (66/120)** | **69.2% (83/120)** | **`62.1%`** | **75.0% (90/120)** | **+6.1% MRR / +5.8% Hit@1 / +1.7% Hit@5** |
+| # | Retrieval Scenario | MRR (`N=120`) | Hit@1 (%) | Recall@1 (%) | Hit@5 (%) | Recall@5 (%) | Hit@10 (%) | Delta vs Vector Baseline |
+| :-: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **1** | **Vector (Dense Vector baseline)** | `0.5725` | 49.2% (59/120) | `45.0%` | 67.5% (81/120) | `60.8%` | 75.0% (90/120) | Baseline (`Nomic Embed v1.5` cosine) |
+| **2** | **Laya Alone (Cross-Attention)** | `0.5822` | 51.7% (62/120) | `46.2%` | 66.7% (80/120) | `60.0%` | 75.0% (90/120) | **+1.7% MRR / +2.5% Hit@1 / +1.2% Recall@1** |
+| **3** | **Vector + Laya (RRF k=60)** | `0.5810` | 50.8% (61/120) | `46.2%` | 67.5% (81/120) | `60.4%` | 75.0% (90/120) | **+1.5% MRR / +1.6% Hit@1 / +1.2% Recall@1** |
+| **4** | **Vector + PageRank Authority Boost** | `0.5741` | 49.2% (59/120) | `45.0%` | 68.3% (82/120) | `61.7%` | 75.0% (90/120) | **+0.8% Hit@5 / +0.9% Recall@5** |
+| **5** | **Vector + Laya (RRF) + PageRank (Full)** | **`0.6076`** | **55.0% (66/120)** | **`49.6%`** | **69.2% (83/120)** | **`62.1%`** | **75.0% (90/120)** | **+6.1% MRR / +5.8% Hit@1 / +4.6% Recall@1** |
 
 ```mermaid
 xychart-beta
-    title "Cumulative 120 Samples (Hydrated): MRR vs Hit@1 Across 5 Scenarios"
+    title "Cumulative 120 Samples (Hydrated): MRR vs Recall@1 Across 5 Scenarios"
     x-axis ["Vector", "Laya Alone", "Vector+Laya RRF", "Vector+PageRank", "Full System"]
-    y-axis "Score" 0.45 --> 0.72
+    y-axis "Score" 0.40 --> 0.70
     bar [0.5725, 0.5822, 0.5810, 0.5741, 0.6076]
-    line [0.492, 0.517, 0.508, 0.492, 0.550]
+    line [0.450, 0.462, 0.462, 0.450, 0.496]
 ```
 
 > [!NOTE]
 > **How the 3 Recall Metrics Are Calculated**:
-> 1. **`Hit@K` (Binary Document Recall@K — Table §2)**: $\text{Hit@K} = \frac{1}{N}\sum_{q=1}^{N} \mathbb{I}(\text{Top}_K(q) \cap G_q \neq \emptyset)$ — Percentage of queries where **at least 1 gold paper** (`relevant_paper_ids`) is ranked within Top-$K$ (`69.2%` at $K=5$, `75.0%` at $K=10$).
-> 2. **`Recall@5` (Strict Multi-Paper Recall@5 — Table §2)**: $\text{Recall@5} = \frac{1}{N}\sum_{q=1}^{N} \frac{|\text{Top}_5(q) \cap G_q|}{|G_q|}$ — Out of 120 queries, 92 have 1 target paper ($|G_q|=1$) and 28 have 2 target papers ($|G_q|=2$); this measures exact set coverage in Top-5 (`60.8%` Vector $\rightarrow$ **`62.1%`** Full System).
+> 1. **`Hit@K` (Binary Document Recall@K — Table §2)**: $\text{Hit@K} = \frac{1}{N}\sum_{q=1}^{N} \mathbb{I}(\text{Top}_K(q) \cap G_q \neq \emptyset)$ — Percentage of queries where **at least 1 gold paper** (`relevant_paper_ids`) is ranked within Top-$K$ (`55.0%` at $K=1$, `69.2%` at $K=5$, `75.0%` at $K=10$).
+> 2. **`Recall@1` & `Recall@5` (Strict Multi-Paper Recall@K — Table §2)**: $\text{Recall@K} = \frac{1}{N}\sum_{q=1}^{N} \frac{|\text{Top}_K(q) \cap G_q|}{|G_q|}$ — Out of 120 queries, 92 have 1 target paper ($|G_q|=1$) and 28 have 2 target papers ($|G_q|=2$, so a single Rank-1 hit contributes $1/2 = 0.5$ on 2-paper queries); `Recall@1` improves from `45.0%` (Vector) to **`49.6%` (+4.6%)** (Full System) and `Recall@5` improves from `60.8%` to **`62.1%` (+1.3%)**.
 > 3. **DeepEval `Contextual Recall` (Statement-Level Recall@5 — Table §3)**: $\frac{\text{\# of ground-truth claims in } \texttt{expected\_output} \text{ supported by Top-5 chunks}}{\text{Total claims in } \texttt{expected\_output}}$ — Measures whether the Top-5 hydrated chunks contain all factual claims needed to answer the query (**`0.900` / `90.0%`** across `N=105` hydrated `gold-001`..`100`).
 
 ---
