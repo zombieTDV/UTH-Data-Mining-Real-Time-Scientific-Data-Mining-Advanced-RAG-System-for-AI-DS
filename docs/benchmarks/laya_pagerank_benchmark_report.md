@@ -31,23 +31,24 @@ flowchart LR
 
 ## 2. 5-Scenario Retrieval Ranking Benchmark (`N=120` — Full Text + 29,523-Author PageRank)
 
-| # | Retrieval Scenario | MRR (`N=120`) | Hit@1 (%) | Recall@1 (%) | Hit@5 (%) | Recall@5 (%) | Latency (`Laya 421M CPU` / `CUDA Batch`) | Delta vs Vector Baseline |
+| # | Retrieval Scenario | MRR (`N=120`) | Hit@1 (%) | Recall@1 (%) | Hit@5 (%) | Recall@5 (%) | Latency (`Laya-421M CUDA Batch` / `Seq`) | Delta vs Vector Baseline |
 | :-: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | **1** | **Vector (Dense Vector baseline)** | `0.5725` | 49.2% (59/120) | `45.0%` | 67.5% (81/120) | `60.8%` | **`325.0 ms`** | Baseline (`Nomic v1.5` + Hydrate) |
-| **2** | **Laya Alone (Cross-Attention)** | `0.5822` | 51.7% (62/120) | `46.2%` | 66.7% (80/120) | `60.0%` | `4,585 ms` (CPU) / `383.9 ms` (GPU) | **+1.7% MRR / +2.5% Hit@1 / +1.2% Recall@1** |
-| **3** | **Vector + Laya (RRF k=60)** | `0.5810` | 50.8% (61/120) | `46.2%` | 67.5% (81/120) | `60.4%` | `4,585 ms` (CPU) / `383.9 ms` (GPU) | **+1.5% MRR / +1.6% Hit@1 / +1.2% Recall@1** |
+| **2** | **Laya Alone (Cross-Attention)** | `0.5822` | 51.7% (62/120) | `46.2%` | 66.7% (80/120) | `60.0%` | **`641.2 ms`** (`+316.2 ms` batch / `1,661 ms` seq) | **+1.7% MRR / +2.5% Hit@1 / +1.2% Recall@1** |
+| **3** | **Vector + Laya (RRF k=60)** | `0.5810` | 50.8% (61/120) | `46.2%` | 67.5% (81/120) | `60.4%` | **`641.2 ms`** (`+316.2 ms` batch / `1,661 ms` seq) | **+1.5% MRR / +1.6% Hit@1 / +1.2% Recall@1** |
 | **4** | **Vector + PageRank Authority Boost** | `0.5741` | 49.2% (59/120) | `45.0%` | 68.3% (82/120) | `61.7%` | **`325.2 ms` (`+0.21 ms`)** | **+0.8% Hit@5 / +0.9% Recall@5** |
-| **5** | **Vector + Laya (RRF) + PageRank (Full)** | **`0.6076`** | **55.0% (66/120)** | **`49.6%`** | **69.2% (83/120)** | **`62.1%`** | `4,585.2 ms` (CPU) / `384.1 ms` (GPU) | **+6.1% MRR / +5.8% Hit@1 / +4.6% Recall@1** |
+| **5** | **Vector + Laya (RRF) + PageRank (Full)** | **`0.6076`** | **55.0% (66/120)** | **`49.6%`** | **69.2% (83/120)** | **`62.1%`** | **`641.4 ms`** (`+316.4 ms` batch / `1,661 ms` seq) | **+6.1% MRR / +5.8% Hit@1 / +4.6% Recall@1** |
 
-### 2.1. Stage Latency Breakdown & PageRank ROI
+### 2.1. Stage Latency Breakdown on CUDA GPU (`Laya-421M bfloat16` vs `PageRank`)
 
-| Pipeline Stage | Avg Latency (`ms/query`) | Execution Mode | Accuracy / Ranking Gain (`Full` vs `RRF`) |
-| :--- | :---: | :--- | :--- |
-| **1. Vector Search (`Nomic v1.5` + ANN + Hydrate)** | `325.01 ms` | Query embed + 913k ANN + `ChunkStore` hydration | Retrieves initial Top-10 pool (`75.0%` Hit@10) |
-| **2a. `Laya-421M` (`receptron/laya-onnx` on Node CPU)** | **`+4,260.0 ms` (`~4.26s`)** | **`426 ms/chunk` $\times$ 10 sequential CPU calls (`1.6 GB` RAM)** | **Heavy sequential CPU bottleneck** |
-| **2b. `Cross-Encoder MiniLM-L6` (22M, Batch-10 CUDA)** | `+58.85 ms` | Single GPU batch of 10 `(query, chunk)` pairs | Deep cross-attention scoring (`+2.5%` Hit@1) |
-| **3. RRF Fusion (`k=60`)** | `+0.02 ms` (`18.6 µs`) | 10 reciprocal-rank additions in CPU RAM | Fuses dense vector + cross-attention ranks |
-| **4. Graph PageRank Lookup (In-Memory `O(1)`)** | **`+0.21 ms` (`205.7 µs`)** | **In-RAM hash lookup (`20,000` papers / `29,523` authors)** | **Lifts `Hit@1` by `+4.2%` (`50.8% -> 55.0%`), `Recall@1` by `+3.4%`, `Hit@5` by `+1.7%`** |
+| Pipeline Stage | 10-Chunk Latency (`ms/query`) | Per-Chunk Latency | Hardware Execution Mode | Accuracy / Ranking Gain (`Full` vs `RRF`) |
+| :--- | :---: | :---: | :--- | :--- |
+| **1. Vector Search (`Nomic v1.5` + ANN + Hydrate)** | `325.01 ms` | — | Query embed (CUDA) + 913k ANN + `ChunkStore` hydration | Retrieves initial Top-10 pool (`75.0%` Hit@10) |
+| **2a. `Laya-421M` on CUDA GPU (Batched 10 chunks)** | **`+316.16 ms`** | **`31.62 ms/chunk`** | **`model.safetensors` (`421M`, `torch.bfloat16`) in 1 collated GPU pass** | **`13.5x` faster than CPU (`4,260 ms`)** |
+| **2b. `Laya-421M` on CUDA GPU (Sequential 1-by-1)** | `+1,335.92 ms` | `133.59 ms/chunk` | 10 sequential `system_one()` calls on GPU (`bfloat16`) | `3.2x` faster than CPU (`4,260 ms`) |
+| **2c. `Laya-421M` on CPU (`onnxruntime-node` legacy)** | `+4,260.00 ms` | `426.00 ms/chunk` | 10 sequential CPU calls without GPU offloading | Too slow for interactive RAG (`~4.3s`) |
+| **3. RRF Fusion (`k=60`)** | `+0.02 ms` (`18.6 µs`) | `1.9 µs/chunk` | 10 reciprocal-rank additions in CPU RAM | Fuses dense vector + Laya ranks |
+| **4. Graph PageRank Lookup (In-Memory `O(1)`)** | **`+0.21 ms` (`205.7 µs`)** | **`20.6 µs/chunk`** | **In-RAM hash lookup (`20,000` papers / `29,523` authors)** | **Lifts `Hit@1` by `+4.2%` (`50.8% -> 55.0%`), `Recall@1` by `+3.4%`** |
 
 ```mermaid
 xychart-beta
