@@ -31,13 +31,22 @@ flowchart LR
 
 ## 2. 5-Scenario Retrieval Ranking Benchmark (`N=120` — Full Text + 29,523-Author PageRank)
 
-| # | Retrieval Scenario | MRR (`N=120`) | Hit@1 (%) | Recall@1 (%) | Hit@5 (%) | Recall@5 (%) | Hit@10 (%) | Delta vs Vector Baseline |
+| # | Retrieval Scenario | MRR (`N=120`) | Hit@1 (%) | Recall@1 (%) | Hit@5 (%) | Recall@5 (%) | Latency (`ms/q`) | Delta vs Vector Baseline |
 | :-: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **1** | **Vector (Dense Vector baseline)** | `0.5725` | 49.2% (59/120) | `45.0%` | 67.5% (81/120) | `60.8%` | 75.0% (90/120) | Baseline (`Nomic Embed v1.5` cosine) |
-| **2** | **Laya Alone (Cross-Attention)** | `0.5822` | 51.7% (62/120) | `46.2%` | 66.7% (80/120) | `60.0%` | 75.0% (90/120) | **+1.7% MRR / +2.5% Hit@1 / +1.2% Recall@1** |
-| **3** | **Vector + Laya (RRF k=60)** | `0.5810` | 50.8% (61/120) | `46.2%` | 67.5% (81/120) | `60.4%` | 75.0% (90/120) | **+1.5% MRR / +1.6% Hit@1 / +1.2% Recall@1** |
-| **4** | **Vector + PageRank Authority Boost** | `0.5741` | 49.2% (59/120) | `45.0%` | 68.3% (82/120) | `61.7%` | 75.0% (90/120) | **+0.8% Hit@5 / +0.9% Recall@5** |
-| **5** | **Vector + Laya (RRF) + PageRank (Full)** | **`0.6076`** | **55.0% (66/120)** | **`49.6%`** | **69.2% (83/120)** | **`62.1%`** | **75.0% (90/120)** | **+6.1% MRR / +5.8% Hit@1 / +4.6% Recall@1** |
+| **1** | **Vector (Dense Vector baseline)** | `0.5725` | 49.2% (59/120) | `45.0%` | 67.5% (81/120) | `60.8%` | `325.0 ms` | Baseline (`Nomic v1.5` + Hydrate) |
+| **2** | **Laya Alone (Cross-Attention)** | `0.5822` | 51.7% (62/120) | `46.2%` | 66.7% (80/120) | `60.0%` | `383.9 ms` (`+58.9 ms`) | **+1.7% MRR / +2.5% Hit@1 / +1.2% Recall@1** |
+| **3** | **Vector + Laya (RRF k=60)** | `0.5810` | 50.8% (61/120) | `46.2%` | 67.5% (81/120) | `60.4%` | `383.9 ms` (`+58.9 ms`) | **+1.5% MRR / +1.6% Hit@1 / +1.2% Recall@1** |
+| **4** | **Vector + PageRank Authority Boost** | `0.5741` | 49.2% (59/120) | `45.0%` | 68.3% (82/120) | `61.7%` | **`325.2 ms` (`+0.21 ms`)** | **+0.8% Hit@5 / +0.9% Recall@5** |
+| **5** | **Vector + Laya (RRF) + PageRank (Full)** | **`0.6076`** | **55.0% (66/120)** | **`49.6%`** | **69.2% (83/120)** | **`62.1%`** | **`384.1 ms` (`+59.1 ms`)** | **+6.1% MRR / +5.8% Hit@1 / +4.6% Recall@1** |
+
+### 2.1. Stage Latency Breakdown & PageRank ROI
+
+| Pipeline Stage | Avg Latency (`ms/query`) | Share of Retrieval Time | Accuracy / Ranking Gain (`Full` vs `RRF`) |
+| :--- | :---: | :---: | :--- |
+| **1. Vector Search (`Nomic v1.5` + ANN + Hydrate)** | `325.01 ms` | `84.61%` | Retrieves initial Top-10 pool (`75.0%` Hit@10) |
+| **2. Laya Cross-Encoder (10 chunks on CUDA)** | `+58.85 ms` | `15.32%` | Deep cross-attention scoring (`+2.5%` Hit@1) |
+| **3. RRF Fusion (`k=60`)** | `+0.02 ms` (`18.6 µs`) | `< 0.01%` | Fuses dense vector + cross-attention ranks |
+| **4. Graph PageRank Lookup (In-Memory `O(1)`)** | **`+0.21 ms` (`205.7 µs`)** | **`0.05%`** | **Lifts `Hit@1` by `+4.2%` (`50.8% -> 55.0%`), `Recall@1` by `+3.4%`, `Hit@5` by `+1.7%`** |
 
 ```mermaid
 xychart-beta
