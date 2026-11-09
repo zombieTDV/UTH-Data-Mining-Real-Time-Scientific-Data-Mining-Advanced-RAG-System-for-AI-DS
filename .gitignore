@@ -102,3 +102,8 @@ scratch/
 .tmp/
 *.tmp
 pdf/use_api.md
+notebooks/laya_finetune/laya_onnx_seed0.zip
+.gitignore
+notebooks/laya_onnx_20261108-2053_seed0/laya.onnx
+notebooks/laya_onnx_20261108-2053_seed0/laya.onnx.data
+benchmarks/datasets/laya-eval-set-200.json
