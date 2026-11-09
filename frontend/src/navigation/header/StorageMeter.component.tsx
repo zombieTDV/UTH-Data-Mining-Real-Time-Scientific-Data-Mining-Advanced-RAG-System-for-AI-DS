@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import { AnimatedCounter } from '../../components/common';
 import { useLakehouseStreamStore } from '../../store';
+import { useTranslation } from '../../hooks';
 
 export interface StorageMeterProps {
   storageUsedGb: number;
@@ -12,6 +13,7 @@ export const StorageMeter: FC<StorageMeterProps> = ({
   storageUsedGb,
   storageUsedPct,
 }) => {
+  const { language } = useTranslation();
   const { isSyncingStorage, lastSyncedStorage, triggerStorageSync } = useLakehouseStreamStore();
   const quotaGb = 10.0;
   const pct = Math.min(100, Math.max(0, storageUsedPct));
@@ -28,10 +30,14 @@ export const StorageMeter: FC<StorageMeterProps> = ({
 
   const accentColor = isHigh ? '#ef4444' : isMed ? '#f59e0b' : '#34d399';
 
+  const tooltip = language === 'vi'
+    ? `Hồ chứa MinIO S3 (bấm để quét lại)\n• Đã dùng: ${storageUsedGb.toFixed(2)} GB (${pct.toFixed(1)}%)\n• Ngân sách: ${quotaGb.toFixed(2)} GB\n• Đồng bộ: ${lastSyncedStorage || 'Mới đây'}`
+    : `MinIO Storage Bucket (click to re-scan)\n• Used: ${storageUsedGb.toFixed(2)} GB (${pct.toFixed(1)}%)\n• Quota: ${quotaGb.toFixed(2)} GB\n• Last sync: ${lastSyncedStorage || 'Just now'}`;
+
   return (
     <div
       onClick={() => !isSyncingStorage && triggerStorageSync()}
-      title={`MinIO Storage Bucket (bấm để quét lại)\n• Đã dùng: ${storageUsedGb.toFixed(2)} GB (${pct.toFixed(1)}%)\n• Ngân sách dung lượng: ${quotaGb.toFixed(2)} GB\n• Đồng bộ lần cuối: ${lastSyncedStorage || 'Mới đây'}`}
+      title={tooltip}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

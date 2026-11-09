@@ -23,12 +23,12 @@ class DuckDbQueryResponse(BaseModel):
 
 
 @router.get("/storage/stats", response_model=StorageStatsResponse, tags=["Storage & Lakehouse"])
-async def get_storage_stats():
+def get_storage_stats():
     return storage_service.get_stats()
 
 
 @router.post("/storage/sync", tags=["Storage & Lakehouse"])
-async def trigger_storage_sync():
+def trigger_storage_sync():
     """Forces a fresh scan of the MinIO bucket."""
     return storage_service.sync_live_from_r2()
 
@@ -46,7 +46,7 @@ TIER_VIEWS = ("tier1", "tier2", "tier3")  # tier1_papers / tier2_papers / tier3_
 
 
 @router.post("/storage/query", response_model=DuckDbQueryResponse, tags=["Storage & Lakehouse"])
-async def execute_duckdb_query(req: DuckDbQueryRequest):
+def execute_duckdb_query(req: DuckDbQueryRequest):
     """Read-only DuckDB SQL over the Silver Parquet tables stored in MinIO.
 
     Available tables: papers (all of Silver), tier1_papers, tier2_papers, tier3_papers. Only a single SELECT/WITH statement is accepted and

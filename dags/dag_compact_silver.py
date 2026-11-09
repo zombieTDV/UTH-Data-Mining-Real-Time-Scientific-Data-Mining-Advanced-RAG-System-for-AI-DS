@@ -1,9 +1,11 @@
 """Apache Airflow DAG: Silver compaction.
 
-Schedule: daily 03:00 ICT, folding in whatever the previous day's Tier 1 (04:50) and Tier 2 (05:00) runs wrote.
+Schedule: every 3 hours, folding in whatever the harvesting tiers wrote meanwhile (a Tier 2 run writes ~2,000 parts a
+day; DuckDB / EDA reads every part over HTTP, so leaving them unfolded makes those reads slow and fragile).
 The queue consumer writes each micro-batch as an immutable part under silver/papers/year=YYYY/parts/. This DAG asks
 the backend to fold those parts into silver/papers/year=YYYY/papers.parquet (deduplicated by abstract hash) so the
-dashboard, DuckDB and the mining engine see the new papers.
+dashboard, DuckDB and the mining engine see the new papers. The embed stage's chunk parts
+(silver/chunks/year=YYYY/parts/) are folded into silver/chunks/year=YYYY/chunks.parquet in the same call.
 
 Required env on the Airflow worker: BACKEND_COMPACT_SILVER_URL (e.g. http://<backend>:8000/api/ingestion/compact-silver).
 """
@@ -35,14 +37,16 @@ def compact_silver(**_context):
     resp.raise_for_status()  # 409 (already running) or any failure fails the task and triggers the retry
     result = resp.json()
     logger.info("Silver compaction: %d part(s) merged across years %s", result.get("parts", 0), result.get("years"))
+    chunks = result.get("chunks") or {}
+    logger.info("Silver chunk compaction: %d part(s) merged across years %s", chunks.get("parts", 0), chunks.get("years"))
     return result
 
 
 with DAG(
     dag_id="dag_compact_silver",
     default_args=default_args,
-    description="Daily compaction of streaming Silver parts into per-year papers.parquet (03:00 AM ICT)",
-    schedule_interval="0 3 * * *",
+    description="Compaction of streaming Silver parts into per-year papers.parquet (every 3 hours)",
+    schedule_interval="0 */3 * * *",
     start_date=datetime(2025, 1, 1, tzinfo=local_tz),
     catchup=False,
     tags=["silver", "compaction", "lakehouse"],

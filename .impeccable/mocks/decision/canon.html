@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#fff;color:#1f2937;font-family:Roboto,sans-serif}
+header{background:#1e3a8a;color:#fff;padding:30px 64px}
+header small{font-size:18px;opacity:.8}
+h1{font-size:48px;font-weight:700;margin-top:6px}
+main{display:grid;grid-template-columns:1.4fr 1fr;gap:56px;padding:48px 64px}
+.rows{display:flex;flex-direction:column;gap:16px}
+.row{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:center;font-size:20px}
+.bar{display:flex;height:30px;border-radius:4px;overflow:hidden}.bar i{display:block}
+.a{background:#2563eb}.b{background:#60a5fa}.c{background:#bfdbfe}.o{background:#e5e7eb}
+ul{list-style:none;display:flex;flex-direction:column;gap:18px}
+li{font-size:22px;display:flex;justify-content:space-between;border-bottom:1px solid #e5e7eb;padding-bottom:12px}
+li b{font-size:30px;color:#1e3a8a}
+footer{position:absolute;bottom:0;left:0;right:0;padding:14px 64px;font-size:16px;color:#6b7280;border-top:1px solid #e5e7eb}
+</style></head><body>
+<header><small>Chương IV · Processing · Clustering</small><h1>6 cụm chủ đề, silhouette 0,047</h1></header>
+<main>
+  <div class="rows">
+    <div class="row">Cụm 0 · Robot<div class="bar" style="width:51%"><i class="a" style="flex:77"></i><i class="b" style="flex:15"></i><i class="c" style="flex:4"></i><i class="o" style="flex:6"></i></div></div>
+    <div class="row">Cụm 1 · ML<div class="bar" style="width:100%"><i class="a" style="flex:45"></i><i class="b" style="flex:36"></i><i class="c" style="flex:30"></i><i class="o" style="flex:88"></i></div></div>
+    <div class="row">Cụm 2 · Agent<div class="bar" style="width:46%"><i class="a" style="flex:28"></i><i class="b" style="flex:22"></i><i class="c" style="flex:10"></i><i class="o" style="flex:32"></i></div></div>
+    <div class="row">Cụm 3 · NLP<div class="bar" style="width:72%"><i class="a" style="flex:64"></i><i class="b" style="flex:25"></i><i class="c" style="flex:22"></i><i class="o" style="flex:32"></i></div></div>
+    <div class="row">Cụm 4 · CV<div class="bar" style="width:90%"><i class="a" style="flex:104"></i><i class="b" style="flex:46"></i><i class="c" style="flex:4"></i><i class="o" style="flex:25"></i></div></div>
+    <div class="row">Cụm 5 · 3D<div class="bar" style="width:43%"><i class="a" style="flex:70"></i><i class="b" style="flex:10"></i><i class="c" style="flex:2"></i><i class="o" style="flex:3"></i></div></div>
+  </div>
+  <ul><li>Silhouette<b>0,047</b></li><li>Davies-Bouldin<b>5,39</b></li><li>Calinski-Harabasz<b>58,0</b></li><li>DBSCAN<b>1 cụm</b></li></ul>
+</main>
+<footer>gold/mining/clusters.json</footer>
+</body></html>

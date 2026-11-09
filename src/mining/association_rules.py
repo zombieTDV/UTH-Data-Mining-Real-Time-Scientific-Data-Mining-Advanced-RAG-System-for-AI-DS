@@ -174,7 +174,9 @@ class AssociationRuleMiner:
             rules = rules[rules["support"] * total_tx >= min_abs_transactions]
 
         # 5. Sort by Lift and Confidence
-        sorted_rules = rules.sort_values(by=["lift", "confidence"], ascending=[False, False])
+        # lift is symmetric (A->B equals B->A up to float noise): round it so confidence decides the kept direction
+        rules = rules.assign(_lift_key=rules["lift"].round(6))
+        sorted_rules = rules.sort_values(by=["_lift_key", "confidence"], ascending=[False, False])
 
         # 6. Deduplicate symmetric rules (A -> B vs B -> A: keep the higher confidence one)
         deduped_rows = []
@@ -192,7 +194,7 @@ class AssociationRuleMiner:
 
         # Format output for JSON serialization and Frontend consumption
         formatted_itemsets = []
-        for _, row in frequent_itemsets.sort_values(by="support", ascending=False).head(40).iterrows():
+        for _, row in frequent_itemsets.sort_values(by="support", ascending=False).head(100).iterrows():
             formatted_itemsets.append({
                 "itemset": list(row["itemsets"]),
                 "support": round(float(row["support"]), 4),

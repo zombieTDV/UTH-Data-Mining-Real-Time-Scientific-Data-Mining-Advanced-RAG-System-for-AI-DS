@@ -29,11 +29,14 @@ class RetrievalService:
         self.influencers: List[dict] = []
         self.max_pagerank: float = 0.012632
         self.rules: List[dict] = []
+        self._graph_loaded = False
         self._init_db()
-        self._init_graph_and_rules()
 
-    def _init_graph_and_rules(self):
-        """Loads citation network influencers and frequent association rules from MinIO (gold/mining)."""
+    def _ensure_graph_and_rules(self):
+        """Loads citation network influencers and frequent association rules from MinIO/R2 on first access."""
+        if self._graph_loaded:
+            return
+        self._graph_loaded = True
         try:
             g_data = lake.get_json(f"{settings.MINING_PREFIX}/graph_coauthorship.json", ttl=0)
             if g_data:
@@ -56,6 +59,8 @@ class RetrievalService:
                 logger.info("[RETRIEVAL] [SUCCESS] Loaded %d FP-Growth association rules", len(self.rules))
         except Exception as e:
             logger.warning("[RETRIEVAL] [WARN] Could not load graph/rules artifacts: %s", str(e))
+
+    _init_graph_and_rules = _ensure_graph_and_rules
 
     @staticmethod
     def _normalize_authors(source_a: Any = None, source_b: Any = None) -> List[str]:
@@ -82,6 +87,7 @@ class RetrievalService:
 
     def _match_authority(self, authors: List[str]) -> Tuple[float, Optional[str]]:
         """Matches chunk authors against high-PageRank citation nodes."""
+        self._ensure_graph_and_rules()
         if not authors or not self.influencers:
             return 0.0, None
 
@@ -101,6 +107,7 @@ class RetrievalService:
 
     def _expand_rules(self, query: str, category: Optional[str]) -> List[str]:
         """Expands query context using mined association rules."""
+        self._ensure_graph_and_rules()
         if not self.rules:
             return []
         q_lower = query.lower()
@@ -185,7 +192,7 @@ class RetrievalService:
             self.table_name = settings.QDRANT_COLLECTION
             self.vector_dim = 768
             self._ready = True
-            logger.info("[RETRIEVAL] [SUCCESS] Connected to Qdrant collection: %s (%d vectors)", settings.QDRANT_COLLECTION, len(self.table))
+            logger.info("[RETRIEVAL] [SUCCESS] Initialized Qdrant collection wrapper: %s", settings.QDRANT_COLLECTION)
         except Exception as e:
             logger.error("[RETRIEVAL] [ERROR] Failed to connect to Qdrant: %s", str(e))
             self._ready = False
@@ -226,10 +233,31 @@ class RetrievalService:
         return cleaned
 
     def _search_title_matches(self, cleaned_title: str) -> List[dict]:
-        """Finds papers whose title closely matches the user's intent in the Silver catalogs."""
+        """Finds papers whose title closely matches the user's intent in the Silver catalogs.
+        Guarded against conversational queries to prevent expensive WAN Parquet scans."""
         if not cleaned_title or len(cleaned_title) < 4:
             return []
-        return lake.search_titles(cleaned_title)
+
+        # Check if the title is explicitly quoted
+        m_quote = re.search(r"[\"']([^\"']{4,})[\"']", cleaned_title)
+        if m_quote:
+            search_term = m_quote.group(1).strip()
+        else:
+            search_term = cleaned_title.strip()
+            # If not quoted, skip long multi-word questions (> 6 words) or conversational interrogatives
+            words = search_term.split()
+            if len(words) > 6:
+                return []
+            lower_term = search_term.lower()
+            question_starters = ("what ", "how ", "why ", "which ", "who ", "when ", "is there ", "are there ")
+            if any(lower_term.startswith(q) for q in question_starters):
+                return []
+
+        try:
+            return lake.search_titles(search_term)
+        except Exception as e:
+            logger.debug("[RETRIEVAL] Title search error: %s", e)
+            return []
 
     def search(self, req: SearchRequest) -> List[ChunkDto]:
         if not self.is_ready():

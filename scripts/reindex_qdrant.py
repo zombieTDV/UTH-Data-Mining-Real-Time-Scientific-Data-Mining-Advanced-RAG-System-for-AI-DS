@@ -1,7 +1,8 @@
 """Rebuild the Qdrant Gold collection from Silver (no re-crawl).
 
 Use after a change to chunking or embedding (e.g. the token window): every Silver paper is re-chunked and re-embedded
-exactly the way the queue consumer does it, into a freshly recreated collection, so no stale points survive.
+exactly the way the queue consumer does it, into a freshly recreated collection and a freshly rewritten Silver chunk
+table (silver/chunks/), so no stale points or chunk rows survive.
 Stop the queue consumer first: it is the only other writer to the collection.
 
     python scripts/reindex_qdrant.py            # rebuild everything
@@ -22,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.indexing.chunker import AcademicChunker  # noqa: E402
 from src.indexing.embedder import MAX_TOKENS, NomicEmbedder  # noqa: E402
 from src.indexing.qdrant_manager import QdrantManager  # noqa: E402
+from src.storage.chunk_store import CHUNKS_PREFIX, ChunkStore  # noqa: E402
 from src.storage.lakehouse_io import LakehouseIO  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s")
@@ -39,7 +41,7 @@ def main() -> None:
     silver = pd.concat([io.read_parquet(k) for k in keys], ignore_index=True)
     # A paper re-indexed with better content can have two rows until compaction: keep its richest one
     silver = silver.sort_values("total_words").drop_duplicates("paper_id", keep="last")
-    chunker = AcademicChunker(max_chunk_words=450, overlap_words=50)  # same settings as the queue consumer
+    chunker = AcademicChunker(max_chunk_words=450)  # same settings as the queue consumer
     logger.info("Silver: %d papers from %d files", len(silver), len(keys))
 
     embedder = NomicEmbedder()
@@ -54,6 +56,10 @@ def main() -> None:
     requests.delete(f"{qdrant.url}/collections/{qdrant.collection_name}", timeout=60).raise_for_status()
     qdrant.ensure_collection()
     logger.info("Recreated collection %s (window %d tokens)", qdrant.collection_name, MAX_TOKENS)
+    store = ChunkStore(storage=io.storage)
+    old_chunk_keys = io.list_keys(CHUNKS_PREFIX)
+    io.storage.delete_objects_batch(old_chunk_keys)
+    logger.info("Cleared %d object(s) under %s", len(old_chunk_keys), CHUNKS_PREFIX)
 
     records = silver.to_dict("records")
     total_chunks = no_text = longest = 0
@@ -71,6 +77,12 @@ def main() -> None:
         vectors = embedder.embed_documents([chunks[j]["context_text"] for j in order])
         for j, vec in zip(order, vectors):
             chunks[j]["vector"] = vec
+        by_year = {}
+        for c in chunks:
+            year = str(c.get("year") or time.gmtime().tm_year)
+            by_year.setdefault(year, []).append(c)
+        for year, year_chunks in by_year.items():
+            store.append_part(year_chunks, year=year)
         qdrant.insert_chunks(chunks)
         total_chunks += len(chunks)
         longest = max(longest, max(len(c["context_text"].split()) for c in chunks))
@@ -79,6 +91,7 @@ def main() -> None:
         logger.info("%d/%d papers, %d chunks, %.1f papers/s, ETA %.0f min",
                     done, len(records), total_chunks, rate, (len(records) - done) / rate / 60)
 
+    logger.info("Compacted silver/chunks/: %s", {y: r.get("rows") for y, r in store.compact_all()["results"].items()})
     logger.info("Done: %d papers -> %d chunks (%d papers have no text to embed); Qdrant now holds %d points",
                 len(records), total_chunks, no_text, qdrant.count())
 

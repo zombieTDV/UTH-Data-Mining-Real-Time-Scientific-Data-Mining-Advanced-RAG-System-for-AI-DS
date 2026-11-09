@@ -21,6 +21,10 @@ from src.indexing.qdrant_manager import QdrantManager
 from src.ingestion.queue_publisher import RabbitMQPublisher
 
 
+import pytest
+
+
+@pytest.mark.live_storage
 def test_minio_connection():
     """Verify MinIO connection, write, read, and delete."""
     print("\n--- Testing MinIO Connection ---")
@@ -49,6 +53,7 @@ def test_minio_connection():
     print("✅ MinIO Delete OK")
 
 
+@pytest.mark.live_storage
 def test_qdrant_connection():
     """Verify Qdrant connection and vector search."""
     print("\n--- Testing Qdrant Connection ---")
@@ -67,6 +72,7 @@ def test_qdrant_connection():
     print(f"   Top result: Paper {df.iloc[0]['paper_id']} - {df.iloc[0]['title'][:50]}... (Dist: {df.iloc[0]['_distance']:.4f})")
 
 
+@pytest.mark.live_storage
 def test_rabbitmq_publisher():
     """Verify RabbitMQ publishing."""
     print("\n--- Testing RabbitMQ Publisher ---")

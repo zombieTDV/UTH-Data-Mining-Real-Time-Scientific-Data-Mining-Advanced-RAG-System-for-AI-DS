@@ -39,6 +39,7 @@ def test_env_file_exists():
     )
 
 
+@pytest.mark.live_storage
 def test_env_variables_present():
     """Kiểm tra các biến môi trường thiết yếu của MinIO S3 trong .env."""
     required_vars = [
@@ -54,6 +55,7 @@ def test_env_variables_present():
     )
 
 
+@pytest.mark.live_storage
 def test_minio_connection_and_permissions():
     """Kiểm tra kết nối tới MinIO S3: Head Bucket, Write, Read, Delete."""
     storage = StorageClient()
@@ -92,6 +94,7 @@ def test_minio_connection_and_permissions():
         pytest.fail(f"Lỗi quyền XÓA trên MinIO bucket '{storage.bucket_name}': {e}")
 
 
+@pytest.mark.live_storage
 def test_arxiv_connectivity():
     """Kiểm tra kết nối mạng tới endpoint arXiv API / RSS."""
     try:

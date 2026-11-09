@@ -1,4 +1,5 @@
 import { useState, useMemo, type FC } from 'react';
+import { useTranslation } from '../../hooks';
 import {
   BronzeVaultGlyph,
   SilverColumnarGlyph,
@@ -31,6 +32,8 @@ export const ExplorerFileTree: FC<ExplorerFileTreeProps> = ({
   selectedKey,
   onSelectFile,
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedZones, setExpandedZones] = useState<Record<string, boolean>>({
     bronze: true,
@@ -71,22 +74,22 @@ export const ExplorerFileTree: FC<ExplorerFileTreeProps> = ({
   const zoneConfigs = [
     {
       id: 'silver',
-      name: 'SILVER COLUMNAR TABLES',
-      subtitle: 'Cleaned Parquet Lakehouse',
+      name: isVi ? 'BẢNG CỘT SILVER' : 'SILVER COLUMNAR TABLES',
+      subtitle: isVi ? 'Hồ Parquet đã chuẩn hoá' : 'Cleaned Parquet Lakehouse',
       glyph: <SilverColumnarGlyph size={17} />,
       color: '#06b6d4',
     },
     {
       id: 'gold',
-      name: 'GOLD ANALYTICAL LAYER',
-      subtitle: 'Derived Parquet & Mining Artifacts',
+      name: isVi ? 'TẦNG PHÂN TÍCH GOLD' : 'GOLD ANALYTICAL LAYER',
+      subtitle: isVi ? 'Parquet suy diễn & Sản phẩm Mining' : 'Derived Parquet & Mining Artifacts',
       glyph: <GoldPrismGlyph size={17} />,
       color: '#eab308',
     },
     {
       id: 'bronze',
-      name: 'BRONZE RAW VAULT',
-      subtitle: 'Ingested JSON & HTML5 Preprints',
+      name: isVi ? 'KHO LƯU TRỮ THÔ BRONZE' : 'BRONZE RAW VAULT',
+      subtitle: isVi ? 'JSON thu thập & Tiền ấn phẩm HTML5' : 'Ingested JSON & HTML5 Preprints',
       glyph: <BronzeVaultGlyph size={17} />,
       color: '#f59e0b',
     },
@@ -108,10 +111,10 @@ export const ExplorerFileTree: FC<ExplorerFileTreeProps> = ({
       <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary, #94a3b8)', letterSpacing: '0.06em' }}>
-            LAKEHOUSE FILE ASSETS
+            {isVi ? 'TỆP DỮ LIỆU LAKEHOUSE' : 'LAKEHOUSE FILE ASSETS'}
           </span>
           <span style={{ fontSize: '10px', color: 'var(--text-muted, #64748b)', fontFamily: 'var(--font-mono)' }}>
-            4 ZONES ACTIVE
+            {isVi ? '4 PHÂN VÙNG HOẠT ĐỘNG' : '4 ZONES ACTIVE'}
           </span>
         </div>
 
@@ -120,7 +123,7 @@ export const ExplorerFileTree: FC<ExplorerFileTreeProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search files by name or ext..."
+            placeholder={isVi ? 'Tìm tệp theo tên hoặc đuôi...' : 'Search files by name or ext...'}
             style={{
               width: '100%',
               backgroundColor: 'rgba(0, 0, 0, 0.25)',

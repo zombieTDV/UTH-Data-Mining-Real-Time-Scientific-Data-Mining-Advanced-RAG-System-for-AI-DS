@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLakehouseStreamStore } from '../../store';
+import { useTranslation } from '../../hooks';
 
 export interface LogLine {
   id: string;
@@ -18,6 +19,8 @@ const LEVEL_FILTERS = ['ALL', 'SUCCESS', 'INFO', 'WARN', 'ERROR'];
  * exactly what the numbers on the dashboard did.
  */
 export function LiveTelemetryFeed() {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -25,6 +28,18 @@ export function LiveTelemetryFeed() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const { logs: storeLogs, connectionStatus, live } = useLakehouseStreamStore();
+
+  const getFilterLabel = (lvl: string) => {
+    if (!isVi) return lvl;
+    switch (lvl) {
+      case 'ALL': return 'TẤT CẢ';
+      case 'SUCCESS': return 'THÀNH CÔNG';
+      case 'INFO': return 'THÔNG TIN';
+      case 'WARN': return 'CẢNH BÁO';
+      case 'ERROR': return 'LỖI';
+      default: return lvl;
+    }
+  };
 
   const allLogs: LogLine[] = storeLogs.map((sl) => ({
     id: sl.id,
@@ -95,7 +110,7 @@ export function LiveTelemetryFeed() {
             boxShadow: '0 0 8px rgba(16, 185, 129, 0.7)'
           }} />
           <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-            PIPELINE EXECUTION LOG
+            {isVi ? 'NHẬT KÝ THỰC THI PIPELINE' : 'PIPELINE EXECUTION LOG'}
           </span>
           <span style={{
             fontSize: '11px',
@@ -106,7 +121,7 @@ export function LiveTelemetryFeed() {
             padding: '2px 8px',
             borderRadius: '3px'
           }}>
-            {connectionStatus === 'CONNECTED' ? 'LIVE' : connectionStatus} · Airflow {live?.airflow.reachable ? 'online' : 'offline'} · queue {live ? live.queue.ready + live.queue.unacked : 0} → embed {live ? (live.queue.embed_ready ?? 0) + (live.queue.embed_unacked ?? 0) : 0}
+            {connectionStatus === 'CONNECTED' ? (isVi ? 'TRỰC TUYẾN' : 'LIVE') : connectionStatus} · Airflow {live?.airflow.reachable ? (isVi ? 'sẵn sàng' : 'online') : (isVi ? 'ngắt kết nối' : 'offline')} · queue {live ? live.queue.ready + live.queue.unacked : 0} → embed {live ? (live.queue.embed_ready ?? 0) + (live.queue.embed_unacked ?? 0) : 0}
           </span>
         </div>
 
@@ -135,14 +150,14 @@ export function LiveTelemetryFeed() {
                   cursor: 'pointer'
                 }}
               >
-                {lvl}
+                {getFilterLabel(lvl)}
               </button>
             ))}
           </div>
 
           <input
             type="text"
-            placeholder="Search log lines..."
+            placeholder={isVi ? 'Tìm kiếm nhật ký...' : 'Search log lines...'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -180,7 +195,7 @@ export function LiveTelemetryFeed() {
       }}>
         {filteredLogs.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            No log entries found for current filter.
+            {isVi ? 'Không tìm thấy dòng nhật ký phù hợp bộ lọc.' : 'No log entries found for current filter.'}
           </div>
         ) : (
           filteredLogs.map((log) => (
@@ -198,7 +213,7 @@ export function LiveTelemetryFeed() {
                 transition: 'background 0.1s ease',
                 borderBottom: '1px solid var(--border-subtle)'
               }}
-              title="Click to copy log line"
+              title={isVi ? 'Nhấp để sao chép dòng nhật ký' : 'Click to copy log line'}
             >
               {/* Timestamp */}
               <span style={{
@@ -241,7 +256,7 @@ export function LiveTelemetryFeed() {
                   borderRadius: '3px',
                   flexShrink: 0
                 }}>
-                  COPIED
+                  {isVi ? 'ĐÃ CHÉP' : 'COPIED'}
                 </span>
               )}
             </div>
@@ -259,13 +274,17 @@ export function LiveTelemetryFeed() {
         color: 'var(--text-secondary)',
         paddingTop: '4px'
       }}>
-        <span>SHOWING {filteredLogs.length} OF {allLogs.length} PIPELINE EVENTS (AIRFLOW · RABBITMQ · WORKER · QDRANT)</span>
+        <span>
+          {isVi
+            ? `HIỂN THỊ ${filteredLogs.length} TRÊN ${allLogs.length} SỰ KIỆN PIPELINE (AIRFLOW · RABBITMQ · WORKER · QDRANT)`
+            : `SHOWING ${filteredLogs.length} OF ${allLogs.length} PIPELINE EVENTS (AIRFLOW · RABBITMQ · WORKER · QDRANT)`}
+        </span>
         <span>
           <label style={{ cursor: 'pointer' }}>
             <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} style={{ marginRight: 6 }} />
-            FOLLOW LATEST
+            {isVi ? 'TỰ CUỘN MỚI NHẤT' : 'FOLLOW LATEST'}
           </label>
-          {' · '}CLICK A LINE TO COPY
+          {' · '}{isVi ? 'NHẤP DÒNG ĐỂ SAO CHÉP' : 'CLICK A LINE TO COPY'}
         </span>
       </div>
     </div>

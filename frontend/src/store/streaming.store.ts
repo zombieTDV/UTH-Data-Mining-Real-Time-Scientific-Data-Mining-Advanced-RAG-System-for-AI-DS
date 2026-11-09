@@ -291,6 +291,10 @@ export function setStreamTarget(target: number): void {
   updateState({ streamTarget: target });
 }
 
+export function setTotalCorpus(papers: number): void {
+  updateState({ totalCorpus: papers });
+}
+
 // ---------------------------------------------------------------- SSE
 export function initializeLakehouseStream(): () => void {
   if (initialized) return () => {};
@@ -298,6 +302,21 @@ export function initializeLakehouseStream(): () => void {
 
   void refreshStorageStats();
   void refreshPipelineLogs();
+
+  // Hydrate baseline corpus scale dynamically from EDA API
+  void (async () => {
+    try {
+      const { fetchEdaSummary } = await import('../services');
+      const eda = await fetchEdaSummary();
+      if (eda?.dataset_overview?.total_papers) {
+        updateState((prev) => ({
+          totalCorpus: prev.totalCorpus || eda.dataset_overview.total_papers,
+        }));
+      }
+    } catch {
+      /* EDA endpoint will be retried on demand */
+    }
+  })();
 
   const connectSSE = () => {
     if (eventSourceInstance) eventSourceInstance.close();
@@ -385,6 +404,7 @@ export function useLakehouseStreamStore() {
     ...storeState,
     initializeStream: initializeLakehouseStream,
     setStreamTarget,
+    setTotalCorpus,
     appendLog: appendStreamLog,
     refreshStorageStats,
     setViewMode,

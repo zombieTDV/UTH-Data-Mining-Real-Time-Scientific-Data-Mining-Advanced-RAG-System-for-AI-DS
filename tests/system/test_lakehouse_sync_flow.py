@@ -47,6 +47,7 @@ def test_format_size_utility():
 
 
 @pytest.mark.system
+@pytest.mark.live_storage
 def test_build_inventory_integrity():
     """Live listing of the MinIO bucket (needs MinIO running)."""
     inv = build_inventory(force=True)

@@ -3,6 +3,8 @@ import pytest
 import numpy as np
 from src.indexing.qdrant_manager import QdrantManager
 
+pytestmark = [pytest.mark.integration, pytest.mark.live_storage]
+
 
 @pytest.fixture
 def temp_qdrant():

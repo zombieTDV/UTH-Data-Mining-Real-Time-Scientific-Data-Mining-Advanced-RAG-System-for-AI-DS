@@ -111,3 +111,41 @@ def test_reranker_mock_scoring(sample_candidate_chunks, monkeypatch):
     # Scores must be valid probabilities in [0.0, 1.0]
     for c in res:
         assert 0.0 <= c.score <= 1.0
+
+
+@pytest.mark.unit
+def test_reranker_respects_max_length(sample_candidate_chunks, monkeypatch):
+    import torch
+    from backend.app.core.config import settings
+
+    monkeypatch.setattr(settings, "RERANKER_ENABLED", True)
+    monkeypatch.setattr(settings, "RERANKER_MAX_LENGTH", 128)
+
+    svc = RerankerService()
+    monkeypatch.setattr(svc, "_lazy_init", lambda: None)
+    svc._ready = True
+
+    captured_kwargs = {}
+
+    class CapturingTokenizer:
+        def __call__(self, pairs, **kwargs):
+            captured_kwargs.update(kwargs)
+            class DummyBatch(dict):
+                def to(self, device):
+                    return self
+            return DummyBatch({"input_ids": torch.zeros((len(pairs), 10))})
+
+    class DummyModel:
+        def __call__(self, **kwargs):
+            class DummyOutput:
+                logits = torch.tensor([[1.0], [2.0], [3.0]])
+            return DummyOutput()
+
+    svc.model = DummyModel()
+    svc.tokenizer = CapturingTokenizer()
+    svc.device = torch.device("cpu")
+
+    svc.rerank("query", sample_candidate_chunks)
+    assert captured_kwargs.get("max_length") == 128
+    assert captured_kwargs.get("truncation") is True
+

@@ -1,5 +1,6 @@
 import { useState, type FC } from 'react';
 import { useLakehouseStreamStore } from '../../store';
+import { useTranslation } from '../../hooks';
 import type { ExplorerFileItem } from './ExplorerFileTree.component';
 import { ParquetTableViewer, type ParquetColumn } from './ParquetTableViewer.component';
 import { JsonTreeViewer } from './JsonTreeViewer.component';
@@ -42,6 +43,8 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
   error,
   onRetry,
 }) => {
+  const { language } = useTranslation();
+  const isVi = language === 'vi';
   const [copiedKey, setCopiedKey] = useState(false);
   const { totalVectors, storageStats } = useLakehouseStreamStore();
   const bucketName = storageStats?.bucket || 'lakehouse';
@@ -91,10 +94,12 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
           </svg>
         </div>
         <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary, #f8fafc)' }}>
-          MinIO Object Storage Inspector
+          {isVi ? 'Trình Giám Sát Lưu Trữ Đối Tượng MinIO' : 'MinIO Object Storage Inspector'}
         </div>
         <p style={{ maxWidth: '440px', fontSize: '13px', lineHeight: '1.6', marginTop: '8px' }}>
-          Select any Lakehouse object from the file navigator on the left to inspect columnar Parquet tables, JSON payloads, or any other object stored in the lakehouse bucket.
+          {isVi
+            ? 'Chọn bất kỳ tệp đối tượng nào từ cây điều hướng bên trái để xem bảng Parquet dạng cột, dữ liệu JSON hoặc các đối tượng lưu trữ trong Lakehouse bucket.'
+            : 'Select any Lakehouse object from the file navigator on the left to inspect columnar Parquet tables, JSON payloads, or any other object stored in the lakehouse bucket.'}
         </p>
 
         {/* Lakehouse Zone Quick Overview */}
@@ -119,10 +124,10 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '12px', color: '#f59e0b' }}>
               <BronzeVaultGlyph size={14} />
-              BRONZE VAULT
+              {isVi ? 'KHO THÔ BRONZE' : 'BRONZE VAULT'}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-              Raw HTML5 and JSON preprint archives (arXiv, conferences)
+              {isVi ? 'Tài liệu HTML5 thô & lưu trữ tiền ấn phẩm JSON' : 'Raw HTML5 and JSON preprint archives (arXiv, conferences)'}
             </div>
           </div>
 
@@ -136,10 +141,10 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '12px', color: '#06b6d4' }}>
               <SilverColumnarGlyph size={14} />
-              SILVER COLUMNAR
+              {isVi ? 'BẢNG CỘT SILVER' : 'SILVER COLUMNAR'}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-              Cleaned, typed Parquet tables (36.4k papers, CVF, OpenReview)
+              {isVi ? 'Bảng Parquet đã làm sạch & định kiểu (arXiv, CVF, OpenReview)' : 'Cleaned, typed Parquet tables (36.4k papers, CVF, OpenReview)'}
             </div>
           </div>
 
@@ -153,10 +158,10 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '12px', color: '#eab308' }}>
               <GoldPrismGlyph size={14} />
-              GOLD ANALYTICAL
+              {isVi ? 'TẦNG PHÂN TÍCH GOLD' : 'GOLD ANALYTICAL'}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-              Aggregated insights, Louvain communities, and velocity trends
+              {isVi ? 'Thông tin tổng hợp, cộng đồng Louvain & vận tốc xu hướng' : 'Aggregated insights, Louvain communities, and velocity trends'}
             </div>
           </div>
 
@@ -173,7 +178,7 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
               QDRANT 768-D
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-              {totalVectors.toLocaleString()} vectors · HNSW cosine index (Gold layer)
+              {totalVectors.toLocaleString()} vectors · {isVi ? 'Chỉ mục HNSW cosine (Tầng Gold)' : 'HNSW cosine index (Gold layer)'}
             </div>
           </div>
         </div>
@@ -210,10 +215,10 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
           }}
         />
         <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary, #f8fafc)' }}>
-          Reading {selectedFile.name}...
+          {isVi ? `Đang đọc ${selectedFile.name}...` : `Reading ${selectedFile.name}...`}
         </div>
         <div style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', marginTop: '6px' }}>
-          Reading the object preview from MinIO
+          {isVi ? 'Đang trích xuất bản xem trước từ MinIO' : 'Reading the object preview from MinIO'}
         </div>
       </div>
     );
@@ -256,7 +261,7 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
           </svg>
         </div>
         <div style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444' }}>
-          Failed to Load Preview
+          {isVi ? 'Không thể nạp bản xem trước' : 'Failed to Load Preview'}
         </div>
         <p style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', marginTop: '8px', maxWidth: '400px' }}>
           {error}
@@ -275,7 +280,7 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
             cursor: 'pointer',
           }}
         >
-          Retry Preview Extraction
+          {isVi ? 'Thử Lại Trích Xuất' : 'Retry Preview Extraction'}
         </button>
       </div>
     );
@@ -330,7 +335,7 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          {copiedKey ? 'URI Copied' : 'Copy S3 URI'}
+          {copiedKey ? (isVi ? 'Đã Chép URI' : 'URI Copied') : (isVi ? 'Chép S3 URI' : 'Copy S3 URI')}
         </button>
       </div>
 
@@ -371,9 +376,13 @@ export const ExplorerFileInspector: FC<ExplorerFileInspectorProps> = ({
               textAlign: 'center',
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: '15px' }}>Binary Lakehouse Object</div>
+            <div style={{ fontWeight: 700, fontSize: '15px' }}>
+              {isVi ? 'Đối tượng Nhị phân Lakehouse' : 'Binary Lakehouse Object'}
+            </div>
             <p style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', marginTop: '8px' }}>
-              This object is stored in raw binary format ({selectedFile.size_formatted}).
+              {isVi
+                ? `Đối tượng này được lưu trữ ở định dạng nhị phân thô (${selectedFile.size_formatted}).`
+                : `This object is stored in raw binary format (${selectedFile.size_formatted}).`}
             </p>
           </div>
         )}
