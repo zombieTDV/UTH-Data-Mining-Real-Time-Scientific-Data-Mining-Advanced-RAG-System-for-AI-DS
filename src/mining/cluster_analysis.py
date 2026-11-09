@@ -6,7 +6,7 @@ Analyzes Gold vector embeddings (Qdrant) (768-dim) across distinct papers using 
 evaluates cluster validity metrics (Silhouette, Davies-Bouldin, Calinski-Harabasz),
 and generates clean 2D projections (PCA on centered normalized embeddings) for interactive visualization.
 
-Adheres strictly to docs/agents/rules/LOGGING_CHECKPOINT_RULES.md:
+Adheres strictly to agents/rules/LOGGING_CHECKPOINT_RULES.md:
 - Strictly NO emojis/icons.
 - Timestamped plain-text logs: [INFO], [SUCCESS], [WARNING], [ERROR].
 """

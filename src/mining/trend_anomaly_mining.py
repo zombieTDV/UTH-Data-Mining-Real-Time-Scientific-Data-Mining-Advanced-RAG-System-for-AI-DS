@@ -6,7 +6,7 @@ Applies Isolation Forest with log1p scaling to detect structural outlier papers
 (monographs, extreme formula density, massive collaboration teams),
 and computes share-normalized temporal trend velocities across scientific categories.
 
-Adheres strictly to docs/agents/rules/LOGGING_CHECKPOINT_RULES.md:
+Adheres strictly to agents/rules/LOGGING_CHECKPOINT_RULES.md:
 - Strictly NO emojis/icons.
 - Timestamped plain-text logs: [INFO], [SUCCESS], [WARNING], [ERROR].
 """

@@ -382,17 +382,26 @@ UTH-Data-Mining-Real-Time-Scientific-Data-Mining-Advanced-RAG-System-for-AI-DS/
 │   ├── start_app.sh              # Kịch bản 1-Click khởi chạy toàn bộ dịch vụ
 │   └── build_presentation_report.py
 │
+├── dags/                          # Airflow DAGs: harvest 3 tier, compact Silver, recompute mining
+├── benchmarks/                    # DeepEval RAG eval, chunking A/B, Laya fine-tune benchmark
+├── notebooks/                     # Notebook fine-tune / khám phá dữ liệu
+├── tests/                         # unit / integration / e2e / performance / system
+├── agents/                        # Quy tắc, template & skill cho AI agent
+│
 ├── docs/                          # Toàn bộ tài liệu báo cáo & nghiên cứu học thuật
-│   ├── agent_logs/               # Nhật ký quyết định kiến trúc ([Vuong_DECISION_LOG.md](docs/agent_logs/Vuong_DECISION_LOG.md))
-│   ├── presentation/             # Slide thuyết trình bảo vệ đồ án HTML (16 Slides Plot-First)
+│   ├── OVERVIEW.md               # Roadmap tổng
+│   ├── plans/                    # Kế hoạch mở rộng thu thập dữ liệu (tier 1/2, 10k–30k papers)
+│   ├── reports/                  # Báo cáo kỹ thuật (chunking, IVF-PQ, lakehouse metrics, audit)
+│   ├── presentation/             # Slide HTML bảo vệ đồ án, kịch bản, PPT Master (pptmaster/)
 │   ├── benchmarks/               # Đánh giá hiệu năng RAG (DeepEval Suite 21 Mẫu)
-│   └── mining/                   # Đặc tả toán học chi tiết 4 Trụ Cột Khai Phá
+│   ├── mining/                   # Đặc tả toán học chi tiết 4 Trụ Cột Khai Phá
+│   ├── references/               # Tài liệu môn học (lecture_slides/ = slide giảng viên)
+│   ├── agent_logs/               # Nhật ký quyết định kiến trúc ([Vuong_DECISION_LOG.md](docs/agent_logs/Vuong_DECISION_LOG.md))
+│   ├── bugs/ · r2/ · shared/ · assets/ · pdf_reports/
+│   └── legacy_data_mining/       # Tài liệu của pipeline data_mining/ cũ (trước khi gộp vào src/)
 │
-├── docker/                        # Cấu hình hạ tầng phân tán (MinIO, Qdrant, RabbitMQ, Airflow)
-│   ├── docker-compose.yml
-│   └── airflow/
-│
-├── .env                           # Biến môi trường và khóa bảo mật
+├── PRODUCT.md                     # Product context cho tool thiết kế Impeccable (phải ở root)
+├── .env                           # Biến môi trường và khóa bảo mật (không commit)
 └── README.md                      # Đặc tả kỹ thuật và tài liệu dự án
 ```
 

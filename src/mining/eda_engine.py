@@ -8,7 +8,7 @@ Silver Parquet (and Cloudflare R2), producing structured dual-scale distribution
 - Micro-EDA across 15,128 Full-Text papers (LaTeX Formula Density, Quantiles, Multivariate Correlations).
 - RAG Vector Lakehouse profiling across 659,601 Gold LanceDB chunks.
 
-Adheres strictly to docs/agents/rules/LOGGING_CHECKPOINT_RULES.md:
+Adheres strictly to agents/rules/LOGGING_CHECKPOINT_RULES.md:
 - Strictly NO emojis/icons.
 - Timestamped plain-text logs: [INFO], [SUCCESS], [WARNING], [ERROR].
 """
