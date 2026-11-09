@@ -5,7 +5,7 @@ Pillar 1: Frequent Pattern & Association Rule Mining Pipeline (FP-Growth).
 Discovers non-trivial co-occurrence patterns across scientific categories
 and domain concepts extracted from academic papers.
 
-Adheres strictly to docs/agents/rules/LOGGING_CHECKPOINT_RULES.md:
+Adheres strictly to agents/rules/LOGGING_CHECKPOINT_RULES.md:
 - Strictly NO emojis/icons.
 - Timestamped plain-text logs: [INFO], [SUCCESS], [WARNING], [ERROR].
 """
