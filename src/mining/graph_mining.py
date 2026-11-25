@@ -7,7 +7,7 @@ computes directed PageRank centrality, in-degree citation authority, and modular
 and exports high-impact network topologies for interactive visualization.
 Includes automatic fallback to fractional-weighted co-authorship if citation files are unavailable.
 
-Adheres strictly to docs/agents/rules/LOGGING_CHECKPOINT_RULES.md:
+Adheres strictly to agents/rules/LOGGING_CHECKPOINT_RULES.md:
 - Strictly NO emojis/icons.
 - Timestamped plain-text logs: [INFO], [SUCCESS], [WARNING], [ERROR].
 """

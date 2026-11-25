@@ -21,8 +21,8 @@ Every claim on a slide comes from the running system: artifact files in `gold/mi
 
 ## Operating Context
 
-- Decks are single self-contained HTML files under `docs/` (chapter 3: `docs/preprocessing_slides.html`, chapter 4: `docs/processing_slides.html`), navigated with arrow keys and exportable to PDF.
-- Course chapter structure comes from the lecturer's slides in `pdf/` (Chapter1, 2, 4).
+- Decks are single self-contained HTML files under `docs/` (chapter 3: `docs/presentation/preprocessing_slides.html`, chapter 4: `docs/presentation/processing_slides.html`), navigated with arrow keys and exportable to PDF.
+- Course chapter structure comes from the lecturer's slides in `docs/references/lecture_slides/` (Chapter1, 2, 4).
 
 ## Capabilities and Constraints
 

@@ -11,7 +11,7 @@ Executes the comprehensive analytical suite over the academic papers in Lakehous
 
 Reads Silver Parquet from MinIO (DuckDB over S3) and vectors from Qdrant; publishes every artifact to MinIO gold/mining/.
 Nothing is read from or written to the local disk.
-Adheres strictly to docs/agents/rules/LOGGING_CHECKPOINT_RULES.md (Strictly NO emojis/icons).
+Adheres strictly to agents/rules/LOGGING_CHECKPOINT_RULES.md (Strictly NO emojis/icons).
 """
 
 import os

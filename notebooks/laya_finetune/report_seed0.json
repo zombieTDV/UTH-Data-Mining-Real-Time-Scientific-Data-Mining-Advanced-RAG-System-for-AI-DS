@@ -1,0 +1,271 @@
+{
+ "seed": 0,
+ "loss": "soft-ce",
+ "epochs": 4,
+ "micro_batch": 8,
+ "grad_accum": 8,
+ "max_len": 512,
+ "laya_version": "0.4.27",
+ "before": {
+  "auc": 0.6685,
+  "mrr": 0.7615,
+  "mrr_groups": 130,
+  "accept": {
+   "answerable": {
+    "0.3": 0.956,
+    "0.4": 0.92,
+    "0.5": 0.847,
+    "0.6": 0.73,
+    "0.7": 0.533,
+    "0.8": 0.197,
+    "0.9": 0.007
+   },
+   "fabricated": {
+    "0.3": 0.853,
+    "0.4": 0.772,
+    "0.5": 0.647,
+    "0.6": 0.574,
+    "0.7": 0.353,
+    "0.8": 0.147,
+    "0.9": 0.0
+   },
+   "missing_detail": {
+    "0.3": 0.809,
+    "0.4": 0.765,
+    "0.5": 0.654,
+    "0.6": 0.515,
+    "0.7": 0.316,
+    "0.8": 0.132,
+    "0.9": 0.0
+   },
+   "retrieved_irrelevant": {
+    "0.3": 0.82,
+    "0.4": 0.71,
+    "0.5": 0.598,
+    "0.6": 0.424,
+    "0.7": 0.265,
+    "0.8": 0.067,
+    "0.9": 0.006
+   },
+   "retrieved_relevant": {
+    "0.3": 0.988,
+    "0.4": 0.916,
+    "0.5": 0.831,
+    "0.6": 0.747,
+    "0.7": 0.554,
+    "0.8": 0.169,
+    "0.9": 0.012
+   }
+  }
+ },
+ "after": {
+  "auc": 0.9085,
+  "mrr": 0.959,
+  "mrr_groups": 130,
+  "accept": {
+   "answerable": {
+    "0.3": 0.81,
+    "0.4": 0.803,
+    "0.5": 0.796,
+    "0.6": 0.774,
+    "0.7": 0.752,
+    "0.8": 0.672,
+    "0.9": 0.343
+   },
+   "fabricated": {
+    "0.3": 0.015,
+    "0.4": 0.015,
+    "0.5": 0.015,
+    "0.6": 0.015,
+    "0.7": 0.015,
+    "0.8": 0.015,
+    "0.9": 0.0
+   },
+   "missing_detail": {
+    "0.3": 0.096,
+    "0.4": 0.081,
+    "0.5": 0.051,
+    "0.6": 0.051,
+    "0.7": 0.044,
+    "0.8": 0.022,
+    "0.9": 0.0
+   },
+   "retrieved_irrelevant": {
+    "0.3": 0.125,
+    "0.4": 0.098,
+    "0.5": 0.073,
+    "0.6": 0.055,
+    "0.7": 0.043,
+    "0.8": 0.024,
+    "0.9": 0.003
+   },
+   "retrieved_relevant": {
+    "0.3": 0.578,
+    "0.4": 0.578,
+    "0.5": 0.506,
+    "0.6": 0.482,
+    "0.7": 0.446,
+    "0.8": 0.337,
+    "0.9": 0.12
+   }
+  }
+ },
+ "onnx_logit_gap": 5.140900611877441e-06,
+ "train_summary": {
+  "train_items": 3432,
+  "calibration_items": 381,
+  "eval_items": 820,
+  "skipped": {},
+  "epoch_loss": [
+   0.44495829341538023,
+   0.19573588002286418,
+   0.06770059786042815,
+   0.016836027234658657
+  ],
+  "temperature": [
+   1.0,
+   1.0,
+   3.0627379417419434
+  ],
+  "temperature_by_options": {},
+  "n_by_bucket": {
+   "noul:2": 381
+  },
+  "calibration": {
+   "choice": {
+    "items": 0,
+    "temperature": 1.0,
+    "issues": []
+   },
+   "score": {
+    "items": 0,
+    "temperature": 1.0,
+    "issues": []
+   },
+   "noul": {
+    "items": 381,
+    "temperature": 3.0627379417419434,
+    "issues": [],
+    "accuracy": 0.8661417322834646,
+    "mean_confidence": 0.8712206710446688
+   }
+  },
+  "abstention_thresholds": {
+   "noul:2": 0.7666
+  },
+  "train_report": {
+   "eval_source": "/content/laya_work/dev.jsonl",
+   "eval_mode": "held_out",
+   "is_held_out": true,
+   "eval_items": 820,
+   "note": "Metrics reflect independent held-out evaluation.",
+   "before": {
+    "items": 820,
+    "loss": 0.7845,
+    "accuracy": 0.5012,
+    "mean_confidence": 0.691,
+    "ece": 0.19,
+    "brier": 0.5758,
+    "brier_top1": 0.2879,
+    "by_type": {
+     "noul": {
+      "items": 820,
+      "loss": 0.7845,
+      "accuracy": 0.5012,
+      "mean_confidence": 0.691,
+      "ece": 0.19,
+      "brier": 0.5758,
+      "brier_top1": 0.2879
+     }
+    }
+   },
+   "after": {
+    "items": 820,
+    "loss": 0.3253,
+    "accuracy": 0.8768,
+    "mean_confidence": 0.8846,
+    "ece": 0.0332,
+    "brier": 0.1951,
+    "brier_top1": 0.0975,
+    "by_type": {
+     "noul": {
+      "items": 820,
+      "loss": 0.3253,
+      "accuracy": 0.8768,
+      "mean_confidence": 0.8846,
+      "ece": 0.0332,
+      "brier": 0.1951,
+      "brier_top1": 0.0975
+     }
+    }
+   },
+   "comparison": {
+    "delta_accuracy": 0.3756,
+    "delta_loss": -0.4592,
+    "delta_ece": -0.1568,
+    "delta_brier": -0.3807,
+    "delta_brier_top1": -0.1904,
+    "delta_mean_confidence": 0.1936
+   },
+   "calibration": {
+    "choice": {
+     "items": 0,
+     "temperature": 1.0,
+     "issues": []
+    },
+    "score": {
+     "items": 0,
+     "temperature": 1.0,
+     "issues": []
+    },
+    "noul": {
+     "items": 381,
+     "temperature": 3.0627379417419434,
+     "issues": [],
+     "accuracy": 0.8661417322834646,
+     "mean_confidence": 0.8712206710446688
+    }
+   },
+   "abstention_thresholds": {
+    "noul:2": 0.7666
+   },
+   "training": {
+    "epochs": 4,
+    "micro_batch": 8,
+    "grad_accum": 8,
+    "encoder_lr": 2.5e-05,
+    "head_lr": 0.0001,
+    "min_lr": 1e-06,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "loss": "soft-ce",
+    "rl_samples": 4,
+    "sigma_start": 0.4,
+    "sigma_end": 0.1,
+    "w_sph": 0.75,
+    "w_rps": 1.0,
+    "shuffle_options": [],
+    "option_layout": null,
+    "freeze_encoder": false,
+    "calib_max": 400,
+    "calib_frac": 0.1,
+    "calib_seed": 20260922,
+    "seed": 0,
+    "max_len": 512,
+    "head_max_len": null,
+    "amp": null,
+    "gradient_checkpointing": null,
+    "log_every": 100,
+    "label_smoothing": 0.0,
+    "text_column": "text",
+    "label_column": "label",
+    "question_id": "label",
+    "instructions": null,
+    "eval_data": "/content/laya_work/dev.jsonl",
+    "target_error": 0.1,
+    "min_abstain_n": 10
+   }
+  },
+  "output_dir": "/content/laya_work/laya_ft"
+ }
+}
